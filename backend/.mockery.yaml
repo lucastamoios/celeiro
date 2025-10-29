@@ -1,0 +1,4 @@
+packages:
+    github.com/catrutech/scaffold/pkg/database/transient:
+        interfaces:
+            TransientDatabase:

@@ -1,0 +1,330 @@
+package financial
+
+import (
+	"context"
+	"testing"
+
+	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// MockRepository is a mock implementation of Repository for testing
+type MockRepository struct {
+	mock.Mock
+}
+
+// Categories
+func (m *MockRepository) FetchCategories(ctx context.Context, params fetchCategoriesParams) ([]CategoryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]CategoryModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchCategoryByID(ctx context.Context, params fetchCategoryByIDParams) (CategoryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(CategoryModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertCategory(ctx context.Context, params insertCategoryParams) (CategoryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(CategoryModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyCategory(ctx context.Context, params modifyCategoryParams) (CategoryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(CategoryModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveCategory(ctx context.Context, params removeCategoryParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// Accounts
+func (m *MockRepository) FetchAccounts(ctx context.Context, params fetchAccountsParams) ([]AccountModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]AccountModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchAccountByID(ctx context.Context, params fetchAccountByIDParams) (AccountModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(AccountModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertAccount(ctx context.Context, params insertAccountParams) (AccountModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(AccountModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyAccount(ctx context.Context, params modifyAccountParams) (AccountModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(AccountModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveAccount(ctx context.Context, params removeAccountParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// Transactions
+func (m *MockRepository) FetchTransactions(ctx context.Context, params fetchTransactionsParams) ([]TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TransactionModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchTransactionByID(ctx context.Context, params fetchTransactionByIDParams) (TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(TransactionModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(TransactionModel), args.Error(1)
+}
+
+func (m *MockRepository) BulkInsertTransactions(ctx context.Context, params bulkInsertTransactionsParams) ([]TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TransactionModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(TransactionModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveTransaction(ctx context.Context, params removeTransactionParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// Budgets
+func (m *MockRepository) FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]BudgetModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchBudgetByID(ctx context.Context, params fetchBudgetByIDParams) (BudgetModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(BudgetModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertBudget(ctx context.Context, params insertBudgetParams) (BudgetModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(BudgetModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyBudget(ctx context.Context, params modifyBudgetParams) (BudgetModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(BudgetModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveBudget(ctx context.Context, params removeBudgetParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// Budget Items
+func (m *MockRepository) FetchBudgetItems(ctx context.Context, params fetchBudgetItemsParams) ([]BudgetItemModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]BudgetItemModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertBudgetItem(ctx context.Context, params insertBudgetItemParams) (BudgetItemModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(BudgetItemModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyBudgetItem(ctx context.Context, params modifyBudgetItemParams) (BudgetItemModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(BudgetItemModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveBudgetItem(ctx context.Context, params removeBudgetItemParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// Classification Rules
+func (m *MockRepository) FetchClassificationRules(ctx context.Context, params fetchClassificationRulesParams) ([]ClassificationRuleModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]ClassificationRuleModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchClassificationRuleByID(ctx context.Context, params fetchClassificationRuleByIDParams) (ClassificationRuleModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(ClassificationRuleModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertClassificationRule(ctx context.Context, params insertClassificationRuleParams) (ClassificationRuleModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(ClassificationRuleModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyClassificationRule(ctx context.Context, params modifyClassificationRuleParams) (ClassificationRuleModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(ClassificationRuleModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveClassificationRule(ctx context.Context, params removeClassificationRuleParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// ============================================================================
+// Service Tests
+// ============================================================================
+
+func TestGetCategories_Success(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		Repository: mockRepo,
+	}
+
+	ctx := context.Background()
+	userID := 1
+
+	expectedModels := []CategoryModel{
+		{CategoryID: 1, Name: "Food", Icon: "🍔", IsSystem: true, UserID: nil},
+		{CategoryID: 2, Name: "Custom", Icon: "✨", IsSystem: false, UserID: &userID},
+	}
+
+	mockRepo.On("FetchCategories", ctx, mock.MatchedBy(func(params fetchCategoriesParams) bool {
+		return *params.UserID == userID && params.IncludeSystem == true
+	})).Return(expectedModels, nil)
+
+	result, err := svc.GetCategories(ctx, GetCategoriesInput{
+		UserID:        userID,
+		IncludeSystem: true,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 2)
+	assert.Equal(t, "Food", result[0].Name)
+	assert.True(t, result[0].IsSystem)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestCreateAccount_Success(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		Repository: mockRepo,
+	}
+
+	ctx := context.Background()
+	balance := decimal.NewFromFloat(1000.50)
+
+	expectedModel := AccountModel{
+		AccountID:      1,
+		UserID:         1,
+		OrganizationID: 1,
+		Name:           "Checking Account",
+		AccountType:    AccountTypeChecking,
+		BankName:       "Test Bank",
+		Balance:        balance,
+		Currency:       "BRL",
+		IsActive:       true,
+	}
+
+	mockRepo.On("InsertAccount", ctx, mock.MatchedBy(func(params insertAccountParams) bool {
+		return params.Name == "Checking Account" &&
+			params.AccountType == AccountTypeChecking &&
+			params.Balance.Equal(balance)
+	})).Return(expectedModel, nil)
+
+	result, err := svc.CreateAccount(ctx, CreateAccountInput{
+		UserID:         1,
+		OrganizationID: 1,
+		Name:           "Checking Account",
+		AccountType:    AccountTypeChecking,
+		BankName:       "Test Bank",
+		Balance:        balance,
+		Currency:       "BRL",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, result.AccountID)
+	assert.Equal(t, "Checking Account", result.Name)
+	assert.True(t, result.Balance.Equal(balance))
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetBudgetByID_Success(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		Repository: mockRepo,
+	}
+
+	ctx := context.Background()
+	budgetModel := BudgetModel{
+		BudgetID:       1,
+		UserID:         1,
+		OrganizationID: 1,
+		Name:           "Monthly Budget",
+		Month:          10,
+		Year:           2025,
+		BudgetType:     BudgetTypeCalculated,
+		Amount:         decimal.NewFromFloat(5000),
+		IsActive:       true,
+	}
+
+	itemModels := []BudgetItemModel{
+		{BudgetItemID: 1, BudgetID: 1, CategoryID: 1, PlannedAmount: decimal.NewFromFloat(2000)},
+		{BudgetItemID: 2, BudgetID: 1, CategoryID: 2, PlannedAmount: decimal.NewFromFloat(1500)},
+	}
+
+	mockRepo.On("FetchBudgetByID", ctx, fetchBudgetByIDParams{
+		BudgetID:       1,
+		UserID:         1,
+		OrganizationID: 1,
+	}).Return(budgetModel, nil)
+
+	mockRepo.On("FetchBudgetItems", ctx, fetchBudgetItemsParams{
+		BudgetID:       1,
+		UserID:         1,
+		OrganizationID: 1,
+	}).Return(itemModels, nil)
+
+	result, err := svc.GetBudgetByID(ctx, GetBudgetByIDInput{
+		BudgetID:       1,
+		UserID:         1,
+		OrganizationID: 1,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, result.BudgetID)
+	assert.Len(t, result.Items, 2)
+
+	// Test calculated budget amount
+	calculatedAmount := result.CalculatedBudgetAmount()
+	expectedAmount := decimal.NewFromFloat(3500) // 2000 + 1500
+	assert.True(t, calculatedAmount.Equal(expectedAmount),
+		"Expected %s, got %s", expectedAmount.String(), calculatedAmount.String())
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetTransactions_DefaultLimit(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		Repository: mockRepo,
+	}
+
+	ctx := context.Background()
+	expectedModels := []TransactionModel{}
+
+	mockRepo.On("FetchTransactions", ctx, mock.MatchedBy(func(params fetchTransactionsParams) bool {
+		// Should default to 100 if limit is 0
+		return params.Limit == 100
+	})).Return(expectedModels, nil)
+
+	_, err := svc.GetTransactions(ctx, GetTransactionsInput{
+		AccountID:      1,
+		UserID:         1,
+		OrganizationID: 1,
+		Limit:          0, // Should default to 100
+		Offset:         0,
+	})
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}

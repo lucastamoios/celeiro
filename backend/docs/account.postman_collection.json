@@ -1,0 +1,100 @@
+{
+	"info": {
+		"_postman_id": "d0746bbe-d559-464e-abf9-f2312e9c0915",
+		"name": "account",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "9791648",
+		"_collection_link": "https://red-satellite-996608.postman.co/workspace/Scarfold~4185c89e-3c54-4fa6-a664-54dd1f346a24/collection/9791648-d0746bbe-d559-464e-abf9-f2312e9c0915?action=share&source=collection_link&creator=9791648"
+	},
+	"item": [
+		{
+			"name": "magic-link-request",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"email\": \"breno.silva@example.com\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URL}}/magic-link/request",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"magic-link",
+						"request"
+					]
+				},
+				"description": "Generated from cURL: curl -X POST http://localhost:8080/magic-link/request \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"email\": \"test@example.com\"}'"
+			},
+			"response": []
+		},
+		{
+			"name": "magic-link-validate",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"email\": \"breno.silva@example.com\", \"code\": \"2776\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URL}}/magic-link/validate",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"magic-link",
+						"validate"
+					]
+				},
+				"description": "Generated from cURL: curl -X POST http://localhost:8080/magic-link/validate \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"email\": \"test@example.com\", \"code\": \"1234\"}'"
+			},
+			"response": []
+		},
+		{
+			"name": "me",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer ab96a10b-b534-432d-8665-047967dd5f70"
+					}
+				],
+				"url": {
+					"raw": "{{URL}}/me",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"me"
+					]
+				},
+				"description": "Generated from cURL: curl -X GET http://localhost:8080/me \\\n  -H \"Authorization: Bearer YOUR_SESSION_ID_HERE\""
+			},
+			"response": []
+		}
+	]
+}

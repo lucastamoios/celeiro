@@ -1,0 +1,6 @@
+tmp
+postgres_data
+redis_data
+node_modules
+__debug*
+localmailer

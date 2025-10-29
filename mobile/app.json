@@ -1,0 +1,98 @@
+{
+  "name": "appvodsafe",
+  "slug": "appvodsafe",
+  "scheme": "appvodsafe",
+  "version": "1.0.0",
+  "orientation": "portrait",
+  "userInterfaceStyle": "automatic",
+  "icon": "./assets/images/app-icon-all.png",
+  "updates": {
+    "fallbackToCacheTimeout": 0
+  },
+  "newArchEnabled": true,
+  "jsEngine": "hermes",
+  "assetBundlePatterns": ["**/*"],
+  "android": {
+    "icon": "./assets/images/app-icon-android-legacy.png",
+    "package": "com.vodsafe",
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/images/app-icon-android-adaptive-foreground.png",
+      "backgroundImage": "./assets/images/app-icon-android-adaptive-background.png"
+    },
+    "allowBackup": false,
+    "edgeToEdgeEnabled": true,
+    "config": {
+      "googleMaps": {
+        "apiKey": "AIzaSyBdQWRFEtrNDwMnjzPSkpvslsHJlFEK0tE"
+      }
+    }
+  },
+  "ios": {
+    "icon": "./assets/images/app-icon-ios.png",
+    "supportsTablet": true,
+    "bundleIdentifier": "com.vodsafe",
+    "config": {
+      "googleMapsApiKey": "AIzaSyBdQWRFEtrNDwMnjzPSkpvslsHJlFEK0tE"
+    },
+    "infoPlist": {
+      "NSLocationAlwaysAndWhenInUseUsageDescription": "Este aplicativo precisa acessar sua localização em segundo plano apenas durante o registro ativo de viagens sustentáveis (caminhada/bicicleta) para calcular distância percorrida, velocidade e impacto ambiental da sua empresa. Os dados são usados exclusivamente para medir a contribuição para metas de sustentabilidade corporativa.",
+      "NSLocationWhenInUseUsageDescription": "Este aplicativo precisa acessar sua localização durante o registro de viagens sustentáveis (caminhada/bicicleta) para calcular distância, traçar rotas e medir o impacto ambiental positivo da sua mobilidade. Os dados são usados exclusivamente para contribuir com as metas de sustentabilidade da sua empresa.",
+      "NSMotionUsageDescription": "Este aplicativo usa sensores de movimento para detectar automaticamente se você está caminhando ou pedalando, melhorando a precisão do registro de viagens sustentáveis e cálculo do impacto ambiental."
+    }
+  },
+  "web": {
+    "favicon": "./assets/images/app-icon-web-favicon.png",
+    "bundler": "metro"
+  },
+  "plugins": [
+    "expo-localization",
+    "expo-font",
+    [
+      "expo-splash-screen",
+      {
+        "image": "./assets/images/app-icon-android-adaptive-foreground.png",
+        "imageWidth": 300,
+        "resizeMode": "contain",
+        "backgroundColor": "#191015"
+      }
+    ],
+    [
+      "react-native-edge-to-edge",
+      {
+        "android": {
+          "parentTheme": "Light",
+          "enforceNavigationBarContrast": false
+        }
+      }
+    ],
+    [
+      "react-native-background-geolocation",
+      {
+        "license": "e022fb84a0247470916379055d5cb15a678566e77b22ff372fd3cb8d9c55204c"
+      }
+    ],
+    [
+      "expo-gradle-ext-vars",
+      {
+        "googlePlayServicesLocationVersion": "21.1.0",
+        "appCompatVersion": "1.4.2"
+      }
+    ],
+    "react-native-background-fetch",
+    [
+      "expo-location",
+      {
+        "locationAlwaysAndWhenInUsePermission": "Este aplicativo precisa acessar sua localização em segundo plano apenas durante o registro ativo de viagens sustentáveis (caminhada/bicicleta) para calcular distância percorrida, velocidade e impacto ambiental da sua empresa. Os dados são usados exclusivamente para medir a contribuição para metas de sustentabilidade corporativa."
+      }
+    ],
+    "expo-sqlite"
+  ],
+  "experiments": {
+    "tsconfigPaths": true
+  },
+  "extra": {
+    "ignite": {
+      "version": "11.0.0"
+    }
+  }
+}

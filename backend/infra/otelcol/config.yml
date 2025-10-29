@@ -1,0 +1,189 @@
+receivers:
+  otlp:
+    protocols:
+      # This will receive from manager service
+      grpc:
+        endpoint: 0.0.0.0:${OTEL_COLLECTOR_GRPC_PORT:-4317}
+      # This will receive from stream servers
+      http:
+        endpoint: 0.0.0.0:${OTEL_COLLECTOR_HTTP_PORT:-4318}
+
+  # PostgreSQL logs receiver
+  # filelog/postgres:
+  #   include: [ /var/lib/postgresql/data/log/*.log ]
+  #   exclude: [ ]
+  #   start_at: end
+  #   include_file_path: false
+  #   include_file_name: false
+  #   # retry_on_failure:
+  #   #   enabled: true
+  #   operators:
+  #     - type: regex_parser
+  #       id: regex_parser
+  #       regex: '^(?P<time>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\s*[A-Za-z0-9\-\_]+\s*\[(?P<process>[^\]]+)\]\s*(?P<query>\[[^\]]+\])?\s*(?P<severity>[A-Z]+)?:\s*(?P<message>.*)$'
+  #       timestamp:
+  #         parse_from: attributes.time
+  #         layout: '%Y-%m-%d %H:%M:%S.%L'
+  #       severity:
+  #         parse_from: attributes.severity
+  #       on_error: send_quiet
+
+  #     - type: add
+  #       field: attributes.parse_failed # Use a distinct field for error indication
+  #       value: true
+  #       if: attributes.time == nil
+  #     - type: add
+  #       field: attributes.severity # Add default severity attribute if parsing failed
+  #       value: 'ERROR'
+  #       if: attributes.severity == nil
+
+  # PostgreSQL metrics receiver
+  # postgresql:
+  #   endpoint: localhost:5432
+  #   transport: tcp
+  #   collection_interval: 30s
+  #   username: "${POSTGRES_USER}"
+  #   password: "${POSTGRES_PASSWORD}"
+  #   databases:
+  #     - "${POSTGRES_DB}"
+  #   tls:
+  #     insecure: true
+  #   metrics:
+  #     postgresql.backends: {}
+  #     postgresql.connection.max: {}
+  #     postgresql.database.count: {}
+  #     postgresql.db_size: {}
+  #     postgresql.rows: {}
+  #     postgresql.operations: {}
+  #     postgresql.database.locks: {}
+  #     postgresql.blocks_read: {}
+  #     postgresql.commits: {}
+  #     postgresql.rollbacks: {}
+  #     postgresql.deadlocks: {}
+  #     postgresql.sequential_scans: {}
+  #     postgresql.table.count: {}
+  #     postgresql.table.size: {}
+  #     postgresql.table.vacuum.count: {}
+  #     postgresql.temp_files: {}
+  #     postgresql.wal.age: {}
+  #     postgresql.wal.lag: {}
+  #     postgresql.wal.delay: {}
+  #     postgresql.tup_updated: {}
+  #     postgresql.tup_returned: {}
+  #     postgresql.tup_fetched: {}
+  #     postgresql.tup_inserted: {}
+  #     postgresql.tup_deleted: {}
+  #     postgresql.blks_hit: {}
+  #     postgresql.blks_read: {}
+  #     postgresql.bgwriter.buffers.allocated: {}
+  #     postgresql.bgwriter.buffers.writes: {}
+  #     postgresql.bgwriter.checkpoint.count: {}
+  #     postgresql.bgwriter.duration: {}
+  #     postgresql.bgwriter.maxwritten: {}
+
+  # hostmetrics:
+  #   collection_interval: 15s
+  #   root_path: ${HOST_ROOT}
+  #   scrapers:
+  #     cpu:
+  #       metrics:
+  #         system.cpu.time:
+  #           enabled: true
+  #         system.cpu.utilization:
+  #           enabled: true
+  #     memory:
+  #       metrics:
+  #         system.memory.usage:
+  #           enabled: true
+  #         system.memory.utilization:
+  #           enabled: true
+  #     network:
+  #       metrics:
+  #         system.network.connections:
+  #           enabled: true
+  #         system.network.io:
+  #           enabled: true
+  #     disk:
+  #       metrics:
+  #         system.disk.io:
+  #           enabled: true
+  #         system.disk.operations:
+  #           enabled: true
+
+processors:
+  # resource/postgres:
+  #   attributes:
+  #     - key: service.name
+  #       value: vodsafe-database
+  #       action: insert # Ensures service.name is part of the resource block
+
+  # resource/hostmetrics:
+  #   attributes:
+  #     - key: service.instance.name
+  #       value: ${HOST_NAME}
+  #       action: insert # Ensures service.name is part of the resource block
+
+  # transform/refine_log:
+  #   log_statements:
+  #     - context: log
+  #       statements:
+  #         # --- Conditional Body Removal ---
+  #         # Check if parsing succeeded (the error flag was NOT set by the filelog operators)
+  #         # If successful, set the body to nil (effectively removing it).
+  #         # If parsing failed, this condition is false, and the body (raw log) is kept.
+  #         - set(body, nil) where attributes["parse_failed"] == nil
+
+  #         # Always remove the raw time string attribute if it exists (official Timestamp is set)
+  #         - delete_key(attributes, "time") where attributes["parse_failed"] == nil
+
+  # 3. Batch logs before exporting
+  batch: # Default batch processor settings are usually fine
+
+exporters:
+  # otlphttp/metrics:
+  #   endpoint: http://localhost:${PROMETHEUS_PORT:-4444}/api/v1/otlp
+  #   tls:
+  #     insecure: true
+  # otlphttp/traces:
+  #   endpoint: http://localhost:${TEMPO_HTTP_PORT:-4418}
+  #   tls:
+  #     insecure: true
+  otlphttp/logs:
+    endpoint: http://loki:${LOKI_HTTP_PORT:-3100}/otlp
+    tls:
+      insecure: true
+  # prometheus/metrics:
+  #   endpoint: localhost:4123
+  # prometheus/stream_metrics:
+  #   endpoint: localhost:4124
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/logs]
+    # traces:
+    #   receivers: [otlp]
+    #   processors: [batch]
+    #   exporters: [otlphttp/traces]
+    # metrics:
+    #   receivers: [otlp]
+    #   processors: [batch]
+    #   exporters: [otlphttp/metrics]
+    # metrics/stream:
+    #   receivers: [otlp]
+    #   processors: [batch]
+    #   exporters: [prometheus/stream_metrics]
+    # logs/postgres:
+    #   receivers: [filelog/postgres]
+    #   processors: [resource/postgres, transform/refine_log, batch]
+    #   exporters: [otlphttp/logs]
+    # metrics/hostmetrics:
+    #   receivers: [hostmetrics]
+    #   processors: [resource/hostmetrics, batch]
+    #   exporters: [prometheus/metrics]
+    # metrics/postgres:
+    #   receivers: [postgresql]
+    #   processors: [resource/postgres, batch]
+    #   exporters: [prometheus/metrics]
