@@ -1,0 +1,27 @@
+otlp:
+  keep_identifying_resource_attributes: true
+  # Recommended attributes to be promoted to labels.
+  promote_resource_attributes:
+    - service.instance.id
+    - service.name
+    - service.namespace
+    - service.version
+    - container.name
+    - deployment.environment.name
+
+scrape_configs:
+  - job_name: 'manager'
+    static_configs:
+      - targets: ['localhost:4123']
+      - labels:
+          server_type: manager
+  - job_name: 'streams'
+    static_configs:
+      - targets: ['localhost:4124']
+      - labels:
+          server_type: stream
+
+storage:
+  tsdb:
+    # A 10min time window is enough because it can easily absorb retries and network delays.
+    out_of_order_time_window: 10m

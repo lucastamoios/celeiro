@@ -1,0 +1,986 @@
+package financial
+
+import (
+	"context"
+
+	database "github.com/catrutech/celeiro/pkg/database/persistent"
+	"github.com/catrutech/celeiro/pkg/system"
+	"github.com/shopspring/decimal"
+)
+
+type Repository interface {
+	// Categories
+	FetchCategories(ctx context.Context, params fetchCategoriesParams) ([]CategoryModel, error)
+	FetchCategoryByID(ctx context.Context, params fetchCategoryByIDParams) (CategoryModel, error)
+	InsertCategory(ctx context.Context, params insertCategoryParams) (CategoryModel, error)
+	ModifyCategory(ctx context.Context, params modifyCategoryParams) (CategoryModel, error)
+	RemoveCategory(ctx context.Context, params removeCategoryParams) error
+
+	// Accounts
+	FetchAccounts(ctx context.Context, params fetchAccountsParams) ([]AccountModel, error)
+	FetchAccountByID(ctx context.Context, params fetchAccountByIDParams) (AccountModel, error)
+	InsertAccount(ctx context.Context, params insertAccountParams) (AccountModel, error)
+	ModifyAccount(ctx context.Context, params modifyAccountParams) (AccountModel, error)
+	RemoveAccount(ctx context.Context, params removeAccountParams) error
+
+	// Transactions
+	FetchTransactions(ctx context.Context, params fetchTransactionsParams) ([]TransactionModel, error)
+	FetchTransactionByID(ctx context.Context, params fetchTransactionByIDParams) (TransactionModel, error)
+	InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error)
+	BulkInsertTransactions(ctx context.Context, params bulkInsertTransactionsParams) ([]TransactionModel, error)
+	ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error)
+	RemoveTransaction(ctx context.Context, params removeTransactionParams) error
+
+	// Budgets
+	FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error)
+	FetchBudgetByID(ctx context.Context, params fetchBudgetByIDParams) (BudgetModel, error)
+	InsertBudget(ctx context.Context, params insertBudgetParams) (BudgetModel, error)
+	ModifyBudget(ctx context.Context, params modifyBudgetParams) (BudgetModel, error)
+	RemoveBudget(ctx context.Context, params removeBudgetParams) error
+
+	// Budget Items
+	FetchBudgetItems(ctx context.Context, params fetchBudgetItemsParams) ([]BudgetItemModel, error)
+	InsertBudgetItem(ctx context.Context, params insertBudgetItemParams) (BudgetItemModel, error)
+	ModifyBudgetItem(ctx context.Context, params modifyBudgetItemParams) (BudgetItemModel, error)
+	RemoveBudgetItem(ctx context.Context, params removeBudgetItemParams) error
+
+	// Classification Rules
+	FetchClassificationRules(ctx context.Context, params fetchClassificationRulesParams) ([]ClassificationRuleModel, error)
+	FetchClassificationRuleByID(ctx context.Context, params fetchClassificationRuleByIDParams) (ClassificationRuleModel, error)
+	InsertClassificationRule(ctx context.Context, params insertClassificationRuleParams) (ClassificationRuleModel, error)
+	ModifyClassificationRule(ctx context.Context, params modifyClassificationRuleParams) (ClassificationRuleModel, error)
+	RemoveClassificationRule(ctx context.Context, params removeClassificationRuleParams) error
+}
+
+type repository struct {
+	db     database.Database
+	system *system.System
+}
+
+func NewRepository(db database.Database) Repository {
+	return &repository{
+		db:     db,
+		system: system.NewSystem(),
+	}
+}
+
+func NewWithSystem(db database.Database, sys *system.System) Repository {
+	return &repository{
+		db:     db,
+		system: sys,
+	}
+}
+
+// ============================================================================
+// Categories
+// ============================================================================
+
+type fetchCategoriesParams struct {
+	UserID *int  // NULL fetches system categories
+	IncludeSystem bool
+}
+
+const fetchCategoriesQuery = `
+	-- financial.fetchCategoriesQuery
+	SELECT
+		category_id,
+		created_at,
+		updated_at,
+		name,
+		icon,
+		is_system,
+		user_id
+	FROM categories
+	WHERE (user_id = $1 OR (is_system = true AND $2 = true))
+	ORDER BY is_system DESC, name ASC;
+`
+
+func (r *repository) FetchCategories(ctx context.Context, params fetchCategoriesParams) ([]CategoryModel, error) {
+	var result []CategoryModel
+	err := r.db.Query(ctx, &result, fetchCategoriesQuery, params.UserID, params.IncludeSystem)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type fetchCategoryByIDParams struct {
+	CategoryID int
+	UserID     int
+}
+
+const fetchCategoryByIDQuery = `
+	-- financial.fetchCategoryByIDQuery
+	SELECT
+		category_id,
+		created_at,
+		updated_at,
+		name,
+		icon,
+		is_system,
+		user_id
+	FROM categories
+	WHERE category_id = $1
+		AND (user_id = $2 OR is_system = true);
+`
+
+func (r *repository) FetchCategoryByID(ctx context.Context, params fetchCategoryByIDParams) (CategoryModel, error) {
+	var result CategoryModel
+	err := r.db.Query(ctx, &result, fetchCategoryByIDQuery, params.CategoryID, params.UserID)
+	if err != nil {
+		return CategoryModel{}, err
+	}
+	return result, nil
+}
+
+type insertCategoryParams struct {
+	Name   string
+	Icon   string
+	UserID int
+}
+
+const insertCategoryQuery = `
+	-- financial.insertCategoryQuery
+	INSERT INTO categories (name, icon, user_id)
+	VALUES ($1, $2, $3)
+	RETURNING category_id, created_at, updated_at, name, icon, is_system, user_id;
+`
+
+func (r *repository) InsertCategory(ctx context.Context, params insertCategoryParams) (CategoryModel, error) {
+	var result CategoryModel
+	err := r.db.Query(ctx, &result, insertCategoryQuery, params.Name, params.Icon, params.UserID)
+	if err != nil {
+		return CategoryModel{}, err
+	}
+	return result, nil
+}
+
+type modifyCategoryParams struct {
+	CategoryID int
+	UserID     int
+	Name       *string
+	Icon       *string
+}
+
+const modifyCategoryQuery = `
+	-- financial.modifyCategoryQuery
+	UPDATE categories
+	SET name = COALESCE($3, name),
+		icon = COALESCE($4, icon),
+		updated_at = NOW()
+	WHERE category_id = $1 AND user_id = $2 AND is_system = false
+	RETURNING category_id, created_at, updated_at, name, icon, is_system, user_id;
+`
+
+func (r *repository) ModifyCategory(ctx context.Context, params modifyCategoryParams) (CategoryModel, error) {
+	var result CategoryModel
+	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.UserID, params.Name, params.Icon)
+	if err != nil {
+		return CategoryModel{}, err
+	}
+	return result, nil
+}
+
+type removeCategoryParams struct {
+	CategoryID int
+	UserID     int
+}
+
+const removeCategoryQuery = `
+	-- financial.removeCategoryQuery
+	DELETE FROM categories
+	WHERE category_id = $1 AND user_id = $2 AND is_system = false;
+`
+
+func (r *repository) RemoveCategory(ctx context.Context, params removeCategoryParams) error {
+	err := r.db.Run(ctx, removeCategoryQuery, params.CategoryID, params.UserID)
+	return err
+}
+
+// ============================================================================
+// Accounts
+// ============================================================================
+
+type fetchAccountsParams struct {
+	UserID         int
+	OrganizationID int
+	IsActive       *bool // NULL fetches all
+}
+
+const fetchAccountsQuery = `
+	-- financial.fetchAccountsQuery
+	SELECT
+		account_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		account_type,
+		bank_name,
+		balance,
+		currency,
+		is_active
+	FROM accounts
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND (is_active = $3 OR $3 IS NULL)
+	ORDER BY created_at DESC;
+`
+
+func (r *repository) FetchAccounts(ctx context.Context, params fetchAccountsParams) ([]AccountModel, error) {
+	var result []AccountModel
+	err := r.db.Query(ctx, &result, fetchAccountsQuery, params.UserID, params.OrganizationID, params.IsActive)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type fetchAccountByIDParams struct {
+	AccountID      int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchAccountByIDQuery = `
+	-- financial.fetchAccountByIDQuery
+	SELECT
+		account_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		account_type,
+		bank_name,
+		balance,
+		currency,
+		is_active
+	FROM accounts
+	WHERE account_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) FetchAccountByID(ctx context.Context, params fetchAccountByIDParams) (AccountModel, error) {
+	var result AccountModel
+	err := r.db.Query(ctx, &result, fetchAccountByIDQuery, params.AccountID, params.UserID, params.OrganizationID)
+	if err != nil {
+		return AccountModel{}, err
+	}
+	return result, nil
+}
+
+type insertAccountParams struct {
+	UserID         int
+	OrganizationID int
+	Name           string
+	AccountType    string
+	BankName       string
+	Balance        decimal.Decimal
+	Currency       string
+}
+
+const insertAccountQuery = `
+	-- financial.insertAccountQuery
+	INSERT INTO accounts (user_id, organization_id, name, account_type, bank_name, balance, currency)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	RETURNING account_id, created_at, updated_at, user_id, organization_id, name, account_type,
+			  bank_name, balance, currency, is_active;
+`
+
+func (r *repository) InsertAccount(ctx context.Context, params insertAccountParams) (AccountModel, error) {
+	var result AccountModel
+	err := r.db.Query(ctx, &result, insertAccountQuery,
+		params.UserID, params.OrganizationID, params.Name, params.AccountType,
+		params.BankName, params.Balance, params.Currency)
+	if err != nil {
+		return AccountModel{}, err
+	}
+	return result, nil
+}
+
+type modifyAccountParams struct {
+	AccountID      int
+	UserID         int
+	OrganizationID int
+	Name           *string
+	BankName       *string
+	Balance        *decimal.Decimal
+	IsActive       *bool
+}
+
+const modifyAccountQuery = `
+	-- financial.modifyAccountQuery
+	UPDATE accounts
+	SET name = COALESCE($4, name),
+		bank_name = COALESCE($5, bank_name),
+		balance = COALESCE($6, balance),
+		is_active = COALESCE($7, is_active),
+		updated_at = NOW()
+	WHERE account_id = $1 AND user_id = $2 AND organization_id = $3
+	RETURNING account_id, created_at, updated_at, user_id, organization_id, name, account_type,
+			  bank_name, balance, currency, is_active;
+`
+
+func (r *repository) ModifyAccount(ctx context.Context, params modifyAccountParams) (AccountModel, error) {
+	var result AccountModel
+	err := r.db.Query(ctx, &result, modifyAccountQuery,
+		params.AccountID, params.UserID, params.OrganizationID,
+		params.Name, params.BankName, params.Balance, params.IsActive)
+	if err != nil {
+		return AccountModel{}, err
+	}
+	return result, nil
+}
+
+type removeAccountParams struct {
+	AccountID      int
+	UserID         int
+	OrganizationID int
+}
+
+const removeAccountQuery = `
+	-- financial.removeAccountQuery
+	DELETE FROM accounts
+	WHERE account_id = $1 AND user_id = $2 AND organization_id = $3;
+`
+
+func (r *repository) RemoveAccount(ctx context.Context, params removeAccountParams) error {
+	err := r.db.Run(ctx, removeAccountQuery, params.AccountID, params.UserID, params.OrganizationID)
+	return err
+}
+
+// ============================================================================
+// Transactions
+// ============================================================================
+
+type fetchTransactionsParams struct {
+	AccountID      int
+	UserID         int
+	OrganizationID int
+	Limit          int
+	Offset         int
+}
+
+const fetchTransactionsQuery = `
+	-- financial.fetchTransactionsQuery
+	SELECT
+		t.transaction_id,
+		t.created_at,
+		t.updated_at,
+		t.account_id,
+		t.category_id,
+		t.description,
+		t.amount,
+		t.transaction_date,
+		t.transaction_type,
+		t.ofx_fitid,
+		t.ofx_check_number,
+		t.ofx_memo,
+		t.raw_ofx_data,
+		t.is_classified,
+		t.classification_rule_id,
+		t.notes,
+		t.tags
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE t.account_id = $1
+		AND a.user_id = $2
+		AND a.organization_id = $3
+	ORDER BY t.transaction_date DESC, t.created_at DESC
+	LIMIT $4 OFFSET $5;
+`
+
+func (r *repository) FetchTransactions(ctx context.Context, params fetchTransactionsParams) ([]TransactionModel, error) {
+	var result []TransactionModel
+	err := r.db.Query(ctx, &result, fetchTransactionsQuery,
+		params.AccountID, params.UserID, params.OrganizationID, params.Limit, params.Offset)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type fetchTransactionByIDParams struct {
+	TransactionID  int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchTransactionByIDQuery = `
+	-- financial.fetchTransactionByIDQuery
+	SELECT
+		t.transaction_id,
+		t.created_at,
+		t.updated_at,
+		t.account_id,
+		t.category_id,
+		t.description,
+		t.amount,
+		t.transaction_date,
+		t.transaction_type,
+		t.ofx_fitid,
+		t.ofx_check_number,
+		t.ofx_memo,
+		t.raw_ofx_data,
+		t.is_classified,
+		t.classification_rule_id,
+		t.notes,
+		t.tags
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE t.transaction_id = $1
+		AND a.user_id = $2
+		AND a.organization_id = $3;
+`
+
+func (r *repository) FetchTransactionByID(ctx context.Context, params fetchTransactionByIDParams) (TransactionModel, error) {
+	var result TransactionModel
+	err := r.db.Query(ctx, &result, fetchTransactionByIDQuery, params.TransactionID, params.UserID, params.OrganizationID)
+	if err != nil {
+		return TransactionModel{}, err
+	}
+	return result, nil
+}
+
+type insertTransactionParams struct {
+	AccountID       int
+	CategoryID      *int
+	Description     string
+	Amount          decimal.Decimal
+	TransactionDate string // Will be parsed to time.Time
+	TransactionType string
+	OFXFitID        *string
+	OFXCheckNum     *string
+	OFXMemo         *string
+	RawOFXData      *string
+}
+
+const insertTransactionQuery = `
+	-- financial.insertTransactionQuery
+	INSERT INTO transactions (
+		account_id, category_id, description, amount, transaction_date, transaction_type,
+		ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data
+	)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	ON CONFLICT (account_id, ofx_fitid) WHERE ofx_fitid IS NOT NULL DO NOTHING
+	RETURNING transaction_id, created_at, updated_at, account_id, category_id, description, amount,
+			  transaction_date, transaction_type, ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data,
+			  is_classified, classification_rule_id, notes, tags;
+`
+
+func (r *repository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
+	var result TransactionModel
+	err := r.db.Query(ctx, &result, insertTransactionQuery,
+		params.AccountID, params.CategoryID, params.Description, params.Amount, params.TransactionDate,
+		params.TransactionType, params.OFXFitID, params.OFXCheckNum, params.OFXMemo, params.RawOFXData)
+	if err != nil {
+		return TransactionModel{}, err
+	}
+	return result, nil
+}
+
+type bulkInsertTransactionsParams struct {
+	Transactions []insertTransactionParams
+}
+
+// BulkInsertTransactions uses the same query as InsertTransaction but in a loop
+// TODO: Optimize with UNNEST for true bulk insert if needed
+func (r *repository) BulkInsertTransactions(ctx context.Context, params bulkInsertTransactionsParams) ([]TransactionModel, error) {
+	var results []TransactionModel
+	for _, tx := range params.Transactions {
+		result, err := r.InsertTransaction(ctx, tx)
+		if err != nil {
+			// Continue on conflict (duplicate FITID), but fail on other errors
+			continue
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
+type modifyTransactionParams struct {
+	TransactionID  int
+	UserID         int
+	OrganizationID int
+	CategoryID     *int
+	Description    *string
+	Amount         *decimal.Decimal
+	Notes          *string
+}
+
+const modifyTransactionQuery = `
+	-- financial.modifyTransactionQuery
+	UPDATE transactions t
+	SET category_id = COALESCE($4, t.category_id),
+		description = COALESCE($5, t.description),
+		amount = COALESCE($6, t.amount),
+		notes = COALESCE($7, t.notes),
+		updated_at = NOW()
+	FROM accounts a
+	WHERE t.transaction_id = $1
+		AND t.account_id = a.account_id
+		AND a.user_id = $2
+		AND a.organization_id = $3
+	RETURNING t.transaction_id, t.created_at, t.updated_at, t.account_id, t.category_id, t.description,
+			  t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid, t.ofx_check_number,
+			  t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id, t.notes, t.tags;
+`
+
+func (r *repository) ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error) {
+	var result TransactionModel
+	err := r.db.Query(ctx, &result, modifyTransactionQuery,
+		params.TransactionID, params.UserID, params.OrganizationID,
+		params.CategoryID, params.Description, params.Amount, params.Notes)
+	if err != nil {
+		return TransactionModel{}, err
+	}
+	return result, nil
+}
+
+type removeTransactionParams struct {
+	TransactionID  int
+	UserID         int
+	OrganizationID int
+}
+
+const removeTransactionQuery = `
+	-- financial.removeTransactionQuery
+	DELETE FROM transactions t
+	USING accounts a
+	WHERE t.transaction_id = $1
+		AND t.account_id = a.account_id
+		AND a.user_id = $2
+		AND a.organization_id = $3;
+`
+
+func (r *repository) RemoveTransaction(ctx context.Context, params removeTransactionParams) error {
+	err := r.db.Run(ctx, removeTransactionQuery, params.TransactionID, params.UserID, params.OrganizationID)
+	return err
+}
+
+// ============================================================================
+// Budgets
+// ============================================================================
+
+type fetchBudgetsParams struct {
+	UserID         int
+	OrganizationID int
+	Year           *int
+	Month          *int
+}
+
+const fetchBudgetsQuery = `
+	-- financial.fetchBudgetsQuery
+	SELECT
+		budget_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		month,
+		year,
+		budget_type,
+		amount,
+		is_active
+	FROM budgets
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND (year = $3 OR $3 IS NULL)
+		AND (month = $4 OR $4 IS NULL)
+	ORDER BY year DESC, month DESC;
+`
+
+func (r *repository) FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error) {
+	var result []BudgetModel
+	err := r.db.Query(ctx, &result, fetchBudgetsQuery,
+		params.UserID, params.OrganizationID, params.Year, params.Month)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type fetchBudgetByIDParams struct {
+	BudgetID       int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchBudgetByIDQuery = `
+	-- financial.fetchBudgetByIDQuery
+	SELECT
+		budget_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		month,
+		year,
+		budget_type,
+		amount,
+		is_active
+	FROM budgets
+	WHERE budget_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) FetchBudgetByID(ctx context.Context, params fetchBudgetByIDParams) (BudgetModel, error) {
+	var result BudgetModel
+	err := r.db.Query(ctx, &result, fetchBudgetByIDQuery, params.BudgetID, params.UserID, params.OrganizationID)
+	if err != nil {
+		return BudgetModel{}, err
+	}
+	return result, nil
+}
+
+type insertBudgetParams struct {
+	UserID         int
+	OrganizationID int
+	Name           string
+	Month          int
+	Year           int
+	BudgetType     string
+	Amount         decimal.Decimal
+}
+
+const insertBudgetQuery = `
+	-- financial.insertBudgetQuery
+	INSERT INTO budgets (user_id, organization_id, name, month, year, budget_type, amount)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	RETURNING budget_id, created_at, updated_at, user_id, organization_id, name, month, year,
+			  budget_type, amount, is_active;
+`
+
+func (r *repository) InsertBudget(ctx context.Context, params insertBudgetParams) (BudgetModel, error) {
+	var result BudgetModel
+	err := r.db.Query(ctx, &result, insertBudgetQuery,
+		params.UserID, params.OrganizationID, params.Name, params.Month, params.Year,
+		params.BudgetType, params.Amount)
+	if err != nil {
+		return BudgetModel{}, err
+	}
+	return result, nil
+}
+
+type modifyBudgetParams struct {
+	BudgetID       int
+	UserID         int
+	OrganizationID int
+	Name           *string
+	BudgetType     *string
+	Amount         *decimal.Decimal
+	IsActive       *bool
+}
+
+const modifyBudgetQuery = `
+	-- financial.modifyBudgetQuery
+	UPDATE budgets
+	SET name = COALESCE($4, name),
+		budget_type = COALESCE($5, budget_type),
+		amount = COALESCE($6, amount),
+		is_active = COALESCE($7, is_active),
+		updated_at = NOW()
+	WHERE budget_id = $1 AND user_id = $2 AND organization_id = $3
+	RETURNING budget_id, created_at, updated_at, user_id, organization_id, name, month, year,
+			  budget_type, amount, is_active;
+`
+
+func (r *repository) ModifyBudget(ctx context.Context, params modifyBudgetParams) (BudgetModel, error) {
+	var result BudgetModel
+	err := r.db.Query(ctx, &result, modifyBudgetQuery,
+		params.BudgetID, params.UserID, params.OrganizationID,
+		params.Name, params.BudgetType, params.Amount, params.IsActive)
+	if err != nil {
+		return BudgetModel{}, err
+	}
+	return result, nil
+}
+
+type removeBudgetParams struct {
+	BudgetID       int
+	UserID         int
+	OrganizationID int
+}
+
+const removeBudgetQuery = `
+	-- financial.removeBudgetQuery
+	DELETE FROM budgets
+	WHERE budget_id = $1 AND user_id = $2 AND organization_id = $3;
+`
+
+func (r *repository) RemoveBudget(ctx context.Context, params removeBudgetParams) error {
+	err := r.db.Run(ctx, removeBudgetQuery, params.BudgetID, params.UserID, params.OrganizationID)
+	return err
+}
+
+// ============================================================================
+// Budget Items
+// ============================================================================
+
+type fetchBudgetItemsParams struct {
+	BudgetID       int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchBudgetItemsQuery = `
+	-- financial.fetchBudgetItemsQuery
+	SELECT
+		bi.budget_item_id,
+		bi.created_at,
+		bi.updated_at,
+		bi.budget_id,
+		bi.category_id,
+		bi.planned_amount
+	FROM budget_items bi
+	INNER JOIN budgets b ON b.budget_id = bi.budget_id
+	WHERE bi.budget_id = $1
+		AND b.user_id = $2
+		AND b.organization_id = $3;
+`
+
+func (r *repository) FetchBudgetItems(ctx context.Context, params fetchBudgetItemsParams) ([]BudgetItemModel, error) {
+	var result []BudgetItemModel
+	err := r.db.Query(ctx, &result, fetchBudgetItemsQuery, params.BudgetID, params.UserID, params.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type insertBudgetItemParams struct {
+	BudgetID      int
+	CategoryID    int
+	PlannedAmount decimal.Decimal
+}
+
+const insertBudgetItemQuery = `
+	-- financial.insertBudgetItemQuery
+	INSERT INTO budget_items (budget_id, category_id, planned_amount)
+	VALUES ($1, $2, $3)
+	RETURNING budget_item_id, created_at, updated_at, budget_id, category_id, planned_amount;
+`
+
+func (r *repository) InsertBudgetItem(ctx context.Context, params insertBudgetItemParams) (BudgetItemModel, error) {
+	var result BudgetItemModel
+	err := r.db.Query(ctx, &result, insertBudgetItemQuery, params.BudgetID, params.CategoryID, params.PlannedAmount)
+	if err != nil {
+		return BudgetItemModel{}, err
+	}
+	return result, nil
+}
+
+type modifyBudgetItemParams struct {
+	BudgetItemID  int
+	UserID        int
+	PlannedAmount *decimal.Decimal
+}
+
+const modifyBudgetItemQuery = `
+	-- financial.modifyBudgetItemQuery
+	UPDATE budget_items bi
+	SET planned_amount = COALESCE($3, bi.planned_amount),
+		updated_at = NOW()
+	FROM budgets b
+	WHERE bi.budget_item_id = $1
+		AND bi.budget_id = b.budget_id
+		AND b.user_id = $2
+	RETURNING bi.budget_item_id, bi.created_at, bi.updated_at, bi.budget_id, bi.category_id, bi.planned_amount;
+`
+
+func (r *repository) ModifyBudgetItem(ctx context.Context, params modifyBudgetItemParams) (BudgetItemModel, error) {
+	var result BudgetItemModel
+	err := r.db.Query(ctx, &result, modifyBudgetItemQuery, params.BudgetItemID, params.UserID, params.PlannedAmount)
+	if err != nil {
+		return BudgetItemModel{}, err
+	}
+	return result, nil
+}
+
+type removeBudgetItemParams struct {
+	BudgetItemID int
+	UserID       int
+}
+
+const removeBudgetItemQuery = `
+	-- financial.removeBudgetItemQuery
+	DELETE FROM budget_items bi
+	USING budgets b
+	WHERE bi.budget_item_id = $1
+		AND bi.budget_id = b.budget_id
+		AND b.user_id = $2;
+`
+
+func (r *repository) RemoveBudgetItem(ctx context.Context, params removeBudgetItemParams) error {
+	err := r.db.Run(ctx, removeBudgetItemQuery, params.BudgetItemID, params.UserID)
+	return err
+}
+
+// ============================================================================
+// Classification Rules
+// ============================================================================
+
+type fetchClassificationRulesParams struct {
+	UserID   int
+	IsActive *bool
+}
+
+const fetchClassificationRulesQuery = `
+	-- financial.fetchClassificationRulesQuery
+	SELECT
+		rule_id,
+		created_at,
+		updated_at,
+		user_id,
+		category_id,
+		name,
+		priority,
+		match_description,
+		match_amount_min,
+		match_amount_max,
+		match_transaction_type,
+		is_active
+	FROM classification_rules
+	WHERE user_id = $1
+		AND (is_active = $2 OR $2 IS NULL)
+	ORDER BY priority ASC, created_at ASC;
+`
+
+func (r *repository) FetchClassificationRules(ctx context.Context, params fetchClassificationRulesParams) ([]ClassificationRuleModel, error) {
+	var result []ClassificationRuleModel
+	err := r.db.Query(ctx, &result, fetchClassificationRulesQuery, params.UserID, params.IsActive)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type fetchClassificationRuleByIDParams struct {
+	RuleID int
+	UserID int
+}
+
+const fetchClassificationRuleByIDQuery = `
+	-- financial.fetchClassificationRuleByIDQuery
+	SELECT
+		rule_id,
+		created_at,
+		updated_at,
+		user_id,
+		category_id,
+		name,
+		priority,
+		match_description,
+		match_amount_min,
+		match_amount_max,
+		match_transaction_type,
+		is_active
+	FROM classification_rules
+	WHERE rule_id = $1 AND user_id = $2;
+`
+
+func (r *repository) FetchClassificationRuleByID(ctx context.Context, params fetchClassificationRuleByIDParams) (ClassificationRuleModel, error) {
+	var result ClassificationRuleModel
+	err := r.db.Query(ctx, &result, fetchClassificationRuleByIDQuery, params.RuleID, params.UserID)
+	if err != nil {
+		return ClassificationRuleModel{}, err
+	}
+	return result, nil
+}
+
+type insertClassificationRuleParams struct {
+	UserID               int
+	CategoryID           int
+	Name                 string
+	Priority             int
+	MatchDescription     *string
+	MatchAmountMin       *decimal.Decimal
+	MatchAmountMax       *decimal.Decimal
+	MatchTransactionType *string
+}
+
+const insertClassificationRuleQuery = `
+	-- financial.insertClassificationRuleQuery
+	INSERT INTO classification_rules (
+		user_id, category_id, name, priority, match_description,
+		match_amount_min, match_amount_max, match_transaction_type
+	)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	RETURNING rule_id, created_at, updated_at, user_id, category_id, name, priority,
+			  match_description, match_amount_min, match_amount_max, match_transaction_type, is_active;
+`
+
+func (r *repository) InsertClassificationRule(ctx context.Context, params insertClassificationRuleParams) (ClassificationRuleModel, error) {
+	var result ClassificationRuleModel
+	err := r.db.Query(ctx, &result, insertClassificationRuleQuery,
+		params.UserID, params.CategoryID, params.Name, params.Priority,
+		params.MatchDescription, params.MatchAmountMin, params.MatchAmountMax, params.MatchTransactionType)
+	if err != nil {
+		return ClassificationRuleModel{}, err
+	}
+	return result, nil
+}
+
+type modifyClassificationRuleParams struct {
+	RuleID               int
+	UserID               int
+	CategoryID           *int
+	Name                 *string
+	Priority             *int
+	MatchDescription     *string
+	MatchAmountMin       *decimal.Decimal
+	MatchAmountMax       *decimal.Decimal
+	MatchTransactionType *string
+	IsActive             *bool
+}
+
+const modifyClassificationRuleQuery = `
+	-- financial.modifyClassificationRuleQuery
+	UPDATE classification_rules
+	SET category_id = COALESCE($3, category_id),
+		name = COALESCE($4, name),
+		priority = COALESCE($5, priority),
+		match_description = COALESCE($6, match_description),
+		match_amount_min = COALESCE($7, match_amount_min),
+		match_amount_max = COALESCE($8, match_amount_max),
+		match_transaction_type = COALESCE($9, match_transaction_type),
+		is_active = COALESCE($10, is_active),
+		updated_at = NOW()
+	WHERE rule_id = $1 AND user_id = $2
+	RETURNING rule_id, created_at, updated_at, user_id, category_id, name, priority,
+			  match_description, match_amount_min, match_amount_max, match_transaction_type, is_active;
+`
+
+func (r *repository) ModifyClassificationRule(ctx context.Context, params modifyClassificationRuleParams) (ClassificationRuleModel, error) {
+	var result ClassificationRuleModel
+	err := r.db.Query(ctx, &result, modifyClassificationRuleQuery,
+		params.RuleID, params.UserID, params.CategoryID, params.Name, params.Priority,
+		params.MatchDescription, params.MatchAmountMin, params.MatchAmountMax,
+		params.MatchTransactionType, params.IsActive)
+	if err != nil {
+		return ClassificationRuleModel{}, err
+	}
+	return result, nil
+}
+
+type removeClassificationRuleParams struct {
+	RuleID int
+	UserID int
+}
+
+const removeClassificationRuleQuery = `
+	-- financial.removeClassificationRuleQuery
+	DELETE FROM classification_rules
+	WHERE rule_id = $1 AND user_id = $2;
+`
+
+func (r *repository) RemoveClassificationRule(ctx context.Context, params removeClassificationRuleParams) error {
+	err := r.db.Run(ctx, removeClassificationRuleQuery, params.RuleID, params.UserID)
+	return err
+}

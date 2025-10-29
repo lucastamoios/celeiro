@@ -1,0 +1,25 @@
+cli:
+	@echo "Available subcommands for 'cli':"
+	@DOMAIN=$$(gum choose "accounts"); \
+	make cli.$$DOMAIN
+
+cli.accounts:
+	@SERVICE=$$(gum choose \
+		"registerUser" \
+		--header "Select a command" \
+	); \
+	make cli.accounts.$$SERVICE
+
+cli.accounts.registerUser:
+	$(eval export SERVICE_VERSION=$(shell git rev-parse --short=6 HEAD))
+	@NAME=$$(gum input --placeholder "User Name"); \
+	EMAIL=$$(gum input --placeholder "User Email"); \
+	ORGANIZATION_NAME=$$(gum input --placeholder "Organization Name"); \
+	ROLE=$$(gum choose "admin" "regular_user" "regular_manager"); \
+	gum confirm "Create user: $$NAME ($$EMAIL) for organization: $$ORGANIZATION_NAME?" && \
+	go run ./cmd/cli/main.go accounts registerUser \
+		-n "$$NAME" \
+		-e "$$EMAIL" \
+		-o "$$ORGANIZATION_NAME" \
+		-r "$$ROLE" || \
+	echo "User registration cancelled."

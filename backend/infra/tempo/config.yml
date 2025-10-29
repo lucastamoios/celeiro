@@ -1,0 +1,49 @@
+server:
+  http_listen_port: ${TEMPO_HTTP_PORT:-3200}
+  grpc_listen_port: ${TEMPO_GRPC_PORT:-9096}
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "localhost:${TEMPO_OTLP_GRPC_PORT:-4417}"
+        http:
+          endpoint: "localhost:${TEMPO_OTLP_HTTP_PORT:-4418}"
+
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    min_ready_duration: 1s
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /data/tempo/wal
+    local:
+      path: /data/tempo/blocks
+
+metrics_generator:
+  processor:
+    local_blocks:
+      filter_server_spans: false
+    span_metrics:
+      dimensions:
+        - service_name
+        - operation
+        - status_code
+  traces_storage:
+    path: /data/tempo/generator/traces
+  storage:
+    path: /data/tempo/generator/wal
+    remote_write:
+      - url: http://localhost:${PROMETHEUS_PORT:-4444}/api/v1/write
+        send_exemplars: true
+
+overrides:
+  metrics_generator_processors: [service-graphs, local-blocks, span-metrics]
