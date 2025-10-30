@@ -268,6 +268,55 @@ func (h *Handler) ImportOFX(w http.ResponseWriter, r *http.Request) {
 	responses.NewSuccess(result, w)
 }
 
+func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	transactionID, err := strconv.Atoi(chi.URLParam(r, "transactionId"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		CategoryID  *int               `json:"category_id"`
+		Description *string            `json:"description"`
+		Amount      *float64           `json:"amount"`
+		Notes       *string            `json:"notes"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Convert amount to decimal if provided
+	var amountDecimal *decimal.Decimal
+	if req.Amount != nil {
+		amt := decimal.NewFromFloat(*req.Amount)
+		amountDecimal = &amt
+	}
+
+	transaction, err := h.app.FinancialService.UpdateTransaction(r.Context(), financialApp.UpdateTransactionInput{
+		TransactionID:  transactionID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+		CategoryID:     req.CategoryID,
+		Description:    req.Description,
+		Amount:         amountDecimal,
+		Notes:          req.Notes,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(transaction, w)
+}
+
 // ============================================================================
 // Budgets
 // ============================================================================
@@ -352,4 +401,170 @@ func (h *Handler) GetBudgetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.NewSuccess(budget, w)
+}
+
+// ============================================================================
+// Budget Items
+// ============================================================================
+
+func (h *Handler) CreateBudgetItem(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	budgetID, err := strconv.Atoi(chi.URLParam(r, "budgetId"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		CategoryID    int     `json:"category_id"`
+		PlannedAmount float64 `json:"planned_amount"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Validation: planned_amount must be > 0
+	if req.PlannedAmount <= 0 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Verify budget ownership (GetBudgetByID checks ownership)
+	_, err = h.app.FinancialService.GetBudgetByID(r.Context(), financialApp.GetBudgetByIDInput{
+		BudgetID:       budgetID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	// Verify category exists and user has access
+	_, err = h.app.FinancialService.GetCategoryByID(r.Context(), financialApp.GetCategoryByIDInput{
+		CategoryID: req.CategoryID,
+		UserID:     userID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	budgetItem, err := h.app.FinancialService.CreateBudgetItem(r.Context(), financialApp.CreateBudgetItemInput{
+		BudgetID:      budgetID,
+		CategoryID:    req.CategoryID,
+		PlannedAmount: decimal.NewFromFloat(req.PlannedAmount),
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(budgetItem, w)
+}
+
+func (h *Handler) UpdateBudgetItem(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	budgetItemID, err := strconv.Atoi(chi.URLParam(r, "itemId"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		PlannedAmount *float64 `json:"planned_amount"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Validation: if planned_amount is provided, it must be > 0
+	if req.PlannedAmount != nil && *req.PlannedAmount <= 0 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Convert amount to decimal if provided
+	var plannedAmountDecimal *decimal.Decimal
+	if req.PlannedAmount != nil {
+		amt := decimal.NewFromFloat(*req.PlannedAmount)
+		plannedAmountDecimal = &amt
+	}
+
+	budgetItem, err := h.app.FinancialService.UpdateBudgetItem(r.Context(), financialApp.UpdateBudgetItemInput{
+		BudgetItemID:  budgetItemID,
+		UserID:        userID,
+		PlannedAmount: plannedAmountDecimal,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(budgetItem, w)
+}
+
+func (h *Handler) DeleteBudgetItem(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	budgetItemID, err := strconv.Atoi(chi.URLParam(r, "itemId"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	err = h.app.FinancialService.DeleteBudgetItem(r.Context(), financialApp.DeleteBudgetItemInput{
+		BudgetItemID: budgetItemID,
+		UserID:       userID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(map[string]string{"message": "budget item deleted successfully"}, w)
+}
+
+func (h *Handler) GetBudgetSpending(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	budgetID, err := strconv.Atoi(chi.URLParam(r, "budgetId"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	spending, err := h.app.FinancialService.GetBudgetSpending(r.Context(), financialApp.GetBudgetSpendingInput{
+		BudgetID:       budgetID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(spending, w)
 }

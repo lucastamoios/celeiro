@@ -1,6 +1,46 @@
 name: celeiro
 
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}_backend
+    ports:
+      - "18080:8080"
+    environment:
+      - DATABASE_URL=postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}?sslmode=disable
+      - DATABASE_NAME=${DATABASE_NAME}
+      - PG_CONN_STR=postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}?sslmode=disable
+      - PG_MAX_IDLE=10
+      - PG_MAX_CONN=100
+      - PG_DB_NAME=${DATABASE_NAME}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=8080
+      - MAILER_TYPE=${MAILER_TYPE}
+    volumes:
+      - ./localmailer:/root/localmailer
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - custom_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}_frontend
+    ports:
+      - "13000:80"
+    depends_on:
+      - backend
+    networks:
+      - custom_network
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: ${PROJECT_NAME}_postgres
@@ -32,6 +72,7 @@ services:
 
   loki:
     image: grafana/loki:latest
+    container_name: ${PROJECT_NAME}_loki
     command: [ "-config.file=/etc/loki/config.yml" ]
     ports:
       - "${LOKI_HTTP_PORT:-3100}:3100"
@@ -46,11 +87,12 @@ services:
 
   otelcol:
     image: otel/opentelemetry-collector-contrib:latest
+    container_name: ${PROJECT_NAME}_collector
     command: [ "--config=/etc/otelcol-contrib/config.yml" ]
     ports:
-      - "${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
-      - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
-      - "8888:8888"  # Metrics endpoint for OTel Collector
+      - "${OTEL_COLLECTOR_GRPC_PORT:-14317}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT:-14318}:4318"
+      - "18888:8888"  # Metrics endpoint for OTel Collector
     environment:
       # - HOST_ROOT=/hostfs
       # - HOST_NAME=manager
@@ -81,6 +123,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
+    container_name: ${PROJECT_NAME}_grafana
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
     environment:

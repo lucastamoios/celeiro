@@ -45,8 +45,9 @@ func (s *service) AuthenticateWithMagicCode(ctx context.Context, params Authenti
 
 	var user User
 	var organizations []OrganizationWithPermissions
+	var userModel UserModel
 	isNewUser := false
-	userModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
+	fetchedUserModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
 		Email: params.Email,
 	})
 	if err != nil {
@@ -73,8 +74,25 @@ func (s *service) AuthenticateWithMagicCode(ctx context.Context, params Authenti
 		isNewUser = true
 		user = registerOutput.User
 		organizations = []OrganizationWithPermissions{registerOutput.Organization}
+		// Convert User to UserModel for session creation
+		userModel = UserModel{
+			UserID:    user.UserID,
+			Name:      user.Name,
+			Email:     user.Email,
+			Phone:     user.Phone,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Address:   user.Address,
+			City:      user.City,
+			State:     user.State,
+			Zip:       user.Zip,
+			Country:   user.Country,
+			Latitude:  user.Latitude,
+			Longitude: user.Longitude,
+		}
 	} else {
 		// User exists, load user
+		userModel = fetchedUserModel
 		user = User{}.FromModel(&userModel)
 
 		userOrganizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{

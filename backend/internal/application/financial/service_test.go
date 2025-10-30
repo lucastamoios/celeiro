@@ -144,6 +144,14 @@ func (m *MockRepository) RemoveBudgetItem(ctx context.Context, params removeBudg
 	return args.Error(0)
 }
 
+func (m *MockRepository) FetchBudgetSpending(ctx context.Context, params fetchBudgetSpendingParams) (map[int]decimal.Decimal, error) {
+	args := m.Called(ctx, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[int]decimal.Decimal), args.Error(1)
+}
+
 // Classification Rules
 func (m *MockRepository) FetchClassificationRules(ctx context.Context, params fetchClassificationRulesParams) ([]ClassificationRuleModel, error) {
 	args := m.Called(ctx, params)

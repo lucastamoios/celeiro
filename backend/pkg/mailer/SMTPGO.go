@@ -157,7 +157,7 @@ func (s *SMTP2GOProvider) sendEmailMessage(ctx context.Context, email EmailMessa
 				errorMsg += fmt.Sprintf("%s (%s); ", apiErr.Message, apiErr.Code)
 			}
 			s.logger.Error(ctx, "Failed to send email", "errors", apiResponse.Errors)
-			return fmt.Errorf(errorMsg)
+			return fmt.Errorf("%s", errorMsg)
 		}
 
 		if apiResponse.Data.Failed > 0 {
@@ -166,7 +166,7 @@ func (s *SMTP2GOProvider) sendEmailMessage(ctx context.Context, email EmailMessa
 				errorMsg += fmt.Sprintf("%s (%s); ", failure.EmailAddress, failure.Message)
 			}
 			s.logger.Error(ctx, "Some emails failed to send", "failures", apiResponse.Data.Failures)
-			return fmt.Errorf(errorMsg)
+			return fmt.Errorf("%s", errorMsg)
 		}
 
 		s.logger.Info(ctx, "Email sent successfully",

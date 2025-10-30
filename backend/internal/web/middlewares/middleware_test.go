@@ -175,10 +175,8 @@ func (test *MiddlewareTestSuite) TestSessionMiddleware() {
 					},
 					UserRole: accounts.RoleRegularUser,
 					UserPermissions: []accounts.Permission{
-						accounts.PermissionPerformRides,
-						accounts.PermissionPerformRecycling,
-						accounts.PermissionPerformVolunteering,
-						accounts.PermissionPerformDonations,
+						accounts.PermissionViewOrganizations,
+						accounts.PermissionViewRegularUsers,
 					},
 				},
 			},
