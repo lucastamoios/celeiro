@@ -44,6 +44,7 @@ type Service interface {
 	CreateBudgetItem(ctx context.Context, params CreateBudgetItemInput) (BudgetItem, error)
 	UpdateBudgetItem(ctx context.Context, params UpdateBudgetItemInput) (BudgetItem, error)
 	DeleteBudgetItem(ctx context.Context, params DeleteBudgetItemInput) error
+	GetBudgetSpending(ctx context.Context, params GetBudgetSpendingInput) (BudgetSpending, error)
 
 	// Classification Rules
 	GetClassificationRules(ctx context.Context, params GetClassificationRulesInput) ([]ClassificationRule, error)
@@ -660,6 +661,44 @@ func (s *service) DeleteBudgetItem(ctx context.Context, params DeleteBudgetItemI
 	}
 
 	return nil
+}
+
+type GetBudgetSpendingInput struct {
+	BudgetID       int
+	UserID         int
+	OrganizationID int
+}
+
+type BudgetSpending struct {
+	CategorySpending map[int]decimal.Decimal `json:"category_spending"`
+}
+
+func (s *service) GetBudgetSpending(ctx context.Context, params GetBudgetSpendingInput) (BudgetSpending, error) {
+	// First, get the budget to extract month/year
+	budget, err := s.Repository.FetchBudgetByID(ctx, fetchBudgetByIDParams{
+		BudgetID:       params.BudgetID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return BudgetSpending{}, errors.Wrap(err, "failed to fetch budget")
+	}
+
+	// Fetch spending aggregated by category
+	spendingMap, err := s.Repository.FetchBudgetSpending(ctx, fetchBudgetSpendingParams{
+		BudgetID:       params.BudgetID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Month:          budget.Month,
+		Year:           budget.Year,
+	})
+	if err != nil {
+		return BudgetSpending{}, errors.Wrap(err, "failed to fetch budget spending")
+	}
+
+	return BudgetSpending{
+		CategorySpending: spendingMap,
+	}, nil
 }
 
 // ============================================================================

@@ -1,6 +1,6 @@
 # Scaffold Project Makefile
 # =====================
-# 
+#
 # This is the main Makefile for the Scaffold project.
 # It contains core targets for development, testing, and infrastructure.
 #
@@ -8,13 +8,14 @@
 # - Makefile.cli: CLI command shortcuts and interactive workflows
 #
 # Common targets:
-#   make up       - Start all services with Docker Compose
-#   make down     - Stop all services
-#   make run      - Start the development server with air
-#   make test     - Run tests
-#   make cli      - Show available CLI commands
+#   make up           - Start all services with Docker Compose (detached)
+#   make down         - Stop all services
+#   make restart      - Restart all services (rebuild with cache - fast)
+#   make full-restart - Full restart with no cache (slow but ensures fresh build)
+#   make test         - Run tests
+#   make cli          - Show available CLI commands
 
-.PHONY: up down run setup test
+.PHONY: up down restart full-restart setup test
 
 # Check if .env.dev exists, fail with helpful message if not
 ifeq (,$(wildcard .env.dev))
@@ -32,17 +33,47 @@ setup:
 	@./infra/setup.sh
 
 up: setup
-	@echo "Starting services with environment from .env.dev..."
-	docker compose -f docker-compose.yml up
+	@echo "🚀 Starting all services with Docker Compose..."
+	docker compose -f docker-compose.yml up -d
+	@echo "✅ All services started!"
+	@echo ""
+	@echo "📍 Services available at:"
+	@echo "   Frontend:  http://localhost:13000"
+	@echo "   Backend:   http://localhost:18080"
+	@echo "   Postgres:  localhost:54330"
+	@echo "   Redis:     localhost:63800"
+	@echo ""
+	@echo "📋 View logs: docker logs -f celeiro_backend (or celeiro_frontend)"
 
 down:
-	@echo "Stopping services..."
+	@echo "🛑 Stopping all services..."
 	docker compose -f docker-compose.yml down --remove-orphans
+	@echo "✅ All services stopped!"
 
-# Set SERVICE_VERSION to the first 6 characters of the current git commit hash
-run:
-	$(eval export SERVICE_VERSION=$(shell git rev-parse --short=6 HEAD))
-	air
+restart: setup
+	@echo "🔄 Restarting all services..."
+	docker compose -f docker-compose.yml down --remove-orphans
+	docker compose -f docker-compose.yml up -d --build
+	@echo "✅ All services restarted!"
+	@echo ""
+	@echo "📍 Services available at:"
+	@echo "   Frontend:  http://localhost:13000"
+	@echo "   Backend:   http://localhost:18080"
+	@echo ""
+	@echo "📋 View logs: docker logs -f celeiro_backend (or celeiro_frontend)"
+
+full-restart: setup
+	@echo "🔥 Full restart (no cache - slower but ensures fresh build)..."
+	docker compose -f docker-compose.yml down --remove-orphans
+	docker compose -f docker-compose.yml build --no-cache
+	docker compose -f docker-compose.yml up -d
+	@echo "✅ All services rebuilt from scratch and started!"
+	@echo ""
+	@echo "📍 Services available at:"
+	@echo "   Frontend:  http://localhost:13000"
+	@echo "   Backend:   http://localhost:18080"
+	@echo ""
+	@echo "📋 View logs: docker logs -f celeiro_backend (or celeiro_frontend)"
 
 test:
 	gotest -v ./...

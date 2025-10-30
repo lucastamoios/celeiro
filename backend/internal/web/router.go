@@ -24,7 +24,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Active-Organization"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -49,11 +49,18 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		// Transactions
 		r.Get("/accounts/{accountId}/transactions", mw.RequireSession(fh.ListTransactions, []accounts.Permission{}))
 		r.Post("/accounts/{accountId}/transactions/import", mw.RequireSession(fh.ImportOFX, []accounts.Permission{}))
+		r.Patch("/accounts/{accountId}/transactions/{transactionId}", mw.RequireSession(fh.UpdateTransaction, []accounts.Permission{}))
 
 		// Budgets
 		r.Get("/budgets", mw.RequireSession(fh.ListBudgets, []accounts.Permission{}))
 		r.Post("/budgets", mw.RequireSession(fh.CreateBudget, []accounts.Permission{}))
 		r.Get("/budgets/{budgetId}", mw.RequireSession(fh.GetBudgetByID, []accounts.Permission{}))
+		r.Get("/budgets/{budgetId}/spending", mw.RequireSession(fh.GetBudgetSpending, []accounts.Permission{}))
+
+		// Budget Items
+		r.Post("/budgets/{budgetId}/items", mw.RequireSession(fh.CreateBudgetItem, []accounts.Permission{}))
+		r.Patch("/budgets/{budgetId}/items/{itemId}", mw.RequireSession(fh.UpdateBudgetItem, []accounts.Permission{}))
+		r.Delete("/budgets/{budgetId}/items/{itemId}", mw.RequireSession(fh.DeleteBudgetItem, []accounts.Permission{}))
 	})
 
 	return r

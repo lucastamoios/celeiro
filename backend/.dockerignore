@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Development
+.env*
+.air.toml
+tmp/
+*.log
+
+# Testing
+*_test.go
+testdata/
+internal/tests/
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+main
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data directories
+postgres_data/
+redis_data/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Infra
+infra/
+localmailer/

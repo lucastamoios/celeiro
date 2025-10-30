@@ -52,7 +52,7 @@ type DBConnInfo struct {
 
 // newDBContainer creates the database container.
 func newDBContainer(config postgresContainerConfig) *postgresContainer {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	container := new(postgresContainer)
 	container.config = config
@@ -133,7 +133,7 @@ func (c *postgresContainer) create(ctx context.Context, initScrips ...string) *p
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).
-				WithStartupTimeout(time.Second*5),
+				WithStartupTimeout(2*time.Minute),
 		),
 	)
 	if err != nil {

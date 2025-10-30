@@ -43,6 +43,7 @@ type Repository interface {
 	InsertBudgetItem(ctx context.Context, params insertBudgetItemParams) (BudgetItemModel, error)
 	ModifyBudgetItem(ctx context.Context, params modifyBudgetItemParams) (BudgetItemModel, error)
 	RemoveBudgetItem(ctx context.Context, params removeBudgetItemParams) error
+	FetchBudgetSpending(ctx context.Context, params fetchBudgetSpendingParams) (map[int]decimal.Decimal, error)
 
 	// Classification Rules
 	FetchClassificationRules(ctx context.Context, params fetchClassificationRulesParams) ([]ClassificationRuleModel, error)
@@ -983,4 +984,54 @@ const removeClassificationRuleQuery = `
 func (r *repository) RemoveClassificationRule(ctx context.Context, params removeClassificationRuleParams) error {
 	err := r.db.Run(ctx, removeClassificationRuleQuery, params.RuleID, params.UserID)
 	return err
+}
+
+// ============================================================================
+// Budget Spending Aggregation
+// ============================================================================
+
+type fetchBudgetSpendingParams struct {
+	BudgetID       int
+	UserID         int
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+type CategorySpendingResult struct {
+	CategoryID int             `db:"category_id"`
+	TotalSpent decimal.Decimal `db:"total_spent"`
+}
+
+const fetchBudgetSpendingQuery = `
+	-- financial.fetchBudgetSpendingQuery
+	SELECT
+		t.category_id,
+		COALESCE(SUM(ABS(t.amount)), 0) as total_spent
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE a.user_id = $1
+		AND a.organization_id = $2
+		AND t.category_id IS NOT NULL
+		AND EXTRACT(MONTH FROM t.transaction_date) = $3
+		AND EXTRACT(YEAR FROM t.transaction_date) = $4
+		AND t.transaction_type = 'debit'
+	GROUP BY t.category_id;
+`
+
+func (r *repository) FetchBudgetSpending(ctx context.Context, params fetchBudgetSpendingParams) (map[int]decimal.Decimal, error) {
+	var results []CategorySpendingResult
+	err := r.db.Query(ctx, &results, fetchBudgetSpendingQuery,
+		params.UserID, params.OrganizationID, params.Month, params.Year)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to map
+	spendingMap := make(map[int]decimal.Decimal)
+	for _, result := range results {
+		spendingMap[result.CategoryID] = result.TotalSpent
+	}
+
+	return spendingMap, nil
 }
