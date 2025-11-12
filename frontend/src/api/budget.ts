@@ -1,8 +1,18 @@
 import type {
   BudgetItem,
   BudgetSpending,
+  BudgetProgress,
   CreateBudgetItemRequest,
   UpdateBudgetItemRequest,
+  CategoryBudget,
+  CreateCategoryBudgetRequest,
+  UpdateCategoryBudgetRequest,
+  PlannedEntry,
+  CreatePlannedEntryRequest,
+  UpdatePlannedEntryRequest,
+  GenerateMonthlyInstancesRequest,
+  MonthlySnapshot,
+  IncomePlanningReport,
 } from '../types/budget';
 import type { ApiResponse } from '../types/transaction';
 import { API_CONFIG } from '../config/api';
@@ -119,5 +129,515 @@ export async function getBudgetSpending(
   }
 
   const result: ApiResponse<BudgetSpending> = await response.json();
+  return result.data;
+}
+
+/**
+ * Get budget progress with tracking and forecasting data
+ */
+export async function getBudgetProgress(
+  budgetId: number,
+  options: RequestOptions
+): Promise<BudgetProgress> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/budgets/${budgetId}/progress`,
+    {
+      method: 'GET',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch budget progress: ${error}`);
+  }
+
+  const result: ApiResponse<BudgetProgress> = await response.json();
+  return result.data;
+}
+
+// ============================================================================
+// Category Budgets
+// ============================================================================
+
+/**
+ * Get all category budgets with optional filters
+ */
+export async function getCategoryBudgets(
+  filters: { month?: number; year?: number; category_id?: number },
+  options: RequestOptions
+): Promise<CategoryBudget[]> {
+  const params = new URLSearchParams();
+  if (filters.month) params.append('month', filters.month.toString());
+  if (filters.year) params.append('year', filters.year.toString());
+  if (filters.category_id) params.append('category_id', filters.category_id.toString());
+
+  const url = `${API_CONFIG.baseURL}/financial/budgets/categories${params.toString() ? `?${params.toString()}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: createHeaders(options),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch category budgets: ${error}`);
+  }
+
+  const result: ApiResponse<CategoryBudget[]> = await response.json();
+  return result.data;
+}
+
+/**
+ * Get a single category budget by ID
+ */
+export async function getCategoryBudget(
+  budgetId: number,
+  options: RequestOptions
+): Promise<CategoryBudget> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/budgets/categories/${budgetId}`,
+    {
+      method: 'GET',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch category budget: ${error}`);
+  }
+
+  const result: ApiResponse<CategoryBudget> = await response.json();
+  return result.data;
+}
+
+/**
+ * Create a new category budget
+ */
+export async function createCategoryBudget(
+  data: CreateCategoryBudgetRequest,
+  options: RequestOptions
+): Promise<CategoryBudget> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/budgets/categories`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to create category budget: ${error}`);
+  }
+
+  const result: ApiResponse<CategoryBudget> = await response.json();
+  return result.data;
+}
+
+/**
+ * Update an existing category budget
+ */
+export async function updateCategoryBudget(
+  budgetId: number,
+  data: UpdateCategoryBudgetRequest,
+  options: RequestOptions
+): Promise<CategoryBudget> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/budgets/categories/${budgetId}`,
+    {
+      method: 'PUT',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to update category budget: ${error}`);
+  }
+
+  const result: ApiResponse<CategoryBudget> = await response.json();
+  return result.data;
+}
+
+/**
+ * Delete a category budget
+ */
+export async function deleteCategoryBudget(
+  budgetId: number,
+  options: RequestOptions
+): Promise<void> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/budgets/categories/${budgetId}`,
+    {
+      method: 'DELETE',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to delete category budget: ${error}`);
+  }
+}
+
+/**
+ * Consolidate a category budget (creates snapshot)
+ */
+export async function consolidateCategoryBudget(
+  budgetId: number,
+  options: RequestOptions
+): Promise<MonthlySnapshot> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/budgets/categories/${budgetId}/consolidate`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to consolidate category budget: ${error}`);
+  }
+
+  const result: ApiResponse<MonthlySnapshot> = await response.json();
+  return result.data;
+}
+
+// ============================================================================
+// Planned Entries
+// ============================================================================
+
+/**
+ * Get all planned entries with optional filters
+ */
+export async function getPlannedEntries(
+  filters: {
+    category_id?: number;
+    is_recurrent?: boolean;
+    is_saved_pattern?: boolean;
+    is_active?: boolean;
+  },
+  options: RequestOptions
+): Promise<PlannedEntry[]> {
+  const params = new URLSearchParams();
+  if (filters.category_id !== undefined) params.append('category_id', filters.category_id.toString());
+  if (filters.is_recurrent !== undefined) params.append('is_recurrent', filters.is_recurrent.toString());
+  if (filters.is_saved_pattern !== undefined) params.append('is_saved_pattern', filters.is_saved_pattern.toString());
+  if (filters.is_active !== undefined) params.append('is_active', filters.is_active.toString());
+
+  const url = `${API_CONFIG.baseURL}/financial/planned-entries${params.toString() ? `?${params.toString()}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: createHeaders(options),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch planned entries: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntry[]> = await response.json();
+  return result.data;
+}
+
+/**
+ * Get saved transaction patterns
+ */
+export async function getSavedPatterns(
+  categoryId: number | undefined,
+  options: RequestOptions
+): Promise<PlannedEntry[]> {
+  const params = new URLSearchParams();
+  if (categoryId !== undefined) params.append('category_id', categoryId.toString());
+
+  const url = `${API_CONFIG.baseURL}/financial/planned-entries/patterns${params.toString() ? `?${params.toString()}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: createHeaders(options),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch saved patterns: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntry[]> = await response.json();
+  return result.data;
+}
+
+/**
+ * Create a new planned entry
+ */
+export async function createPlannedEntry(
+  data: CreatePlannedEntryRequest,
+  options: RequestOptions
+): Promise<PlannedEntry> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to create planned entry: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntry> = await response.json();
+  return result.data;
+}
+
+/**
+ * Update an existing planned entry
+ */
+export async function updatePlannedEntry(
+  entryId: number,
+  data: UpdatePlannedEntryRequest,
+  options: RequestOptions
+): Promise<PlannedEntry> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}`,
+    {
+      method: 'PUT',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to update planned entry: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntry> = await response.json();
+  return result.data;
+}
+
+/**
+ * Delete a planned entry
+ */
+export async function deletePlannedEntry(
+  entryId: number,
+  options: RequestOptions
+): Promise<void> {
+  const url = `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}`;
+  console.log('DELETE request to:', url, 'with ID:', entryId); // Debug log
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: createHeaders(options),
+  });
+
+  console.log('DELETE response status:', response.status); // Debug log
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('DELETE error response:', error); // Debug log
+    throw new Error(`Failed to delete planned entry: ${error}`);
+  }
+}
+
+/**
+ * Generate monthly instances from a recurrent entry
+ */
+export async function generateMonthlyInstances(
+  entryId: number,
+  data: GenerateMonthlyInstancesRequest,
+  options: RequestOptions
+): Promise<PlannedEntry[]> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}/generate`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to generate monthly instances: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntry[]> = await response.json();
+  return result.data;
+}
+
+// ============================================================================
+// Monthly Snapshots
+// ============================================================================
+
+/**
+ * Get monthly snapshots with optional filters
+ */
+export async function getMonthlySnapshots(
+  filters: { category_id?: number; month?: number; year?: number },
+  options: RequestOptions
+): Promise<MonthlySnapshot[]> {
+  const params = new URLSearchParams();
+  if (filters.category_id) params.append('category_id', filters.category_id.toString());
+  if (filters.month) params.append('month', filters.month.toString());
+  if (filters.year) params.append('year', filters.year.toString());
+
+  const url = `${API_CONFIG.baseURL}/financial/snapshots${params.toString() ? `?${params.toString()}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: createHeaders(options),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch monthly snapshots: ${error}`);
+  }
+
+  const result: ApiResponse<MonthlySnapshot[]> = await response.json();
+  return result.data;
+}
+
+/**
+ * Get a single monthly snapshot by ID
+ */
+export async function getMonthlySnapshot(
+  snapshotId: number,
+  options: RequestOptions
+): Promise<MonthlySnapshot> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/snapshots/${snapshotId}`,
+    {
+      method: 'GET',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch monthly snapshot: ${error}`);
+  }
+
+  const result: ApiResponse<MonthlySnapshot> = await response.json();
+  return result.data;
+}
+
+// ============================================================================
+// Pattern Matching
+// ============================================================================
+
+/**
+ * Save a transaction as a reusable pattern
+ */
+export async function saveTransactionAsPattern(
+  transactionId: number,
+  data: { is_recurrent?: boolean; expected_day?: number },
+  options: RequestOptions
+): Promise<PlannedEntry> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/transactions/${transactionId}/save-as-pattern`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to save transaction as pattern: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntry> = await response.json();
+  return result.data;
+}
+
+/**
+ * Apply a saved pattern to a transaction
+ */
+export async function applyPatternToTransaction(
+  transactionId: number,
+  patternId: number,
+  options: RequestOptions
+): Promise<void> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/transactions/${transactionId}/apply-pattern`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+      body: JSON.stringify({ pattern_id: patternId }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to apply pattern to transaction: ${error}`);
+  }
+}
+
+/**
+ * Get match suggestions for a transaction
+ */
+export async function getMatchSuggestions(
+  transactionId: number,
+  categoryId: number | undefined,
+  options: RequestOptions
+): Promise<any[]> {
+  const params = new URLSearchParams();
+  params.append('transaction_id', transactionId.toString());
+  if (categoryId !== undefined) params.append('category_id', categoryId.toString());
+
+  const url = `${API_CONFIG.baseURL}/financial/match-suggestions?${params.toString()}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: createHeaders(options),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to get match suggestions: ${error}`);
+  }
+
+  const result: ApiResponse<any[]> = await response.json();
+  return result.data;
+}
+
+// ============================================================================
+// Income Planning
+// ============================================================================
+
+/**
+ * Get income planning report for a specific month
+ */
+export async function getIncomePlanning(
+  month: number,
+  year: number,
+  options: RequestOptions
+): Promise<IncomePlanningReport> {
+  const params = new URLSearchParams();
+  params.append('month', month.toString());
+  params.append('year', year.toString());
+
+  const url = `${API_CONFIG.baseURL}/financial/income-planning?${params.toString()}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: createHeaders(options),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch income planning: ${error}`);
+  }
+
+  const result: ApiResponse<IncomePlanningReport> = await response.json();
   return result.data;
 }

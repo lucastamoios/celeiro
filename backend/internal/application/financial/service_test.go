@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/catrutech/celeiro/pkg/system"
+
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -75,6 +77,11 @@ func (m *MockRepository) FetchTransactions(ctx context.Context, params fetchTran
 func (m *MockRepository) FetchTransactionByID(ctx context.Context, params fetchTransactionByIDParams) (TransactionModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(TransactionModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchTransactionsByMonth(ctx context.Context, params fetchTransactionsByMonthParams) ([]TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TransactionModel), args.Error(1)
 }
 
 func (m *MockRepository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
@@ -178,6 +185,84 @@ func (m *MockRepository) RemoveClassificationRule(ctx context.Context, params re
 	return args.Error(0)
 }
 
+// Category Budgets
+func (m *MockRepository) FetchCategoryBudgets(ctx context.Context, params fetchCategoryBudgetsParams) ([]CategoryBudgetModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]CategoryBudgetModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchCategoryBudgetByID(ctx context.Context, params fetchCategoryBudgetByIDParams) (CategoryBudgetModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(CategoryBudgetModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertCategoryBudget(ctx context.Context, params insertCategoryBudgetParams) (CategoryBudgetModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(CategoryBudgetModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyCategoryBudget(ctx context.Context, params modifyCategoryBudgetParams) (CategoryBudgetModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(CategoryBudgetModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveCategoryBudget(ctx context.Context, params removeCategoryBudgetParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// Planned Entries
+func (m *MockRepository) FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]PlannedEntryModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchPlannedEntriesByParent(ctx context.Context, params fetchPlannedEntriesByParentParams) ([]PlannedEntryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]PlannedEntryModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchSavedPatterns(ctx context.Context, params fetchSavedPatternsParams) ([]PlannedEntryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]PlannedEntryModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyPlannedEntry(ctx context.Context, params modifyPlannedEntryParams) (PlannedEntryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryModel), args.Error(1)
+}
+
+func (m *MockRepository) RemovePlannedEntry(ctx context.Context, params removePlannedEntryParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// Monthly Snapshots
+func (m *MockRepository) FetchMonthlySnapshots(ctx context.Context, params fetchMonthlySnapshotsParams) ([]MonthlySnapshotModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]MonthlySnapshotModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchMonthlySnapshotByID(ctx context.Context, params fetchMonthlySnapshotByIDParams) (MonthlySnapshotModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(MonthlySnapshotModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertMonthlySnapshot(ctx context.Context, params insertMonthlySnapshotParams) (MonthlySnapshotModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(MonthlySnapshotModel), args.Error(1)
+}
+
 // ============================================================================
 // Service Tests
 // ============================================================================
@@ -185,7 +270,9 @@ func (m *MockRepository) RemoveClassificationRule(ctx context.Context, params re
 func TestGetCategories_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := &service{
+		metrics:    nil,
 		Repository: mockRepo,
+		system:     system.NewSystem(),
 	}
 
 	ctx := context.Background()
@@ -215,7 +302,9 @@ func TestGetCategories_Success(t *testing.T) {
 func TestCreateAccount_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := &service{
+		metrics:    nil,
 		Repository: mockRepo,
+		system:     system.NewSystem(),
 	}
 
 	ctx := context.Background()
@@ -259,7 +348,9 @@ func TestCreateAccount_Success(t *testing.T) {
 func TestGetBudgetByID_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := &service{
+		metrics:    nil,
 		Repository: mockRepo,
+		system:     system.NewSystem(),
 	}
 
 	ctx := context.Background()
@@ -314,7 +405,9 @@ func TestGetBudgetByID_Success(t *testing.T) {
 func TestGetTransactions_DefaultLimit(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := &service{
+		metrics:    nil,
 		Repository: mockRepo,
+		system:     system.NewSystem(),
 	}
 
 	ctx := context.Background()

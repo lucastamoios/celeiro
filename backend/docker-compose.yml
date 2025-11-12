@@ -7,17 +7,17 @@ services:
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME}_backend
     ports:
-      - "18080:8080"
+      - "${BACKEND_EXTERNAL_PORT}:${BACKEND_PORT}"
     environment:
       - DATABASE_URL=postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}?sslmode=disable
       - DATABASE_NAME=${DATABASE_NAME}
       - PG_CONN_STR=postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}?sslmode=disable
-      - PG_MAX_IDLE=10
-      - PG_MAX_CONN=100
+      - PG_MAX_IDLE=${PG_MAX_IDLE}
+      - PG_MAX_CONN=${PG_MAX_CONN}
       - PG_DB_NAME=${DATABASE_NAME}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - PORT=8080
+      - PORT=${BACKEND_PORT}
       - MAILER_TYPE=${MAILER_TYPE}
     volumes:
       - ./localmailer:/root/localmailer
@@ -34,7 +34,7 @@ services:
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME}_frontend
     ports:
-      - "13000:80"
+      - "${FRONTEND_EXTERNAL_PORT}:${FRONTEND_PORT}"
     depends_on:
       - backend
     networks:
@@ -92,7 +92,7 @@ services:
     ports:
       - "${OTEL_COLLECTOR_GRPC_PORT:-14317}:4317"
       - "${OTEL_COLLECTOR_HTTP_PORT:-14318}:4318"
-      - "18888:8888"  # Metrics endpoint for OTel Collector
+      - "${OTEL_METRICS_PORT:-18888}:8888"  # Metrics endpoint for OTel Collector
     environment:
       # - HOST_ROOT=/hostfs
       # - HOST_NAME=manager

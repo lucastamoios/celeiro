@@ -165,12 +165,41 @@ func (p *OFXParser) normalizeType(trnType string, amount decimal.Decimal) string
 	}
 }
 
+// cleanDescription removes special characters and normalizes whitespace
+// Strips: ' " - . and extra spaces
+func cleanDescription(s string) string {
+	// Remove special characters: ' " - .
+	var builder strings.Builder
+	builder.Grow(len(s))
+
+	for _, r := range s {
+		switch r {
+		case '\'', '"', '-', '.':
+			// Skip these characters
+			continue
+		case ' ', '\t', '\n', '\r':
+			// Normalize all whitespace to single space
+			builder.WriteRune(' ')
+		default:
+			builder.WriteRune(r)
+		}
+	}
+
+	// Collapse multiple spaces into one and trim
+	result := builder.String()
+	result = strings.Join(strings.Fields(result), " ")
+	return strings.TrimSpace(result)
+}
+
 // ToInsertParams converts OFX transaction to repository insert params
 func (tx *OFXTransaction) ToInsertParams(accountID int) insertTransactionParams {
 	description := tx.Name
 	if tx.Memo != "" && tx.Memo != tx.Name {
 		description = fmt.Sprintf("%s - %s", tx.Name, tx.Memo)
 	}
+
+	// Clean up description by removing special characters and normalizing spaces
+	description = cleanDescription(description)
 
 	// Ensure amount is absolute value
 	amount := tx.Amount.Abs()

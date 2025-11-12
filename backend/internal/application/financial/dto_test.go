@@ -48,10 +48,10 @@ func TestBudgetWithItems_CalculatedBudgetAmount_Calculated(t *testing.T) {
 		expected.String(), result.String())
 }
 
-func TestBudgetWithItems_CalculatedBudgetAmount_Hybrid_ItemsHigher(t *testing.T) {
+func TestBudgetWithItems_CalculatedBudgetAmount_Maior_ItemsHigher(t *testing.T) {
 	budget := BudgetWithItems{
 		Budget: Budget{
-			BudgetType: BudgetTypeHybrid,
+			BudgetType: BudgetTypeMaior,
 			Amount:     decimal.NewFromFloat(3000), // Lower than items
 		},
 		Items: []BudgetItem{
@@ -64,14 +64,14 @@ func TestBudgetWithItems_CalculatedBudgetAmount_Hybrid_ItemsHigher(t *testing.T)
 	expected := decimal.NewFromFloat(4500) // max(3000, 4500) = 4500
 
 	assert.True(t, result.Equal(expected),
-		"Hybrid budget should return max. Expected %s, got %s",
+		"Maior budget should return max. Expected %s, got %s",
 		expected.String(), result.String())
 }
 
-func TestBudgetWithItems_CalculatedBudgetAmount_Hybrid_FixedHigher(t *testing.T) {
+func TestBudgetWithItems_CalculatedBudgetAmount_Maior_FixedHigher(t *testing.T) {
 	budget := BudgetWithItems{
 		Budget: Budget{
-			BudgetType: BudgetTypeHybrid,
+			BudgetType: BudgetTypeMaior,
 			Amount:     decimal.NewFromFloat(6000), // Higher than items
 		},
 		Items: []BudgetItem{
@@ -84,7 +84,7 @@ func TestBudgetWithItems_CalculatedBudgetAmount_Hybrid_FixedHigher(t *testing.T)
 	expected := decimal.NewFromFloat(6000) // max(6000, 3500) = 6000
 
 	assert.True(t, result.Equal(expected),
-		"Hybrid budget should return max. Expected %s, got %s",
+		"Maior budget should return max. Expected %s, got %s",
 		expected.String(), result.String())
 }
 

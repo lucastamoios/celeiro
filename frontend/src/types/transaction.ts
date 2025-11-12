@@ -12,6 +12,7 @@ export interface Transaction {
   RawOFXData: string | null;
   IsClassified: boolean;
   ClassificationRuleID: number | null;
+  IsIgnored: boolean;
   Notes: string | null;
   Tags: string[] | null;
   CreatedAt: string;

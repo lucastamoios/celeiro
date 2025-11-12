@@ -6,6 +6,7 @@ import (
 	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	"github.com/catrutech/celeiro/pkg/errors"
 	"github.com/catrutech/celeiro/pkg/logging"
+	"github.com/catrutech/celeiro/pkg/metrics"
 	"github.com/catrutech/celeiro/pkg/system"
 	"github.com/shopspring/decimal"
 )
@@ -46,6 +47,9 @@ type Service interface {
 	DeleteBudgetItem(ctx context.Context, params DeleteBudgetItemInput) error
 	GetBudgetSpending(ctx context.Context, params GetBudgetSpendingInput) (BudgetSpending, error)
 
+	// Budget Progress
+	CalculateBudgetProgress(ctx context.Context, input CalculateBudgetProgressInput) (*BudgetProgress, error)
+
 	// Classification Rules
 	GetClassificationRules(ctx context.Context, params GetClassificationRulesInput) ([]ClassificationRule, error)
 	GetClassificationRuleByID(ctx context.Context, params GetClassificationRuleByIDInput) (ClassificationRule, error)
@@ -53,6 +57,43 @@ type Service interface {
 	UpdateClassificationRule(ctx context.Context, params UpdateClassificationRuleInput) (ClassificationRule, error)
 	DeleteClassificationRule(ctx context.Context, params DeleteClassificationRuleInput) error
 	ApplyClassificationRules(ctx context.Context, params ApplyClassificationRulesInput) (ApplyClassificationRulesOutput, error)
+
+	// Category Budgets
+	GetCategoryBudgets(ctx context.Context, params GetCategoryBudgetsInput) ([]CategoryBudget, error)
+	GetCategoryBudgetByID(ctx context.Context, params GetCategoryBudgetByIDInput) (CategoryBudget, error)
+	CreateCategoryBudget(ctx context.Context, params CreateCategoryBudgetInput) (CategoryBudget, error)
+	UpdateCategoryBudget(ctx context.Context, params UpdateCategoryBudgetInput) (CategoryBudget, error)
+	DeleteCategoryBudget(ctx context.Context, params DeleteCategoryBudgetInput) error
+	ConsolidateCategoryBudget(ctx context.Context, params ConsolidateCategoryBudgetInput) (MonthlySnapshot, error)
+
+	// Planned Entries
+	GetPlannedEntries(ctx context.Context, params GetPlannedEntriesInput) ([]PlannedEntry, error)
+	GetPlannedEntryByID(ctx context.Context, params GetPlannedEntryByIDInput) (PlannedEntry, error)
+	GetSavedPatterns(ctx context.Context, params GetSavedPatternsInput) ([]PlannedEntry, error)
+	CreatePlannedEntry(ctx context.Context, params CreatePlannedEntryInput) (PlannedEntry, error)
+	UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEntryInput) (PlannedEntry, error)
+	DeletePlannedEntry(ctx context.Context, params DeletePlannedEntryInput) error
+	GenerateMonthlyInstances(ctx context.Context, params GenerateMonthlyInstancesInput) ([]PlannedEntry, error)
+
+	// Monthly Snapshots
+	GetMonthlySnapshots(ctx context.Context, params GetMonthlySnapshotsInput) ([]MonthlySnapshot, error)
+	GetMonthlySnapshotByID(ctx context.Context, params GetMonthlySnapshotByIDInput) (MonthlySnapshot, error)
+
+	// Pattern Matching
+	SaveTransactionAsPattern(ctx context.Context, input SaveTransactionAsPatternInput) (PlannedEntry, error)
+	GetMatchSuggestionsForTransaction(ctx context.Context, input GetMatchSuggestionsInput) ([]MatchSuggestion, error)
+	ApplyPatternToTransaction(ctx context.Context, input ApplyPatternToTransactionInput) (Transaction, error)
+	AutoMatchTransaction(ctx context.Context, input AutoMatchTransactionInput) (bool, error)
+
+	// Income Planning
+	GetIncomePlanning(ctx context.Context, input GetIncomePlanningInput) (*IncomePlanningReport, error)
+
+	// Advanced Patterns
+	CreateAdvancedPattern(ctx context.Context, input CreateAdvancedPatternInput) (AdvancedPattern, error)
+	GetAdvancedPatterns(ctx context.Context, input GetAdvancedPatternsInput) ([]AdvancedPattern, error)
+	GetAdvancedPatternByID(ctx context.Context, input GetAdvancedPatternByIDInput) (AdvancedPattern, error)
+	UpdateAdvancedPattern(ctx context.Context, input UpdateAdvancedPatternInput) (AdvancedPattern, error)
+	DeleteAdvancedPattern(ctx context.Context, input DeleteAdvancedPatternInput) error
 }
 
 type service struct {
@@ -60,6 +101,7 @@ type service struct {
 	system     *system.System
 	logger     logging.Logger
 	db         database.Database
+	metrics    *metrics.Metrics
 }
 
 func New(
@@ -67,12 +109,14 @@ func New(
 	system *system.System,
 	logger logging.Logger,
 	db database.Database,
+	metrics *metrics.Metrics,
 ) Service {
 	return &service{
 		Repository: repo,
 		system:     system,
 		logger:     logger,
 		db:         db,
+		metrics:    metrics,
 	}
 }
 
@@ -379,6 +423,12 @@ type ImportOFXOutput struct {
 
 // ImportTransactionsFromOFX parses OFX data and imports transactions
 func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOFXInput) (ImportOFXOutput, error) {
+	// Start metrics tracking
+	importStart := s.system.Time.Now()
+	if s.metrics != nil && s.metrics.OFXImportTotal != nil {
+		s.metrics.OFXImportTotal.Add(ctx, 1)
+	}
+
 	// Verify account ownership
 	_, err := s.Repository.FetchAccountByID(ctx, fetchAccountByIDParams{
 		AccountID:      params.AccountID,
@@ -386,14 +436,38 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
+		if s.metrics != nil && s.metrics.OFXImportFailure != nil {
+			s.metrics.OFXImportFailure.Add(ctx, 1)
+		}
 		return ImportOFXOutput{}, errors.Wrap(err, "account not found or access denied")
 	}
 
 	// Parse OFX data
 	parser := NewOFXParser()
+	parseStart := s.system.Time.Now()
 	ofxTransactions, err := parser.ParseOFX(params.OFXData)
+	parseDuration := s.system.Time.Now().Sub(parseStart).Seconds()
+
+	// Record parse metrics
+	if s.metrics != nil && s.metrics.OFXParseDuration != nil {
+		s.metrics.OFXParseDuration.Record(ctx, parseDuration)
+	}
+
 	if err != nil {
+		if s.metrics != nil {
+			if s.metrics.OFXParseErrors != nil {
+				s.metrics.OFXParseErrors.Add(ctx, 1)
+			}
+			if s.metrics.OFXImportFailure != nil {
+				s.metrics.OFXImportFailure.Add(ctx, 1)
+			}
+		}
 		return ImportOFXOutput{}, errors.Wrap(err, "failed to parse OFX file")
+	}
+
+	// Record transaction count
+	if s.metrics != nil && s.metrics.OFXTransactionCount != nil {
+		s.metrics.OFXTransactionCount.Record(ctx, int64(len(ofxTransactions)))
 	}
 
 	// Convert OFX transactions to repository insert params
@@ -414,11 +488,45 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 	importedCount := len(inserted)
 	duplicateCount := len(ofxTransactions) - importedCount
 
+	// Auto-match imported transactions
+	matchedCount := 0
+	for _, tx := range inserted {
+		matched, err := s.AutoMatchTransaction(ctx, AutoMatchTransactionInput{
+			UserID:         params.UserID,
+			OrganizationID: params.OrganizationID,
+			TransactionID:  tx.TransactionID,
+		})
+		if err != nil {
+			// Log error but don't fail the import
+			s.logger.Warn(ctx, "Failed to auto-match transaction",
+				"transaction_id", tx.TransactionID,
+				"error", err.Error(),
+			)
+			continue
+		}
+		if matched {
+			matchedCount++
+		}
+	}
+
+	// Record successful import metrics
+	importDuration := s.system.Time.Now().Sub(importStart).Seconds()
+	if s.metrics != nil {
+		if s.metrics.OFXImportSuccess != nil {
+			s.metrics.OFXImportSuccess.Add(ctx, 1)
+		}
+		if s.metrics.OFXImportDuration != nil {
+			s.metrics.OFXImportDuration.Record(ctx, importDuration)
+		}
+	}
+
 	s.logger.Info(ctx, "OFX import completed",
 		"account_id", params.AccountID,
 		"total_parsed", len(ofxTransactions),
 		"imported", importedCount,
 		"duplicates", duplicateCount,
+		"auto_matched", matchedCount,
+		"duration_seconds", importDuration,
 	)
 
 	return ImportOFXOutput{
@@ -437,6 +545,7 @@ type UpdateTransactionInput struct {
 	Description    *string
 	Amount         *decimal.Decimal
 	Notes          *string
+	IsIgnored      *bool
 }
 
 func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactionInput) (Transaction, error) {
@@ -448,6 +557,7 @@ func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactio
 		Description:    params.Description,
 		Amount:         params.Amount,
 		Notes:          params.Notes,
+		IsIgnored:      params.IsIgnored,
 	})
 	if err != nil {
 		return Transaction{}, errors.Wrap(err, "failed to update transaction")
@@ -840,4 +950,448 @@ func (s *service) ApplyClassificationRules(ctx context.Context, params ApplyClas
 		ClassifiedCount: 0,
 		FailedCount:     0,
 	}, errors.New("classification logic not implemented yet")
+}
+
+// ============================================================================
+// Category Budgets
+// ============================================================================
+
+type GetCategoryBudgetsInput struct {
+	UserID         int
+	OrganizationID int
+	Month          *int
+	Year           *int
+	CategoryID     *int
+}
+
+func (s *service) GetCategoryBudgets(ctx context.Context, params GetCategoryBudgetsInput) ([]CategoryBudget, error) {
+	models, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Month:          params.Month,
+		Year:           params.Year,
+		CategoryID:     params.CategoryID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch category budgets")
+	}
+
+	return CategoryBudgets{}.FromModel(models), nil
+}
+
+type GetCategoryBudgetByIDInput struct {
+	CategoryBudgetID int
+	UserID           int
+	OrganizationID   int
+}
+
+func (s *service) GetCategoryBudgetByID(ctx context.Context, params GetCategoryBudgetByIDInput) (CategoryBudget, error) {
+	model, err := s.Repository.FetchCategoryBudgetByID(ctx, fetchCategoryBudgetByIDParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+	})
+	if err != nil {
+		return CategoryBudget{}, errors.Wrap(err, "failed to fetch category budget")
+	}
+
+	return CategoryBudget{}.FromModel(&model), nil
+}
+
+type CreateCategoryBudgetInput struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     int
+	Month          int
+	Year           int
+	BudgetType     string
+	PlannedAmount  decimal.Decimal
+}
+
+func (s *service) CreateCategoryBudget(ctx context.Context, params CreateCategoryBudgetInput) (CategoryBudget, error) {
+	model, err := s.Repository.InsertCategoryBudget(ctx, insertCategoryBudgetParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		CategoryID:     params.CategoryID,
+		Month:          params.Month,
+		Year:           params.Year,
+		BudgetType:     params.BudgetType,
+		PlannedAmount:  params.PlannedAmount,
+	})
+	if err != nil {
+		return CategoryBudget{}, errors.Wrap(err, "failed to create category budget")
+	}
+
+	return CategoryBudget{}.FromModel(&model), nil
+}
+
+type UpdateCategoryBudgetInput struct {
+	CategoryBudgetID int
+	UserID           int
+	OrganizationID   int
+	BudgetType       *string
+	PlannedAmount    *decimal.Decimal
+}
+
+func (s *service) UpdateCategoryBudget(ctx context.Context, params UpdateCategoryBudgetInput) (CategoryBudget, error) {
+	model, err := s.Repository.ModifyCategoryBudget(ctx, modifyCategoryBudgetParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+		BudgetType:       params.BudgetType,
+		PlannedAmount:    params.PlannedAmount,
+	})
+	if err != nil {
+		return CategoryBudget{}, errors.Wrap(err, "failed to update category budget")
+	}
+
+	return CategoryBudget{}.FromModel(&model), nil
+}
+
+type DeleteCategoryBudgetInput struct {
+	CategoryBudgetID int
+	UserID           int
+	OrganizationID   int
+}
+
+func (s *service) DeleteCategoryBudget(ctx context.Context, params DeleteCategoryBudgetInput) error {
+	err := s.Repository.RemoveCategoryBudget(ctx, removeCategoryBudgetParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to delete category budget")
+	}
+
+	return nil
+}
+
+type ConsolidateCategoryBudgetInput struct {
+	CategoryBudgetID int
+	UserID           int
+	OrganizationID   int
+}
+
+// ConsolidateCategoryBudget consolidates a budget and creates a snapshot
+func (s *service) ConsolidateCategoryBudget(ctx context.Context, params ConsolidateCategoryBudgetInput) (MonthlySnapshot, error) {
+	// Fetch the budget
+	budget, err := s.Repository.FetchCategoryBudgetByID(ctx, fetchCategoryBudgetByIDParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+	})
+	if err != nil {
+		return MonthlySnapshot{}, errors.Wrap(err, "failed to fetch budget for consolidation")
+	}
+
+	// Check if already consolidated
+	if budget.IsConsolidated {
+		return MonthlySnapshot{}, errors.New("budget already consolidated")
+	}
+
+	// Fetch actual spending for the category/month/year
+	spending, err := s.Repository.FetchBudgetSpending(ctx, fetchBudgetSpendingParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Month:          budget.Month,
+		Year:           budget.Year,
+	})
+	if err != nil {
+		return MonthlySnapshot{}, errors.Wrap(err, "failed to fetch spending")
+	}
+
+	actualAmount := spending[budget.CategoryID]
+	if actualAmount.IsZero() {
+		actualAmount = decimal.Zero
+	}
+
+	// Calculate variance percentage
+	variancePercent := decimal.Zero
+	if budget.PlannedAmount.GreaterThan(decimal.Zero) {
+		variance := actualAmount.Sub(budget.PlannedAmount)
+		variancePercent = variance.Div(budget.PlannedAmount).Mul(decimal.NewFromInt(100))
+	}
+
+	// Create snapshot
+	snapshot, err := s.Repository.InsertMonthlySnapshot(ctx, insertMonthlySnapshotParams{
+		UserID:          params.UserID,
+		OrganizationID:  params.OrganizationID,
+		CategoryID:      budget.CategoryID,
+		Month:           budget.Month,
+		Year:            budget.Year,
+		PlannedAmount:   budget.PlannedAmount,
+		ActualAmount:    actualAmount,
+		VariancePercent: variancePercent,
+		BudgetType:      budget.BudgetType,
+	})
+	if err != nil {
+		return MonthlySnapshot{}, errors.Wrap(err, "failed to create snapshot")
+	}
+
+	// Mark budget as consolidated
+	isConsolidated := true
+	_, err = s.Repository.ModifyCategoryBudget(ctx, modifyCategoryBudgetParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+		IsConsolidated:   &isConsolidated,
+	})
+	if err != nil {
+		return MonthlySnapshot{}, errors.Wrap(err, "failed to mark budget as consolidated")
+	}
+
+	return MonthlySnapshot{}.FromModel(&snapshot), nil
+}
+
+// ============================================================================
+// Planned Entries
+// ============================================================================
+
+type GetPlannedEntriesInput struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     *int
+	IsRecurrent    *bool
+	IsSavedPattern *bool
+	IsActive       *bool
+}
+
+func (s *service) GetPlannedEntries(ctx context.Context, params GetPlannedEntriesInput) ([]PlannedEntry, error) {
+	models, err := s.Repository.FetchPlannedEntries(ctx, fetchPlannedEntriesParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		CategoryID:     params.CategoryID,
+		IsRecurrent:    params.IsRecurrent,
+		IsSavedPattern: params.IsSavedPattern,
+		IsActive:       params.IsActive,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch planned entries")
+	}
+
+	return PlannedEntries{}.FromModel(models), nil
+}
+
+type GetPlannedEntryByIDInput struct {
+	PlannedEntryID int
+	UserID         int
+	OrganizationID int
+}
+
+func (s *service) GetPlannedEntryByID(ctx context.Context, params GetPlannedEntryByIDInput) (PlannedEntry, error) {
+	model, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
+		PlannedEntryID: params.PlannedEntryID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return PlannedEntry{}, errors.Wrap(err, "failed to fetch planned entry")
+	}
+
+	return PlannedEntry{}.FromModel(&model), nil
+}
+
+type GetSavedPatternsInput struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     *int
+}
+
+func (s *service) GetSavedPatterns(ctx context.Context, params GetSavedPatternsInput) ([]PlannedEntry, error) {
+	models, err := s.Repository.FetchSavedPatterns(ctx, fetchSavedPatternsParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		CategoryID:     params.CategoryID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch saved patterns")
+	}
+
+	return PlannedEntries{}.FromModel(models), nil
+}
+
+type CreatePlannedEntryInput struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     int
+	Description    string
+	Amount         decimal.Decimal
+	IsRecurrent    bool
+	ParentEntryID  *int
+	ExpectedDay    *int
+	IsSavedPattern bool
+}
+
+func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEntryInput) (PlannedEntry, error) {
+	model, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		CategoryID:     params.CategoryID,
+		Description:    params.Description,
+		Amount:         params.Amount,
+		IsRecurrent:    params.IsRecurrent,
+		ParentEntryID:  params.ParentEntryID,
+		ExpectedDay:    params.ExpectedDay,
+		IsSavedPattern: params.IsSavedPattern,
+	})
+	if err != nil {
+		return PlannedEntry{}, errors.Wrap(err, "failed to create planned entry")
+	}
+
+	return PlannedEntry{}.FromModel(&model), nil
+}
+
+type UpdatePlannedEntryInput struct {
+	PlannedEntryID int
+	UserID         int
+	OrganizationID int
+	Description    *string
+	Amount         *decimal.Decimal
+	ExpectedDay    *int
+	IsActive       *bool
+}
+
+func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEntryInput) (PlannedEntry, error) {
+	model, err := s.Repository.ModifyPlannedEntry(ctx, modifyPlannedEntryParams{
+		PlannedEntryID: params.PlannedEntryID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Description:    params.Description,
+		Amount:         params.Amount,
+		ExpectedDay:    params.ExpectedDay,
+		IsActive:       params.IsActive,
+	})
+	if err != nil {
+		return PlannedEntry{}, errors.Wrap(err, "failed to update planned entry")
+	}
+
+	return PlannedEntry{}.FromModel(&model), nil
+}
+
+type DeletePlannedEntryInput struct {
+	PlannedEntryID int
+	UserID         int
+	OrganizationID int
+}
+
+func (s *service) DeletePlannedEntry(ctx context.Context, params DeletePlannedEntryInput) error {
+	err := s.Repository.RemovePlannedEntry(ctx, removePlannedEntryParams{
+		PlannedEntryID: params.PlannedEntryID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to delete planned entry")
+	}
+
+	return nil
+}
+
+type GenerateMonthlyInstancesInput struct {
+	ParentEntryID  int
+	UserID         int
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// GenerateMonthlyInstances generates monthly instances for a recurrent entry
+func (s *service) GenerateMonthlyInstances(ctx context.Context, params GenerateMonthlyInstancesInput) ([]PlannedEntry, error) {
+	// Fetch the parent entry
+	parent, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
+		PlannedEntryID: params.ParentEntryID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch parent entry")
+	}
+
+	if !parent.IsRecurrent {
+		return nil, errors.New("entry is not recurrent")
+	}
+
+	// Check if instance already exists for this month
+	existingInstances, err := s.Repository.FetchPlannedEntriesByParent(ctx, fetchPlannedEntriesByParentParams{
+		ParentEntryID:  params.ParentEntryID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check existing instances")
+	}
+
+	// Filter to see if this month/year already has an instance
+	for _, instance := range existingInstances {
+		// This is a simplified check - in production you'd want to add month/year fields
+		// or check creation dates more carefully
+		if instance.IsActive {
+			return nil, errors.New("instance already exists for this month")
+		}
+	}
+
+	// Create new instance
+	instance, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		CategoryID:     parent.CategoryID,
+		Description:    parent.Description,
+		Amount:         parent.Amount,
+		IsRecurrent:    false,
+		ParentEntryID:  &params.ParentEntryID,
+		ExpectedDay:    parent.ExpectedDay,
+		IsSavedPattern: false,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create monthly instance")
+	}
+
+	return []PlannedEntry{PlannedEntry{}.FromModel(&instance)}, nil
+}
+
+// ============================================================================
+// Monthly Snapshots
+// ============================================================================
+
+type GetMonthlySnapshotsInput struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     *int
+	Month          *int
+	Year           *int
+}
+
+func (s *service) GetMonthlySnapshots(ctx context.Context, params GetMonthlySnapshotsInput) ([]MonthlySnapshot, error) {
+	models, err := s.Repository.FetchMonthlySnapshots(ctx, fetchMonthlySnapshotsParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		CategoryID:     params.CategoryID,
+		Month:          params.Month,
+		Year:           params.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch monthly snapshots")
+	}
+
+	return MonthlySnapshots{}.FromModel(models), nil
+}
+
+type GetMonthlySnapshotByIDInput struct {
+	SnapshotID     int
+	UserID         int
+	OrganizationID int
+}
+
+func (s *service) GetMonthlySnapshotByID(ctx context.Context, params GetMonthlySnapshotByIDInput) (MonthlySnapshot, error) {
+	model, err := s.Repository.FetchMonthlySnapshotByID(ctx, fetchMonthlySnapshotByIDParams{
+		SnapshotID:     params.SnapshotID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return MonthlySnapshot{}, errors.Wrap(err, "failed to fetch monthly snapshot")
+	}
+
+	return MonthlySnapshot{}.FromModel(&model), nil
 }

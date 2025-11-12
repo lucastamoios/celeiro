@@ -8,6 +8,7 @@ import (
 	transientdb "github.com/catrutech/celeiro/pkg/database/transient"
 	"github.com/catrutech/celeiro/pkg/logging"
 	"github.com/catrutech/celeiro/pkg/mailer"
+	"github.com/catrutech/celeiro/pkg/metrics"
 	"github.com/catrutech/celeiro/pkg/system"
 
 	"go.uber.org/fx"
@@ -37,6 +38,7 @@ func GetApplicationProvider() fx.Option {
 		mailer.GetMailerType,
 		mailer.NewMailer,
 		system.NewSystem,
+		metrics.NewMetrics,
 		// Accounts
 		accounts.NewRepository,
 		accounts.New,

@@ -8,13 +8,13 @@ import (
 
 // Category DTO
 type Category struct {
-	CategoryID int
-	Name       string
-	Icon       string
-	IsSystem   bool
-	UserID     *int
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	CategoryID int       `json:"category_id"`
+	Name       string    `json:"name"`
+	Icon       string    `json:"icon"`
+	IsSystem   bool      `json:"is_system"`
+	UserID     *int      `json:"user_id,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 func (c Category) FromModel(model *CategoryModel) Category {
@@ -82,23 +82,24 @@ func (a Accounts) FromModel(models []AccountModel) Accounts {
 
 // Transaction DTO
 type Transaction struct {
-	TransactionID        int
-	AccountID            int
-	CategoryID           *int
-	Description          string
-	Amount               decimal.Decimal
-	TransactionDate      time.Time
-	TransactionType      string
-	OFXFitID             *string
-	OFXCheckNum          *string
-	OFXMemo              *string
-	RawOFXData           *string
-	IsClassified         bool
-	ClassificationRuleID *int
-	Notes                *string
-	Tags                 []string
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	TransactionID        int             `json:"transaction_id"`
+	AccountID            int             `json:"account_id"`
+	CategoryID           *int            `json:"category_id,omitempty"`
+	Description          string          `json:"description"`
+	Amount               decimal.Decimal `json:"amount"`
+	TransactionDate      time.Time       `json:"transaction_date"`
+	TransactionType      string          `json:"transaction_type"`
+	OFXFitID             *string         `json:"ofx_fitid,omitempty"`
+	OFXCheckNum          *string         `json:"ofx_check_number,omitempty"`
+	OFXMemo              *string         `json:"ofx_memo,omitempty"`
+	RawOFXData           *string         `json:"raw_ofx_data,omitempty"`
+	IsClassified         bool            `json:"is_classified"`
+	ClassificationRuleID *int            `json:"classification_rule_id,omitempty"`
+	IsIgnored            bool            `json:"is_ignored"`
+	Notes                *string         `json:"notes,omitempty"`
+	Tags                 []string        `json:"tags"`
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"updated_at"`
 }
 
 func (t Transaction) FromModel(model *TransactionModel) Transaction {
@@ -116,6 +117,7 @@ func (t Transaction) FromModel(model *TransactionModel) Transaction {
 		RawOFXData:           model.RawOFXData,
 		IsClassified:         model.IsClassified,
 		ClassificationRuleID: model.ClassificationRuleID,
+		IsIgnored:            model.IsIgnored,
 		Notes:                model.Notes,
 		Tags:                 model.Tags,
 		CreatedAt:            model.CreatedAt,
@@ -261,7 +263,7 @@ func (b BudgetWithItems) CalculatedBudgetAmount() decimal.Decimal {
 		return b.Amount
 	case BudgetTypeCalculated:
 		return b.sumBudgetItems()
-	case BudgetTypeHybrid:
+	case BudgetTypeMaior:
 		itemsSum := b.sumBudgetItems()
 		if itemsSum.GreaterThan(b.Amount) {
 			return itemsSum
@@ -278,4 +280,186 @@ func (b BudgetWithItems) sumBudgetItems() decimal.Decimal {
 		sum = sum.Add(item.PlannedAmount)
 	}
 	return sum
+}
+
+// CategoryBudget DTO
+type CategoryBudget struct {
+	CategoryBudgetID int
+	UserID           int
+	OrganizationID   int
+	CategoryID       int
+	Month            int
+	Year             int
+	BudgetType       string
+	PlannedAmount    decimal.Decimal
+	IsConsolidated   bool
+	ConsolidatedAt   *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+func (c CategoryBudget) FromModel(model *CategoryBudgetModel) CategoryBudget {
+	return CategoryBudget{
+		CategoryBudgetID: model.CategoryBudgetID,
+		UserID:           model.UserID,
+		OrganizationID:   model.OrganizationID,
+		CategoryID:       model.CategoryID,
+		Month:            model.Month,
+		Year:             model.Year,
+		BudgetType:       model.BudgetType,
+		PlannedAmount:    model.PlannedAmount,
+		IsConsolidated:   model.IsConsolidated,
+		ConsolidatedAt:   model.ConsolidatedAt,
+		CreatedAt:        model.CreatedAt,
+		UpdatedAt:        model.UpdatedAt,
+	}
+}
+
+type CategoryBudgets []CategoryBudget
+
+func (c CategoryBudgets) FromModel(models []CategoryBudgetModel) CategoryBudgets {
+	budgets := make(CategoryBudgets, len(models))
+	for i, model := range models {
+		budgets[i] = CategoryBudget{}.FromModel(&model)
+	}
+	return budgets
+}
+
+// PlannedEntry DTO
+type PlannedEntry struct {
+	PlannedEntryID int
+	UserID         int
+	OrganizationID int
+	CategoryID     int
+	Description    string
+	Amount         decimal.Decimal
+	IsRecurrent    bool
+	ParentEntryID  *int
+	ExpectedDay    *int
+	IsActive       bool
+	IsSavedPattern bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+func (p PlannedEntry) FromModel(model *PlannedEntryModel) PlannedEntry {
+	return PlannedEntry{
+		PlannedEntryID: model.PlannedEntryID,
+		UserID:         model.UserID,
+		OrganizationID: model.OrganizationID,
+		CategoryID:     model.CategoryID,
+		Description:    model.Description,
+		Amount:         model.Amount,
+		IsRecurrent:    model.IsRecurrent,
+		ParentEntryID:  model.ParentEntryID,
+		ExpectedDay:    model.ExpectedDay,
+		IsActive:       model.IsActive,
+		IsSavedPattern: model.IsSavedPattern,
+		CreatedAt:      model.CreatedAt,
+		UpdatedAt:      model.UpdatedAt,
+	}
+}
+
+type PlannedEntries []PlannedEntry
+
+func (p PlannedEntries) FromModel(models []PlannedEntryModel) PlannedEntries {
+	entries := make(PlannedEntries, len(models))
+	for i, model := range models {
+		entries[i] = PlannedEntry{}.FromModel(&model)
+	}
+	return entries
+}
+
+// MonthlySnapshot DTO
+type MonthlySnapshot struct {
+	SnapshotID      int
+	UserID          int
+	OrganizationID  int
+	CategoryID      int
+	Month           int
+	Year            int
+	PlannedAmount   decimal.Decimal
+	ActualAmount    decimal.Decimal
+	VariancePercent decimal.Decimal
+	BudgetType      string
+	CreatedAt       time.Time
+}
+
+func (m MonthlySnapshot) FromModel(model *MonthlySnapshotModel) MonthlySnapshot {
+	return MonthlySnapshot{
+		SnapshotID:      model.SnapshotID,
+		UserID:          model.UserID,
+		OrganizationID:  model.OrganizationID,
+		CategoryID:      model.CategoryID,
+		Month:           model.Month,
+		Year:            model.Year,
+		PlannedAmount:   model.PlannedAmount,
+		ActualAmount:    model.ActualAmount,
+		VariancePercent: model.VariancePercent,
+		BudgetType:      model.BudgetType,
+		CreatedAt:       model.CreatedAt,
+	}
+}
+
+type MonthlySnapshots []MonthlySnapshot
+
+func (m MonthlySnapshots) FromModel(models []MonthlySnapshotModel) MonthlySnapshots {
+	snapshots := make(MonthlySnapshots, len(models))
+	for i, model := range models {
+		snapshots[i] = MonthlySnapshot{}.FromModel(&model)
+	}
+	return snapshots
+}
+
+// AdvancedPattern DTO
+type AdvancedPattern struct {
+	PatternID          int              `json:"pattern_id"`
+	UserID             int              `json:"user_id"`
+	OrganizationID     int              `json:"organization_id"`
+	DescriptionPattern *string          `json:"description_pattern,omitempty"`
+	DatePattern        *string          `json:"date_pattern,omitempty"`
+	WeekdayPattern     *string          `json:"weekday_pattern,omitempty"`
+	AmountMin          *decimal.Decimal `json:"amount_min,omitempty"`
+	AmountMax          *decimal.Decimal `json:"amount_max,omitempty"`
+	TargetDescription  string           `json:"target_description"`
+	TargetCategoryID   int              `json:"target_category_id"`
+	ApplyRetroactively bool             `json:"apply_retroactively"`
+	IsActive           bool             `json:"is_active"`
+	CreatedAt          time.Time        `json:"created_at"`
+	UpdatedAt          time.Time        `json:"updated_at"`
+}
+
+func (a AdvancedPattern) FromModel(model *AdvancedPatternModel) AdvancedPattern {
+	return AdvancedPattern{
+		PatternID:          model.PatternID,
+		UserID:             model.UserID,
+		OrganizationID:     model.OrganizationID,
+		DescriptionPattern: model.DescriptionPattern,
+		DatePattern:        model.DatePattern,
+		WeekdayPattern:     model.WeekdayPattern,
+		AmountMin:          model.AmountMin,
+		AmountMax:          model.AmountMax,
+		TargetDescription:  model.TargetDescription,
+		TargetCategoryID:   model.TargetCategoryID,
+		ApplyRetroactively: model.ApplyRetroactively,
+		IsActive:           model.IsActive,
+		CreatedAt:          model.CreatedAt,
+		UpdatedAt:          model.UpdatedAt,
+	}
+}
+
+type AdvancedPatterns []AdvancedPattern
+
+func (a AdvancedPatterns) FromModel(models []AdvancedPatternModel) AdvancedPatterns {
+	patterns := make(AdvancedPatterns, len(models))
+	for i, model := range models {
+		patterns[i] = AdvancedPattern{}.FromModel(&model)
+	}
+	return patterns
+}
+
+// AmountRange helper struct for request parsing
+type AmountRange struct {
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
 }
