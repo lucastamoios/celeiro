@@ -113,7 +113,7 @@ export default function BudgetItemForm({
           }`}
         >
           <option value="">Select a category</option>
-          {categories.map((category) => (
+          {categories?.map((category) => (
             <option key={category.CategoryID} value={category.CategoryID}>
               {category.Name}
             </option>

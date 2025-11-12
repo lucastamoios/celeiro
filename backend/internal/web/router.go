@@ -56,11 +56,48 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		r.Post("/budgets", mw.RequireSession(fh.CreateBudget, []accounts.Permission{}))
 		r.Get("/budgets/{budgetId}", mw.RequireSession(fh.GetBudgetByID, []accounts.Permission{}))
 		r.Get("/budgets/{budgetId}/spending", mw.RequireSession(fh.GetBudgetSpending, []accounts.Permission{}))
+		r.Get("/budgets/{budgetId}/progress", mw.RequireSession(fh.GetBudgetProgress, []accounts.Permission{}))
 
 		// Budget Items
 		r.Post("/budgets/{budgetId}/items", mw.RequireSession(fh.CreateBudgetItem, []accounts.Permission{}))
 		r.Patch("/budgets/{budgetId}/items/{itemId}", mw.RequireSession(fh.UpdateBudgetItem, []accounts.Permission{}))
 		r.Delete("/budgets/{budgetId}/items/{itemId}", mw.RequireSession(fh.DeleteBudgetItem, []accounts.Permission{}))
+
+		// Category Budgets
+		r.Get("/budgets/categories", mw.RequireSession(fh.ListCategoryBudgets, []accounts.Permission{}))
+		r.Post("/budgets/categories", mw.RequireSession(fh.CreateCategoryBudget, []accounts.Permission{}))
+		r.Get("/budgets/categories/{id}", mw.RequireSession(fh.GetCategoryBudget, []accounts.Permission{}))
+		r.Put("/budgets/categories/{id}", mw.RequireSession(fh.UpdateCategoryBudget, []accounts.Permission{}))
+		r.Delete("/budgets/categories/{id}", mw.RequireSession(fh.DeleteCategoryBudget, []accounts.Permission{}))
+		r.Post("/budgets/categories/{id}/consolidate", mw.RequireSession(fh.ConsolidateCategoryBudget, []accounts.Permission{}))
+
+		// Planned Entries
+		r.Get("/planned-entries", mw.RequireSession(fh.ListPlannedEntries, []accounts.Permission{}))
+		r.Post("/planned-entries", mw.RequireSession(fh.CreatePlannedEntry, []accounts.Permission{}))
+		r.Get("/planned-entries/patterns", mw.RequireSession(fh.GetSavedPatterns, []accounts.Permission{}))
+		r.Get("/planned-entries/{id}", mw.RequireSession(fh.GetPlannedEntry, []accounts.Permission{}))
+		r.Put("/planned-entries/{id}", mw.RequireSession(fh.UpdatePlannedEntry, []accounts.Permission{}))
+		r.Delete("/planned-entries/{id}", mw.RequireSession(fh.DeletePlannedEntry, []accounts.Permission{}))
+		r.Post("/planned-entries/{id}/generate", mw.RequireSession(fh.GenerateMonthlyInstances, []accounts.Permission{}))
+
+		// Monthly Snapshots
+		r.Get("/snapshots", mw.RequireSession(fh.ListMonthlySnapshots, []accounts.Permission{}))
+		r.Get("/snapshots/{id}", mw.RequireSession(fh.GetMonthlySnapshot, []accounts.Permission{}))
+
+		// Pattern Matching
+		r.Get("/match-suggestions", mw.RequireSession(fh.GetMatchSuggestions, []accounts.Permission{}))
+		r.Post("/transactions/{id}/apply-pattern", mw.RequireSession(fh.ApplyPatternToTransaction, []accounts.Permission{}))
+		r.Post("/transactions/{id}/save-as-pattern", mw.RequireSession(fh.SaveTransactionAsPattern, []accounts.Permission{}))
+
+		// Income Planning
+		r.Get("/income-planning", mw.RequireSession(fh.GetIncomePlanning, []accounts.Permission{}))
+
+		// Advanced Patterns
+		r.Post("/advanced-patterns", mw.RequireSession(fh.CreateAdvancedPattern, []accounts.Permission{}))
+		r.Get("/advanced-patterns", mw.RequireSession(fh.GetAdvancedPatterns, []accounts.Permission{}))
+		r.Get("/advanced-patterns/{id}", mw.RequireSession(fh.GetAdvancedPattern, []accounts.Permission{}))
+		r.Put("/advanced-patterns/{id}", mw.RequireSession(fh.UpdateAdvancedPattern, []accounts.Permission{}))
+		r.Delete("/advanced-patterns/{id}", mw.RequireSession(fh.DeleteAdvancedPattern, []accounts.Permission{}))
 	})
 
 	return r

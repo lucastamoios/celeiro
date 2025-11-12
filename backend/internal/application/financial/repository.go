@@ -26,6 +26,7 @@ type Repository interface {
 	// Transactions
 	FetchTransactions(ctx context.Context, params fetchTransactionsParams) ([]TransactionModel, error)
 	FetchTransactionByID(ctx context.Context, params fetchTransactionByIDParams) (TransactionModel, error)
+	FetchTransactionsByMonth(ctx context.Context, params fetchTransactionsByMonthParams) ([]TransactionModel, error)
 	InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error)
 	BulkInsertTransactions(ctx context.Context, params bulkInsertTransactionsParams) ([]TransactionModel, error)
 	ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error)
@@ -51,6 +52,34 @@ type Repository interface {
 	InsertClassificationRule(ctx context.Context, params insertClassificationRuleParams) (ClassificationRuleModel, error)
 	ModifyClassificationRule(ctx context.Context, params modifyClassificationRuleParams) (ClassificationRuleModel, error)
 	RemoveClassificationRule(ctx context.Context, params removeClassificationRuleParams) error
+
+	// Category Budgets
+	FetchCategoryBudgets(ctx context.Context, params fetchCategoryBudgetsParams) ([]CategoryBudgetModel, error)
+	FetchCategoryBudgetByID(ctx context.Context, params fetchCategoryBudgetByIDParams) (CategoryBudgetModel, error)
+	InsertCategoryBudget(ctx context.Context, params insertCategoryBudgetParams) (CategoryBudgetModel, error)
+	ModifyCategoryBudget(ctx context.Context, params modifyCategoryBudgetParams) (CategoryBudgetModel, error)
+	RemoveCategoryBudget(ctx context.Context, params removeCategoryBudgetParams) error
+
+	// Planned Entries
+	FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error)
+	FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error)
+	FetchPlannedEntriesByParent(ctx context.Context, params fetchPlannedEntriesByParentParams) ([]PlannedEntryModel, error)
+	FetchSavedPatterns(ctx context.Context, params fetchSavedPatternsParams) ([]PlannedEntryModel, error)
+	InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error)
+	ModifyPlannedEntry(ctx context.Context, params modifyPlannedEntryParams) (PlannedEntryModel, error)
+	RemovePlannedEntry(ctx context.Context, params removePlannedEntryParams) error
+
+	// Monthly Snapshots
+	FetchMonthlySnapshots(ctx context.Context, params fetchMonthlySnapshotsParams) ([]MonthlySnapshotModel, error)
+	FetchMonthlySnapshotByID(ctx context.Context, params fetchMonthlySnapshotByIDParams) (MonthlySnapshotModel, error)
+	InsertMonthlySnapshot(ctx context.Context, params insertMonthlySnapshotParams) (MonthlySnapshotModel, error)
+
+	// Advanced Patterns
+	FetchAdvancedPatterns(ctx context.Context, params fetchAdvancedPatternsParams) ([]AdvancedPatternModel, error)
+	FetchAdvancedPatternByID(ctx context.Context, params fetchAdvancedPatternByIDParams) (AdvancedPatternModel, error)
+	InsertAdvancedPattern(ctx context.Context, params insertAdvancedPatternParams) (AdvancedPatternModel, error)
+	ModifyAdvancedPattern(ctx context.Context, params modifyAdvancedPatternParams) (AdvancedPatternModel, error)
+	RemoveAdvancedPattern(ctx context.Context, params removeAdvancedPatternParams) error
 }
 
 type repository struct {
@@ -446,6 +475,52 @@ func (r *repository) FetchTransactionByID(ctx context.Context, params fetchTrans
 	return result, nil
 }
 
+type fetchTransactionsByMonthParams struct {
+	UserID         int
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+const fetchTransactionsByMonthQuery = `
+	-- financial.fetchTransactionsByMonthQuery
+	SELECT
+		t.transaction_id,
+		t.created_at,
+		t.updated_at,
+		t.account_id,
+		t.category_id,
+		t.description,
+		t.amount,
+		t.transaction_date,
+		t.transaction_type,
+		t.ofx_fitid,
+		t.ofx_check_number,
+		t.ofx_memo,
+		t.raw_ofx_data,
+		t.is_classified,
+		t.classification_rule_id,
+		t.notes,
+		t.tags
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE a.user_id = $1
+		AND a.organization_id = $2
+		AND EXTRACT(MONTH FROM t.transaction_date) = $3
+		AND EXTRACT(YEAR FROM t.transaction_date) = $4
+	ORDER BY t.transaction_date ASC;
+`
+
+func (r *repository) FetchTransactionsByMonth(ctx context.Context, params fetchTransactionsByMonthParams) ([]TransactionModel, error) {
+	var result []TransactionModel
+	err := r.db.Query(ctx, &result, fetchTransactionsByMonthQuery,
+		params.UserID, params.OrganizationID, params.Month, params.Year)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 type insertTransactionParams struct {
 	AccountID       int
 	CategoryID      *int
@@ -466,10 +541,19 @@ const insertTransactionQuery = `
 		ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data
 	)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-	ON CONFLICT (account_id, ofx_fitid) WHERE ofx_fitid IS NOT NULL DO NOTHING
+	ON CONFLICT (account_id, ofx_fitid) WHERE ofx_fitid IS NOT NULL
+	DO UPDATE SET
+		description = EXCLUDED.description,
+		amount = EXCLUDED.amount,
+		transaction_date = EXCLUDED.transaction_date,
+		transaction_type = EXCLUDED.transaction_type,
+		ofx_check_number = EXCLUDED.ofx_check_number,
+		ofx_memo = EXCLUDED.ofx_memo,
+		raw_ofx_data = EXCLUDED.raw_ofx_data,
+		updated_at = NOW()
 	RETURNING transaction_id, created_at, updated_at, account_id, category_id, description, amount,
 			  transaction_date, transaction_type, ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data,
-			  is_classified, classification_rule_id, notes, tags;
+			  is_classified, classification_rule_id, is_ignored, notes, tags;
 `
 
 func (r *repository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
@@ -510,6 +594,7 @@ type modifyTransactionParams struct {
 	Description    *string
 	Amount         *decimal.Decimal
 	Notes          *string
+	IsIgnored      *bool
 }
 
 const modifyTransactionQuery = `
@@ -519,6 +604,7 @@ const modifyTransactionQuery = `
 		description = COALESCE($5, t.description),
 		amount = COALESCE($6, t.amount),
 		notes = COALESCE($7, t.notes),
+		is_ignored = COALESCE($8, t.is_ignored),
 		updated_at = NOW()
 	FROM accounts a
 	WHERE t.transaction_id = $1
@@ -527,14 +613,14 @@ const modifyTransactionQuery = `
 		AND a.organization_id = $3
 	RETURNING t.transaction_id, t.created_at, t.updated_at, t.account_id, t.category_id, t.description,
 			  t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid, t.ofx_check_number,
-			  t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id, t.notes, t.tags;
+			  t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id, t.is_ignored, t.notes, t.tags;
 `
 
 func (r *repository) ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error) {
 	var result TransactionModel
 	err := r.db.Query(ctx, &result, modifyTransactionQuery,
 		params.TransactionID, params.UserID, params.OrganizationID,
-		params.CategoryID, params.Description, params.Amount, params.Notes)
+		params.CategoryID, params.Description, params.Amount, params.Notes, params.IsIgnored)
 	if err != nil {
 		return TransactionModel{}, err
 	}
@@ -1016,6 +1102,7 @@ const fetchBudgetSpendingQuery = `
 		AND EXTRACT(MONTH FROM t.transaction_date) = $3
 		AND EXTRACT(YEAR FROM t.transaction_date) = $4
 		AND t.transaction_type = 'debit'
+		AND t.is_ignored = false
 	GROUP BY t.category_id;
 `
 
@@ -1034,4 +1121,778 @@ func (r *repository) FetchBudgetSpending(ctx context.Context, params fetchBudget
 	}
 
 	return spendingMap, nil
+}
+
+// ============================================================================
+// Category Budgets
+// ============================================================================
+
+type fetchCategoryBudgetsParams struct {
+	UserID         int
+	OrganizationID int
+	Month          *int
+	Year           *int
+	CategoryID     *int
+}
+
+const fetchCategoryBudgetsQuery = `
+	-- financial.fetchCategoryBudgetsQuery
+	SELECT
+		category_budget_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		budget_type,
+		planned_amount,
+		is_consolidated,
+		consolidated_at
+	FROM category_budgets
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND ($3::int IS NULL OR month = $3)
+		AND ($4::int IS NULL OR year = $4)
+		AND ($5::int IS NULL OR category_id = $5)
+	ORDER BY year DESC, month DESC, category_id ASC;
+`
+
+func (r *repository) FetchCategoryBudgets(ctx context.Context, params fetchCategoryBudgetsParams) ([]CategoryBudgetModel, error) {
+	var budgets []CategoryBudgetModel
+	err := r.db.Query(ctx, &budgets, fetchCategoryBudgetsQuery,
+		params.UserID, params.OrganizationID, params.Month, params.Year, params.CategoryID)
+	return budgets, err
+}
+
+type fetchCategoryBudgetByIDParams struct {
+	CategoryBudgetID int
+	UserID           int
+	OrganizationID   int
+}
+
+const fetchCategoryBudgetByIDQuery = `
+	-- financial.fetchCategoryBudgetByIDQuery
+	SELECT
+		category_budget_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		budget_type,
+		planned_amount,
+		is_consolidated,
+		consolidated_at
+	FROM category_budgets
+	WHERE category_budget_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) FetchCategoryBudgetByID(ctx context.Context, params fetchCategoryBudgetByIDParams) (CategoryBudgetModel, error) {
+	var budget CategoryBudgetModel
+	err := r.db.Query(ctx, &budget, fetchCategoryBudgetByIDQuery,
+		params.CategoryBudgetID, params.UserID, params.OrganizationID)
+	return budget, err
+}
+
+type insertCategoryBudgetParams struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     int
+	Month          int
+	Year           int
+	BudgetType     string
+	PlannedAmount  decimal.Decimal
+}
+
+const insertCategoryBudgetQuery = `
+	-- financial.insertCategoryBudgetQuery
+	INSERT INTO category_budgets (
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		budget_type,
+		planned_amount
+	) VALUES ($1, $2, $3, $4, $5, $6, $7)
+	RETURNING
+		category_budget_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		budget_type,
+		planned_amount,
+		is_consolidated,
+		consolidated_at;
+`
+
+func (r *repository) InsertCategoryBudget(ctx context.Context, params insertCategoryBudgetParams) (CategoryBudgetModel, error) {
+	var budget CategoryBudgetModel
+	err := r.db.Query(ctx, &budget, insertCategoryBudgetQuery,
+		params.UserID, params.OrganizationID, params.CategoryID,
+		params.Month, params.Year, params.BudgetType, params.PlannedAmount)
+	return budget, err
+}
+
+type modifyCategoryBudgetParams struct {
+	CategoryBudgetID int
+	UserID           int
+	OrganizationID   int
+	BudgetType       *string
+	PlannedAmount    *decimal.Decimal
+	IsConsolidated   *bool
+}
+
+const modifyCategoryBudgetQuery = `
+	-- financial.modifyCategoryBudgetQuery
+	UPDATE category_budgets
+	SET
+		budget_type = COALESCE($4, budget_type),
+		planned_amount = COALESCE($5, planned_amount),
+		is_consolidated = COALESCE($6, is_consolidated),
+		consolidated_at = CASE WHEN $6 = true AND is_consolidated = false THEN CURRENT_TIMESTAMP ELSE consolidated_at END,
+		updated_at = CURRENT_TIMESTAMP
+	WHERE category_budget_id = $1
+		AND user_id = $2
+		AND organization_id = $3
+	RETURNING
+		category_budget_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		budget_type,
+		planned_amount,
+		is_consolidated,
+		consolidated_at;
+`
+
+func (r *repository) ModifyCategoryBudget(ctx context.Context, params modifyCategoryBudgetParams) (CategoryBudgetModel, error) {
+	var budget CategoryBudgetModel
+	err := r.db.Query(ctx, &budget, modifyCategoryBudgetQuery,
+		params.CategoryBudgetID, params.UserID, params.OrganizationID,
+		params.BudgetType, params.PlannedAmount, params.IsConsolidated)
+	return budget, err
+}
+
+type removeCategoryBudgetParams struct {
+	CategoryBudgetID int
+	UserID           int
+	OrganizationID   int
+}
+
+const removeCategoryBudgetQuery = `
+	-- financial.removeCategoryBudgetQuery
+	DELETE FROM category_budgets
+	WHERE category_budget_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) RemoveCategoryBudget(ctx context.Context, params removeCategoryBudgetParams) error {
+	return r.db.Run(ctx, removeCategoryBudgetQuery,
+		params.CategoryBudgetID, params.UserID, params.OrganizationID)
+}
+
+// ============================================================================
+// Planned Entries
+// ============================================================================
+
+type fetchPlannedEntriesParams struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     *int
+	IsRecurrent    *bool
+	IsSavedPattern *bool
+	IsActive       *bool
+}
+
+const fetchPlannedEntriesQuery = `
+	-- financial.fetchPlannedEntriesQuery
+	SELECT
+		planned_entry_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		description,
+		amount,
+		is_recurrent,
+		parent_entry_id,
+		expected_day,
+		is_active,
+		is_saved_pattern
+	FROM planned_entries
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND ($3::int IS NULL OR category_id = $3)
+		AND ($4::bool IS NULL OR is_recurrent = $4)
+		AND ($5::bool IS NULL OR is_saved_pattern = $5)
+		AND ($6::bool IS NULL OR is_active = $6)
+	ORDER BY created_at DESC;
+`
+
+func (r *repository) FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error) {
+	var entries []PlannedEntryModel
+	err := r.db.Query(ctx, &entries, fetchPlannedEntriesQuery,
+		params.UserID, params.OrganizationID, params.CategoryID,
+		params.IsRecurrent, params.IsSavedPattern, params.IsActive)
+	return entries, err
+}
+
+type fetchPlannedEntryByIDParams struct {
+	PlannedEntryID int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchPlannedEntryByIDQuery = `
+	-- financial.fetchPlannedEntryByIDQuery
+	SELECT
+		planned_entry_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		description,
+		amount,
+		is_recurrent,
+		parent_entry_id,
+		expected_day,
+		is_active,
+		is_saved_pattern
+	FROM planned_entries
+	WHERE planned_entry_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error) {
+	var entry PlannedEntryModel
+	err := r.db.Query(ctx, &entry, fetchPlannedEntryByIDQuery,
+		params.PlannedEntryID, params.UserID, params.OrganizationID)
+	return entry, err
+}
+
+type fetchPlannedEntriesByParentParams struct {
+	ParentEntryID  int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchPlannedEntriesByParentQuery = `
+	-- financial.fetchPlannedEntriesByParentQuery
+	SELECT
+		planned_entry_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		description,
+		amount,
+		is_recurrent,
+		parent_entry_id,
+		expected_day,
+		is_active,
+		is_saved_pattern
+	FROM planned_entries
+	WHERE parent_entry_id = $1
+		AND user_id = $2
+		AND organization_id = $3
+	ORDER BY expected_day ASC;
+`
+
+func (r *repository) FetchPlannedEntriesByParent(ctx context.Context, params fetchPlannedEntriesByParentParams) ([]PlannedEntryModel, error) {
+	var entries []PlannedEntryModel
+	err := r.db.Query(ctx, &entries, fetchPlannedEntriesByParentQuery,
+		params.ParentEntryID, params.UserID, params.OrganizationID)
+	return entries, err
+}
+
+type fetchSavedPatternsParams struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     *int
+}
+
+const fetchSavedPatternsQuery = `
+	-- financial.fetchSavedPatternsQuery
+	SELECT
+		planned_entry_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		description,
+		amount,
+		is_recurrent,
+		parent_entry_id,
+		expected_day,
+		is_active,
+		is_saved_pattern
+	FROM planned_entries
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND is_saved_pattern = true
+		AND is_active = true
+		AND ($3::int IS NULL OR category_id = $3)
+	ORDER BY created_at DESC;
+`
+
+func (r *repository) FetchSavedPatterns(ctx context.Context, params fetchSavedPatternsParams) ([]PlannedEntryModel, error) {
+	var entries []PlannedEntryModel
+	err := r.db.Query(ctx, &entries, fetchSavedPatternsQuery,
+		params.UserID, params.OrganizationID, params.CategoryID)
+	return entries, err
+}
+
+type insertPlannedEntryParams struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     int
+	Description    string
+	Amount         decimal.Decimal
+	IsRecurrent    bool
+	ParentEntryID  *int
+	ExpectedDay    *int
+	IsSavedPattern bool
+}
+
+const insertPlannedEntryQuery = `
+	-- financial.insertPlannedEntryQuery
+	INSERT INTO planned_entries (
+		user_id,
+		organization_id,
+		category_id,
+		description,
+		amount,
+		is_recurrent,
+		parent_entry_id,
+		expected_day,
+		is_saved_pattern
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	RETURNING
+		planned_entry_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		description,
+		amount,
+		is_recurrent,
+		parent_entry_id,
+		expected_day,
+		is_active,
+		is_saved_pattern;
+`
+
+func (r *repository) InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error) {
+	var entry PlannedEntryModel
+	err := r.db.Query(ctx, &entry, insertPlannedEntryQuery,
+		params.UserID, params.OrganizationID, params.CategoryID,
+		params.Description, params.Amount, params.IsRecurrent,
+		params.ParentEntryID, params.ExpectedDay, params.IsSavedPattern)
+	return entry, err
+}
+
+type modifyPlannedEntryParams struct {
+	PlannedEntryID int
+	UserID         int
+	OrganizationID int
+	Description    *string
+	Amount         *decimal.Decimal
+	ExpectedDay    *int
+	IsActive       *bool
+}
+
+const modifyPlannedEntryQuery = `
+	-- financial.modifyPlannedEntryQuery
+	UPDATE planned_entries
+	SET
+		description = COALESCE($4, description),
+		amount = COALESCE($5, amount),
+		expected_day = COALESCE($6, expected_day),
+		is_active = COALESCE($7, is_active),
+		updated_at = CURRENT_TIMESTAMP
+	WHERE planned_entry_id = $1
+		AND user_id = $2
+		AND organization_id = $3
+	RETURNING
+		planned_entry_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		description,
+		amount,
+		is_recurrent,
+		parent_entry_id,
+		expected_day,
+		is_active,
+		is_saved_pattern;
+`
+
+func (r *repository) ModifyPlannedEntry(ctx context.Context, params modifyPlannedEntryParams) (PlannedEntryModel, error) {
+	var entry PlannedEntryModel
+	err := r.db.Query(ctx, &entry, modifyPlannedEntryQuery,
+		params.PlannedEntryID, params.UserID, params.OrganizationID,
+		params.Description, params.Amount, params.ExpectedDay, params.IsActive)
+	return entry, err
+}
+
+type removePlannedEntryParams struct {
+	PlannedEntryID int
+	UserID         int
+	OrganizationID int
+}
+
+const removePlannedEntryQuery = `
+	-- financial.removePlannedEntryQuery
+	DELETE FROM planned_entries
+	WHERE planned_entry_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) RemovePlannedEntry(ctx context.Context, params removePlannedEntryParams) error {
+	return r.db.Run(ctx, removePlannedEntryQuery,
+		params.PlannedEntryID, params.UserID, params.OrganizationID)
+}
+
+// ============================================================================
+// Monthly Snapshots
+// ============================================================================
+
+type fetchMonthlySnapshotsParams struct {
+	UserID         int
+	OrganizationID int
+	CategoryID     *int
+	Month          *int
+	Year           *int
+}
+
+const fetchMonthlySnapshotsQuery = `
+	-- financial.fetchMonthlySnapshotsQuery
+	SELECT
+		snapshot_id,
+		created_at,
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		planned_amount,
+		actual_amount,
+		variance_percent,
+		budget_type
+	FROM monthly_snapshots
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND ($3::int IS NULL OR category_id = $3)
+		AND ($4::int IS NULL OR month = $4)
+		AND ($5::int IS NULL OR year = $5)
+	ORDER BY year DESC, month DESC, category_id ASC;
+`
+
+func (r *repository) FetchMonthlySnapshots(ctx context.Context, params fetchMonthlySnapshotsParams) ([]MonthlySnapshotModel, error) {
+	var snapshots []MonthlySnapshotModel
+	err := r.db.Query(ctx, &snapshots, fetchMonthlySnapshotsQuery,
+		params.UserID, params.OrganizationID, params.CategoryID, params.Month, params.Year)
+	return snapshots, err
+}
+
+type fetchMonthlySnapshotByIDParams struct {
+	SnapshotID     int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchMonthlySnapshotByIDQuery = `
+	-- financial.fetchMonthlySnapshotByIDQuery
+	SELECT
+		snapshot_id,
+		created_at,
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		planned_amount,
+		actual_amount,
+		variance_percent,
+		budget_type
+	FROM monthly_snapshots
+	WHERE snapshot_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) FetchMonthlySnapshotByID(ctx context.Context, params fetchMonthlySnapshotByIDParams) (MonthlySnapshotModel, error) {
+	var snapshot MonthlySnapshotModel
+	err := r.db.Query(ctx, &snapshot, fetchMonthlySnapshotByIDQuery,
+		params.SnapshotID, params.UserID, params.OrganizationID)
+	return snapshot, err
+}
+
+type insertMonthlySnapshotParams struct {
+	UserID          int
+	OrganizationID  int
+	CategoryID      int
+	Month           int
+	Year            int
+	PlannedAmount   decimal.Decimal
+	ActualAmount    decimal.Decimal
+	VariancePercent decimal.Decimal
+	BudgetType      string
+}
+
+const insertMonthlySnapshotQuery = `
+	-- financial.insertMonthlySnapshotQuery
+	INSERT INTO monthly_snapshots (
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		planned_amount,
+		actual_amount,
+		variance_percent,
+		budget_type
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	RETURNING
+		snapshot_id,
+		created_at,
+		user_id,
+		organization_id,
+		category_id,
+		month,
+		year,
+		planned_amount,
+		actual_amount,
+		variance_percent,
+		budget_type;
+`
+
+func (r *repository) InsertMonthlySnapshot(ctx context.Context, params insertMonthlySnapshotParams) (MonthlySnapshotModel, error) {
+	var snapshot MonthlySnapshotModel
+	err := r.db.Query(ctx, &snapshot, insertMonthlySnapshotQuery,
+		params.UserID, params.OrganizationID, params.CategoryID,
+		params.Month, params.Year, params.PlannedAmount, params.ActualAmount,
+		params.VariancePercent, params.BudgetType)
+	return snapshot, err
+}
+
+// ============================================================================
+// Advanced Patterns
+// ============================================================================
+
+type fetchAdvancedPatternsParams struct {
+	UserID         int
+	OrganizationID int
+	IsActive       *bool
+	CategoryID     *int
+}
+
+const fetchAdvancedPatternsQuery = `
+	-- financial.fetchAdvancedPatternsQuery
+	SELECT
+		pattern_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		description_pattern,
+		date_pattern,
+		weekday_pattern,
+		amount_min,
+		amount_max,
+		target_description,
+		target_category_id,
+		apply_retroactively,
+		is_active
+	FROM advanced_patterns
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND ($3::boolean IS NULL OR is_active = $3)
+		AND ($4::integer IS NULL OR target_category_id = $4)
+	ORDER BY created_at DESC;
+`
+
+func (r *repository) FetchAdvancedPatterns(ctx context.Context, params fetchAdvancedPatternsParams) ([]AdvancedPatternModel, error) {
+	var result []AdvancedPatternModel
+	err := r.db.Query(ctx, &result, fetchAdvancedPatternsQuery,
+		params.UserID, params.OrganizationID, params.IsActive, params.CategoryID)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type fetchAdvancedPatternByIDParams struct {
+	PatternID      int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchAdvancedPatternByIDQuery = `
+	-- financial.fetchAdvancedPatternByIDQuery
+	SELECT
+		pattern_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		description_pattern,
+		date_pattern,
+		weekday_pattern,
+		amount_min,
+		amount_max,
+		target_description,
+		target_category_id,
+		apply_retroactively,
+		is_active
+	FROM advanced_patterns
+	WHERE pattern_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) FetchAdvancedPatternByID(ctx context.Context, params fetchAdvancedPatternByIDParams) (AdvancedPatternModel, error) {
+	var pattern AdvancedPatternModel
+	err := r.db.Query(ctx, &pattern, fetchAdvancedPatternByIDQuery,
+		params.PatternID, params.UserID, params.OrganizationID)
+	return pattern, err
+}
+
+type insertAdvancedPatternParams struct {
+	UserID             int
+	OrganizationID     int
+	DescriptionPattern *string
+	DatePattern        *string
+	WeekdayPattern     *string
+	AmountMin          *decimal.Decimal
+	AmountMax          *decimal.Decimal
+	TargetDescription  string
+	TargetCategoryID   int
+	ApplyRetroactively bool
+}
+
+const insertAdvancedPatternQuery = `
+	-- financial.insertAdvancedPatternQuery
+	INSERT INTO advanced_patterns (
+		user_id,
+		organization_id,
+		description_pattern,
+		date_pattern,
+		weekday_pattern,
+		amount_min,
+		amount_max,
+		target_description,
+		target_category_id,
+		apply_retroactively
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	RETURNING
+		pattern_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		description_pattern,
+		date_pattern,
+		weekday_pattern,
+		amount_min,
+		amount_max,
+		target_description,
+		target_category_id,
+		apply_retroactively,
+		is_active;
+`
+
+func (r *repository) InsertAdvancedPattern(ctx context.Context, params insertAdvancedPatternParams) (AdvancedPatternModel, error) {
+	var pattern AdvancedPatternModel
+	err := r.db.Query(ctx, &pattern, insertAdvancedPatternQuery,
+		params.UserID, params.OrganizationID, params.DescriptionPattern,
+		params.DatePattern, params.WeekdayPattern, params.AmountMin, params.AmountMax,
+		params.TargetDescription, params.TargetCategoryID, params.ApplyRetroactively)
+	return pattern, err
+}
+
+type modifyAdvancedPatternParams struct {
+	PatternID      int
+	UserID         int
+	OrganizationID int
+	IsActive       *bool
+}
+
+const modifyAdvancedPatternQuery = `
+	-- financial.modifyAdvancedPatternQuery
+	UPDATE advanced_patterns
+	SET
+		is_active = COALESCE($4, is_active),
+		updated_at = CURRENT_TIMESTAMP
+	WHERE pattern_id = $1
+		AND user_id = $2
+		AND organization_id = $3
+	RETURNING
+		pattern_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		description_pattern,
+		date_pattern,
+		weekday_pattern,
+		amount_min,
+		amount_max,
+		target_description,
+		target_category_id,
+		apply_retroactively,
+		is_active;
+`
+
+func (r *repository) ModifyAdvancedPattern(ctx context.Context, params modifyAdvancedPatternParams) (AdvancedPatternModel, error) {
+	var pattern AdvancedPatternModel
+	err := r.db.Query(ctx, &pattern, modifyAdvancedPatternQuery,
+		params.PatternID, params.UserID, params.OrganizationID, params.IsActive)
+	return pattern, err
+}
+
+type removeAdvancedPatternParams struct {
+	PatternID      int
+	UserID         int
+	OrganizationID int
+}
+
+const removeAdvancedPatternQuery = `
+	-- financial.removeAdvancedPatternQuery
+	DELETE FROM advanced_patterns
+	WHERE pattern_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) RemoveAdvancedPattern(ctx context.Context, params removeAdvancedPatternParams) error {
+	var result struct{}
+	err := r.db.Query(ctx, &result, removeAdvancedPatternQuery,
+		params.PatternID, params.UserID, params.OrganizationID)
+	return err
 }

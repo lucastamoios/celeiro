@@ -38,12 +38,12 @@ up: setup
 	@echo "✅ All services started!"
 	@echo ""
 	@echo "📍 Services available at:"
-	@echo "   Frontend:  http://localhost:13000"
-	@echo "   Backend:   http://localhost:18080"
-	@echo "   Postgres:  localhost:54330"
-	@echo "   Redis:     localhost:63800"
+	@echo "   Frontend:  http://localhost:${FRONTEND_EXTERNAL_PORT}"
+	@echo "   Backend:   http://localhost:${BACKEND_EXTERNAL_PORT}"
+	@echo "   Postgres:  localhost:${DATABASE_PORT}"
+	@echo "   Redis:     localhost:${REDIS_PORT}"
 	@echo ""
-	@echo "📋 View logs: docker logs -f celeiro_backend (or celeiro_frontend)"
+	@echo "📋 View logs: docker logs -f ${PROJECT_NAME}_backend (or ${PROJECT_NAME}_frontend)"
 
 down:
 	@echo "🛑 Stopping all services..."
@@ -57,10 +57,10 @@ restart: setup
 	@echo "✅ All services restarted!"
 	@echo ""
 	@echo "📍 Services available at:"
-	@echo "   Frontend:  http://localhost:13000"
-	@echo "   Backend:   http://localhost:18080"
+	@echo "   Frontend:  http://localhost:${FRONTEND_EXTERNAL_PORT}"
+	@echo "   Backend:   http://localhost:${BACKEND_EXTERNAL_PORT}"
 	@echo ""
-	@echo "📋 View logs: docker logs -f celeiro_backend (or celeiro_frontend)"
+	@echo "📋 View logs: docker logs -f ${PROJECT_NAME}_backend (or ${PROJECT_NAME}_frontend)"
 
 full-restart: setup
 	@echo "🔥 Full restart (no cache - slower but ensures fresh build)..."
@@ -70,10 +70,10 @@ full-restart: setup
 	@echo "✅ All services rebuilt from scratch and started!"
 	@echo ""
 	@echo "📍 Services available at:"
-	@echo "   Frontend:  http://localhost:13000"
-	@echo "   Backend:   http://localhost:18080"
+	@echo "   Frontend:  http://localhost:${FRONTEND_EXTERNAL_PORT}"
+	@echo "   Backend:   http://localhost:${BACKEND_EXTERNAL_PORT}"
 	@echo ""
-	@echo "📋 View logs: docker logs -f celeiro_backend (or celeiro_frontend)"
+	@echo "📋 View logs: docker logs -f ${PROJECT_NAME}_backend (or ${PROJECT_NAME}_frontend)"
 
 test:
 	gotest -v ./...

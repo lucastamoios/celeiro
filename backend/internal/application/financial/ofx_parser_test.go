@@ -441,3 +441,70 @@ func (s *OFXParserTestSuite) TestParseOFX_RealNubankSample() {
 	s.True(tx2.Amount.Equal(decimal.NewFromFloat(-68.20)))
 	s.Contains(tx2.Memo, "Transferência enviada pelo Pix")
 }
+
+// Test cleanDescription function
+func (s *OFXParserTestSuite) TestCleanDescription_RemoveSingleQuotes() {
+	result := cleanDescription("Joe's Pizza")
+	s.Equal("Joes Pizza", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_RemoveDoubleQuotes() {
+	result := cleanDescription(`"Special" Restaurant`)
+	s.Equal("Special Restaurant", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_RemoveDashes() {
+	result := cleanDescription("ABC-DEF-GHI")
+	s.Equal("ABCDEFGHI", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_RemoveDots() {
+	result := cleanDescription("Mr. Smith's Inc.")
+	s.Equal("Mr Smiths Inc", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_RemoveAllSpecialCharacters() {
+	result := cleanDescription(`Joe's "Pizza" - N.Y.C.`)
+	s.Equal("Joes Pizza  NYC", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_NormalizeMultipleSpaces() {
+	result := cleanDescription("ABC    DEF     GHI")
+	s.Equal("ABC DEF GHI", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_TrimSpaces() {
+	result := cleanDescription("  ABC  ")
+	s.Equal("ABC", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_ComplexRealWorld() {
+	result := cleanDescription(`  McDonald's "Big Mac" - Purchase 12.99  `)
+	s.Equal("McDonalds Big Mac  Purchase 1299", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_EmptyString() {
+	result := cleanDescription("")
+	s.Equal("", result)
+}
+
+func (s *OFXParserTestSuite) TestCleanDescription_OnlySpecialCharacters() {
+	result := cleanDescription(`'"--.`)
+	s.Equal("", result)
+}
+
+func (s *OFXParserTestSuite) TestToInsertParams_WithCleanedDescription() {
+	tx := &OFXTransaction{
+		Type:       TransactionTypeDebit,
+		DatePosted: time.Date(2025, 10, 15, 14, 30, 0, 0, time.UTC),
+		Amount:     decimal.NewFromFloat(-50.75),
+		FITID:      "tx-123",
+		Name:       "Joe's Pizza - N.Y.C.",
+		Memo:       "Lunch 'special'",
+	}
+
+	params := tx.ToInsertParams(42)
+
+	// Description should be cleaned: stripped of quotes, dashes, dots and normalized spaces
+	s.Equal("Joes Pizza  NYC  Lunch special", params.Description)
+}

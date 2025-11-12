@@ -2,15 +2,14 @@ import { useState } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Login from './components/Login'
 import TransactionList from './components/TransactionList'
-import BudgetList from './components/BudgetList'
-import BudgetDetail from './components/BudgetDetail'
+import CategoryBudgetDashboard from './components/CategoryBudgetDashboard'
+import PatternManager from './components/PatternManager'
 
-type View = 'transactions' | 'budgets' | 'budget-detail';
+type View = 'transactions' | 'budgets' | 'patterns';
 
 function AppContent() {
   const { isAuthenticated, logout } = useAuth();
   const [currentView, setCurrentView] = useState<View>('transactions');
-  const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(null);
 
   if (!isAuthenticated) {
     return <Login />;
@@ -47,6 +46,30 @@ function AppContent() {
                 >
                   Orçamentos
                 </button>
+                <button
+                  onClick={() => setCurrentView('patterns')}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentView === 'patterns'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🎯 Padrões
+                </button>
+                {currentView === 'budgets' && (
+                  <button
+                    onClick={() => {
+                      // Scroll to current month budget card
+                      const currentMonthElement = document.getElementById('current-month-budget');
+                      if (currentMonthElement) {
+                        currentMonthElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    📅 Este mês
+                  </button>
+                )}
               </div>
             </div>
             <button
@@ -61,23 +84,8 @@ function AppContent() {
 
       {/* Content */}
       {currentView === 'transactions' && <TransactionList />}
-      {currentView === 'budgets' && (
-        <BudgetList
-          onViewDetails={(budgetId) => {
-            setSelectedBudgetId(budgetId);
-            setCurrentView('budget-detail');
-          }}
-        />
-      )}
-      {currentView === 'budget-detail' && selectedBudgetId && (
-        <BudgetDetail
-          budgetId={selectedBudgetId}
-          onBack={() => {
-            setCurrentView('budgets');
-            setSelectedBudgetId(null);
-          }}
-        />
-      )}
+      {currentView === 'budgets' && <CategoryBudgetDashboard />}
+      {currentView === 'patterns' && <PatternManager />}
     </div>
   );
 }
