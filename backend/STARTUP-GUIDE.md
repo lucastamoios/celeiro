@@ -1,93 +1,68 @@
-# 🚀 Celeiro Financial Management - Startup Guide
+# 🚀 Celeiro - Startup Guide
 
 ## Prerequisites
 
-- Go 1.21+
-- Docker
+- Go 1.24+
+- Docker + Docker Compose
 - PostgreSQL client (psql)
 
 ## Quick Start
-
-### 1. Start the Database
-
-```bash
-# Start PostgreSQL in Docker
-docker run -d \
-  --name celeiro_postgres \
-  -e POSTGRES_USER=celeiro_user \
-  -e POSTGRES_PASSWORD=celeiro_password \
-  -e POSTGRES_DB=celeiro_db \
-  -p 54330:5432 \
-  postgres:16-alpine
-
-# Wait a few seconds for postgres to initialize
-sleep 5
-```
-
-### 2. Run Migrations
+This repo is meant to be run via Docker Compose.
 
 ```bash
-# Run all database migrations
-make migrate
-
-# Verify - should see 7 system categories
-PGPASSWORD=celeiro_password psql -h localhost -p 54330 -U celeiro_user -d celeiro_db \
-  -c "SELECT category_id, name, icon FROM categories;"
+cd backend
+cp .envrc .env.dev
+make up
 ```
 
-### 3. Start the Server
-
-```bash
-# Start the backend server
-make run
-
-# Server will start on http://localhost:8080
-```
+Services:
+- Frontend: http://localhost:13000
+- Backend API: http://localhost:9090
+- Postgres: localhost:54330
+- Redis: localhost:63800
 
 ## Quick Test Workflow
 
 Here's a complete workflow to test the financial management system:
 
 ```bash
-# 1. Request magic link
-curl -X POST http://localhost:8080/auth/request/ \
+# 1. Request magic code
+curl -X POST http://localhost:9090/auth/request/ \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","name":"Test User","organization_name":"Test Org"}'
 
-# 2. Check console logs for 6-digit code, then authenticate
-curl -X POST http://localhost:8080/auth/validate/ \
+# 2. Check local mailer or logs for the 4-digit code, then authenticate
+curl -X POST http://localhost:9090/auth/validate/ \
   -H "Content-Type: application/json" \
-  -d '{"code":"123456","email":"test@example.com"}'
+  -d '{"code":"1234","email":"test@example.com"}'
 
 # 3. Save the token
 export TOKEN="your-token-here"
 
 # 4. List system categories
-curl -X GET http://localhost:8080/financial/categories \
+curl -X GET http://localhost:9090/financial/categories \
   -H "Authorization: Bearer $TOKEN"
 
 # 5. Create an account
-curl -X POST http://localhost:8080/financial/accounts \
+curl -X POST http://localhost:9090/financial/accounts \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Conta Corrente",
     "account_type": "checking",
-    "bank_name": "Banco do Brasil",
-    "balance": 10000.00,
-    "currency": "BRL"
+    "bank_name": "Banco do Brasil"
   }'
 
 # 6. Save the account_id from response
 export ACCOUNT_ID=1
 
 # 7. Upload OFX file
-curl -X POST "http://localhost:8080/financial/accounts/$ACCOUNT_ID/transactions/import" \
+curl -X POST "http://localhost:9090/financial/accounts/$ACCOUNT_ID/transactions/import" \
   -H "Authorization: Bearer $TOKEN" \
   -F "ofx_file=@/path/to/your/file.ofx"
 
 # 8. View imported transactions
-curl -X GET "http://localhost:8080/financial/accounts/$ACCOUNT_ID/transactions" \
+curl -X GET "http://localhost:9090/financial/accounts/$ACCOUNT_ID/transactions" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -163,8 +138,8 @@ Authorization: Bearer <token>
 ### 1. Create a User and Get Token
 
 ```bash
-# Request magic link
-curl -X POST http://localhost:8080/auth/request/ \
+# Request magic code
+curl -X POST http://localhost:9090/auth/request/ \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test@example.com",
@@ -172,12 +147,12 @@ curl -X POST http://localhost:8080/auth/request/ \
     "organization_name": "Test Org"
   }'
 
-# Check console logs for the magic code (6 digits)
+# Check local mailer or logs for the magic code (4 digits)
 # Then authenticate
-curl -X POST http://localhost:8080/auth/validate/ \
+curl -X POST http://localhost:9090/auth/validate/ \
   -H "Content-Type: application/json" \
   -d '{
-    "code": "123456",
+    "code": "1234",
     "email": "test@example.com"
   }'
 
@@ -188,15 +163,13 @@ export TOKEN="your-token-here"
 ### 2. Create an Account
 
 ```bash
-curl -X POST http://localhost:8080/financial/accounts \
+curl -X POST http://localhost:9090/financial/accounts \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Conta Corrente",
     "account_type": "checking",
-    "bank_name": "Banco do Brasil",
-    "balance": 10000.00,
-    "currency": "BRL"
+    "bank_name": "Banco do Brasil"
   }'
 
 # Save the returned account_id
@@ -206,7 +179,7 @@ export ACCOUNT_ID=1
 ### 3. Upload OFX File
 
 ```bash
-curl -X POST "http://localhost:8080/financial/accounts/$ACCOUNT_ID/transactions/import" \
+curl -X POST "http://localhost:9090/financial/accounts/$ACCOUNT_ID/transactions/import" \
   -H "Authorization: Bearer $TOKEN" \
   -F "ofx_file=@/path/to/your/file.ofx"
 ```
@@ -214,7 +187,7 @@ curl -X POST "http://localhost:8080/financial/accounts/$ACCOUNT_ID/transactions/
 ### 4. View Transactions
 
 ```bash
-curl -X GET "http://localhost:8080/financial/accounts/$ACCOUNT_ID/transactions" \
+curl -X GET "http://localhost:9090/financial/accounts/$ACCOUNT_ID/transactions" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
