@@ -53,11 +53,10 @@ export default function TransactionList() {
     };
 
     try {
-      // Fetch categories, transactions, and saved patterns in parallel
-      const [categoriesRes, transactionsRes, patterns] = await Promise.all([
+      // Fetch categories and transactions
+      const [categoriesRes, transactionsRes] = await Promise.all([
         fetch(financialUrl('categories'), { headers }),
-        fetch(`${financialUrl('accounts')}/1/transactions?limit=50`, { headers }),
-        getSavedPatterns(undefined, { token })
+        fetch(`${financialUrl('accounts')}/1/transactions?limit=50`, { headers })
       ]);
 
       if (!categoriesRes.ok || !transactionsRes.ok) {
@@ -74,22 +73,30 @@ export default function TransactionList() {
       setCategories(categoryMap);
       setTransactions(transactionsData.data || []);
 
-      // Match saved patterns to transactions
-      // A transaction has a saved pattern if there's a pattern with matching description and category
-      const patternMatches = new Set<number>();
-      (transactionsData.data || []).forEach(tx => {
-        if (tx.CategoryID && patterns) {
-          const hasPattern = patterns.some(pattern =>
-            pattern.Description === tx.Description &&
-            pattern.CategoryID === tx.CategoryID
-          );
-          if (hasPattern) {
-            patternMatches.add(tx.TransactionID);
-          }
-        }
-      });
+      // Try to fetch saved patterns (non-blocking - graceful degradation)
+      try {
+        const patterns = await getSavedPatterns(undefined, { token });
 
-      setSavedPatternIds(patternMatches);
+        // Match saved patterns to transactions
+        // A transaction has a saved pattern if there's a pattern with matching description and category
+        const patternMatches = new Set<number>();
+        (transactionsData.data || []).forEach(tx => {
+          if (tx.CategoryID && patterns) {
+            const hasPattern = patterns.some(pattern =>
+              pattern.Description === tx.Description &&
+              pattern.CategoryID === tx.CategoryID
+            );
+            if (hasPattern) {
+              patternMatches.add(tx.TransactionID);
+            }
+          }
+        });
+
+        setSavedPatternIds(patternMatches);
+      } catch (patternErr) {
+        // Pattern loading failed - not critical, just log it
+        console.warn('Failed to load saved patterns:', patternErr);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
@@ -475,7 +482,7 @@ export default function TransactionList() {
                         {formatDate(transaction.TransactionDate)}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
-                        {editingTransaction?.id === transaction.TransactionID && editingTransaction.field === 'description' ? (
+                        {editingTransaction?.id === transaction.TransactionID && editingTransaction?.field === 'description' ? (
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
@@ -522,7 +529,7 @@ export default function TransactionList() {
                         {formatCurrency(transaction.Amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {editingTransaction?.id === transaction.TransactionID && editingTransaction.field === 'category' ? (
+                        {editingTransaction?.id === transaction.TransactionID && editingTransaction?.field === 'category' ? (
                           <select
                             value={transaction.CategoryID || ''}
                             onChange={(e) => {

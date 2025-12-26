@@ -3,32 +3,39 @@
 ## Why
 
 Users need automatic assistance with:
-1. **Matching transactions to planned entries**: When a transaction arrives, automatically link it to the corresponding planned entry
+1. **Matching transactions to patterns**: When a transaction arrives, automatically categorize it based on saved patterns
 2. **Reusing transaction patterns**: Save frequently recurring transactions as patterns for faster categorization
 3. **Enforcing income planning**: Ensure 99.75% of income is allocated to categories before month ends
-4. **Smart categorization**: Use fuzzy matching to suggest categories based on description/amount
 
-Without this, users must manually categorize every transaction and plan every dollar, which is tedious and error-prone.
+Without this, users must manually categorize every transaction, which is tedious and error-prone.
 
 ## What Changes
 
-Add intelligent transaction matching capabilities:
+Add transaction matching capabilities using **saved patterns** (stored in `planned_entries` with `is_saved_pattern=true`) and a **weighted scoring** algorithm:
 
 ### Core Capabilities
-1. **Match Score Algorithm**: Weighted scoring (40% category, 30% amount, 20% description, 10% date)
-2. **Saved Patterns**: Reuse the unified `planned_entries` table to store both planned entries AND saved patterns
-3. **Income Planning Discipline**: Warn if >0.25% of income remains unallocated
-4. **Auto-Match Service**: Automatically suggest matches when transactions are imported
+1. **Scored Matching**: A transaction gets a score against each saved pattern (category/amount/description/date)
+2. **Auto-Apply on Import**: When importing transactions, automatically apply HIGH confidence matches
+3. **Suggestions for Ambiguous Cases**: When multiple patterns score above threshold, present suggestions to user
+4. **Income Planning Discipline**: Warn if >0.25% of income remains unallocated
 
-### Key Features
-- Fuzzy description matching using Levenshtein distance
-- Amount tolerance (±5% by default)
-- Date proximity scoring (within 3 days = full score)
-- Confidence threshold (>70% = auto-apply, 50-70% = suggest, <50% = no match)
+### Matching Logic
+A transaction is compared to each saved pattern and receives a score based on:
+- **Category** (required; mismatched category yields score 0)
+- **Amount** (tolerance-based)
+- **Description** (fuzzy similarity via normalization + edit distance)
+- **Date** (expected day-of-month proximity, when provided)
+
+### Match Outcomes
+| Scenario | Action |
+|----------|--------|
+| **Single HIGH match** | Auto-apply: set category |
+| **Multiple matches above threshold** | Suggest: show all matches for user to choose |
+| **No Match** | Manual: user categorizes manually |
 
 ### Out of Scope
 - Machine learning / AI-based matching
-- Bulk transaction import optimization (initial version is per-transaction)
+- Regex-only deterministic matching as the primary matching mechanism
 - Historical pattern analysis
 - Multi-currency matching
 
@@ -36,33 +43,38 @@ Add intelligent transaction matching capabilities:
 
 ### Affected Components
 **Backend**:
-- `internal/application/financial/matching_service.go` - NEW
-- `internal/application/financial/models.go` - Add MatchScore struct
-- `internal/handlers/financial/` - Add GET /financial/match-suggestions endpoint
+- `internal/application/financial/matching.go` - Matching algorithm
+- `internal/application/financial/matching_service.go` - Pattern matching service methods
+- `internal/web/financial/handler.go` - Match suggestion + apply/save endpoints
 
-**No Database Changes**: Reuses existing `planned_entries` table (already created in category-centric-budgeting)
+**Frontend**:
+- Update transaction import flow to show matching results
+- Add UI for resolving ambiguous matches (multiple patterns)
+
+**Database Changes**:
+- Uses `planned_entries.is_saved_pattern` to store patterns
 
 ### Dependencies
-- **BLOCKS**: Must implement AFTER add-category-centric-budgeting (needs `planned_entries` table)
-- **INTEGRATES**: Works with transaction import flow
+- **REQUIRES**: planned entries + transaction import flow
+- **INTEGRATES**: OFX import + category-centric budgeting (patterns are planned entries)
 
 ## Risks
 
-### Overly Aggressive Matching
-**Risk**: False positives with low match scores
-**Mitigation**: Conservative confidence threshold (70% for auto-apply), always show suggestions for user confirmation
+### Multiple Pattern Matches
+**Risk**: Transaction matches multiple patterns, causing confusion
+**Mitigation**: Show suggestions modal, let user pick which pattern to apply
 
-### Performance on Large Datasets
-**Risk**: Fuzzy matching across 1000+ patterns could be slow
+### Performance
+**Risk**: Scoring N patterns per transaction could be slow on large batches
 **Mitigation**:
-- Index on category_id for fast filtering
-- Early exit if category doesn't match
-- Limit fuzzy matching to top N candidates
+- Early exit on first criteria failure
+- Pre-filter on large amount differences before fuzzy matching
+- Limit evaluation to active saved patterns only
 
 ## Success Criteria
 
-1. When importing a transaction that matches a pattern (>70%), it's automatically linked
-2. User can save a categorized transaction as a reusable pattern in one click
-3. Income planning warnings show if >0.25% unallocated
-4. Match suggestions API returns results <500ms for 100+ patterns
-5. Fuzzy matching correctly identifies minor description variations
+1. When importing a transaction with a HIGH-confidence match, it's automatically categorized
+2. When importing a transaction with multiple candidate matches, user sees a suggestion modal
+3. User can save a categorized transaction as a reusable pattern in one click
+4. Income planning warnings show if >0.25% unallocated
+5. Pattern matching completes in <500ms for 100+ patterns

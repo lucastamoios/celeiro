@@ -17,7 +17,6 @@
 - **[docs/auth-system.md](./docs/auth-system.md)** - Sistema de autenticação e RBAC
 - **[docs/development.md](./docs/development.md)** - Workflow de desenvolvimento e convenções
 - **[docs/testing.md](./docs/testing.md)** - Estratégia de testes e exemplos
-- **[docs/tasks.md](./docs/tasks.md)** - Lista completa de tarefas de implementação
 
 ## 📁 Estrutura do Projeto
 
@@ -41,8 +40,7 @@ celeiro/
 │   │   └── types/       # TypeScript types
 │   └── public/
 ├── docs/                # Documentação
-├── openspec/            # Especificações OpenSpec
-└── .beads/              # Beads issue tracking
+└── openspec/            # Especificações OpenSpec (mudanças em openspec/changes/)
 ```
 
 ## 🚀 Quick Start
@@ -57,7 +55,15 @@ cd frontend
 npm install && npm run dev
 ```
 
-Acesse http://localhost:5173
+Para o fluxo recomendado (Docker), use:
+
+```bash
+cd backend
+cp .envrc .env.dev
+make up
+```
+
+Acesse http://localhost:13000
 
 👉 **Guia completo**: [docs/setup.md](./docs/setup.md)
 
@@ -86,11 +92,10 @@ users → accounts → transactions → categories → budgets → budget_items
 
 ## 🛠️ Desenvolvimento
 
-**Workflow:** OpenSpec (specs) → Beads (issues) → Implementação → Review
+**Workflow:** OpenSpec (proposal/change) → Implementação → Review
 
 ```bash
 # Comandos principais
-bd list                           # Ver tarefas
 make test                         # Rodar testes backend
 npm test                          # Rodar testes frontend
 ```
@@ -118,7 +123,7 @@ npm test -- --coverage
 **Frontend:** React 18, TypeScript, Tailwind CSS, Vite
 **Auth:** Passwordless (magic codes via email)
 **DevOps:** Docker, GitHub Actions
-**AI Tools:** OpenSpec, Beads, Claude Code
+**AI Tools:** OpenSpec, Claude Code
 
 👉 **Convenções de código**: [docs/development.md](./docs/development.md)
 👉 **Regras de serviço**: [CLAUDE.md](./CLAUDE.md) - Services Architecture
@@ -146,10 +151,9 @@ cat frontend/.env  # Verificar VITE_API_URL
 ## 🤝 Contribuindo
 
 1. Criar especificação no OpenSpec
-2. Converter para issues no Beads
-3. Implementar seguindo [docs/development.md](./docs/development.md)
-4. Garantir que testes passam
-5. Criar PR com descrição clara
+2. Implementar seguindo [docs/development.md](./docs/development.md)
+3. Garantir que testes passam
+4. Criar PR com descrição clara
 
 ## 📄 Licença
 

@@ -1,84 +1,98 @@
-# Match Scoring Algorithm
+# Deterministic Pattern Matching
 
 ## Summary
-Weighted fuzzy matching algorithm to automatically link transactions to planned entries or saved patterns.
+Regex-based deterministic matching algorithm to automatically categorize transactions using saved patterns from `advanced_patterns` table.
 
 ## ADDED Requirements
 
-### Requirement: Weighted match scoring
-The system MUST calculate match scores using weighted components.
+### Requirement: Deterministic pattern matching
+The system MUST use deterministic matching where a transaction either matches a pattern or it doesn't.
 
-#### Scenario: Calculate full match score
-GIVEN a transaction with category="Restaurants", amount=R$ 420, description="RESTAURANTE QUINTAL", date=5th
-AND a pattern with category="Restaurants", amount=R$ 400, description="Weekly Lunch", expected_day=5
-WHEN calculating match score
-THEN the score MUST include:
-- CategoryMatch = 1.0 (exact match)
-- AmountMatch = 0.90 (within 5% tolerance)
-- DescriptionMatch ≈ 0.30 (fuzzy match)
-- DateMatch = 1.0 (same day)
-- Final Score = (1.0 * 0.4) + (0.90 * 0.3) + (0.30 * 0.2) + (1.0 * 0.1) = 0.77
-- Confidence = "HIGH"
+#### Scenario: All criteria match
+GIVEN a transaction with description="UBER TRIP 123", amount=R$ 25.00, date=2024-12-15 (Sunday, weekday=0)
+AND a pattern with:
+  - description_pattern="(?i)uber"
+  - amount_min=10.00, amount_max=100.00
+  - weekday_pattern="(0|6)"
+WHEN evaluating the pattern
+THEN the transaction MUST match
+AND category MUST be set to pattern.target_category_id
+AND description MAY be renamed to pattern.target_description
 
-#### Scenario: Category mismatch early exit
-GIVEN a transaction with category="Restaurants"
-AND a pattern with category="Transport"
-WHEN calculating match score
-THEN the scoring MUST exit immediately with Score = 0
-AND no fuzzy matching SHOULD be performed
+#### Scenario: Description pattern fails
+GIVEN a transaction with description="NETFLIX SUBSCRIPTION"
+AND a pattern with description_pattern="(?i)uber"
+WHEN evaluating the pattern
+THEN the transaction MUST NOT match
+AND no further criteria SHOULD be evaluated (early exit)
 
-### Requirement: Fuzzy description matching
-The system MUST use Levenshtein distance for fuzzy string matching.
+#### Scenario: Amount outside range fails
+GIVEN a transaction with amount=R$ 150.00
+AND a pattern with amount_min=10.00, amount_max=100.00
+WHEN evaluating the pattern
+THEN the transaction MUST NOT match
 
-#### Scenario: Similar descriptions match
-GIVEN transaction description="RESTAURANTE XYZ LTDA"
-AND pattern description="Restaurante XYZ"
-WHEN calculating description match
-THEN the similarity score MUST be >0.80 (very similar)
+#### Scenario: Optional criteria not specified
+GIVEN a transaction with amount=R$ 50.00
+AND a pattern with:
+  - description_pattern="(?i)uber"
+  - amount_min=NULL, amount_max=NULL (not specified)
+WHEN evaluating the pattern
+THEN amount range check MUST be skipped
+AND only description_pattern MUST be evaluated
 
-#### Scenario: Normalize strings before matching
-GIVEN transaction description="  NETFLIX  BRASIL  "
-AND pattern description="netflix brasil"
-WHEN calculating description match
-THEN strings MUST be normalized (lowercase, trimmed) before comparison
-AND the similarity score MUST be 1.0 (exact match after normalization)
+### Requirement: Handle multiple matches
+The system MUST handle cases where multiple patterns match a single transaction.
 
-### Requirement: Amount tolerance matching
-The system MUST allow configurable amount tolerance for matching.
+#### Scenario: Single pattern matches
+GIVEN a transaction that matches exactly ONE pattern
+WHEN applying patterns
+THEN the pattern MUST be auto-applied without user confirmation
 
-#### Scenario: Amount within tolerance matches
-GIVEN a pattern with amount=R$ 100.00
-AND default tolerance=5%
-WHEN matching a transaction with amount=R$ 102.00
-THEN AmountMatch MUST be >0.90 (2% difference, within 5% tolerance)
+#### Scenario: Multiple patterns match
+GIVEN a transaction that matches TWO or more patterns
+WHEN applying patterns
+THEN the system MUST NOT auto-apply any pattern
+AND the system MUST return all matching patterns as suggestions
+AND the user MUST select which pattern to apply
 
-#### Scenario: Amount outside tolerance fails
-GIVEN a pattern with amount=R$ 100.00
-AND tolerance=5%
-WHEN matching a transaction with amount=R$ 120.00
-THEN AmountMatch MUST be 0.0 (20% difference, outside tolerance)
+#### Scenario: No patterns match
+GIVEN a transaction that matches ZERO patterns
+WHEN applying patterns
+THEN the transaction MUST remain uncategorized
+AND the system SHOULD return empty suggestions
 
-### Requirement: Confidence level classification
-The system MUST classify matches by confidence level.
+### Requirement: Pattern evaluation order
+The system MUST evaluate patterns efficiently.
 
-#### Scenario: HIGH confidence (≥70%)
-GIVEN a match score of 0.75
-WHEN determining confidence level
-THEN confidence MUST be "HIGH"
-AND the match MAY be auto-applied
+#### Scenario: Early exit on failure
+GIVEN a pattern with description_pattern, amount_min, amount_max, date_pattern
+WHEN the first criterion fails (e.g., description_pattern doesn't match)
+THEN remaining criteria MUST NOT be evaluated
+AND pattern evaluation MUST move to next pattern
 
-#### Scenario: MEDIUM confidence (50-70%)
-GIVEN a match score of 0.65
-WHEN determining confidence level
-THEN confidence MUST be "MEDIUM"
-AND the match MUST be suggested to user for confirmation
+#### Scenario: Only evaluate active patterns
+GIVEN patterns where is_active=false
+WHEN matching transactions
+THEN inactive patterns MUST be skipped entirely
 
-#### Scenario: LOW confidence (<50%)
-GIVEN a match score of 0.42
-WHEN determining confidence level
-THEN confidence MUST be "LOW"
-AND the match SHOULD NOT be shown to user
+### Requirement: Regex matching
+The system MUST use Go's regexp package for pattern matching.
+
+#### Scenario: Case-insensitive matching
+GIVEN description_pattern="(?i)netflix"
+AND transaction description="NETFLIX BRASIL"
+WHEN matching
+THEN pattern MUST match (case insensitive via (?i) flag)
+
+#### Scenario: Invalid regex handling
+GIVEN description_pattern="[invalid("
+WHEN loading patterns
+THEN the pattern MUST be marked as inactive or skipped
+AND an error SHOULD be logged
+AND matching MUST continue with other patterns
 
 ## Related Capabilities
-- Depends on: add-category-centric-budgeting (needs `planned_entries` table)
-- Related to: pattern-management (matches against saved patterns)
+- Uses: `advanced_patterns` table (migration 00013)
+- Related to: pattern-management (CRUD for patterns)
+- Related to: income-planning-discipline (budget allocation warnings)
