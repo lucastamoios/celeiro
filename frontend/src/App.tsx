@@ -4,8 +4,9 @@ import Login from './components/Login'
 import TransactionList from './components/TransactionList'
 import CategoryBudgetDashboard from './components/CategoryBudgetDashboard'
 import PatternManager from './components/PatternManager'
+import CategoryManager from './components/CategoryManager'
 
-type View = 'transactions' | 'budgets' | 'patterns';
+type View = 'transactions' | 'budgets' | 'patterns' | 'categories';
 
 function AppContent() {
   const { isAuthenticated, logout } = useAuth();
@@ -56,6 +57,16 @@ function AppContent() {
                 >
                   🎯 Padrões
                 </button>
+                <button
+                  onClick={() => setCurrentView('categories')}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentView === 'categories'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  📂 Categorias
+                </button>
                 {currentView === 'budgets' && (
                   <button
                     onClick={() => {
@@ -86,6 +97,7 @@ function AppContent() {
       {currentView === 'transactions' && <TransactionList />}
       {currentView === 'budgets' && <CategoryBudgetDashboard />}
       {currentView === 'patterns' && <PatternManager />}
+      {currentView === 'categories' && <CategoryManager />}
     </div>
   );
 }
