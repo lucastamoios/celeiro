@@ -119,6 +119,7 @@ const fetchCategoriesQuery = `
 		updated_at,
 		name,
 		icon,
+		color,
 		is_system,
 		user_id
 	FROM categories
@@ -148,6 +149,7 @@ const fetchCategoryByIDQuery = `
 		updated_at,
 		name,
 		icon,
+		color,
 		is_system,
 		user_id
 	FROM categories
@@ -167,19 +169,20 @@ func (r *repository) FetchCategoryByID(ctx context.Context, params fetchCategory
 type insertCategoryParams struct {
 	Name   string
 	Icon   string
+	Color  string
 	UserID int
 }
 
 const insertCategoryQuery = `
 	-- financial.insertCategoryQuery
-	INSERT INTO categories (name, icon, user_id)
-	VALUES ($1, $2, $3)
-	RETURNING category_id, created_at, updated_at, name, icon, is_system, user_id;
+	INSERT INTO categories (name, icon, color, user_id)
+	VALUES ($1, $2, $3, $4)
+	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id;
 `
 
 func (r *repository) InsertCategory(ctx context.Context, params insertCategoryParams) (CategoryModel, error) {
 	var result CategoryModel
-	err := r.db.Query(ctx, &result, insertCategoryQuery, params.Name, params.Icon, params.UserID)
+	err := r.db.Query(ctx, &result, insertCategoryQuery, params.Name, params.Icon, params.Color, params.UserID)
 	if err != nil {
 		return CategoryModel{}, err
 	}
@@ -191,6 +194,7 @@ type modifyCategoryParams struct {
 	UserID     int
 	Name       *string
 	Icon       *string
+	Color      *string
 }
 
 const modifyCategoryQuery = `
@@ -198,14 +202,15 @@ const modifyCategoryQuery = `
 	UPDATE categories
 	SET name = COALESCE($3, name),
 		icon = COALESCE($4, icon),
+		color = COALESCE($5, color),
 		updated_at = NOW()
 	WHERE category_id = $1 AND user_id = $2 AND is_system = false
-	RETURNING category_id, created_at, updated_at, name, icon, is_system, user_id;
+	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id;
 `
 
 func (r *repository) ModifyCategory(ctx context.Context, params modifyCategoryParams) (CategoryModel, error) {
 	var result CategoryModel
-	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.UserID, params.Name, params.Icon)
+	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.UserID, params.Name, params.Icon, params.Color)
 	if err != nil {
 		return CategoryModel{}, err
 	}

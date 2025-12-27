@@ -5,39 +5,25 @@ import type { Category } from '../types/category';
 import type { CategoryBudget, CreateCategoryBudgetRequest } from '../types/budget';
 import type { ApiResponse } from '../types/transaction';
 import { getCategoryBudgets, createCategoryBudget, updateCategoryBudget } from '../api/budget';
-
-// Beautiful color palette for categories
-const CATEGORY_COLORS = [
-  { bg: 'bg-rose-50', border: 'border-rose-200', accent: 'bg-rose-500', text: 'text-rose-700', hover: 'hover:bg-rose-100' },
-  { bg: 'bg-amber-50', border: 'border-amber-200', accent: 'bg-amber-500', text: 'text-amber-700', hover: 'hover:bg-amber-100' },
-  { bg: 'bg-emerald-50', border: 'border-emerald-200', accent: 'bg-emerald-500', text: 'text-emerald-700', hover: 'hover:bg-emerald-100' },
-  { bg: 'bg-cyan-50', border: 'border-cyan-200', accent: 'bg-cyan-500', text: 'text-cyan-700', hover: 'hover:bg-cyan-100' },
-  { bg: 'bg-violet-50', border: 'border-violet-200', accent: 'bg-violet-500', text: 'text-violet-700', hover: 'hover:bg-violet-100' },
-  { bg: 'bg-fuchsia-50', border: 'border-fuchsia-200', accent: 'bg-fuchsia-500', text: 'text-fuchsia-700', hover: 'hover:bg-fuchsia-100' },
-  { bg: 'bg-orange-50', border: 'border-orange-200', accent: 'bg-orange-500', text: 'text-orange-700', hover: 'hover:bg-orange-100' },
-  { bg: 'bg-teal-50', border: 'border-teal-200', accent: 'bg-teal-500', text: 'text-teal-700', hover: 'hover:bg-teal-100' },
-  { bg: 'bg-indigo-50', border: 'border-indigo-200', accent: 'bg-indigo-500', text: 'text-indigo-700', hover: 'hover:bg-indigo-100' },
-  { bg: 'bg-pink-50', border: 'border-pink-200', accent: 'bg-pink-500', text: 'text-pink-700', hover: 'hover:bg-pink-100' },
-];
-
-// System category colors (vibrant but with a subtle locked indicator)
-const SYSTEM_COLORS = [
-  { bg: 'bg-amber-50', border: 'border-amber-200', accent: 'bg-amber-400', text: 'text-amber-700', hover: 'hover:bg-amber-100' },
-  { bg: 'bg-sky-50', border: 'border-sky-200', accent: 'bg-sky-400', text: 'text-sky-700', hover: 'hover:bg-sky-100' },
-  { bg: 'bg-lime-50', border: 'border-lime-200', accent: 'bg-lime-400', text: 'text-lime-700', hover: 'hover:bg-lime-100' },
-  { bg: 'bg-rose-50', border: 'border-rose-200', accent: 'bg-rose-400', text: 'text-rose-700', hover: 'hover:bg-rose-100' },
-  { bg: 'bg-purple-50', border: 'border-purple-200', accent: 'bg-purple-400', text: 'text-purple-700', hover: 'hover:bg-purple-100' },
-  { bg: 'bg-teal-50', border: 'border-teal-200', accent: 'bg-teal-400', text: 'text-teal-700', hover: 'hover:bg-teal-100' },
-  { bg: 'bg-orange-50', border: 'border-orange-200', accent: 'bg-orange-400', text: 'text-orange-700', hover: 'hover:bg-orange-100' },
-];
+import { CATEGORY_COLORS, getCategoryColorStyle } from '../utils/colors';
 
 const AVAILABLE_ICONS = ['🍔', '🚗', '🏠', '💡', '🎮', '👕', '💊', '📚', '✈️', '🎁', '💰', '📱', '🏥', '🎬', '🛒', '☕', '🍕', '🎵', '🏋️', '🐕'];
 
-function getCategoryColor(category: Category, index: number) {
-  if (category.is_system) {
-    return SYSTEM_COLORS[index % SYSTEM_COLORS.length];
-  }
-  return CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+function getCategoryColor(category: Category) {
+  const hexColor = category.color || '#6B7280';
+  const styles = getCategoryColorStyle(hexColor);
+  
+  return {
+    style: {
+      ...styles.bg,
+      ...styles.border,
+      borderWidth: '2px',
+      borderStyle: 'solid',
+    },
+    accentStyle: styles.accent,
+    textStyle: styles.text,
+    hoverStyle: styles.hover,
+  };
 }
 
 export default function CategoryManager() {
@@ -60,6 +46,10 @@ export default function CategoryManager() {
   const [budgetType, setBudgetType] = useState<'fixed' | 'calculated' | 'maior'>('fixed');
   const [savingBudget, setSavingBudget] = useState(false);
   const budgetInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit color state
+  const [editingColor, setEditingColor] = useState<number | null>(null);
+  const [colorValue, setColorValue] = useState('#6B7280');
 
   // Budget type labels
   const budgetTypeLabels: Record<string, string> = {
@@ -131,6 +121,10 @@ export default function CategoryManager() {
     setError(null);
 
     try {
+      // Select a color from the palette based on current number of user categories
+      const userCategoriesCount = categories.filter(c => !c.is_system).length;
+      const selectedColor = CATEGORY_COLORS[userCategoriesCount % CATEGORY_COLORS.length];
+
       const response = await fetch(financialUrl('categories'), {
         method: 'POST',
         headers: {
@@ -141,6 +135,7 @@ export default function CategoryManager() {
         body: JSON.stringify({
           name: newCategoryName.trim(),
           icon: newCategoryIcon,
+          color: selectedColor,
         }),
       });
 
@@ -221,6 +216,44 @@ export default function CategoryManager() {
     setEditingBudget(null);
     setBudgetValue('');
     setBudgetType('fixed');
+  };
+
+  const handleStartEditColor = (categoryId: number, currentColor: string) => {
+    setColorValue(currentColor);
+    setEditingColor(categoryId);
+  };
+
+  const handleSaveColor = async (categoryId: number) => {
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${financialUrl('categories')}/${categoryId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-Active-Organization': '1',
+        },
+        body: JSON.stringify({ color: colorValue }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update category color');
+      }
+
+      setSuccess('Cor atualizada com sucesso!');
+      setTimeout(() => setSuccess(null), 3000);
+      
+      await fetchData();
+      setEditingColor(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update color');
+    }
+  };
+
+  const handleCancelEditColor = () => {
+    setEditingColor(null);
+    setColorValue('#6B7280');
   };
 
   const formatCurrency = (amount: string | number) => {
@@ -326,28 +359,93 @@ export default function CategoryManager() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {userCategories.map((category, index) => {
-              const colors = getCategoryColor(category, index);
+            {userCategories.map((category) => {
+              const colors = getCategoryColor(category);
               const budget = budgets.get(category.category_id);
               const isEditing = editingBudget === category.category_id;
+              const isEditingColor = editingColor === category.category_id;
 
               return (
                 <div
                   key={category.category_id}
-                  className={`${colors.bg} ${colors.border} border-2 rounded-2xl p-5 transition-all duration-200 ${colors.hover} group`}
+                  className="border-2 rounded-2xl p-5 transition-all duration-200 group"
+                  style={colors.style}
                 >
                   {/* Header with icon and name */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 ${colors.accent} rounded-xl flex items-center justify-center text-2xl shadow-lg`}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg" style={colors.accentStyle}>
                         {category.icon}
                       </div>
                       <div>
-                        <h3 className={`font-semibold ${colors.text}`}>{category.name}</h3>
+                        <h3 className="font-semibold" style={colors.textStyle}>{category.name}</h3>
                         <span className="text-xs text-gray-500">Personalizada</span>
                       </div>
                     </div>
+                    {!isEditingColor && (
+                      <button
+                        onClick={() => handleStartEditColor(category.category_id, category.color)}
+                        className="opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-white/80 rounded-lg shadow-sm hover:shadow"
+                        title="Editar cor"
+                      >
+                        <svg className="w-4 h-4 text-gray-600 hover:text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
+
+                  {/* Color picker section */}
+                  {isEditingColor && (
+                    <div className="mb-4 pb-4 border-b border-gray-200/50">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <input
+                              type="color"
+                              value={colorValue}
+                              onChange={(e) => setColorValue(e.target.value)}
+                              className="w-16 h-16 rounded-xl border-2 border-gray-300 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+                              style={{ padding: '4px' }}
+                            />
+                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-sm">
+                              <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                              </svg>
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Código da cor</label>
+                            <input
+                              type="text"
+                              value={colorValue}
+                              onChange={(e) => setColorValue(e.target.value)}
+                              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                              placeholder="#6B7280"
+                              maxLength={7}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveColor(category.category_id)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium text-sm shadow-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Salvar cor
+                          </button>
+                          <button
+                            onClick={handleCancelEditColor}
+                            className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Budget section */}
                   <div className="border-t border-gray-200/50 pt-4">
@@ -421,7 +519,7 @@ export default function CategoryManager() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <div className={`text-xl font-bold ${colors.text}`}>
+                        <div className="text-xl font-bold" style={colors.textStyle}>
                           {budget ? formatCurrency(budget.PlannedAmount) : (
                             <span className="text-gray-400 text-base font-normal">Não definido</span>
                           )}
@@ -455,24 +553,25 @@ export default function CategoryManager() {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {systemCategories.map((category, index) => {
-            const colors = getCategoryColor(category, index);
+          {systemCategories.map((category) => {
+            const colors = getCategoryColor(category);
             const budget = budgets.get(category.category_id);
             const isEditing = editingBudget === category.category_id;
 
             return (
               <div
                 key={category.category_id}
-                className={`${colors.bg} ${colors.border} border-2 rounded-2xl p-5 transition-all duration-200 ${colors.hover} group`}
+                className="border-2 rounded-2xl p-5 transition-all duration-200 group"
+                style={colors.style}
               >
                 {/* Header with icon and name */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 ${colors.accent} rounded-xl flex items-center justify-center text-2xl shadow-md`}>
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-md" style={colors.accentStyle}>
                       {category.icon}
                     </div>
                     <div>
-                      <h3 className={`font-semibold ${colors.text}`}>{category.name}</h3>
+                      <h3 className="font-semibold" style={colors.textStyle}>{category.name}</h3>
                       <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-200/50 px-2 py-0.5 rounded-full">
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
@@ -555,7 +654,7 @@ export default function CategoryManager() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <div className={`text-xl font-bold ${colors.text}`}>
+                      <div className="text-xl font-bold" style={colors.textStyle}>
                         {budget ? formatCurrency(budget.PlannedAmount) : (
                           <span className="text-gray-400 text-base font-normal">Não definido</span>
                         )}

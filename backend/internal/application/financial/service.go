@@ -28,6 +28,7 @@ type Service interface {
 
 	// Transactions
 	GetTransactions(ctx context.Context, params GetTransactionsInput) ([]Transaction, error)
+	GetUncategorizedTransactions(ctx context.Context, params GetUncategorizedTransactionsInput) ([]Transaction, error)
 	GetTransactionByID(ctx context.Context, params GetTransactionByIDInput) (Transaction, error)
 	CreateTransaction(ctx context.Context, params CreateTransactionInput) (Transaction, error)
 	ImportTransactionsFromOFX(ctx context.Context, params ImportOFXInput) (ImportOFXOutput, error)
@@ -163,6 +164,7 @@ type CreateCategoryInput struct {
 	UserID int
 	Name   string
 	Icon   string
+	Color  string
 }
 
 func (s *service) CreateCategory(ctx context.Context, params CreateCategoryInput) (Category, error) {
@@ -170,6 +172,7 @@ func (s *service) CreateCategory(ctx context.Context, params CreateCategoryInput
 		UserID: params.UserID,
 		Name:   params.Name,
 		Icon:   params.Icon,
+		Color:  params.Color,
 	})
 	if err != nil {
 		return Category{}, errors.Wrap(err, "failed to create category")
@@ -183,6 +186,7 @@ type UpdateCategoryInput struct {
 	UserID     int
 	Name       *string
 	Icon       *string
+	Color      *string
 }
 
 func (s *service) UpdateCategory(ctx context.Context, params UpdateCategoryInput) (Category, error) {
@@ -191,6 +195,7 @@ func (s *service) UpdateCategory(ctx context.Context, params UpdateCategoryInput
 		UserID:     params.UserID,
 		Name:       params.Name,
 		Icon:       params.Icon,
+		Color:      params.Color,
 	})
 	if err != nil {
 		return Category{}, errors.Wrap(err, "failed to update category")
@@ -363,7 +368,42 @@ func (s *service) GetTransactions(ctx context.Context, params GetTransactionsInp
 	return Transactions{}.FromModel(models), nil
 }
 
-type GetTransactionByIDInput struct {
+type GetUncategorizedTransactionsInput struct {
+	UserID         int
+	OrganizationID int
+	Limit          int
+	Offset         int
+}
+
+func (s *service) GetUncategorizedTransactions(ctx context.Context, params GetUncategorizedTransactionsInput) ([]Transaction, error) {
+	models, err := s.Repository.FetchUncategorizedTransactions(ctx, fetchUncategorizedTransactionsParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch uncategorized transactions")
+	}
+
+	// Apply limit and offset in memory if needed
+	start := params.Offset
+	end := params.Offset + params.Limit
+	
+	if start >= len(models) {
+		return []Transaction{}, nil
+	}
+	
+	if end > len(models) {
+		end = len(models)
+	}
+	
+	if params.Limit > 0 {
+		models = models[start:end]
+	}
+
+	return Transactions{}.FromModel(models), nil
+}
+
+type GetTransactionByIDInput struct{
 	TransactionID  int
 	UserID         int
 	OrganizationID int

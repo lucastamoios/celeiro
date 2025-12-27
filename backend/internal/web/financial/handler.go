@@ -70,8 +70,9 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name string `json:"name"`
-		Icon string `json:"icon"`
+		Name  string `json:"name"`
+		Icon  string `json:"icon"`
+		Color string `json:"color"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -79,10 +80,56 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Default color if not provided
+	color := req.Color
+	if color == "" {
+		color = "#6B7280"
+	}
+
 	category, err := h.app.FinancialService.CreateCategory(r.Context(), financialApp.CreateCategoryInput{
 		Name:   req.Name,
 		Icon:   req.Icon,
+		Color:  color,
 		UserID: userID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(category, w)
+}
+
+func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	categoryID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		Name  *string `json:"name,omitempty"`
+		Icon  *string `json:"icon,omitempty"`
+		Color *string `json:"color,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	category, err := h.app.FinancialService.UpdateCategory(r.Context(), financialApp.UpdateCategoryInput{
+		CategoryID: categoryID,
+		UserID:     userID,
+		Name:       req.Name,
+		Icon:       req.Icon,
+		Color:      req.Color,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -205,6 +252,35 @@ func (h *Handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 
 	transactions, err := h.app.FinancialService.GetTransactions(r.Context(), financialApp.GetTransactionsInput{
 		AccountID:      accountID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Limit:          limit,
+		Offset:         offset,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(transactions, w)
+}
+
+func (h *Handler) ListUncategorizedTransactions(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	// Parse query parameters
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+	if limit == 0 {
+		limit = 1000
+	}
+
+	transactions, err := h.app.FinancialService.GetUncategorizedTransactions(r.Context(), financialApp.GetUncategorizedTransactionsInput{
 		UserID:         userID,
 		OrganizationID: organizationID,
 		Limit:          limit,

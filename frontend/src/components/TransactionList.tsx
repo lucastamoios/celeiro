@@ -3,6 +3,7 @@ import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
 import { apiUrl, financialUrl } from '../config/api';
+import TransactionEditModal from './TransactionEditModal';
 // Simple patterns have been removed - unified pattern system now in PatternManager
 
 interface Account {
@@ -30,8 +31,7 @@ export default function TransactionList() {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
-  const [editingTransaction, setEditingTransaction] = useState<{id: number; field: 'description' | 'category'} | null>(null);
-  const [editedDescription, setEditedDescription] = useState('');
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -180,74 +180,19 @@ export default function TransactionList() {
 
   // Simple pattern functions removed - pattern system now unified in PatternManager
 
-  const handleUpdateTransaction = async (transactionId: number, updates: { description?: string; category_id?: number; is_ignored?: boolean }) => {
-    if (!token) return;
-
-    setError(null);
-
-    try {
-      const response = await fetch(
-        `${financialUrl('accounts')}/1/transactions/${transactionId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updates),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to update transaction');
-      }
-
-      setUploadSuccess(`✅ Transação atualizada com sucesso!`);
-      setTimeout(() => setUploadSuccess(null), 3000);
-
-      // Refresh transactions
-      await fetchData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update transaction');
-    } finally {
-      setEditingTransaction(null);
-    }
+  const handleOpenEditModal = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setOpenMenuId(null);
   };
 
-  const handleStartEdit = (transactionId: number, field: 'description' | 'category', currentDescription: string) => {
-    setEditingTransaction({ id: transactionId, field });
-    if (field === 'description') {
-      setEditedDescription(currentDescription);
-    }
-  };
-
-  const handleCancelEdit = () => {
+  const handleCloseEditModal = () => {
     setEditingTransaction(null);
-    setEditedDescription('');
   };
 
-  const handleSaveDescription = (transactionId: number) => {
-    if (editedDescription.trim()) {
-      handleUpdateTransaction(transactionId, { description: editedDescription });
-    }
-  };
-
-  const handleCategoryChange = (transactionId: number, categoryId: number) => {
-    handleUpdateTransaction(transactionId, { category_id: categoryId });
-  };
-
-  const handleToggleIgnore = async (transaction: Transaction) => {
-    if (!token) return;
-
-    const newIgnoredState = !transaction.is_ignored;
-
-    try {
-      await handleUpdateTransaction(transaction.transaction_id, { is_ignored: newIgnoredState });
-      setOpenMenuId(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle ignore');
-    }
+  const handleSaveTransaction = async () => {
+    setUploadSuccess(`✅ Transação atualizada com sucesso!`);
+    setTimeout(() => setUploadSuccess(null), 3000);
+    await fetchData();
   };
 
   const handleDelete = async (transactionId: number) => {
@@ -424,17 +369,11 @@ export default function TransactionList() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Descrição
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipo
-                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Valor
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Categoria
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Notas
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ações
@@ -444,50 +383,20 @@ export default function TransactionList() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentMonthTransactions.map((transaction) => (
                   <Fragment key={transaction.transaction_id}>
-                    <tr className={`hover:bg-gray-50 ${transaction.is_ignored ? 'opacity-40 bg-gray-50' : ''}`}>
+                    <tr 
+                      className={`hover:bg-blue-50 cursor-pointer transition-colors ${transaction.is_ignored ? 'opacity-40 bg-gray-50' : ''}`}
+                      onClick={() => handleOpenEditModal(transaction)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(transaction.transaction_date)}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
-                        {editingTransaction?.id === transaction.transaction_id && editingTransaction?.field === 'description' ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={editedDescription}
-                              onChange={(e) => setEditedDescription(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleSaveDescription(transaction.transaction_id);
-                                } else if (e.key === 'Escape') {
-                                  handleCancelEdit();
-                                }
-                              }}
-                              onBlur={() => handleSaveDescription(transaction.transaction_id)}
-                              autoFocus
-                              className="flex-1 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                        ) : (
-                          <div
-                            className={`truncate cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2 ${transaction.is_ignored ? 'line-through' : ''}`}
-                            title={transaction.description}
-                            onClick={() => handleStartEdit(transaction.transaction_id, 'description', transaction.description)}
-                          >
-                            {transaction.description}
-                            {transaction.is_ignored && (
-                              <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-medium">IGNORADA</span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          transaction.transaction_type === 'credit'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {transaction.transaction_type === 'credit' ? 'Crédito' : 'Débito'}
-                        </span>
+                        <div className={`truncate flex items-center gap-2 ${transaction.is_ignored ? 'line-through' : ''}`}>
+                          {transaction.description}
+                          {transaction.is_ignored && (
+                            <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-medium">IGNORADA</span>
+                          )}
+                        </div>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
                         transaction.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'
@@ -496,88 +405,61 @@ export default function TransactionList() {
                         {formatCurrency(transaction.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {editingTransaction?.id === transaction.transaction_id && editingTransaction?.field === 'category' ? (
-                          <select
-                            value={transaction.category_id || ''}
-                            onChange={(e) => {
-                              const categoryId = parseInt(e.target.value);
-                              if (categoryId) {
-                                handleCategoryChange(transaction.transaction_id, categoryId);
-                              }
-                            }}
-                            onBlur={() => handleCancelEdit()}
-                            autoFocus
-                            className="px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                          >
-                            <option value="">Selecione uma categoria</option>
-                            {Array.from(categories.values()).map(cat => (
-                              <option key={cat.category_id} value={cat.category_id}>
-                                {cat.icon} {cat.name}
-                              </option>
-                            ))}
-                          </select>
+                        {transaction.category_id && categories.has(transaction.category_id) ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                            <span>{categories.get(transaction.category_id)!.icon}</span>
+                            <span>{categories.get(transaction.category_id)!.name}</span>
+                          </span>
                         ) : (
-                          <div
-                            className="cursor-pointer hover:opacity-70 transition-opacity"
-                            onClick={() => handleStartEdit(transaction.transaction_id, 'category', transaction.description)}
-                          >
-                            {transaction.category_id && categories.has(transaction.category_id) ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                <span>{categories.get(transaction.category_id)!.icon}</span>
-                                <span>{categories.get(transaction.category_id)!.name}</span>
-                              </span>
-                            ) : (
-                              <span className="text-gray-400 italic">Não classificada</span>
-                            )}
-                          </div>
+                          <span className="text-gray-400 italic">Não classificada</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={transaction.notes || ''}>
-                        {transaction.notes || '-'}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === transaction.transaction_id ? null : transaction.transaction_id);
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                          title="Mais ações"
+                        >
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                          </svg>
+                        </button>
 
-                          {/* Three-dot menu */}
-                          <div className="relative">
-                            <button
-                              onClick={() => setOpenMenuId(openMenuId === transaction.transaction_id ? null : transaction.transaction_id)}
-                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                              title="Mais ações"
-                            >
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                              </svg>
-                            </button>
-
-                            {openMenuId === transaction.transaction_id && (
-                              <>
-                                <div
-                                  className="fixed inset-0 z-10"
-                                  onClick={() => setOpenMenuId(null)}
-                                />
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-20">
-                                  <div className="py-1">
-                                    <button
-                                      onClick={() => handleToggleIgnore(transaction)}
-                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
-                                    >
-                                      <span>{transaction.is_ignored ? '👁️' : '👁️‍🗨️'}</span>
-                                      <span>{transaction.is_ignored ? 'Não ignorar' : 'Ignorar transação'}</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handleDelete(transaction.transaction_id)}
-                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                                    >
-                                      <span>🗑️</span>
-                                      <span>Deletar transação</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
+                        {openMenuId === transaction.transaction_id && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setOpenMenuId(null)}
+                            />
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-20">
+                              <div className="py-1">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditModal(transaction);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
+                                >
+                                  <span>✏️</span>
+                                  <span>Editar</span>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(transaction.transaction_id);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                >
+                                  <span>🗑️</span>
+                                  <span>Deletar</span>
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </td>
                     </tr>
 
@@ -588,6 +470,16 @@ export default function TransactionList() {
           </div>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {editingTransaction && (
+        <TransactionEditModal
+          transaction={editingTransaction}
+          categories={categories}
+          onClose={handleCloseEditModal}
+          onSave={handleSaveTransaction}
+        />
+      )}
     </div>
   );
 }
