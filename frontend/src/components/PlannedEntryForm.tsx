@@ -172,8 +172,8 @@ export default function PlannedEntryForm({
         >
           <option value="">Select a category</option>
           {categories?.map((category) => (
-            <option key={category.CategoryID} value={category.CategoryID}>
-              {category.Name}
+            <option key={category.category_id} value={category.category_id}>
+              {category.name}
             </option>
           ))}
         </select>

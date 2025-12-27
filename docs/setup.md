@@ -14,8 +14,6 @@ Quick setup instructions for running Celeiro locally.
 This is the main dev workflow for this repo (backend + frontend + Postgres + Redis + Grafana).
 
 ```bash
-cd backend
-cp .envrc .env.dev
 make up
 ```
 
@@ -39,10 +37,9 @@ curl -i http://localhost:9090/accounts/me/
 If you want to run pieces locally, make sure your environment variables match `backend/.envrc`.
 
 ```bash
-cd backend
 make setup
 make migrate
-go run ./cmd/web/main.go
+cd backend && go run ./cmd/web/main.go
 ```
 
 ## Frontend Setup
@@ -64,21 +61,21 @@ docker ps | grep postgres
 # View container logs
 docker logs celeiro-postgres
 
-# Reset database
-make db-reset
+# Reset database (nukes containers/volumes)
+make down
+docker volume prune  # Careful: removes all unused volumes
+make up
 ```
 
 ### Migrations fail
 
 ```bash
-# View status
-make migrate-status
-
 # Rollback last migration
-make migrate-down
+make migrate.rollback
 
 # Apply manually
-goose -dir migrations postgres "postgres://user:pass@localhost:5432/celeiro" up
+cd backend
+goose -dir ./internal/migrations postgres "$DATABASE_URL" up
 ```
 
 ### Frontend won't load data

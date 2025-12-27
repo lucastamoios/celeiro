@@ -1,9 +1,9 @@
 export interface Category {
-  CategoryID: number;
-  Name: string;
-  Icon: string;
-  IsSystem: boolean;
-  UserID: number | null;
-  CreatedAt: string;
-  UpdatedAt: string;
+  category_id: number;
+  name: string;
+  icon: string;
+  is_system: boolean;
+  user_id: number | null;
+  created_at: string;
+  updated_at: string;
 }

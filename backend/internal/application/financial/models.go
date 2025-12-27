@@ -51,20 +51,21 @@ type TransactionModel struct {
 	AccountID  int  `db:"account_id"`
 	CategoryID *int `db:"category_id"` // NULL if not classified
 
-	Description     string          `db:"description"`
-	Amount          decimal.Decimal `db:"amount"`
-	TransactionDate time.Time       `db:"transaction_date"`
-	TransactionType string          `db:"transaction_type"` // debit, credit
+	Description         string  `db:"description"`          // User-editable description
+	OriginalDescription *string `db:"original_description"` // Immutable OFX description for pattern matching
+	Amount              decimal.Decimal `db:"amount"`
+	TransactionDate     time.Time       `db:"transaction_date"`
+	TransactionType     string          `db:"transaction_type"` // debit, credit
 
 	// OFX-specific fields
-	OFXFitID      *string `db:"ofx_fitid"`
-	OFXCheckNum   *string `db:"ofx_check_number"`
-	OFXMemo       *string `db:"ofx_memo"`
-	RawOFXData    *string `db:"raw_ofx_data"` // JSONB stored as string
+	OFXFitID    *string `db:"ofx_fitid"`
+	OFXCheckNum *string `db:"ofx_check_number"`
+	OFXMemo     *string `db:"ofx_memo"`
+	RawOFXData  *string `db:"raw_ofx_data"` // JSONB stored as string
 
 	// Classification
-	IsClassified          bool `db:"is_classified"`
-	ClassificationRuleID  *int `db:"classification_rule_id"`
+	IsClassified         bool `db:"is_classified"`
+	ClassificationRuleID *int `db:"classification_rule_id"`
 
 	// Status
 	IsIgnored bool `db:"is_ignored"`
@@ -220,16 +221,17 @@ type MonthlySnapshotModel struct {
 
 type MonthlySnapshotsModel []MonthlySnapshotModel
 
-// AdvancedPattern represents a regex-based transaction matching pattern
-type AdvancedPatternModel struct {
-	PatternID  int       `db:"pattern_id"`
-	CreatedAt  time.Time `db:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at"`
+// PatternModel represents a regex-based transaction matching pattern
+// Stored in the `patterns` table (formerly `advanced_patterns`)
+type PatternModel struct {
+	PatternID int       `db:"pattern_id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 
 	UserID         int `db:"user_id"`
 	OrganizationID int `db:"organization_id"`
 
-	// Pattern matching rules
+	// Pattern matching rules (evaluated against original_description)
 	DescriptionPattern *string          `db:"description_pattern"`
 	DatePattern        *string          `db:"date_pattern"`
 	WeekdayPattern     *string          `db:"weekday_pattern"`
@@ -245,7 +247,11 @@ type AdvancedPatternModel struct {
 	IsActive           bool `db:"is_active"`
 }
 
-type AdvancedPatternsModel []AdvancedPatternModel
+type PatternsModel []PatternModel
+
+// Aliases for backward compatibility during refactor
+type AdvancedPatternModel = PatternModel
+type AdvancedPatternsModel = PatternsModel
 
 // Transaction Matching Constants
 const (

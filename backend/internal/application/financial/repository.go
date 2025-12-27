@@ -27,6 +27,7 @@ type Repository interface {
 	FetchTransactions(ctx context.Context, params fetchTransactionsParams) ([]TransactionModel, error)
 	FetchTransactionByID(ctx context.Context, params fetchTransactionByIDParams) (TransactionModel, error)
 	FetchTransactionsByMonth(ctx context.Context, params fetchTransactionsByMonthParams) ([]TransactionModel, error)
+	FetchUncategorizedTransactions(ctx context.Context, params fetchUncategorizedTransactionsParams) ([]TransactionModel, error)
 	InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error)
 	BulkInsertTransactions(ctx context.Context, params bulkInsertTransactionsParams) ([]TransactionModel, error)
 	ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error)
@@ -403,6 +404,7 @@ const fetchTransactionsQuery = `
 		t.account_id,
 		t.category_id,
 		t.description,
+		t.original_description,
 		t.amount,
 		t.transaction_date,
 		t.transaction_type,
@@ -412,6 +414,7 @@ const fetchTransactionsQuery = `
 		t.raw_ofx_data,
 		t.is_classified,
 		t.classification_rule_id,
+		t.is_ignored,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -448,6 +451,7 @@ const fetchTransactionByIDQuery = `
 		t.account_id,
 		t.category_id,
 		t.description,
+		t.original_description,
 		t.amount,
 		t.transaction_date,
 		t.transaction_type,
@@ -457,6 +461,7 @@ const fetchTransactionByIDQuery = `
 		t.raw_ofx_data,
 		t.is_classified,
 		t.classification_rule_id,
+		t.is_ignored,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -471,6 +476,53 @@ func (r *repository) FetchTransactionByID(ctx context.Context, params fetchTrans
 	err := r.db.Query(ctx, &result, fetchTransactionByIDQuery, params.TransactionID, params.UserID, params.OrganizationID)
 	if err != nil {
 		return TransactionModel{}, err
+	}
+	return result, nil
+}
+
+// FetchUncategorizedTransactions fetches all transactions without a category for a user/organization
+// Used for retroactive pattern application
+type fetchUncategorizedTransactionsParams struct {
+	UserID         int
+	OrganizationID int
+}
+
+const fetchUncategorizedTransactionsQuery = `
+	-- financial.fetchUncategorizedTransactionsQuery
+	SELECT
+		t.transaction_id,
+		t.created_at,
+		t.updated_at,
+		t.account_id,
+		t.category_id,
+		t.description,
+		t.original_description,
+		t.amount,
+		t.transaction_date,
+		t.transaction_type,
+		t.ofx_fitid,
+		t.ofx_check_number,
+		t.ofx_memo,
+		t.raw_ofx_data,
+		t.is_classified,
+		t.classification_rule_id,
+		t.is_ignored,
+		t.notes,
+		t.tags
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE a.user_id = $1
+		AND a.organization_id = $2
+		AND t.category_id IS NULL
+		AND t.is_ignored = FALSE
+	ORDER BY t.transaction_date DESC;
+`
+
+func (r *repository) FetchUncategorizedTransactions(ctx context.Context, params fetchUncategorizedTransactionsParams) ([]TransactionModel, error) {
+	var result []TransactionModel
+	err := r.db.Query(ctx, &result, fetchUncategorizedTransactionsQuery, params.UserID, params.OrganizationID)
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }
@@ -491,6 +543,7 @@ const fetchTransactionsByMonthQuery = `
 		t.account_id,
 		t.category_id,
 		t.description,
+		t.original_description,
 		t.amount,
 		t.transaction_date,
 		t.transaction_type,
@@ -500,6 +553,7 @@ const fetchTransactionsByMonthQuery = `
 		t.raw_ofx_data,
 		t.is_classified,
 		t.classification_rule_id,
+		t.is_ignored,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -522,28 +576,30 @@ func (r *repository) FetchTransactionsByMonth(ctx context.Context, params fetchT
 }
 
 type insertTransactionParams struct {
-	AccountID       int
-	CategoryID      *int
-	Description     string
-	Amount          decimal.Decimal
-	TransactionDate string // Will be parsed to time.Time
-	TransactionType string
-	OFXFitID        *string
-	OFXCheckNum     *string
-	OFXMemo         *string
-	RawOFXData      *string
+	AccountID           int
+	CategoryID          *int
+	Description         string
+	OriginalDescription string // Immutable OFX description for pattern matching
+	Amount              decimal.Decimal
+	TransactionDate     string // Will be parsed to time.Time
+	TransactionType     string
+	OFXFitID            *string
+	OFXCheckNum         *string
+	OFXMemo             *string
+	RawOFXData          *string
 }
 
 const insertTransactionQuery = `
 	-- financial.insertTransactionQuery
 	INSERT INTO transactions (
-		account_id, category_id, description, amount, transaction_date, transaction_type,
+		account_id, category_id, description, original_description, amount, transaction_date, transaction_type,
 		ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data
 	)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	ON CONFLICT (account_id, ofx_fitid) WHERE ofx_fitid IS NOT NULL
 	DO UPDATE SET
 		description = EXCLUDED.description,
+		-- Note: original_description is NOT updated on conflict (immutable)
 		amount = EXCLUDED.amount,
 		transaction_date = EXCLUDED.transaction_date,
 		transaction_type = EXCLUDED.transaction_type,
@@ -551,7 +607,7 @@ const insertTransactionQuery = `
 		ofx_memo = EXCLUDED.ofx_memo,
 		raw_ofx_data = EXCLUDED.raw_ofx_data,
 		updated_at = NOW()
-	RETURNING transaction_id, created_at, updated_at, account_id, category_id, description, amount,
+	RETURNING transaction_id, created_at, updated_at, account_id, category_id, description, original_description, amount,
 			  transaction_date, transaction_type, ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data,
 			  is_classified, classification_rule_id, is_ignored, notes, tags;
 `
@@ -559,7 +615,7 @@ const insertTransactionQuery = `
 func (r *repository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
 	var result TransactionModel
 	err := r.db.Query(ctx, &result, insertTransactionQuery,
-		params.AccountID, params.CategoryID, params.Description, params.Amount, params.TransactionDate,
+		params.AccountID, params.CategoryID, params.Description, params.OriginalDescription, params.Amount, params.TransactionDate,
 		params.TransactionType, params.OFXFitID, params.OFXCheckNum, params.OFXMemo, params.RawOFXData)
 	if err != nil {
 		return TransactionModel{}, err
@@ -1729,7 +1785,7 @@ const fetchAdvancedPatternsQuery = `
 		target_category_id,
 		apply_retroactively,
 		is_active
-	FROM advanced_patterns
+	FROM patterns
 	WHERE user_id = $1
 		AND organization_id = $2
 		AND ($3::boolean IS NULL OR is_active = $3)
@@ -1770,7 +1826,7 @@ const fetchAdvancedPatternByIDQuery = `
 		target_category_id,
 		apply_retroactively,
 		is_active
-	FROM advanced_patterns
+	FROM patterns
 	WHERE pattern_id = $1
 		AND user_id = $2
 		AND organization_id = $3;
@@ -1798,7 +1854,7 @@ type insertAdvancedPatternParams struct {
 
 const insertAdvancedPatternQuery = `
 	-- financial.insertAdvancedPatternQuery
-	INSERT INTO advanced_patterns (
+	INSERT INTO patterns (
 		user_id,
 		organization_id,
 		description_pattern,
@@ -1845,7 +1901,7 @@ type modifyAdvancedPatternParams struct {
 
 const modifyAdvancedPatternQuery = `
 	-- financial.modifyAdvancedPatternQuery
-	UPDATE advanced_patterns
+	UPDATE patterns
 	SET
 		is_active = COALESCE($4, is_active),
 		updated_at = CURRENT_TIMESTAMP
@@ -1884,7 +1940,7 @@ type removeAdvancedPatternParams struct {
 
 const removeAdvancedPatternQuery = `
 	-- financial.removeAdvancedPatternQuery
-	DELETE FROM advanced_patterns
+	DELETE FROM patterns
 	WHERE pattern_id = $1
 		AND user_id = $2
 		AND organization_id = $3;

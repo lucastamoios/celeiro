@@ -30,7 +30,8 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 	}))
 
 	// Auth
-	r.Post("/auth/request/", ah.RequestMagicLinkForExistingUser)
+	// Allow requesting a magic code for both existing and new users (auto-registration happens on validate)
+	r.Post("/auth/request/", ah.RequestMagicLink)
 	r.Post("/auth/validate/", ah.Authenticate)
 
 	r.Get("/accounts/me/", mw.RequireSession(ah.Me, []accounts.Permission{}))
@@ -92,12 +93,13 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		// Income Planning
 		r.Get("/income-planning", mw.RequireSession(fh.GetIncomePlanning, []accounts.Permission{}))
 
-		// Advanced Patterns
-		r.Post("/advanced-patterns", mw.RequireSession(fh.CreateAdvancedPattern, []accounts.Permission{}))
-		r.Get("/advanced-patterns", mw.RequireSession(fh.GetAdvancedPatterns, []accounts.Permission{}))
-		r.Get("/advanced-patterns/{id}", mw.RequireSession(fh.GetAdvancedPattern, []accounts.Permission{}))
-		r.Put("/advanced-patterns/{id}", mw.RequireSession(fh.UpdateAdvancedPattern, []accounts.Permission{}))
-		r.Delete("/advanced-patterns/{id}", mw.RequireSession(fh.DeleteAdvancedPattern, []accounts.Permission{}))
+		// Patterns (formerly Advanced Patterns)
+		r.Post("/patterns", mw.RequireSession(fh.CreateAdvancedPattern, []accounts.Permission{}))
+		r.Get("/patterns", mw.RequireSession(fh.GetAdvancedPatterns, []accounts.Permission{}))
+		r.Get("/patterns/{id}", mw.RequireSession(fh.GetAdvancedPattern, []accounts.Permission{}))
+		r.Put("/patterns/{id}", mw.RequireSession(fh.UpdateAdvancedPattern, []accounts.Permission{}))
+		r.Delete("/patterns/{id}", mw.RequireSession(fh.DeleteAdvancedPattern, []accounts.Permission{}))
+		r.Post("/patterns/{id}/apply-retroactively", mw.RequireSession(fh.ApplyPatternRetroactively, []accounts.Permission{}))
 	})
 
 	return r

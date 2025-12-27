@@ -5,6 +5,7 @@ import (
 
 	"github.com/catrutech/celeiro/internal/application"
 	"github.com/catrutech/celeiro/internal/application/accounts"
+	"github.com/catrutech/celeiro/internal/application/financial"
 	"github.com/catrutech/celeiro/internal/errors"
 	"github.com/catrutech/celeiro/internal/web/responses"
 )
@@ -15,12 +16,14 @@ type AccountsHandler interface {
 }
 
 type handler struct {
-	accountsService accounts.Service
+	accountsService  accounts.Service
+	financialService financial.Service
 }
 
 func NewHandler(application *application.Application) AccountsHandler {
 	return &handler{
-		accountsService: application.AccountsService,
+		accountsService:  application.AccountsService,
+		financialService: application.FinancialService,
 	}
 }
 

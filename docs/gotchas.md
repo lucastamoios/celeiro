@@ -182,7 +182,6 @@ Leave empty for production (nginx proxies to backend).
 ### Starting Services
 
 ```bash
-cd backend
 make up      # Start all (frontend, backend, postgres, redis, grafana)
 make down    # Stop all
 make restart # Rebuild and restart
@@ -199,7 +198,6 @@ docker logs -f celeiro_postgres
 ### Database Access
 
 ```bash
-cd backend
 make dbshell  # Opens psql connected to celeiro_db
 ```
 
@@ -221,7 +219,6 @@ make dbshell  # Opens psql connected to celeiro_db
 ### Backend
 
 ```bash
-cd backend
 make test                    # Unit tests
 go test ./... -v             # Verbose
 go test ./... -run TestName  # Specific test

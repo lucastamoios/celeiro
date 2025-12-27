@@ -46,19 +46,19 @@ celeiro/
 
 ```bash
 # Start all services
-cd backend && make up
+make up
 
 # Stop all services
-cd backend && make down
+make down
 
 # Run tests
-cd backend && make test
+make test
 
 # Database shell
-cd backend && make dbshell
+make dbshell
 
 # Run migrations
-cd backend && make migrate
+make migrate
 ```
 
 ## Planning System

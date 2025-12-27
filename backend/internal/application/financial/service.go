@@ -94,6 +94,7 @@ type Service interface {
 	GetAdvancedPatternByID(ctx context.Context, input GetAdvancedPatternByIDInput) (AdvancedPattern, error)
 	UpdateAdvancedPattern(ctx context.Context, input UpdateAdvancedPatternInput) (AdvancedPattern, error)
 	DeleteAdvancedPattern(ctx context.Context, input DeleteAdvancedPatternInput) error
+	ApplyPatternRetroactivelySync(ctx context.Context, input ApplyPatternRetroactivelyInput) (ApplyPatternRetroactivelyOutput, error)
 }
 
 type service struct {

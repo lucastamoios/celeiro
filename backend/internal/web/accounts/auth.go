@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	"github.com/catrutech/celeiro/internal/application/accounts"
+	"github.com/catrutech/celeiro/internal/application/financial"
 	"github.com/catrutech/celeiro/internal/errors"
 	"github.com/catrutech/celeiro/internal/web/responses"
 	"github.com/catrutech/celeiro/internal/web/validators"
+	"github.com/shopspring/decimal"
 )
 
 type AccountsAuthHandler interface {
@@ -157,6 +159,23 @@ func (h *handler) Authenticate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		responses.NewError(w, err)
 		return
+	}
+
+	// Create a default account for new users so they can start using the app immediately
+	if authResult.IsNewUser && len(authResult.Session.Info.Organizations) > 0 {
+		userID := authResult.Session.Info.User.ID
+		orgID := authResult.Session.Info.Organizations[0].OrganizationID
+
+		_, _ = h.financialService.CreateAccount(r.Context(), financial.CreateAccountInput{
+			UserID:         userID,
+			OrganizationID: orgID,
+			Name:           "Conta Principal",
+			AccountType:    "checking",
+			BankName:       "Meu Banco",
+			Balance:        decimal.Zero,
+			Currency:       "BRL",
+		})
+		// Best-effort: don't fail auth if account creation fails (user can create manually)
 	}
 
 	response := AuthenticateResponse{}.FromDTO(authResult)

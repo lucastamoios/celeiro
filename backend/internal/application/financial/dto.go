@@ -86,6 +86,7 @@ type Transaction struct {
 	AccountID            int             `json:"account_id"`
 	CategoryID           *int            `json:"category_id,omitempty"`
 	Description          string          `json:"description"`
+	OriginalDescription  *string         `json:"original_description,omitempty"` // Immutable OFX description
 	Amount               decimal.Decimal `json:"amount"`
 	TransactionDate      time.Time       `json:"transaction_date"`
 	TransactionType      string          `json:"transaction_type"`
@@ -108,6 +109,7 @@ func (t Transaction) FromModel(model *TransactionModel) Transaction {
 		AccountID:            model.AccountID,
 		CategoryID:           model.CategoryID,
 		Description:          model.Description,
+		OriginalDescription:  model.OriginalDescription,
 		Amount:               model.Amount,
 		TransactionDate:      model.TransactionDate,
 		TransactionType:      model.TransactionType,

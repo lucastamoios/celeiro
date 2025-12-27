@@ -2,101 +2,105 @@ import { useEffect, useState, Fragment } from 'react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
-import { financialUrl } from '../config/api';
-import { saveTransactionAsPattern, getMatchSuggestions, applyPatternToTransaction, getSavedPatterns } from '../api/budget';
+import { apiUrl, financialUrl } from '../config/api';
+// Simple patterns have been removed - unified pattern system now in PatternManager
 
-interface MatchSuggestion {
-  pattern: {
-    planned_entry_id: number;
-    description: string;
-    category_id: number;
-    amount: string;
-  };
-  match_score: {
-    total_score: number;
-    confidence: 'HIGH' | 'MEDIUM' | 'LOW';
-    description_similarity: number;
-    amount_similarity: number;
-    day_alignment: number;
-    weekday_alignment?: number;
-  };
+interface Account {
+  // Backend returns PascalCase for accounts (no json tags)
+  AccountID: number;
+  Name: string;
+  BankName: string;
+  AccountType: string;
+  Currency: string;
+  IsActive: boolean;
+}
+
+interface SessionMeResponse {
+  user: { id: number; email: string; name: string };
+  organizations: { organization_id: number; name: string }[];
 }
 
 export default function TransactionList() {
   const { token } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Map<number, Category>>(new Map());
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [activeOrganizationId, setActiveOrganizationId] = useState<string>('1');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
-  const [savingPattern, setSavingPattern] = useState<number | null>(null); // Track which transaction is being saved
-  const [expandedTransaction, setExpandedTransaction] = useState<number | null>(null);
-  const [matchSuggestions, setMatchSuggestions] = useState<Map<number, MatchSuggestion[]>>(new Map());
-  const [loadingSuggestions, setLoadingSuggestions] = useState<number | null>(null);
-  const [applyingPattern, setApplyingPattern] = useState<{ transactionId: number; patternId: number } | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<{id: number; field: 'description' | 'category'} | null>(null);
   const [editedDescription, setEditedDescription] = useState('');
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-  const [savedPatternIds, setSavedPatternIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetchData();
-  }, [token]);
+  }, [token, selectedAccountId]);
 
   const fetchData = async () => {
     if (!token) return;
 
-    const headers = {
-      'Authorization': `Bearer ${token}`,
-      'X-Active-Organization': '1'
-    };
-
     try {
-      // Fetch categories and transactions
-      const [categoriesRes, transactionsRes] = await Promise.all([
+      // Determine active org from session (avoids hardcoding org=1)
+      const meRes = await fetch(apiUrl('/accounts/me/'), {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!meRes.ok) {
+        throw new Error('Failed to fetch session info');
+      }
+      const meJson: ApiResponse<SessionMeResponse> = await meRes.json();
+      const orgId = meJson.data?.organizations?.[0]?.organization_id?.toString() || '1';
+      setActiveOrganizationId(orgId);
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'X-Active-Organization': orgId,
+      };
+
+      // Fetch categories + accounts (need accountId before fetching transactions)
+      const [categoriesRes, accountsRes] = await Promise.all([
         fetch(financialUrl('categories'), { headers }),
-        fetch(`${financialUrl('accounts')}/1/transactions?limit=50`, { headers })
+        fetch(financialUrl('accounts'), { headers }),
       ]);
 
-      if (!categoriesRes.ok || !transactionsRes.ok) {
+      if (!categoriesRes.ok || !accountsRes.ok) {
         throw new Error('Failed to fetch data');
       }
 
       const categoriesData: ApiResponse<Category[]> = await categoriesRes.json();
+      const accountsData: ApiResponse<Account[]> = await accountsRes.json();
+      const fetchedAccounts = accountsData.data || [];
+      setAccounts(fetchedAccounts);
+
+      const accountId = selectedAccountId ?? fetchedAccounts?.[0]?.AccountID ?? null;
+      if (!accountId) {
+        setTransactions([]);
+        setError('Nenhuma conta encontrada. Crie uma conta antes de importar OFX.');
+        return;
+      }
+      if (selectedAccountId !== accountId) {
+        setSelectedAccountId(accountId);
+      }
+
+      const transactionsRes = await fetch(
+        `${financialUrl('accounts')}/${accountId}/transactions?limit=50`,
+        { headers }
+      );
+      if (!transactionsRes.ok) {
+        throw new Error('Failed to fetch transactions');
+      }
       const transactionsData: ApiResponse<Transaction[]> = await transactionsRes.json();
 
       // Create a map of categoryID -> Category for quick lookup
       const categoryMap = new Map<number, Category>();
-      (categoriesData.data || []).forEach(cat => categoryMap.set(cat.CategoryID, cat));
+      (categoriesData.data || []).forEach(cat => categoryMap.set(cat.category_id, cat));
 
       setCategories(categoryMap);
       setTransactions(transactionsData.data || []);
 
-      // Try to fetch saved patterns (non-blocking - graceful degradation)
-      try {
-        const patterns = await getSavedPatterns(undefined, { token });
-
-        // Match saved patterns to transactions
-        // A transaction has a saved pattern if there's a pattern with matching description and category
-        const patternMatches = new Set<number>();
-        (transactionsData.data || []).forEach(tx => {
-          if (tx.CategoryID && patterns) {
-            const hasPattern = patterns.some(pattern =>
-              pattern.Description === tx.Description &&
-              pattern.CategoryID === tx.CategoryID
-            );
-            if (hasPattern) {
-              patternMatches.add(tx.TransactionID);
-            }
-          }
-        });
-
-        setSavedPatternIds(patternMatches);
-      } catch (patternErr) {
-        // Pattern loading failed - not critical, just log it
-        console.warn('Failed to load saved patterns:', patternErr);
-      }
+      // Simple patterns have been removed - pattern matching now happens via unified pattern system
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
@@ -125,28 +129,45 @@ export default function TransactionList() {
 
     const formData = new FormData();
     formData.append('ofx_file', file);
-
-    const headers = {
-      'Authorization': `Bearer ${token}`,
-      'X-Active-Organization': '1',
-    };
+    if (!selectedAccountId) {
+      setError('Selecione uma conta antes de importar OFX.');
+      setUploading(false);
+      event.target.value = '';
+      return;
+    }
 
     try {
       const response = await fetch(
-        financialUrl('accounts') + '/1/transactions/import',
+        `${financialUrl('accounts')}/${selectedAccountId}/transactions/import`,
         {
           method: 'POST',
-          headers,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-Active-Organization': activeOrganizationId,
+          },
           body: formData,
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to upload OFX file');
+        const maybeJson = await response.json().catch(() => null);
+        const msg = maybeJson?.message || 'Failed to upload OFX file';
+        const code = maybeJson?.code ? ` (${maybeJson.code})` : '';
+        throw new Error(`${msg}${code}`);
       }
 
       const result = await response.json();
-      setUploadSuccess(`✅ Imported ${result.data.imported_count} transactions successfully!`);
+      const imported =
+        result?.data?.ImportedCount ??
+        result?.data?.imported_count ??
+        result?.data?.importedCount ??
+        'unknown';
+      const duplicates =
+        result?.data?.DuplicateCount ??
+        result?.data?.duplicate_count ??
+        result?.data?.duplicateCount ??
+        0;
+      setUploadSuccess(`✅ Imported ${imported} transactions (duplicates: ${duplicates}).`);
 
       // Refresh the transaction list
       fetchData();
@@ -159,98 +180,7 @@ export default function TransactionList() {
     }
   };
 
-  const handleSaveAsPattern = async (transaction: Transaction) => {
-    if (!token || !transaction.CategoryID) return;
-
-    setSavingPattern(transaction.TransactionID);
-    setError(null);
-
-    try {
-      await saveTransactionAsPattern(
-        transaction.TransactionID,
-        {
-          is_recurrent: false, // Could be made configurable
-          expected_day: new Date(transaction.TransactionDate).getDate(),
-        },
-        { token }
-      );
-
-      setUploadSuccess(`✅ Padrão salvo! Veja na aba "Padrões"`);
-      setTimeout(() => setUploadSuccess(null), 5000);
-
-      // Mark this transaction as having a saved pattern
-      setSavedPatternIds(prev => new Set(prev).add(transaction.TransactionID));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao salvar padrão');
-    } finally {
-      setSavingPattern(null);
-    }
-  };
-
-  const handleToggleSuggestions = async (transaction: Transaction) => {
-    if (expandedTransaction === transaction.TransactionID) {
-      setExpandedTransaction(null);
-      return;
-    }
-
-    setExpandedTransaction(transaction.TransactionID);
-
-    // If we already have suggestions cached, don't fetch again
-    if (matchSuggestions.has(transaction.TransactionID)) {
-      return;
-    }
-
-    // Fetch match suggestions
-    if (!token) return;
-
-    setLoadingSuggestions(transaction.TransactionID);
-    setError(null);
-
-    try {
-      const suggestions = await getMatchSuggestions(
-        transaction.TransactionID,
-        undefined, // No category filter
-        { token }
-      );
-
-      setMatchSuggestions(prev => new Map(prev).set(transaction.TransactionID, suggestions || []));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao buscar sugestões');
-    } finally {
-      setLoadingSuggestions(null);
-    }
-  };
-
-  const handleApplyPattern = async (transactionId: number, patternId: number) => {
-    if (!token) return;
-
-    setApplyingPattern({ transactionId, patternId });
-    setError(null);
-
-    try {
-      await applyPatternToTransaction(transactionId, patternId, { token });
-
-      setUploadSuccess(`✅ Padrão aplicado com sucesso!`);
-      setTimeout(() => setUploadSuccess(null), 3000);
-
-      // Refresh transactions to show updated category
-      await fetchData();
-
-      // Clear suggestions cache for this transaction
-      setMatchSuggestions(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(transactionId);
-        return newMap;
-      });
-
-      // Collapse the expanded transaction
-      setExpandedTransaction(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao aplicar padrão');
-    } finally {
-      setApplyingPattern(null);
-    }
-  };
+  // Simple pattern functions removed - pattern system now unified in PatternManager
 
   const handleUpdateTransaction = async (transactionId: number, updates: { description?: string; category_id?: number; is_ignored?: boolean }) => {
     if (!token) return;
@@ -312,10 +242,10 @@ export default function TransactionList() {
   const handleToggleIgnore = async (transaction: Transaction) => {
     if (!token) return;
 
-    const newIgnoredState = !transaction.IsIgnored;
+    const newIgnoredState = !transaction.is_ignored;
 
     try {
-      await handleUpdateTransaction(transaction.TransactionID, { is_ignored: newIgnoredState });
+      await handleUpdateTransaction(transaction.transaction_id, { is_ignored: newIgnoredState });
       setOpenMenuId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to toggle ignore');
@@ -425,6 +355,20 @@ export default function TransactionList() {
           </div>
 
           <div className="flex flex-col items-end gap-2">
+            {accounts.length > 0 && (
+              <select
+                value={selectedAccountId ?? ''}
+                onChange={(e) => setSelectedAccountId(parseInt(e.target.value))}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                title="Selecionar conta"
+              >
+                {accounts.map((acc) => (
+                  <option key={acc.AccountID} value={acc.AccountID}>
+                    {acc.Name} ({acc.BankName})
+                  </option>
+                ))}
+              </select>
+            )}
             <label className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
               {uploading ? 'Importando...' : '📤 Importar OFX'}
               <input
@@ -476,13 +420,13 @@ export default function TransactionList() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {transactions.map((transaction) => (
-                  <Fragment key={transaction.TransactionID}>
-                    <tr className={`hover:bg-gray-50 ${transaction.IsIgnored ? 'opacity-40 bg-gray-50' : ''}`}>
+                  <Fragment key={transaction.transaction_id}>
+                    <tr className={`hover:bg-gray-50 ${transaction.is_ignored ? 'opacity-40 bg-gray-50' : ''}`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(transaction.TransactionDate)}
+                        {formatDate(transaction.transaction_date)}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
-                        {editingTransaction?.id === transaction.TransactionID && editingTransaction?.field === 'description' ? (
+                        {editingTransaction?.id === transaction.transaction_id && editingTransaction?.field === 'description' ? (
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
@@ -490,24 +434,24 @@ export default function TransactionList() {
                               onChange={(e) => setEditedDescription(e.target.value)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
-                                  handleSaveDescription(transaction.TransactionID);
+                                  handleSaveDescription(transaction.transaction_id);
                                 } else if (e.key === 'Escape') {
                                   handleCancelEdit();
                                 }
                               }}
-                              onBlur={() => handleSaveDescription(transaction.TransactionID)}
+                              onBlur={() => handleSaveDescription(transaction.transaction_id)}
                               autoFocus
                               className="flex-1 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                         ) : (
                           <div
-                            className={`truncate cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2 ${transaction.IsIgnored ? 'line-through' : ''}`}
-                            title={transaction.Description}
-                            onClick={() => handleStartEdit(transaction.TransactionID, 'description', transaction.Description)}
+                            className={`truncate cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2 ${transaction.is_ignored ? 'line-through' : ''}`}
+                            title={transaction.description}
+                            onClick={() => handleStartEdit(transaction.transaction_id, 'description', transaction.description)}
                           >
-                            {transaction.Description}
-                            {transaction.IsIgnored && (
+                            {transaction.description}
+                            {transaction.is_ignored && (
                               <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-medium">IGNORADA</span>
                             )}
                           </div>
@@ -515,27 +459,27 @@ export default function TransactionList() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          transaction.TransactionType === 'credit'
+                          transaction.transaction_type === 'credit'
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {transaction.TransactionType === 'credit' ? 'Crédito' : 'Débito'}
+                          {transaction.transaction_type === 'credit' ? 'Crédito' : 'Débito'}
                         </span>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
-                        transaction.TransactionType === 'credit' ? 'text-green-600' : 'text-red-600'
+                        transaction.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {transaction.TransactionType === 'credit' ? '+' : '-'}
-                        {formatCurrency(transaction.Amount)}
+                        {transaction.transaction_type === 'credit' ? '+' : '-'}
+                        {formatCurrency(transaction.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {editingTransaction?.id === transaction.TransactionID && editingTransaction?.field === 'category' ? (
+                        {editingTransaction?.id === transaction.transaction_id && editingTransaction?.field === 'category' ? (
                           <select
-                            value={transaction.CategoryID || ''}
+                            value={transaction.category_id || ''}
                             onChange={(e) => {
                               const categoryId = parseInt(e.target.value);
                               if (categoryId) {
-                                handleCategoryChange(transaction.TransactionID, categoryId);
+                                handleCategoryChange(transaction.transaction_id, categoryId);
                               }
                             }}
                             onBlur={() => handleCancelEdit()}
@@ -544,20 +488,20 @@ export default function TransactionList() {
                           >
                             <option value="">Selecione uma categoria</option>
                             {Array.from(categories.values()).map(cat => (
-                              <option key={cat.CategoryID} value={cat.CategoryID}>
-                                {cat.Icon} {cat.Name}
+                              <option key={cat.category_id} value={cat.category_id}>
+                                {cat.icon} {cat.name}
                               </option>
                             ))}
                           </select>
                         ) : (
                           <div
                             className="cursor-pointer hover:opacity-70 transition-opacity"
-                            onClick={() => handleStartEdit(transaction.TransactionID, 'category', transaction.Description)}
+                            onClick={() => handleStartEdit(transaction.transaction_id, 'category', transaction.description)}
                           >
-                            {transaction.CategoryID && categories.has(transaction.CategoryID) ? (
+                            {transaction.category_id && categories.has(transaction.category_id) ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                <span>{categories.get(transaction.CategoryID)!.Icon}</span>
-                                <span>{categories.get(transaction.CategoryID)!.Name}</span>
+                                <span>{categories.get(transaction.category_id)!.icon}</span>
+                                <span>{categories.get(transaction.category_id)!.name}</span>
                               </span>
                             ) : (
                               <span className="text-gray-400 italic">Não classificada</span>
@@ -565,56 +509,16 @@ export default function TransactionList() {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={transaction.Notes || ''}>
-                        {transaction.Notes || '-'}
+                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={transaction.notes || ''}>
+                        {transaction.notes || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         <div className="flex items-center justify-end gap-2">
-                          {transaction.CategoryID ? (
-                            savedPatternIds.has(transaction.TransactionID) ? (
-                              <button
-                                disabled
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 border-2 border-green-500 text-xs font-medium rounded-md text-green-700 bg-green-50 cursor-default transition-colors"
-                                title="Padrão já salvo! Veja na aba Padrões"
-                              >
-                                ✅ Padrão Salvo
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleSaveAsPattern(transaction)}
-                                disabled={savingPattern === transaction.TransactionID}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Salvar como padrão para futuras transações similares"
-                              >
-                                {savingPattern === transaction.TransactionID ? (
-                                  <>
-                                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Salvando...
-                                  </>
-                                ) : (
-                                  <>
-                                    💾 Salvar Padrão
-                                  </>
-                                )}
-                              </button>
-                            )
-                          ) : (
-                            <button
-                              onClick={() => handleToggleSuggestions(transaction)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-blue-600 text-xs font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                              title="Buscar padrões correspondentes"
-                            >
-                              {expandedTransaction === transaction.TransactionID ? '🔼 Ocultar' : '🔍 Sugestões'}
-                            </button>
-                          )}
 
                           {/* Three-dot menu */}
                           <div className="relative">
                             <button
-                              onClick={() => setOpenMenuId(openMenuId === transaction.TransactionID ? null : transaction.TransactionID)}
+                              onClick={() => setOpenMenuId(openMenuId === transaction.transaction_id ? null : transaction.transaction_id)}
                               className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
                               title="Mais ações"
                             >
@@ -623,7 +527,7 @@ export default function TransactionList() {
                               </svg>
                             </button>
 
-                            {openMenuId === transaction.TransactionID && (
+                            {openMenuId === transaction.transaction_id && (
                               <>
                                 <div
                                   className="fixed inset-0 z-10"
@@ -635,11 +539,11 @@ export default function TransactionList() {
                                       onClick={() => handleToggleIgnore(transaction)}
                                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
                                     >
-                                      <span>{transaction.IsIgnored ? '👁️' : '👁️‍🗨️'}</span>
-                                      <span>{transaction.IsIgnored ? 'Não ignorar' : 'Ignorar transação'}</span>
+                                      <span>{transaction.is_ignored ? '👁️' : '👁️‍🗨️'}</span>
+                                      <span>{transaction.is_ignored ? 'Não ignorar' : 'Ignorar transação'}</span>
                                     </button>
                                     <button
-                                      onClick={() => handleDelete(transaction.TransactionID)}
+                                      onClick={() => handleDelete(transaction.transaction_id)}
                                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
                                     >
                                       <span>🗑️</span>
@@ -654,105 +558,6 @@ export default function TransactionList() {
                       </td>
                     </tr>
 
-                    {/* Expandable suggestions row */}
-                    {expandedTransaction === transaction.TransactionID && !transaction.CategoryID && (
-                      <tr key={`${transaction.TransactionID}-suggestions`} className="bg-blue-50">
-                        <td colSpan={7} className="px-6 py-4">
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
-                              <span>💡</span>
-                              <span>Sugestões de Padrões</span>
-                            </div>
-
-                            {loadingSuggestions === transaction.TransactionID ? (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Buscando padrões correspondentes...
-                              </div>
-                            ) : matchSuggestions.get(transaction.TransactionID)?.length === 0 ? (
-                              <div className="text-sm text-gray-600 bg-white rounded-lg p-4 border border-blue-200">
-                                Nenhum padrão correspondente encontrado. Categorize manualmente e salve como padrão para futuras transações similares.
-                              </div>
-                            ) : (
-                              <div className="grid gap-3">
-                                {matchSuggestions.get(transaction.TransactionID)?.map((suggestion, idx) => {
-                                  const confidenceColors = {
-                                    HIGH: 'bg-green-100 text-green-800 border-green-300',
-                                    MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-                                    LOW: 'bg-gray-100 text-gray-800 border-gray-300',
-                                  };
-
-                                  return (
-                                    <div
-                                      key={`${suggestion.pattern.planned_entry_id}-${idx}`}
-                                      className="bg-white rounded-lg border-2 border-blue-200 p-4 hover:border-blue-400 transition-colors"
-                                    >
-                                      <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1 space-y-2">
-                                          <div className="flex items-center gap-2">
-                                            <span className="font-medium text-gray-900">{suggestion.pattern.description}</span>
-                                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${confidenceColors[suggestion.match_score.confidence]}`}>
-                                              {suggestion.match_score.confidence === 'HIGH' ? '✨ Alta confiança' :
-                                               suggestion.match_score.confidence === 'MEDIUM' ? '⚡ Média confiança' :
-                                               '💭 Baixa confiança'}
-                                            </span>
-                                          </div>
-
-                                          <div className="flex items-center gap-4 text-xs text-gray-600">
-                                            {categories.has(suggestion.pattern.category_id) && (
-                                              <span className="inline-flex items-center gap-1">
-                                                <span>{categories.get(suggestion.pattern.category_id)!.Icon}</span>
-                                                <span>{categories.get(suggestion.pattern.category_id)!.Name}</span>
-                                              </span>
-                                            )}
-                                            <span>Valor: {formatCurrency(suggestion.pattern.amount)}</span>
-                                            <span>Score: {(suggestion.match_score.total_score * 100).toFixed(0)}%</span>
-                                          </div>
-
-                                          <div className="text-xs text-gray-500 space-y-1">
-                                            <div className="flex gap-4">
-                                              <span>📝 Similaridade descrição: {(suggestion.match_score.description_similarity * 100).toFixed(0)}%</span>
-                                              <span>💰 Similaridade valor: {(suggestion.match_score.amount_similarity * 100).toFixed(0)}%</span>
-                                              {suggestion.match_score.day_alignment > 0 && (
-                                                <span>📅 Dia do mês: {(suggestion.match_score.day_alignment * 100).toFixed(0)}%</span>
-                                              )}
-                                              {suggestion.match_score.weekday_alignment && suggestion.match_score.weekday_alignment > 0 && (
-                                                <span>🗓️ Dia da semana: {(suggestion.match_score.weekday_alignment * 100).toFixed(0)}%</span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        <button
-                                          onClick={() => handleApplyPattern(transaction.TransactionID, suggestion.pattern.planned_entry_id)}
-                                          disabled={applyingPattern?.transactionId === transaction.TransactionID && applyingPattern?.patternId === suggestion.pattern.planned_entry_id}
-                                          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                          {applyingPattern?.transactionId === transaction.TransactionID && applyingPattern?.patternId === suggestion.pattern.planned_entry_id ? (
-                                            <span className="flex items-center gap-1.5">
-                                              <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                              </svg>
-                                              Aplicando...
-                                            </span>
-                                          ) : (
-                                            '✓ Aplicar'
-                                          )}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
                   </Fragment>
                 ))}
               </tbody>
