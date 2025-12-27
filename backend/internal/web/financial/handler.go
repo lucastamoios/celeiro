@@ -200,7 +200,7 @@ func (h *Handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
 	if limit == 0 {
-		limit = 50
+		limit = 1000 // Increased default limit to show more transactions
 	}
 
 	transactions, err := h.app.FinancialService.GetTransactions(r.Context(), financialApp.GetTransactionsInput{
