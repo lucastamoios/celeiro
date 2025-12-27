@@ -8,11 +8,22 @@ export interface InitialPatternData {
   expectedDay?: number;
 }
 
+export interface ExistingPattern {
+  description_pattern: string;
+  date_pattern?: string;
+  weekday_pattern?: string;
+  amount_min?: string;
+  amount_max?: string;
+  target_description: string;
+  target_category_id: number;
+}
+
 interface AdvancedPatternCreatorProps {
   categories: Map<number, Category>;
   onClose: () => void;
   onSave: (pattern: AdvancedPattern) => Promise<void>;
   initialData?: InitialPatternData;
+  existingPattern?: ExistingPattern;
 }
 
 export interface AdvancedPattern {
@@ -26,20 +37,50 @@ export interface AdvancedPattern {
 
 const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
-export default function AdvancedPatternCreator({ categories, onClose, onSave, initialData }: AdvancedPatternCreatorProps) {
-  // Pattern fields - pre-fill with initial data if provided
-  const [descriptionPattern, setDescriptionPattern] = useState(initialData?.description ? `.*${initialData.description}.*` : '');
-  const [datePattern, setDatePattern] = useState(initialData?.expectedDay ? `.*-${String(initialData.expectedDay).padStart(2, '0')}` : '');
-  const [weekdayPattern, setWeekdayPattern] = useState('');
-  const [amountMin, setAmountMin] = useState(initialData?.amount ? String(parseFloat(initialData.amount) * 0.9) : '');
-  const [amountMax, setAmountMax] = useState(initialData?.amount ? String(parseFloat(initialData.amount) * 1.1) : '');
+export default function AdvancedPatternCreator({ categories, onClose, onSave, initialData, existingPattern }: AdvancedPatternCreatorProps) {
+  // Pattern fields - pre-fill with existing pattern or initial data
+  const [descriptionPattern, setDescriptionPattern] = useState(
+    existingPattern?.description_pattern || 
+    (initialData?.description ? `.*${initialData.description}.*` : '')
+  );
+  const [datePattern, setDatePattern] = useState(
+    existingPattern?.date_pattern || 
+    (initialData?.expectedDay ? `.*-${String(initialData.expectedDay).padStart(2, '0')}` : '')
+  );
+  const [weekdayPattern, setWeekdayPattern] = useState(existingPattern?.weekday_pattern || '');
+  const [amountMin, setAmountMin] = useState(
+    existingPattern?.amount_min || 
+    (initialData?.amount ? String(parseFloat(initialData.amount) * 0.9) : '')
+  );
+  const [amountMax, setAmountMax] = useState(
+    existingPattern?.amount_max || 
+    (initialData?.amount ? String(parseFloat(initialData.amount) * 1.1) : '')
+  );
 
-  // Target fields - pre-fill with initial data if provided
-  const [targetDescription, setTargetDescription] = useState(initialData?.description || '');
-  const [targetCategoryId, setTargetCategoryId] = useState(initialData?.categoryId ? String(initialData.categoryId) : '');
+  // Target fields - pre-fill with existing pattern or initial data
+  const [targetDescription, setTargetDescription] = useState(
+    existingPattern?.target_description || 
+    initialData?.description || 
+    ''
+  );
+  const [targetCategoryId, setTargetCategoryId] = useState(
+    existingPattern ? String(existingPattern.target_category_id) : 
+    (initialData?.categoryId ? String(initialData.categoryId) : '')
+  );
 
-  // UI state
-  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
+  // UI state - parse weekdays from existing pattern if available
+  const parseWeekdaysFromPattern = (pattern?: string): number[] => {
+    if (!pattern) return [];
+    const match = pattern.match(/\((\d+(?:\|\d+)*)\)/);
+    if (match) {
+      return match[1].split('|').map(Number);
+    }
+    return [];
+  };
+
+  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>(
+    parseWeekdaysFromPattern(existingPattern?.weekday_pattern)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,12 +156,18 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              {initialData ? '🔄 Converter para Padrão Avançado' : '🎯 Criador de Padrões Avançado'}
+              {existingPattern 
+                ? '✏️ Editar Padrão Avançado'
+                : initialData 
+                  ? '🔄 Converter para Padrão Avançado' 
+                  : '🎯 Criador de Padrões Avançado'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {initialData
-                ? 'Transforme seu padrão simples em um padrão avançado com regex e regras customizadas'
-                : 'Crie padrões inteligentes usando regex e regras de correspondência'}
+              {existingPattern
+                ? 'Modifique as regras de correspondência do seu padrão'
+                : initialData
+                  ? 'Transforme seu padrão simples em um padrão avançado com regex e regras customizadas'
+                  : 'Crie padrões inteligentes usando regex e regras de correspondência'}
             </p>
           </div>
           <button

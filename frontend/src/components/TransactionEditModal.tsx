@@ -80,6 +80,7 @@ export default function TransactionEditModal({
     if (!token) return;
 
     try {
+      // 1. Create the pattern
       const response = await fetch(financialUrl('patterns'), {
         method: 'POST',
         headers: {
@@ -94,9 +95,34 @@ export default function TransactionEditModal({
         throw new Error('Falha ao criar padrão');
       }
 
-      // After creating pattern, save the transaction and close modal
-      await handleSave();
+      const result = await response.json();
+      const patternId = result.data?.pattern_id;
+
+      if (!patternId) {
+        throw new Error('ID do padrão não foi retornado');
+      }
+
+      // 2. Apply pattern retroactively to all matching transactions
+      const applyResponse = await fetch(
+        financialUrl(`patterns/${patternId}/apply-retroactively`),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-Active-Organization': '1',
+          },
+        }
+      );
+
+      if (!applyResponse.ok) {
+        console.error('Falha ao aplicar padrão retroativamente');
+        // Don't throw - pattern was created successfully
+      }
+
+      // 3. Close modal and notify parent to refresh data
       setShowAdvancedPatternCreator(false);
+      onSave(); // This will refresh the transaction list
+      onClose(); // Close the edit modal
     } catch (err) {
       throw err; // Let AdvancedPatternCreator handle the error
     }
