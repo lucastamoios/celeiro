@@ -6,7 +6,7 @@ interface MonthlyBudgetCardProps {
   month: number;
   year: number;
   budgets: CategoryBudget[];
-  categories: Array<{ CategoryID: number; Name: string }>;
+  categories: Array<{ category_id: number; name: string }>;
   actualSpending: Record<number, string>;
   isCurrent: boolean;
   isConsolidated: boolean;
@@ -33,8 +33,8 @@ export default function MonthlyBudgetCard({
   };
 
   const getCategoryName = (categoryId: number): string => {
-    const category = categories.find((c) => c.CategoryID === categoryId);
-    return category ? category.Name : 'Unknown';
+    const category = categories.find((c) => c.category_id === categoryId);
+    return category ? category.name : 'Unknown';
   };
 
   // Calculate totals (with safety checks)

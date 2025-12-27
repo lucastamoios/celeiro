@@ -2,6 +2,7 @@ package financial
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -244,14 +245,12 @@ func (h *Handler) ImportOFX(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Read file content
-	fileBytes := make([]byte, 10<<20)
-	n, err := file.Read(fileBytes)
-	if err != nil && err.Error() != "EOF" {
+	// Read file content (must read until EOF; a single Read() can truncate)
+	fileBytes, err := io.ReadAll(io.LimitReader(file, 10<<20))
+	if err != nil {
 		responses.NewError(w, err)
 		return
 	}
-	fileBytes = fileBytes[:n]
 
 	// Import transactions from OFX
 	result, err := h.app.FinancialService.ImportTransactionsFromOFX(r.Context(), financialApp.ImportOFXInput{
@@ -1459,6 +1458,36 @@ func (h *Handler) DeleteAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 	}
 
 	responses.NewSuccess(map[string]string{"message": "advanced pattern deleted successfully"}, w)
+}
+
+// ApplyPatternRetroactively applies a pattern to all existing uncategorized transactions
+func (h *Handler) ApplyPatternRetroactively(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	patternID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	result, err := h.app.FinancialService.ApplyPatternRetroactivelySync(r.Context(), financialApp.ApplyPatternRetroactivelyInput{
+		PatternID:      patternID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(map[string]int{
+		"updated_count": result.UpdatedCount,
+		"total_checked": result.TotalChecked,
+	}, w)
 }
 
 // ============================================================================

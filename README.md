@@ -45,21 +45,9 @@ celeiro/
 
 ## 🚀 Quick Start
 
-```bash
-# Backend
-cd backend
-make setup && make db-up && make migrate-up && make run
-
-# Frontend (em outro terminal)
-cd frontend
-npm install && npm run dev
-```
-
-Para o fluxo recomendado (Docker), use:
+Fluxo recomendado (Docker):
 
 ```bash
-cd backend
-cp .envrc .env.dev
 make up
 ```
 
@@ -135,14 +123,15 @@ npm test -- --coverage
 # Backend não inicia
 docker ps | grep postgres  # Verificar PostgreSQL
 docker logs celeiro-postgres
-make db-reset
+make down
+docker volume prune  # Careful: removes all unused volumes
+make up
 
 # Migrations falham
-make migrate-status
-make migrate-down
+make migrate.rollback
 
 # Frontend sem dados
-curl localhost:8080/health  # Testar backend
+curl -i localhost:9090/accounts/me/  # Testar backend
 cat frontend/.env  # Verificar VITE_API_URL
 ```
 

@@ -208,12 +208,13 @@ func (tx *OFXTransaction) ToInsertParams(accountID int) insertTransactionParams 
 	dateStr := tx.DatePosted.Format(time.RFC3339)
 
 	return insertTransactionParams{
-		AccountID:       accountID,
-		Description:     description,
-		Amount:          amount,
-		TransactionType: tx.Type,
-		TransactionDate: dateStr,
-		OFXFitID:        &tx.FITID,
-		OFXMemo:         &tx.Memo,
+		AccountID:           accountID,
+		Description:         description,
+		OriginalDescription: description, // Immutable copy for pattern matching
+		Amount:              amount,
+		TransactionType:     tx.Type,
+		TransactionDate:     dateStr,
+		OFXFitID:            &tx.FITID,
+		OFXMemo:             &tx.Memo,
 	}
 }

@@ -300,8 +300,8 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                     >
                       <option value="">Selecione uma categoria</option>
                       {Array.from(categories.values()).map(cat => (
-                        <option key={cat.CategoryID} value={cat.CategoryID}>
-                          {cat.Icon} {cat.Name}
+                        <option key={cat.category_id} value={cat.category_id}>
+                          {cat.icon} {cat.name}
                         </option>
                       ))}
                     </select>
@@ -325,8 +325,8 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                         <div className="font-medium text-gray-900 mb-2">{targetDescription}</div>
                         {categories.has(parseInt(targetCategoryId)) && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                            <span>{categories.get(parseInt(targetCategoryId))!.Icon}</span>
-                            <span>{categories.get(parseInt(targetCategoryId))!.Name}</span>
+                            <span>{categories.get(parseInt(targetCategoryId))!.icon}</span>
+                            <span>{categories.get(parseInt(targetCategoryId))!.name}</span>
                           </span>
                         )}
                       </div>

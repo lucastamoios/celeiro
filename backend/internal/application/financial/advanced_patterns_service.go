@@ -128,7 +128,7 @@ func (s *service) CreateAdvancedPattern(ctx context.Context, input CreateAdvance
 
 	// If apply_retroactively is true, apply the pattern to existing transactions
 	if input.ApplyRetroactively {
-		go s.applyPatternRetroactively(context.Background(), pattern)
+		go s.applyPatternRetroactively(context.Background(), pattern, input.UserID, input.OrganizationID)
 	}
 
 	return pattern, nil
@@ -188,35 +188,141 @@ func (s *service) DeleteAdvancedPattern(ctx context.Context, input DeleteAdvance
 	return nil
 }
 
+// ApplyPatternRetroactivelyInput contains parameters for applying a pattern to existing transactions
+type ApplyPatternRetroactivelyInput struct {
+	PatternID      int
+	UserID         int
+	OrganizationID int
+}
+
+// ApplyPatternRetroactivelyOutput contains the result of retroactive pattern application
+type ApplyPatternRetroactivelyOutput struct {
+	UpdatedCount int
+	TotalChecked int
+}
+
+// ApplyPatternRetroactivelySync applies a pattern to all existing uncategorized transactions
+// This is a synchronous version that returns the count of updated transactions
+func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input ApplyPatternRetroactivelyInput) (ApplyPatternRetroactivelyOutput, error) {
+	// 1. Fetch the pattern
+	pattern, err := s.GetAdvancedPatternByID(ctx, GetAdvancedPatternByIDInput{
+		PatternID:      input.PatternID,
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+	})
+	if err != nil {
+		return ApplyPatternRetroactivelyOutput{}, fmt.Errorf("failed to fetch pattern: %w", err)
+	}
+
+	// 2. Fetch all uncategorized transactions
+	transactions, err := s.Repository.FetchUncategorizedTransactions(ctx, fetchUncategorizedTransactionsParams{
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+	})
+	if err != nil {
+		return ApplyPatternRetroactivelyOutput{}, fmt.Errorf("failed to fetch transactions: %w", err)
+	}
+
+	// Convert pattern to model for matching
+	patternModel := &PatternModel{
+		PatternID:          pattern.PatternID,
+		DescriptionPattern: pattern.DescriptionPattern, // Already *string
+		DatePattern:        pattern.DatePattern,
+		WeekdayPattern:     pattern.WeekdayPattern,
+		AmountMin:          pattern.AmountMin,
+		AmountMax:          pattern.AmountMax,
+		TargetDescription:  pattern.TargetDescription,
+		TargetCategoryID:   pattern.TargetCategoryID,
+	}
+
+	// 3. Apply pattern to matching transactions
+	matchedCount := 0
+	for i := range transactions {
+		tx := &transactions[i]
+		if s.matchesAdvancedPattern(ctx, tx, patternModel) {
+			err := s.applyAdvancedPatternToTransaction(ctx, tx, patternModel)
+			if err != nil {
+				s.logger.Warn(ctx, fmt.Sprintf("Failed to apply pattern to transaction %d: %v", tx.TransactionID, err))
+				continue
+			}
+			matchedCount++
+		}
+	}
+
+	s.logger.Info(ctx, fmt.Sprintf("Retroactive application completed: pattern %d applied to %d/%d transactions",
+		pattern.PatternID, matchedCount, len(transactions)))
+
+	return ApplyPatternRetroactivelyOutput{
+		UpdatedCount: matchedCount,
+		TotalChecked: len(transactions),
+	}, nil
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
-// applyPatternRetroactively applies a pattern to all existing transactions that match
+// applyPatternRetroactively applies a pattern to all existing uncategorized transactions that match
 // This runs in a goroutine to avoid blocking the API response
-func (s *service) applyPatternRetroactively(ctx context.Context, pattern AdvancedPattern) {
-	// Get all transactions for this user/organization
-	// Note: We'd need to add a method to fetch all transactions without account filter
-	// For now, we'll skip this implementation and just log
-	s.logger.Info(ctx, fmt.Sprintf("Retroactive application of pattern %d would run here", pattern.PatternID))
+func (s *service) applyPatternRetroactively(ctx context.Context, pattern AdvancedPattern, userID, organizationID int) {
+	s.logger.Info(ctx, fmt.Sprintf("Starting retroactive application of pattern %d", pattern.PatternID))
 
-	// TODO: Implement retroactive application
-	// 1. Fetch all transactions for user/organization
-	// 2. For each transaction, test if it matches the pattern
-	// 3. If match, update transaction's description and category
-	// 4. Log results
+	// 1. Fetch all uncategorized transactions for user/organization
+	transactions, err := s.Repository.FetchUncategorizedTransactions(ctx, fetchUncategorizedTransactionsParams{
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		s.logger.Error(ctx, fmt.Sprintf("Failed to fetch uncategorized transactions: %v", err))
+		return
+	}
+
+	// Convert pattern to model for matching
+	patternModel := &PatternModel{
+		PatternID:          pattern.PatternID,
+		DescriptionPattern: pattern.DescriptionPattern, // Already *string
+		DatePattern:        pattern.DatePattern,
+		WeekdayPattern:     pattern.WeekdayPattern,
+		AmountMin:          pattern.AmountMin,
+		AmountMax:          pattern.AmountMax,
+		TargetDescription:  pattern.TargetDescription,
+		TargetCategoryID:   pattern.TargetCategoryID,
+	}
+
+	// 2. Apply pattern to matching transactions
+	matchedCount := 0
+	for i := range transactions {
+		tx := &transactions[i]
+		if s.matchesAdvancedPattern(ctx, tx, patternModel) {
+			err := s.applyAdvancedPatternToTransaction(ctx, tx, patternModel)
+			if err != nil {
+				s.logger.Warn(ctx, fmt.Sprintf("Failed to apply pattern to transaction %d: %v", tx.TransactionID, err))
+				continue
+			}
+			matchedCount++
+		}
+	}
+
+	s.logger.Info(ctx, fmt.Sprintf("Retroactive application completed: pattern %d applied to %d/%d transactions",
+		pattern.PatternID, matchedCount, len(transactions)))
 }
 
 // matchesAdvancedPattern checks if a transaction matches an advanced pattern
+// Note: Uses original_description for regex matching (not user-edited description)
 func (s *service) matchesAdvancedPattern(ctx context.Context, tx *TransactionModel, pattern *AdvancedPatternModel) bool {
-	// 1. Check description pattern (required)
+	// 1. Check description pattern (required) - uses original_description for consistent matching
 	if pattern.DescriptionPattern != nil {
 		descRegex, err := regexp.Compile(*pattern.DescriptionPattern)
 		if err != nil {
 			s.logger.Error(ctx, fmt.Sprintf("Invalid description pattern regex: %v", err))
 			return false
 		}
-		if !descRegex.MatchString(tx.Description) {
+		// Use original_description if available, fallback to description for older transactions
+		descToMatch := tx.Description
+		if tx.OriginalDescription != nil && *tx.OriginalDescription != "" {
+			descToMatch = *tx.OriginalDescription
+		}
+		if !descRegex.MatchString(descToMatch) {
 			return false
 		}
 	}

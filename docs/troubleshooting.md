@@ -21,7 +21,6 @@ docker logs celeiro_backend
 docker logs celeiro_postgres
 
 # Full reset
-cd backend
 make down
 docker volume prune  # Careful: removes all unused volumes
 make up
@@ -33,8 +32,7 @@ make up
 
 **Solution**:
 ```bash
-cd backend
-cp .envrc .env.dev
+make env
 ```
 
 ### PostgreSQL connection refused
@@ -67,7 +65,6 @@ sleep 5 && make migrate
 **Solutions**:
 ```bash
 # Check migration status
-cd backend
 goose -dir ./internal/migrations postgres "$DATABASE_URL" status
 
 # View specific migration
@@ -218,7 +215,6 @@ If duplicates exist, the OFX file has different FITIDs for same transaction.
 
 **Solution**: Tests require running database
 ```bash
-cd backend
 make up        # Start services
 make test      # Run tests
 ```
@@ -229,7 +225,6 @@ make test      # Run tests
 
 **Solution**: Run migrations before tests
 ```bash
-cd backend
 make migrate
 make test
 ```
@@ -284,7 +279,7 @@ make test
 
 2. **Check database state**:
    ```bash
-   cd backend && make dbshell
+   make dbshell
    ```
 
 3. **Review recent changes**:
