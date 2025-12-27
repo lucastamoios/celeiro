@@ -29,6 +29,7 @@ export default function PatternManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreator, setShowCreator] = useState(false);
+  const [editingPattern, setEditingPattern] = useState<AdvancedPattern | null>(null);
   const [deletingPattern, setDeletingPattern] = useState<number | null>(null);
   const [togglingPattern, setTogglingPattern] = useState<number | null>(null);
   const [applyingPattern, setApplyingPattern] = useState<number | null>(null);
@@ -75,30 +76,44 @@ export default function PatternManager() {
   const handleSavePattern = async (pattern: AdvancedPatternInput) => {
     if (!token) return;
 
+    const isEditing = editingPattern !== null;
+    const url = isEditing 
+      ? `${financialUrl('patterns')}/${editingPattern.pattern_id}`
+      : financialUrl('patterns');
+    const method = isEditing ? 'PUT' : 'POST';
+
+    console.log('Saving pattern:', { isEditing, url, method, pattern });
+
     try {
-      const response = await fetch(
-        financialUrl('patterns'),
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(pattern),
-        }
-      );
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Active-Organization': '1',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pattern),
+      });
+
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
-        throw new Error('Failed to save pattern');
+        const errorData = await response.json().catch(() => null);
+        console.error('Error response:', errorData);
+        throw new Error(errorData?.message || `Failed to ${isEditing ? 'update' : 'save'} pattern`);
       }
 
-      setSuccess('✅ Padrão criado com sucesso!');
+      const result = await response.json();
+      console.log('Success result:', result);
+
+      setSuccess(isEditing ? '✅ Padrão atualizado com sucesso!' : '✅ Padrão criado com sucesso!');
       setTimeout(() => setSuccess(null), 3000);
       setShowCreator(false);
+      setEditingPattern(null);
       fetchData();
     } catch (err) {
-      throw err;
+      console.error('Save pattern error:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao salvar padrão');
     }
   };
 
@@ -172,7 +187,13 @@ export default function PatternManager() {
 
   const handleCloseCreator = () => {
     setShowCreator(false);
+    setEditingPattern(null);
     setInitialPatternData(undefined);
+  };
+
+  const handleEditPattern = (pattern: AdvancedPattern) => {
+    setEditingPattern(pattern);
+    setShowCreator(true);
   };
 
   const handleApplyRetroactively = async (patternId: number) => {
@@ -417,6 +438,13 @@ export default function PatternManager() {
                     </button>
 
                     <button
+                      onClick={() => handleEditPattern(pattern)}
+                      className="px-4 py-2 text-sm font-medium bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                    >
+                      ✏️ Editar
+                    </button>
+
+                    <button
                       onClick={() => handleDeletePattern(pattern.pattern_id)}
                       disabled={deletingPattern === pattern.pattern_id}
                       className="px-4 py-2 text-sm font-medium bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
@@ -447,6 +475,15 @@ export default function PatternManager() {
             onClose={handleCloseCreator}
             onSave={handleSavePattern}
             initialData={initialPatternData}
+            existingPattern={editingPattern ? {
+              description_pattern: editingPattern.description_pattern,
+              date_pattern: editingPattern.date_pattern,
+              weekday_pattern: editingPattern.weekday_pattern,
+              amount_min: editingPattern.amount_min,
+              amount_max: editingPattern.amount_max,
+              target_description: editingPattern.target_description,
+              target_category_id: editingPattern.target_category_id,
+            } : undefined}
           />
         )}
       </div>

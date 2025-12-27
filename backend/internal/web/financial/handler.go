@@ -2,6 +2,7 @@ package financial
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -1488,7 +1489,16 @@ func (h *Handler) UpdateAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var req struct {
-		IsActive *bool `json:"is_active,omitempty"`
+		IsActive          *bool   `json:"is_active,omitempty"`
+		DescriptionPattern *string `json:"description_pattern,omitempty"`
+		DatePattern       *string `json:"date_pattern,omitempty"`
+		WeekdayPattern    *string `json:"weekday_pattern,omitempty"`
+		AmountRange       *struct {
+			Min float64 `json:"min"`
+			Max float64 `json:"max"`
+		} `json:"amount_range,omitempty"`
+		TargetDescription *string `json:"target_description,omitempty"`
+		TargetCategoryID  *int    `json:"target_category_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1496,11 +1506,27 @@ func (h *Handler) UpdateAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Convert amount_range to strings if provided
+	var amountMin, amountMax *string
+	if req.AmountRange != nil {
+		minStr := fmt.Sprintf("%.2f", req.AmountRange.Min)
+		maxStr := fmt.Sprintf("%.2f", req.AmountRange.Max)
+		amountMin = &minStr
+		amountMax = &maxStr
+	}
+
 	pattern, err := h.app.FinancialService.UpdateAdvancedPattern(r.Context(), financialApp.UpdateAdvancedPatternInput{
-		PatternID:      patternID,
-		UserID:         userID,
-		OrganizationID: organizationID,
-		IsActive:       req.IsActive,
+		PatternID:          patternID,
+		UserID:             userID,
+		OrganizationID:     organizationID,
+		IsActive:           req.IsActive,
+		DescriptionPattern: req.DescriptionPattern,
+		DatePattern:        req.DatePattern,
+		WeekdayPattern:     req.WeekdayPattern,
+		AmountMin:          amountMin,
+		AmountMax:          amountMax,
+		TargetDescription:  req.TargetDescription,
+		TargetCategoryID:   req.TargetCategoryID,
 	})
 	if err != nil {
 		responses.NewError(w, err)

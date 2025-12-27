@@ -663,6 +663,8 @@ const modifyTransactionQuery = `
 	UPDATE transactions t
 	SET category_id = COALESCE($4, t.category_id),
 		description = COALESCE($5, t.description),
+		-- Preserve original_description on first edit (if it's NULL, copy current description)
+		original_description = COALESCE(t.original_description, t.description),
 		amount = COALESCE($6, t.amount),
 		notes = COALESCE($7, t.notes),
 		is_ignored = COALESCE($8, t.is_ignored),
@@ -673,8 +675,9 @@ const modifyTransactionQuery = `
 		AND a.user_id = $2
 		AND a.organization_id = $3
 	RETURNING t.transaction_id, t.created_at, t.updated_at, t.account_id, t.category_id, t.description,
-			  t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid, t.ofx_check_number,
-			  t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id, t.is_ignored, t.notes, t.tags;
+			  t.original_description, t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid, 
+			  t.ofx_check_number, t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id, 
+			  t.is_ignored, t.notes, t.tags;
 `
 
 func (r *repository) ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error) {
@@ -1898,10 +1901,17 @@ func (r *repository) InsertAdvancedPattern(ctx context.Context, params insertAdv
 }
 
 type modifyAdvancedPatternParams struct {
-	PatternID      int
-	UserID         int
-	OrganizationID int
-	IsActive       *bool
+	PatternID          int
+	UserID             int
+	OrganizationID     int
+	IsActive           *bool
+	DescriptionPattern *string
+	DatePattern        *string
+	WeekdayPattern     *string
+	AmountMin          *string
+	AmountMax          *string
+	TargetDescription  *string
+	TargetCategoryID   *int
 }
 
 const modifyAdvancedPatternQuery = `
@@ -1909,6 +1919,13 @@ const modifyAdvancedPatternQuery = `
 	UPDATE patterns
 	SET
 		is_active = COALESCE($4, is_active),
+		description_pattern = COALESCE($5, description_pattern),
+		date_pattern = COALESCE($6, date_pattern),
+		weekday_pattern = COALESCE($7, weekday_pattern),
+		amount_min = COALESCE($8, amount_min),
+		amount_max = COALESCE($9, amount_max),
+		target_description = COALESCE($10, target_description),
+		target_category_id = COALESCE($11, target_category_id),
 		updated_at = CURRENT_TIMESTAMP
 	WHERE pattern_id = $1
 		AND user_id = $2
@@ -1933,7 +1950,18 @@ const modifyAdvancedPatternQuery = `
 func (r *repository) ModifyAdvancedPattern(ctx context.Context, params modifyAdvancedPatternParams) (AdvancedPatternModel, error) {
 	var pattern AdvancedPatternModel
 	err := r.db.Query(ctx, &pattern, modifyAdvancedPatternQuery,
-		params.PatternID, params.UserID, params.OrganizationID, params.IsActive)
+		params.PatternID, 
+		params.UserID, 
+		params.OrganizationID, 
+		params.IsActive,
+		params.DescriptionPattern,
+		params.DatePattern,
+		params.WeekdayPattern,
+		params.AmountMin,
+		params.AmountMax,
+		params.TargetDescription,
+		params.TargetCategoryID,
+	)
 	return pattern, err
 }
 

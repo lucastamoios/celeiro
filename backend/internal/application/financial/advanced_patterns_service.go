@@ -40,10 +40,17 @@ type GetAdvancedPatternByIDInput struct {
 }
 
 type UpdateAdvancedPatternInput struct {
-	PatternID      int
-	UserID         int
-	OrganizationID int
-	IsActive       *bool
+	PatternID          int
+	UserID             int
+	OrganizationID     int
+	IsActive           *bool
+	DescriptionPattern *string
+	DatePattern        *string
+	WeekdayPattern     *string
+	AmountMin          *string
+	AmountMax          *string
+	TargetDescription  *string
+	TargetCategoryID   *int
 }
 
 type DeleteAdvancedPatternInput struct {
@@ -163,10 +170,17 @@ func (s *service) GetAdvancedPatternByID(ctx context.Context, input GetAdvancedP
 
 func (s *service) UpdateAdvancedPattern(ctx context.Context, input UpdateAdvancedPatternInput) (AdvancedPattern, error) {
 	pattern, err := s.Repository.ModifyAdvancedPattern(ctx, modifyAdvancedPatternParams{
-		PatternID:      input.PatternID,
-		UserID:         input.UserID,
-		OrganizationID: input.OrganizationID,
-		IsActive:       input.IsActive,
+		PatternID:          input.PatternID,
+		UserID:             input.UserID,
+		OrganizationID:     input.OrganizationID,
+		IsActive:           input.IsActive,
+		DescriptionPattern: input.DescriptionPattern,
+		DatePattern:        input.DatePattern,
+		WeekdayPattern:     input.WeekdayPattern,
+		AmountMin:          input.AmountMin,
+		AmountMax:          input.AmountMax,
+		TargetDescription:  input.TargetDescription,
+		TargetCategoryID:   input.TargetCategoryID,
 	})
 	if err != nil {
 		return AdvancedPattern{}, fmt.Errorf("failed to update advanced pattern: %w", err)
