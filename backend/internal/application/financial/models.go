@@ -15,6 +15,7 @@ type CategoryModel struct {
 
 	Name     string `db:"name"`
 	Icon     string `db:"icon"`
+	Color    string `db:"color"`
 	IsSystem bool   `db:"is_system"`
 	UserID   *int   `db:"user_id"` // NULL for system categories
 }

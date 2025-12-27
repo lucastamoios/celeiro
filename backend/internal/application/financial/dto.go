@@ -11,6 +11,7 @@ type Category struct {
 	CategoryID int       `json:"category_id"`
 	Name       string    `json:"name"`
 	Icon       string    `json:"icon"`
+	Color      string    `json:"color"`
 	IsSystem   bool      `json:"is_system"`
 	UserID     *int      `json:"user_id,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -22,6 +23,7 @@ func (c Category) FromModel(model *CategoryModel) Category {
 		CategoryID: model.CategoryID,
 		Name:       model.Name,
 		Icon:       model.Icon,
+		Color:      model.Color,
 		IsSystem:   model.IsSystem,
 		UserID:     model.UserID,
 		CreatedAt:  model.CreatedAt,

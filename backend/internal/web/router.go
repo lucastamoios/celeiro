@@ -41,6 +41,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		// Categories
 		r.Get("/categories", mw.RequireSession(fh.ListCategories, []accounts.Permission{}))
 		r.Post("/categories", mw.RequireSession(fh.CreateCategory, []accounts.Permission{}))
+		r.Patch("/categories/{id}", mw.RequireSession(fh.UpdateCategory, []accounts.Permission{}))
 
 		// Accounts
 		r.Get("/accounts", mw.RequireSession(fh.ListAccounts, []accounts.Permission{}))
@@ -49,6 +50,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 
 		// Transactions
 		r.Get("/accounts/{accountId}/transactions", mw.RequireSession(fh.ListTransactions, []accounts.Permission{}))
+		r.Get("/transactions/uncategorized", mw.RequireSession(fh.ListUncategorizedTransactions, []accounts.Permission{}))
 		r.Post("/accounts/{accountId}/transactions/import", mw.RequireSession(fh.ImportOFX, []accounts.Permission{}))
 		r.Patch("/accounts/{accountId}/transactions/{transactionId}", mw.RequireSession(fh.UpdateTransaction, []accounts.Permission{}))
 

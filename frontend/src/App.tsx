@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Login from './components/Login'
+import Dashboard from './components/Dashboard'
 import TransactionList from './components/TransactionList'
 import CategoryBudgetDashboard from './components/CategoryBudgetDashboard'
 import PatternManager from './components/PatternManager'
 import CategoryManager from './components/CategoryManager'
+import UncategorizedTransactions from './components/UncategorizedTransactions'
 
-type View = 'transactions' | 'budgets' | 'patterns' | 'categories';
+type View = 'dashboard' | 'transactions' | 'budgets' | 'patterns' | 'categories' | 'uncategorized';
 
 function AppContent() {
   const { isAuthenticated, logout } = useAuth();
-  const [currentView, setCurrentView] = useState<View>('transactions');
+  const [currentView, setCurrentView] = useState<View>('dashboard');
 
   if (!isAuthenticated) {
     return <Login />;
@@ -27,6 +29,16 @@ function AppContent() {
                 Celeiro 🌾
               </div>
               <div className="flex space-x-4">
+                <button
+                  onClick={() => setCurrentView('dashboard')}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentView === 'dashboard'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  📊 Dashboard
+                </button>
                 <button
                   onClick={() => setCurrentView('transactions')}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -94,10 +106,12 @@ function AppContent() {
       </nav>
 
       {/* Content */}
+      {currentView === 'dashboard' && <Dashboard onNavigateToUncategorized={() => setCurrentView('uncategorized')} />}
       {currentView === 'transactions' && <TransactionList />}
       {currentView === 'budgets' && <CategoryBudgetDashboard />}
       {currentView === 'patterns' && <PatternManager />}
       {currentView === 'categories' && <CategoryManager />}
+      {currentView === 'uncategorized' && <UncategorizedTransactions />}
     </div>
   );
 }
