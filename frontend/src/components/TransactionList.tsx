@@ -24,7 +24,6 @@ export default function TransactionList() {
   const { token } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Map<number, Category>>(new Map());
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string>('1');
   const [loading, setLoading] = useState(true);
@@ -72,7 +71,6 @@ export default function TransactionList() {
       const categoriesData: ApiResponse<Category[]> = await categoriesRes.json();
       const accountsData: ApiResponse<Account[]> = await accountsRes.json();
       const fetchedAccounts = accountsData.data || [];
-      setAccounts(fetchedAccounts);
 
       const accountId = selectedAccountId ?? fetchedAccounts?.[0]?.AccountID ?? null;
       if (!accountId) {
@@ -85,7 +83,7 @@ export default function TransactionList() {
       }
 
       const transactionsRes = await fetch(
-        `${financialUrl('accounts')}/${accountId}/transactions?limit=50`,
+        `${financialUrl('accounts')}/${accountId}/transactions`,
         { headers }
       );
       if (!transactionsRes.ok) {
@@ -343,6 +341,27 @@ export default function TransactionList() {
     );
   }
 
+  // Filter transactions by current month
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-11
+  const currentYear = now.getFullYear();
+  
+  const currentMonthTransactions = transactions.filter(t => {
+    const txDate = new Date(t.transaction_date);
+    return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+  });
+
+  // Calculate totals for current month
+  const totalIncome = currentMonthTransactions
+    .filter(t => !t.is_ignored && t.transaction_type === 'credit')
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  
+  const totalExpense = currentMonthTransactions
+    .filter(t => !t.is_ignored && t.transaction_type === 'debit')
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  
+  const balance = totalIncome - totalExpense;
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
@@ -350,25 +369,11 @@ export default function TransactionList() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Transações</h1>
             <p className="text-gray-600 mt-2">
-              {(transactions?.length ?? 0)} transação{(transactions?.length ?? 0) !== 1 ? 'ões' : ''} encontrada{(transactions?.length ?? 0) !== 1 ? 's' : ''}
+              {(currentMonthTransactions?.length ?? 0)} transação{(currentMonthTransactions?.length ?? 0) !== 1 ? 'ões' : ''} em {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
             </p>
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            {accounts.length > 0 && (
-              <select
-                value={selectedAccountId ?? ''}
-                onChange={(e) => setSelectedAccountId(parseInt(e.target.value))}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                title="Selecionar conta"
-              >
-                {accounts.map((acc) => (
-                  <option key={acc.AccountID} value={acc.AccountID}>
-                    {acc.Name} ({acc.BankName})
-                  </option>
-                ))}
-              </select>
-            )}
             <label className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
               {uploading ? 'Importando...' : '📤 Importar OFX'}
               <input
@@ -387,6 +392,24 @@ export default function TransactionList() {
             {error && !uploading && (
               <p className="text-sm text-red-600 font-medium">❌ {error}</p>
             )}
+          </div>
+        </div>
+
+        {/* Discrete totals board */}
+        <div className="mb-6 grid grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Receitas</div>
+            <div className="text-xl font-semibold text-green-600">{formatCurrency(totalIncome.toString())}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Despesas</div>
+            <div className="text-xl font-semibold text-red-600">{formatCurrency(totalExpense.toString())}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Saldo</div>
+            <div className={`text-xl font-semibold ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+              {formatCurrency(balance.toString())}
+            </div>
           </div>
         </div>
 
@@ -419,7 +442,7 @@ export default function TransactionList() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {transactions.map((transaction) => (
+                {currentMonthTransactions.map((transaction) => (
                   <Fragment key={transaction.transaction_id}>
                     <tr className={`hover:bg-gray-50 ${transaction.is_ignored ? 'opacity-40 bg-gray-50' : ''}`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
