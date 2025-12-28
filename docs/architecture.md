@@ -12,39 +12,43 @@ Celeiro is a personal finance management system with category-centric budgeting.
 | Cache/Sessions | Redis 7 |
 | Observability | Grafana, Loki, OpenTelemetry |
 
-## System Layers
+## System Flow
 
+```mermaid
+flowchart TB
+    subgraph Frontend
+        React[React 19 + Vite]
+    end
+
+    subgraph Backend
+        Handler[Handler Layer<br/>web/]
+        Service[Service Layer<br/>application/]
+        Repo[Repository Layer]
+    end
+
+    subgraph Storage
+        PG[(PostgreSQL)]
+        Redis[(Redis)]
+    end
+
+    React -->|HTTP/JSON| Handler
+    Handler --> Service
+    Service --> Repo
+    Repo --> PG
+    Handler -.->|Sessions| Redis
 ```
-┌─────────────────────────────────────────────────┐
-│                   Frontend                       │
-│          React + Vite + Tailwind                │
-└───────────────────┬─────────────────────────────┘
-                    │ HTTP/JSON
-┌───────────────────▼─────────────────────────────┐
-│                   Backend                        │
-│                                                  │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────┐│
-│  │   Handler   │──│   Service   │──│   Repo   ││
-│  │   (web/)    │  │(application)│  │          ││
-│  └─────────────┘  └─────────────┘  └────┬─────┘│
-└─────────────────────────────────────────│──────┘
-                                          │
-┌─────────────────────────────────────────▼──────┐
-│              PostgreSQL + Redis                 │
-└────────────────────────────────────────────────┘
-```
 
-## Backend Architecture
+## Backend Layer Pattern
 
-**Pattern: Handler -> Service -> Repository**
+**Handler -> Service -> Repository**
 
 ```
 internal/
 ├── application/
 │   ├── accounts/      # Auth, users, organizations
-│   └── financial/     # Transactions, budgets, patterns
+│   └── financial/     # Transactions, budgets, patterns (MAIN DOMAIN)
 ├── web/
-│   ├── router.go      # Route definitions
+│   ├── router.go      # All route definitions
 │   ├── accounts/      # Auth handlers
 │   └── financial/     # Financial handlers
 └── migrations/        # SQL migrations (Goose)
@@ -56,137 +60,134 @@ internal/
 |-------|------|----------|
 | Handler | HTTP parsing, validation, auth check | Business logic |
 | Service | Business logic, coordinates repos | Direct SQL |
-| Repository | Data access, single table | Cross-domain JOINs |
+| Repository | Data access, single table only | Cross-domain JOINs |
 
-## Frontend Architecture
+### Repository Naming Convention
 
-```
-frontend/src/
-├── App.tsx            # Routing
-├── api/               # API clients
-├── components/        # UI components
-├── contexts/          # Auth context
-└── types/             # TypeScript interfaces
-```
+| Action | Repository Method | Service Method |
+|--------|-------------------|----------------|
+| Read one | `FetchByID` | `GetByID` |
+| Read many | `Fetch*` | `Get*` / `List*` |
+| Create | `Insert*` | `Create*` |
+| Update | `Modify*` | `Update*` |
+| Delete | `Remove*` | `Delete*` |
 
 ## Domain Model
 
+```mermaid
+erDiagram
+    User ||--|| Organization : "1:1 currently"
+    Organization ||--o{ Account : has
+    Account ||--o{ Transaction : contains
+    Transaction }o--o| Category : "classified by"
+    Category ||--o{ CategoryBudget : "budgeted per month"
+    Category ||--o{ PlannedEntry : "has planned expenses"
+    Category ||--o{ AdvancedPattern : "matched by"
+```
+
 ### Core Entities
 
+- **User**: Authenticated user with organization membership
+- **Organization**: Logical grouping (1:1 with user currently)
+- **Account**: Bank account (checking, savings, credit_card, investment)
+- **Transaction**: Financial transaction with OFX import support
+- **Category**: Transaction classification with icon/color
+- **CategoryBudget**: Monthly budget per category
+- **PlannedEntry**: Expected expense (recurrent or one-time)
+- **AdvancedPattern**: Regex-based automatic categorization
+
+## API Routes
+
+All financial endpoints under `/financial` (require authentication):
+
+### Categories
 ```
-User
-  └── Organization (1:1 currently, N:N planned)
-        └── Account (checking, savings, credit)
-              └── Transaction
-                    └── Category (optional)
-
-Category
-  └── CategoryBudget (per month/year)
-        └── PlannedEntry (recurring or one-time)
+GET    /financial/categories           List categories
+POST   /financial/categories           Create category
+PATCH  /financial/categories/{id}      Update category
 ```
 
-### Budget Flow
-
+### Accounts & Transactions
 ```
-PlannedEntry ──┐
-PlannedEntry ──┼── CategoryBudget ── Category ── Transactions
-PlannedEntry ──┘    (month/year)                  (actual spend)
+GET    /financial/accounts                              List accounts
+POST   /financial/accounts                              Create account
+GET    /financial/accounts/{id}/transactions            List transactions
+POST   /financial/accounts/{id}/transactions/import     Import OFX
+PATCH  /financial/accounts/{id}/transactions/{txId}     Update transaction
+GET    /financial/transactions/uncategorized            List uncategorized
 ```
 
-## API Structure
-
-All financial endpoints under `/financial`:
-
+### Budgets
 ```
-/auth/*                    # Authentication
-/accounts/me/              # Current user
+GET    /financial/budgets/categories                    List category budgets
+POST   /financial/budgets/categories                    Create category budget
+PUT    /financial/budgets/categories/{id}               Update category budget
+POST   /financial/budgets/categories/{id}/consolidate   Consolidate month
+```
 
-/financial/
-├── categories             # Transaction categories
-├── accounts               # Bank accounts
-│   └── {id}/transactions  # Account transactions
-├── budgets/categories     # Category budgets
-├── planned-entries        # Recurring/one-time entries
-├── advanced-patterns      # Regex-based matching
-└── match-suggestions      # Pattern matching
+### Patterns
+```
+GET    /financial/patterns                      List patterns
+POST   /financial/patterns                      Create pattern
+PUT    /financial/patterns/{id}                 Update pattern
+DELETE /financial/patterns/{id}                 Delete pattern
+POST   /financial/patterns/{id}/apply-retroactively   Apply to existing txs
+```
+
+### Pattern Matching
+```
+GET    /financial/match-suggestions                     Get match suggestions
+POST   /financial/transactions/{id}/apply-pattern       Apply pattern
+POST   /financial/transactions/{id}/save-as-pattern     Save tx as pattern
 ```
 
 ## Data Flow Examples
 
 ### OFX Import
 
-```
-POST /financial/accounts/{id}/transactions/import
-        │
-        ▼
-    Handler.ImportOFX()
-        │
-        ▼
-    Service.ImportTransactions()
-        │
-        ├── OFXParser.Parse(file)
-        │
-        └── Repository.BulkInsert()
-                │
-                ▼
-            INSERT ... ON CONFLICT (account_id, ofx_fitid) DO NOTHING
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant H as Handler
+    participant S as Service
+    participant R as Repository
+    participant DB as PostgreSQL
+
+    FE->>H: POST /accounts/{id}/transactions/import
+    H->>S: ImportTransactionsFromOFX()
+    S->>S: OFXParser.Parse(file)
+    S->>R: BulkInsertTransactions()
+    R->>DB: INSERT ... ON CONFLICT DO NOTHING
+    DB-->>R: Inserted rows
+    R-->>S: []Transaction
+    S-->>H: ImportOFXOutput
+    H-->>FE: JSON response
 ```
 
-### Budget Progress
+### Pattern Matching Flow
 
-```
-GET /financial/budgets/categories
-        │
-        ▼
-    Handler.ListCategoryBudgets()
-        │
-        ▼
-    Service.GetCategoryBudgetProgress()
-        │
-        ├── Get CategoryBudget (budget_type: fixed/calculated/maior)
-        ├── Get PlannedEntries (sum amounts if calculated/maior)
-        └── Get Transactions (sum actual spending)
-                │
-                ▼
-            Return: budgeted vs spent vs available
+```mermaid
+flowchart LR
+    TX[New Transaction] --> PM[Pattern Matcher]
+    PM --> AP[Check Advanced Patterns]
+    AP -->|regex match| CAT[Assign Category]
+    AP -->|no match| SP[Check Saved Patterns]
+    SP -->|similarity match| CAT
+    SP -->|no match| UC[Uncategorized]
 ```
 
 ## Security Model
 
 ### Authentication
-
-- Passwordless (magic codes via email)
+- Passwordless magic codes (4-digit, 10-minute expiry)
 - Session tokens stored in Redis
-- 10-minute code expiry
+- Auto-registration on first login
 
-### Authorization
+### Authorization Headers
+- `Authorization: Bearer <session_token>`
+- `X-Active-Organization: <org_id>` (required for /financial endpoints)
 
-- Organization-based isolation
-- `X-Active-Organization` header required
-- All data scoped to user's organization
-
-### Data Protection
-
-- No passwords stored
-- Prepared statements (SQL injection prevention)
-- CORS configured for specific origins
-
-## Performance Considerations
-
-### Database Indexes
-
-Key indexes for performance:
-```sql
--- Transaction lookups
-idx_transactions_account_date (account_id, transaction_date DESC)
-idx_transactions_unclassified (account_id) WHERE is_classified = false
-
--- Budget aggregations
-idx_transactions_category_month (category_id, DATE_TRUNC('month', transaction_date))
-```
-
-### Scaling Notes
-
-- Expected: 100 transactions/month per user
-- Current capacity: ~10M transactions before partitioning needed
-- Redis caching for sessions (no app-level caching yet)
+### Data Isolation
+- All queries scoped by organization_id
+- Prepared statements prevent SQL injection
+- CORS configured per environment

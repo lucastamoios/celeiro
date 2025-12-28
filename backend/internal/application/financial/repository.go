@@ -28,6 +28,7 @@ type Repository interface {
 	FetchTransactionByID(ctx context.Context, params fetchTransactionByIDParams) (TransactionModel, error)
 	FetchTransactionsByMonth(ctx context.Context, params fetchTransactionsByMonthParams) ([]TransactionModel, error)
 	FetchUncategorizedTransactions(ctx context.Context, params fetchUncategorizedTransactionsParams) ([]TransactionModel, error)
+	FetchTransactionsForPatternMatching(ctx context.Context, params fetchTransactionsForPatternMatchingParams) ([]TransactionModel, error)
 	InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error)
 	BulkInsertTransactions(ctx context.Context, params bulkInsertTransactionsParams) ([]TransactionModel, error)
 	ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error)
@@ -526,6 +527,52 @@ const fetchUncategorizedTransactionsQuery = `
 func (r *repository) FetchUncategorizedTransactions(ctx context.Context, params fetchUncategorizedTransactionsParams) ([]TransactionModel, error) {
 	var result []TransactionModel
 	err := r.db.Query(ctx, &result, fetchUncategorizedTransactionsQuery, params.UserID, params.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// FetchTransactionsForPatternMatching fetches all transactions for pattern matching (including already categorized ones)
+// Used for retroactive pattern application when user wants to re-apply patterns to all transactions
+type fetchTransactionsForPatternMatchingParams struct {
+	UserID         int
+	OrganizationID int
+}
+
+const fetchTransactionsForPatternMatchingQuery = `
+	-- financial.fetchTransactionsForPatternMatchingQuery
+	SELECT
+		t.transaction_id,
+		t.created_at,
+		t.updated_at,
+		t.account_id,
+		t.category_id,
+		t.description,
+		t.original_description,
+		t.amount,
+		t.transaction_date,
+		t.transaction_type,
+		t.ofx_fitid,
+		t.ofx_check_number,
+		t.ofx_memo,
+		t.raw_ofx_data,
+		t.is_classified,
+		t.classification_rule_id,
+		t.is_ignored,
+		t.notes,
+		t.tags
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE a.user_id = $1
+		AND a.organization_id = $2
+		AND t.is_ignored = FALSE
+	ORDER BY t.transaction_date DESC;
+`
+
+func (r *repository) FetchTransactionsForPatternMatching(ctx context.Context, params fetchTransactionsForPatternMatchingParams) ([]TransactionModel, error) {
+	var result []TransactionModel
+	err := r.db.Query(ctx, &result, fetchTransactionsForPatternMatchingQuery, params.UserID, params.OrganizationID)
 	if err != nil {
 		return nil, err
 	}

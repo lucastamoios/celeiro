@@ -215,7 +215,7 @@ type ApplyPatternRetroactivelyOutput struct {
 	TotalChecked int
 }
 
-// ApplyPatternRetroactivelySync applies a pattern to all existing uncategorized transactions
+// ApplyPatternRetroactivelySync applies a pattern to all existing transactions (including already categorized ones)
 // This is a synchronous version that returns the count of updated transactions
 func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input ApplyPatternRetroactivelyInput) (ApplyPatternRetroactivelyOutput, error) {
 	// 1. Fetch the pattern
@@ -228,8 +228,8 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 		return ApplyPatternRetroactivelyOutput{}, fmt.Errorf("failed to fetch pattern: %w", err)
 	}
 
-	// 2. Fetch all uncategorized transactions
-	transactions, err := s.Repository.FetchUncategorizedTransactions(ctx, fetchUncategorizedTransactionsParams{
+	// 2. Fetch all transactions (including already categorized ones)
+	transactions, err := s.Repository.FetchTransactionsForPatternMatching(ctx, fetchTransactionsForPatternMatchingParams{
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
 	})
@@ -254,7 +254,7 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 	for i := range transactions {
 		tx := &transactions[i]
 		if s.matchesAdvancedPattern(ctx, tx, patternModel) {
-			err := s.applyAdvancedPatternToTransaction(ctx, tx, patternModel)
+			err := s.applyAdvancedPatternToTransaction(ctx, tx, patternModel, input.UserID, input.OrganizationID)
 			if err != nil {
 				s.logger.Warn(ctx, fmt.Sprintf("Failed to apply pattern to transaction %d: %v", tx.TransactionID, err))
 				continue
@@ -276,18 +276,18 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 // Helper Functions
 // ============================================================================
 
-// applyPatternRetroactively applies a pattern to all existing uncategorized transactions that match
+// applyPatternRetroactively applies a pattern to all existing transactions that match (including already categorized ones)
 // This runs in a goroutine to avoid blocking the API response
 func (s *service) applyPatternRetroactively(ctx context.Context, pattern AdvancedPattern, userID, organizationID int) {
 	s.logger.Info(ctx, fmt.Sprintf("Starting retroactive application of pattern %d", pattern.PatternID))
 
-	// 1. Fetch all uncategorized transactions for user/organization
-	transactions, err := s.Repository.FetchUncategorizedTransactions(ctx, fetchUncategorizedTransactionsParams{
+	// 1. Fetch all transactions for user/organization (including already categorized ones)
+	transactions, err := s.Repository.FetchTransactionsForPatternMatching(ctx, fetchTransactionsForPatternMatchingParams{
 		UserID:         userID,
 		OrganizationID: organizationID,
 	})
 	if err != nil {
-		s.logger.Error(ctx, fmt.Sprintf("Failed to fetch uncategorized transactions: %v", err))
+		s.logger.Error(ctx, fmt.Sprintf("Failed to fetch transactions for pattern matching: %v", err))
 		return
 	}
 
@@ -308,7 +308,7 @@ func (s *service) applyPatternRetroactively(ctx context.Context, pattern Advance
 	for i := range transactions {
 		tx := &transactions[i]
 		if s.matchesAdvancedPattern(ctx, tx, patternModel) {
-			err := s.applyAdvancedPatternToTransaction(ctx, tx, patternModel)
+			err := s.applyAdvancedPatternToTransaction(ctx, tx, patternModel, userID, organizationID)
 			if err != nil {
 				s.logger.Warn(ctx, fmt.Sprintf("Failed to apply pattern to transaction %d: %v", tx.TransactionID, err))
 				continue
@@ -386,15 +386,17 @@ func (s *service) matchesAdvancedPattern(ctx context.Context, tx *TransactionMod
 }
 
 // applyAdvancedPatternToTransaction applies a pattern's target description and category to a transaction
-func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *TransactionModel, pattern *AdvancedPatternModel) error {
+func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *TransactionModel, pattern *AdvancedPatternModel, userID, organizationID int) error {
 	// Update transaction with pattern's target
 	description := pattern.TargetDescription
 	categoryID := pattern.TargetCategoryID
 
 	_, err := s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
-		TransactionID: tx.TransactionID,
-		Description:   &description,
-		CategoryID:    &categoryID,
+		TransactionID:  tx.TransactionID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Description:    &description,
+		CategoryID:     &categoryID,
 	})
 
 	return err
