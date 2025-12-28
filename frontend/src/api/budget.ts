@@ -726,6 +726,36 @@ export async function applyPatternToTransaction(
 }
 
 /**
+ * Get the planned entry linked to a transaction (if any)
+ */
+export async function getPlannedEntryForTransaction(
+  transactionId: number,
+  options: RequestOptions
+): Promise<PlannedEntryWithStatus | null> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/transactions/${transactionId}/planned-entry`,
+    {
+      method: 'GET',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to get planned entry for transaction: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntryWithStatus | Record<string, never>> = await response.json();
+
+  // Backend returns empty object {} when no linked entry
+  if (!result.data || Object.keys(result.data).length === 0) {
+    return null;
+  }
+
+  return result.data as PlannedEntryWithStatus;
+}
+
+/**
  * Get match suggestions for a transaction
  */
 export async function getMatchSuggestions(

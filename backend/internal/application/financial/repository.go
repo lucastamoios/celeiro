@@ -74,6 +74,7 @@ type Repository interface {
 	// Planned Entry Statuses
 	FetchPlannedEntryStatus(ctx context.Context, params fetchPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
 	FetchPlannedEntryStatusesByMonth(ctx context.Context, params fetchPlannedEntryStatusesByMonthParams) ([]PlannedEntryStatusModel, error)
+	FetchPlannedEntryStatusByTransactionID(ctx context.Context, params fetchPlannedEntryStatusByTransactionIDParams) (PlannedEntryStatusModel, error)
 	UpsertPlannedEntryStatus(ctx context.Context, params upsertPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
 	ModifyPlannedEntryStatus(ctx context.Context, params modifyPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
 	RemovePlannedEntryStatus(ctx context.Context, params removePlannedEntryStatusParams) error
@@ -89,6 +90,7 @@ type Repository interface {
 	InsertAdvancedPattern(ctx context.Context, params insertAdvancedPatternParams) (AdvancedPatternModel, error)
 	ModifyAdvancedPattern(ctx context.Context, params modifyAdvancedPatternParams) (AdvancedPatternModel, error)
 	RemoveAdvancedPattern(ctx context.Context, params removeAdvancedPatternParams) error
+	FetchPlannedEntriesByPatternIDs(ctx context.Context, params fetchPlannedEntriesByPatternIDsParams) ([]PlannedEntryByPatternModel, error)
 }
 
 type repository struct {
@@ -2050,6 +2052,36 @@ func (r *repository) RemoveAdvancedPattern(ctx context.Context, params removeAdv
 	return err
 }
 
+// FetchPlannedEntriesByPatternIDs fetches planned entries linked to the given pattern IDs
+type fetchPlannedEntriesByPatternIDsParams struct {
+	PatternIDs     []int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchPlannedEntriesByPatternIDsQuery = `
+	-- financial.fetchPlannedEntriesByPatternIDsQuery
+	SELECT
+		planned_entry_id,
+		pattern_id,
+		description
+	FROM planned_entries
+	WHERE pattern_id = ANY($1::int[])
+		AND user_id = $2
+		AND organization_id = $3
+	ORDER BY description;
+`
+
+func (r *repository) FetchPlannedEntriesByPatternIDs(ctx context.Context, params fetchPlannedEntriesByPatternIDsParams) ([]PlannedEntryByPatternModel, error) {
+	var result []PlannedEntryByPatternModel
+	err := r.db.Query(ctx, &result, fetchPlannedEntriesByPatternIDsQuery,
+		params.PatternIDs, params.UserID, params.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // ============================================================================
 // Planned Entries With Pattern (for Entrada Planejada feature)
 // ============================================================================
@@ -2170,6 +2202,42 @@ func (r *repository) FetchPlannedEntryStatusesByMonth(ctx context.Context, param
 	err := r.db.Query(ctx, &statuses, fetchPlannedEntryStatusesByMonthQuery,
 		params.UserID, params.OrganizationID, params.Month, params.Year)
 	return statuses, err
+}
+
+type fetchPlannedEntryStatusByTransactionIDParams struct {
+	TransactionID  int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchPlannedEntryStatusByTransactionIDQuery = `
+	-- financial.fetchPlannedEntryStatusByTransactionIDQuery
+	SELECT
+		pes.status_id,
+		pes.created_at,
+		pes.updated_at,
+		pes.planned_entry_id,
+		pes.month,
+		pes.year,
+		pes.status,
+		pes.matched_transaction_id,
+		pes.matched_amount,
+		pes.matched_at,
+		pes.dismissed_at,
+		pes.dismissal_reason
+	FROM planned_entry_statuses pes
+	INNER JOIN planned_entries pe ON pe.planned_entry_id = pes.planned_entry_id
+	WHERE pes.matched_transaction_id = $1
+		AND pe.user_id = $2
+		AND pe.organization_id = $3
+	LIMIT 1;
+`
+
+func (r *repository) FetchPlannedEntryStatusByTransactionID(ctx context.Context, params fetchPlannedEntryStatusByTransactionIDParams) (PlannedEntryStatusModel, error) {
+	var status PlannedEntryStatusModel
+	err := r.db.Query(ctx, &status, fetchPlannedEntryStatusByTransactionIDQuery,
+		params.TransactionID, params.UserID, params.OrganizationID)
+	return status, err
 }
 
 type upsertPlannedEntryStatusParams struct {

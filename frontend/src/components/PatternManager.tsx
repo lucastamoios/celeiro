@@ -5,6 +5,11 @@ import type { Category } from '../types/category';
 import type { ApiResponse } from '../types/transaction';
 import AdvancedPatternCreator, { type AdvancedPattern as AdvancedPatternInput, type InitialPatternData } from './AdvancedPatternCreator';
 
+interface LinkedPlannedEntry {
+  planned_entry_id: number;
+  name: string;
+}
+
 interface AdvancedPattern {
   pattern_id: number;
   user_id: number;
@@ -20,6 +25,7 @@ interface AdvancedPattern {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  linked_planned_entries?: LinkedPlannedEntry[];
 }
 
 export default function PatternManager() {
@@ -346,6 +352,21 @@ export default function PatternManager() {
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                         <span>{categories.get(pattern.target_category_id)!.icon}</span>
                         <span>{categories.get(pattern.target_category_id)!.name}</span>
+                      </div>
+                    )}
+
+                    {/* Linked Planned Entries */}
+                    {pattern.linked_planned_entries && pattern.linked_planned_entries.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-gray-500 font-medium">📋 Entradas Planejadas:</span>
+                        {pattern.linked_planned_entries.map(entry => (
+                          <span
+                            key={entry.planned_entry_id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full"
+                          >
+                            {entry.name}
+                          </span>
+                        ))}
                       </div>
                     )}
 

@@ -452,7 +452,7 @@ type PlannedEntryWithStatus struct {
 	MatchedAt            *string `json:",omitempty"` // ISO 8601 format
 
 	// Optional linked pattern info
-	LinkedPattern *AdvancedPattern `json:",omitempty"`
+	LinkedPattern *AdvancedPattern `json:"linked_pattern,omitempty"`
 }
 
 // GetStatusColor returns the appropriate color for a status
@@ -512,22 +512,31 @@ func (m MonthlySnapshots) FromModel(models []MonthlySnapshotModel) MonthlySnapsh
 	return snapshots
 }
 
+// LinkedPlannedEntrySummary contains minimal info about a planned entry linked to a pattern
+type LinkedPlannedEntrySummary struct {
+	PlannedEntryID int    `json:"planned_entry_id"`
+	Name           string `json:"name"`
+}
+
 // AdvancedPattern DTO
 type AdvancedPattern struct {
-	PatternID          int
-	UserID             int
-	OrganizationID     int
-	DescriptionPattern *string          `json:",omitempty"`
-	DatePattern        *string          `json:",omitempty"`
-	WeekdayPattern     *string          `json:",omitempty"`
-	AmountMin          *decimal.Decimal `json:",omitempty"`
-	AmountMax          *decimal.Decimal `json:",omitempty"`
-	TargetDescription  string
-	TargetCategoryID   int
-	ApplyRetroactively bool
-	IsActive           bool
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	PatternID          int              `json:"pattern_id"`
+	UserID             int              `json:"user_id"`
+	OrganizationID     int              `json:"organization_id"`
+	DescriptionPattern *string          `json:"description_pattern,omitempty"`
+	DatePattern        *string          `json:"date_pattern,omitempty"`
+	WeekdayPattern     *string          `json:"weekday_pattern,omitempty"`
+	AmountMin          *decimal.Decimal `json:"amount_min,omitempty"`
+	AmountMax          *decimal.Decimal `json:"amount_max,omitempty"`
+	TargetDescription  string           `json:"target_description"`
+	TargetCategoryID   int              `json:"target_category_id"`
+	ApplyRetroactively bool             `json:"apply_retroactively"`
+	IsActive           bool             `json:"is_active"`
+	CreatedAt          time.Time        `json:"created_at"`
+	UpdatedAt          time.Time        `json:"updated_at"`
+
+	// Linked planned entries using this pattern
+	LinkedPlannedEntries []LinkedPlannedEntrySummary `json:"linked_planned_entries,omitempty"`
 }
 
 func (a AdvancedPattern) FromModel(model *AdvancedPatternModel) AdvancedPattern {

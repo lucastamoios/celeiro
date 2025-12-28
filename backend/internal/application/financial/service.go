@@ -82,6 +82,7 @@ type Service interface {
 	UnmatchPlannedEntry(ctx context.Context, params UnmatchPlannedEntryInput) error
 	DismissPlannedEntry(ctx context.Context, params DismissPlannedEntryInput) (PlannedEntryStatus, error)
 	UndismissPlannedEntry(ctx context.Context, params UndismissPlannedEntryInput) (PlannedEntryStatus, error)
+	GetPlannedEntryForTransaction(ctx context.Context, params GetPlannedEntryForTransactionInput) (*PlannedEntryWithStatus, error)
 
 	// Monthly Snapshots
 	GetMonthlySnapshots(ctx context.Context, params GetMonthlySnapshotsInput) ([]MonthlySnapshot, error)
@@ -1777,4 +1778,57 @@ func (s *service) UndismissPlannedEntry(ctx context.Context, params UndismissPla
 	}
 
 	return PlannedEntryStatus{}.FromModel(&status), nil
+}
+
+type GetPlannedEntryForTransactionInput struct {
+	TransactionID  int
+	UserID         int
+	OrganizationID int
+}
+
+// GetPlannedEntryForTransaction retrieves the planned entry linked to a transaction, if any.
+// Returns nil if the transaction is not linked to any planned entry.
+func (s *service) GetPlannedEntryForTransaction(ctx context.Context, params GetPlannedEntryForTransactionInput) (*PlannedEntryWithStatus, error) {
+	// 1. Find the status that has this transaction as matched
+	status, err := s.Repository.FetchPlannedEntryStatusByTransactionID(ctx, fetchPlannedEntryStatusByTransactionIDParams{
+		TransactionID:  params.TransactionID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		// If not found, return nil (not an error, just no linked entry)
+		if err.Error() == "sql: no rows in result set" {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to fetch planned entry status")
+	}
+
+	// 2. Fetch the planned entry itself
+	entry, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
+		PlannedEntryID: status.PlannedEntryID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch planned entry")
+	}
+
+	// 3. Convert matched_at timestamp if present
+	var matchedAt *string
+	if status.MatchedAt != nil {
+		formatted := status.MatchedAt.Format("2006-01-02T15:04:05Z")
+		matchedAt = &formatted
+	}
+
+	// 4. Build the result
+	result := &PlannedEntryWithStatus{
+		PlannedEntry:         PlannedEntry{}.FromModel(&entry),
+		Status:               status.Status,
+		StatusColor:          GetStatusColor(status.Status),
+		MatchedAmount:        status.MatchedAmount,
+		MatchedTransactionID: status.MatchedTransactionID,
+		MatchedAt:            matchedAt,
+	}
+
+	return result, nil
 }

@@ -104,6 +104,16 @@ func (m *MockRepository) RemoveTransaction(ctx context.Context, params removeTra
 	return args.Error(0)
 }
 
+func (m *MockRepository) FetchTransactionsForPatternMatching(ctx context.Context, params fetchTransactionsForPatternMatchingParams) ([]TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TransactionModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchUncategorizedTransactions(ctx context.Context, params fetchUncategorizedTransactionsParams) ([]TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TransactionModel), args.Error(1)
+}
+
 // Budgets
 func (m *MockRepository) FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error) {
 	args := m.Called(ctx, params)
@@ -227,7 +237,7 @@ func (m *MockRepository) FetchPlannedEntriesByParent(ctx context.Context, params
 	return args.Get(0).([]PlannedEntryModel), args.Error(1)
 }
 
-func (m *MockRepository) FetchSavedPatterns(ctx context.Context, params fetchSavedPatternsParams) ([]PlannedEntryModel, error) {
+func (m *MockRepository) FetchPlannedEntriesWithPattern(ctx context.Context, params fetchPlannedEntriesWithPatternParams) ([]PlannedEntryModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).([]PlannedEntryModel), args.Error(1)
 }
@@ -247,6 +257,37 @@ func (m *MockRepository) RemovePlannedEntry(ctx context.Context, params removePl
 	return args.Error(0)
 }
 
+// Planned Entry Statuses
+func (m *MockRepository) FetchPlannedEntryStatus(ctx context.Context, params fetchPlannedEntryStatusParams) (PlannedEntryStatusModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryStatusModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchPlannedEntryStatusesByMonth(ctx context.Context, params fetchPlannedEntryStatusesByMonthParams) ([]PlannedEntryStatusModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]PlannedEntryStatusModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchPlannedEntryStatusByTransactionID(ctx context.Context, params fetchPlannedEntryStatusByTransactionIDParams) (PlannedEntryStatusModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryStatusModel), args.Error(1)
+}
+
+func (m *MockRepository) UpsertPlannedEntryStatus(ctx context.Context, params upsertPlannedEntryStatusParams) (PlannedEntryStatusModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryStatusModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyPlannedEntryStatus(ctx context.Context, params modifyPlannedEntryStatusParams) (PlannedEntryStatusModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryStatusModel), args.Error(1)
+}
+
+func (m *MockRepository) RemovePlannedEntryStatus(ctx context.Context, params removePlannedEntryStatusParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
 // Monthly Snapshots
 func (m *MockRepository) FetchMonthlySnapshots(ctx context.Context, params fetchMonthlySnapshotsParams) ([]MonthlySnapshotModel, error) {
 	args := m.Called(ctx, params)
@@ -261,6 +302,37 @@ func (m *MockRepository) FetchMonthlySnapshotByID(ctx context.Context, params fe
 func (m *MockRepository) InsertMonthlySnapshot(ctx context.Context, params insertMonthlySnapshotParams) (MonthlySnapshotModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(MonthlySnapshotModel), args.Error(1)
+}
+
+// Advanced Patterns
+func (m *MockRepository) FetchAdvancedPatterns(ctx context.Context, params fetchAdvancedPatternsParams) ([]AdvancedPatternModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]AdvancedPatternModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchAdvancedPatternByID(ctx context.Context, params fetchAdvancedPatternByIDParams) (AdvancedPatternModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(AdvancedPatternModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertAdvancedPattern(ctx context.Context, params insertAdvancedPatternParams) (AdvancedPatternModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(AdvancedPatternModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyAdvancedPattern(ctx context.Context, params modifyAdvancedPatternParams) (AdvancedPatternModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(AdvancedPatternModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveAdvancedPattern(ctx context.Context, params removeAdvancedPatternParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+func (m *MockRepository) FetchPlannedEntriesByPatternIDs(ctx context.Context, params fetchPlannedEntriesByPatternIDsParams) ([]PlannedEntryByPatternModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]PlannedEntryByPatternModel), args.Error(1)
 }
 
 // ============================================================================
