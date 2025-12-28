@@ -7,20 +7,32 @@ Personal finance management system with Go backend and React frontend.
 | Need to... | Read |
 |------------|------|
 | Understand system architecture | [architecture.md](./architecture.md) |
+| Understand domain entities | [domains.md](./domains.md) |
 | Find files for a specific task | [key-files.md](./key-files.md) |
 | Know project quirks/conventions | [gotchas.md](./gotchas.md) |
 | Fix common issues | [troubleshooting.md](./troubleshooting.md) |
 | Understand database schema | [database.md](./database.md) |
 | Set up development environment | [setup.md](./setup.md) |
 
-## System Overview
+## Project Structure
 
 ```
 celeiro/
 ├── backend/           Go API (Chi router, PostgreSQL, Redis)
+│   ├── internal/
+│   │   ├── application/   # Business logic (services, repos)
+│   │   │   ├── accounts/  # Auth domain
+│   │   │   └── financial/ # Core financial domain (MOST CODE HERE)
+│   │   ├── web/           # HTTP handlers
+│   │   └── migrations/    # SQL migrations (Goose)
+│   └── pkg/               # Shared packages
 ├── frontend/          React 19 + Vite + Tailwind
+│   └── src/
+│       ├── components/    # All UI components
+│       ├── api/           # API client
+│       └── contexts/      # React contexts (auth)
 ├── docs/              This documentation
-├── openspec/          Change proposals and specs
+└── openspec/          Change proposals and specs
 ```
 
 ## Development Ports
@@ -38,32 +50,23 @@ celeiro/
 1. **Auth** - Passwordless magic link authentication
 2. **Accounts** - Bank accounts (checking, savings, credit)
 3. **Transactions** - Financial transactions with OFX import
-4. **Categories** - Transaction classification with emoji support
+4. **Categories** - Transaction classification with emoji/color support
 5. **Budgets** - Category-centric budgeting (fixed/calculated/maior)
-6. **Patterns** - Regex-based transaction matching
+6. **Patterns** - Regex-based automatic transaction matching
 
 ## Key Commands
 
 ```bash
-# Start all services
-make up
-
-# Stop all services
-make down
-
-# Run tests
-make test
-
-# Database shell
-make dbshell
-
-# Run migrations
-make migrate
+make up           # Start all services
+make down         # Stop all services
+make test         # Run tests
+make dbshell      # Database shell
+make migrate      # Run migrations
+make restart      # Rebuild and restart
 ```
 
-## Planning System
+## Critical Rule: Service Boundaries
 
-Uses OpenSpec for change proposals:
-- `/openspec:proposal` - Create new proposal
-- `/openspec:apply` - Implement approved spec
-- Active specs in `openspec/changes/`
+**Each repository ONLY accesses its own domain table. No cross-domain JOINs.**
+
+See [gotchas.md](./gotchas.md) and `CLAUDE.md` for detailed rules.
