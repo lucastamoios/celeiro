@@ -161,7 +161,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         .sort((a, b) => b.amount - a.amount) // Sort by amount descending
         .slice(0, 8); // Top 8 categories
 
-      // Fetch uncategorized count
+      // Fetch uncategorized count (filtered by current month)
       const uncatResponse = await fetch(financialUrl('transactions/uncategorized'), {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -172,7 +172,13 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       let uncategorizedCount = 0;
       if (uncatResponse.ok) {
         const uncatData = await uncatResponse.json();
-        uncategorizedCount = (uncatData.data || []).length;
+        const allUncategorized = uncatData.data || [];
+        // Filter by the selected month/year
+        const filteredUncategorized = allUncategorized.filter((tx: { transaction_date: string }) => {
+          const txDate = new Date(tx.transaction_date);
+          return txDate.getMonth() === targetMonth && txDate.getFullYear() === targetYear;
+        });
+        uncategorizedCount = filteredUncategorized.length;
       }
 
       setStats({
@@ -351,7 +357,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                   Transações Pendentes de Classificação
                 </h3>
                 <p className="text-amber-800 mb-4">
-                  Você tem <span className="font-bold">{stats.uncategorizedCount} transação{stats.uncategorizedCount !== 1 ? 'ões' : ''}</span> aguardando classificação. 
+                  Você tem <span className="font-bold">{stats.uncategorizedCount} {stats.uncategorizedCount === 1 ? 'transação' : 'transações'}</span> neste mês aguardando classificação.
                   Categorize suas transações para ter uma visão mais precisa das suas finanças.
                 </p>
                 <button

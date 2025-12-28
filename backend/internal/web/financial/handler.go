@@ -991,13 +991,20 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		CategoryID     int     `json:"category_id"`
-		Description    string  `json:"description"`
-		Amount         float64 `json:"amount"`
-		IsRecurrent    bool    `json:"is_recurrent"`
-		ParentEntryID  *int    `json:"parent_entry_id,omitempty"`
-		ExpectedDay    *int    `json:"expected_day,omitempty"`
-		IsSavedPattern bool    `json:"is_saved_pattern"`
+		CategoryID         int      `json:"category_id"`
+		PatternID          *int     `json:"pattern_id,omitempty"`
+		Description        string   `json:"description"`
+		DescriptionPattern *string  `json:"description_pattern,omitempty"`
+		Amount             float64  `json:"amount"`
+		AmountMin          *float64 `json:"amount_min,omitempty"`
+		AmountMax          *float64 `json:"amount_max,omitempty"`
+		ExpectedDayStart   *int     `json:"expected_day_start,omitempty"`
+		ExpectedDayEnd     *int     `json:"expected_day_end,omitempty"`
+		ExpectedDay        *int     `json:"expected_day,omitempty"`
+		EntryType          string   `json:"entry_type"`
+		IsRecurrent        bool     `json:"is_recurrent"`
+		ParentEntryID      *int     `json:"parent_entry_id,omitempty"`
+		IsSavedPattern     bool     `json:"is_saved_pattern"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1005,16 +1012,55 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Convert amount range to decimal pointers
+	var amountMin, amountMax *decimal.Decimal
+	if req.AmountMin != nil {
+		amt := decimal.NewFromFloat(*req.AmountMin)
+		amountMin = &amt
+	}
+	if req.AmountMax != nil {
+		amt := decimal.NewFromFloat(*req.AmountMax)
+		amountMax = &amt
+	}
+
+	// If saving as pattern, create an Advanced Pattern first
+	var patternID *int
+	if req.IsSavedPattern && req.DescriptionPattern != nil && *req.DescriptionPattern != "" {
+		pattern, err := h.app.FinancialService.CreateAdvancedPattern(r.Context(), financialApp.CreateAdvancedPatternInput{
+			UserID:             userID,
+			OrganizationID:     organizationID,
+			DescriptionPattern: *req.DescriptionPattern,
+			AmountMin:          req.AmountMin,
+			AmountMax:          req.AmountMax,
+			TargetDescription:  req.Description,
+			TargetCategoryID:   req.CategoryID,
+			ApplyRetroactively: false,
+		})
+		if err != nil {
+			responses.NewError(w, err)
+			return
+		}
+		patternID = &pattern.PatternID
+	} else if req.PatternID != nil {
+		patternID = req.PatternID
+	}
+
 	entry, err := h.app.FinancialService.CreatePlannedEntry(r.Context(), financialApp.CreatePlannedEntryInput{
-		UserID:         userID,
-		OrganizationID: organizationID,
-		CategoryID:     req.CategoryID,
-		Description:    req.Description,
-		Amount:         decimal.NewFromFloat(req.Amount),
-		IsRecurrent:    req.IsRecurrent,
-		ParentEntryID:  req.ParentEntryID,
-		ExpectedDay:    req.ExpectedDay,
-		IsSavedPattern: req.IsSavedPattern,
+		UserID:           userID,
+		OrganizationID:   organizationID,
+		CategoryID:       req.CategoryID,
+		PatternID:        patternID,
+		Description:      req.Description,
+		Amount:           decimal.NewFromFloat(req.Amount),
+		AmountMin:        amountMin,
+		AmountMax:        amountMax,
+		ExpectedDayStart: req.ExpectedDayStart,
+		ExpectedDayEnd:   req.ExpectedDayEnd,
+		ExpectedDay:      req.ExpectedDay,
+		EntryType:        req.EntryType,
+		IsRecurrent:      req.IsRecurrent,
+		ParentEntryID:    req.ParentEntryID,
+		IsSavedPattern:   req.IsSavedPattern,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -1636,4 +1682,256 @@ func (h *Handler) GetIncomePlanning(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.NewSuccess(report, w)
+}
+
+// ============================================================================
+// Planned Entry Statuses (Entrada Planejada)
+// ============================================================================
+
+// GetPlannedEntriesForMonth returns planned entries with their status for a given month/year
+// GET /financial/planned-entries/month?month=X&year=Y
+func (h *Handler) GetPlannedEntriesForMonth(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	// Parse required query parameters
+	monthStr := r.URL.Query().Get("month")
+	yearStr := r.URL.Query().Get("year")
+
+	if monthStr == "" || yearStr == "" {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	month, err := strconv.Atoi(monthStr)
+	if err != nil || month < 1 || month > 12 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	year, err := strconv.Atoi(yearStr)
+	if err != nil || year < 2000 || year > 2100 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	entries, err := h.app.FinancialService.GetPlannedEntriesForMonth(r.Context(), financialApp.GetPlannedEntriesForMonthInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Month:          month,
+		Year:           year,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(entries, w)
+}
+
+// MatchPlannedEntry matches a transaction to a planned entry for a specific month
+// POST /financial/planned-entries/{id}/match
+func (h *Handler) MatchPlannedEntry(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	entryID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		TransactionID int `json:"transaction_id"`
+		Month         int `json:"month"`
+		Year          int `json:"year"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Validation
+	if req.TransactionID == 0 || req.Month < 1 || req.Month > 12 || req.Year < 2000 || req.Year > 2100 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	status, err := h.app.FinancialService.MatchPlannedEntryToTransaction(r.Context(), financialApp.MatchPlannedEntryInput{
+		PlannedEntryID: entryID,
+		TransactionID:  req.TransactionID,
+		Month:          req.Month,
+		Year:           req.Year,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(status, w)
+}
+
+// UnmatchPlannedEntry removes the match between a planned entry and a transaction
+// DELETE /financial/planned-entries/{id}/match
+func (h *Handler) UnmatchPlannedEntry(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	entryID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Parse query parameters for month/year
+	monthStr := r.URL.Query().Get("month")
+	yearStr := r.URL.Query().Get("year")
+
+	if monthStr == "" || yearStr == "" {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	month, err := strconv.Atoi(monthStr)
+	if err != nil || month < 1 || month > 12 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	year, err := strconv.Atoi(yearStr)
+	if err != nil || year < 2000 || year > 2100 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	err = h.app.FinancialService.UnmatchPlannedEntry(r.Context(), financialApp.UnmatchPlannedEntryInput{
+		PlannedEntryID: entryID,
+		Month:          month,
+		Year:           year,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(map[string]string{"message": "planned entry unmatched successfully"}, w)
+}
+
+// DismissPlannedEntry dismisses a planned entry for a specific month
+// POST /financial/planned-entries/{id}/dismiss
+func (h *Handler) DismissPlannedEntry(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	entryID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		Month  int     `json:"month"`
+		Year   int     `json:"year"`
+		Reason *string `json:"reason,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Validation
+	if req.Month < 1 || req.Month > 12 || req.Year < 2000 || req.Year > 2100 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Convert optional reason to string
+	reason := ""
+	if req.Reason != nil {
+		reason = *req.Reason
+	}
+
+	status, err := h.app.FinancialService.DismissPlannedEntry(r.Context(), financialApp.DismissPlannedEntryInput{
+		PlannedEntryID: entryID,
+		Month:          req.Month,
+		Year:           req.Year,
+		Reason:         reason,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(status, w)
+}
+
+// UndismissPlannedEntry undismisses a planned entry for a specific month
+// DELETE /financial/planned-entries/{id}/dismiss
+func (h *Handler) UndismissPlannedEntry(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	entryID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Parse query parameters for month/year
+	monthStr := r.URL.Query().Get("month")
+	yearStr := r.URL.Query().Get("year")
+
+	if monthStr == "" || yearStr == "" {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	month, err := strconv.Atoi(monthStr)
+	if err != nil || month < 1 || month > 12 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	year, err := strconv.Atoi(yearStr)
+	if err != nil || year < 2000 || year > 2100 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	status, err := h.app.FinancialService.UndismissPlannedEntry(r.Context(), financialApp.UndismissPlannedEntryInput{
+		PlannedEntryID: entryID,
+		Month:          month,
+		Year:           year,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(status, w)
 }

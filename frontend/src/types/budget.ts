@@ -115,13 +115,65 @@ export interface PlannedEntry {
   UserID: number;
   OrganizationID: number;
   CategoryID: number;
+  PatternID?: number; // Link to advanced pattern for auto-matching
   Description: string;
-  Amount: string; // Decimal as string
+  Amount: string; // Decimal as string (display amount)
+  AmountMin?: string; // Decimal as string - minimum expected amount
+  AmountMax?: string; // Decimal as string - maximum expected amount (used for budget)
+  ExpectedDayStart?: number; // Start of expected day range (1-31)
+  ExpectedDayEnd?: number; // End of expected day range (1-31)
+  ExpectedDay?: number; // Legacy field for backwards compatibility
+  EntryType: 'expense' | 'income';
   IsRecurrent: boolean;
   ParentEntryID?: number;
-  ExpectedDay?: number;
   IsActive: boolean;
   IsSavedPattern: boolean;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+// Planned Entry Status (monthly status tracking)
+export type PlannedEntryStatusType = 'pending' | 'matched' | 'missed' | 'dismissed';
+
+export interface PlannedEntryStatus {
+  StatusID: number;
+  PlannedEntryID: number;
+  Month: number;
+  Year: number;
+  Status: PlannedEntryStatusType;
+  MatchedTransactionID?: number;
+  MatchedAmount?: string; // Decimal as string
+  MatchedAt?: string;
+  DismissedAt?: string;
+  DismissalReason?: string;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+// Planned Entry with current month status (for display)
+export interface PlannedEntryWithStatus extends PlannedEntry {
+  Status: PlannedEntryStatusType;
+  StatusColor: 'green' | 'yellow' | 'red' | 'gray';
+  MatchedAmount?: string;
+  MatchedTransactionID?: number;
+  MatchedAt?: string;
+  LinkedPattern?: AdvancedPattern;
+}
+
+// Advanced Pattern type (referenced from PlannedEntryWithStatus)
+export interface AdvancedPattern {
+  PatternID: number;
+  UserID: number;
+  OrganizationID: number;
+  DescriptionPattern?: string;
+  DatePattern?: string;
+  WeekdayPattern?: string;
+  AmountMin?: string;
+  AmountMax?: string;
+  TargetDescription: string;
+  TargetCategoryID: number;
+  ApplyRetroactively: boolean;
+  IsActive: boolean;
   CreatedAt: string;
   UpdatedAt: string;
 }
@@ -130,22 +182,94 @@ export interface CreatePlannedEntryRequest {
   category_id: number;
   description: string;
   amount: number;
+  amount_min?: number;
+  amount_max?: number;
+  expected_day_start?: number;
+  expected_day_end?: number;
+  entry_type: 'expense' | 'income';
   is_recurrent: boolean;
   parent_entry_id?: number;
   expected_day?: number;
   is_saved_pattern: boolean;
+  pattern_id?: number;
+  description_pattern?: string; // Pattern for auto-matching transaction descriptions
 }
 
 export interface UpdatePlannedEntryRequest {
   description?: string;
   amount?: number;
+  amount_min?: number;
+  amount_max?: number;
+  expected_day_start?: number;
+  expected_day_end?: number;
   expected_day?: number;
+  entry_type?: 'expense' | 'income';
   is_active?: boolean;
+  pattern_id?: number;
 }
 
 export interface GenerateMonthlyInstancesRequest {
   month: number;
   year: number;
+}
+
+// Planned Entry Status Management
+export interface MatchPlannedEntryRequest {
+  transaction_id: number;
+  month: number;
+  year: number;
+}
+
+export interface DismissPlannedEntryRequest {
+  month: number;
+  year: number;
+  reason?: string;
+}
+
+// Status color utility
+export function getStatusColor(status: PlannedEntryStatusType): string {
+  switch (status) {
+    case 'matched':
+      return 'green';
+    case 'pending':
+      return 'yellow';
+    case 'missed':
+      return 'red';
+    case 'dismissed':
+      return 'gray';
+    default:
+      return 'gray';
+  }
+}
+
+export function getStatusBadgeClasses(status: PlannedEntryStatusType): string {
+  switch (status) {
+    case 'matched':
+      return 'bg-green-100 text-green-800 border-green-200';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'missed':
+      return 'bg-red-100 text-red-800 border-red-200';
+    case 'dismissed':
+      return 'bg-gray-100 text-gray-500 border-gray-200';
+    default:
+      return 'bg-gray-100 text-gray-500 border-gray-200';
+  }
+}
+
+export function getStatusLabel(status: PlannedEntryStatusType): string {
+  switch (status) {
+    case 'matched':
+      return 'Recebido';
+    case 'pending':
+      return 'Pendente';
+    case 'missed':
+      return 'Atrasado';
+    case 'dismissed':
+      return 'Dispensado';
+    default:
+      return status;
+  }
 }
 
 // Monthly Snapshot Types

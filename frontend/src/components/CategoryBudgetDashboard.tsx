@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import type { CategoryBudget, CreateCategoryBudgetRequest, CreatePlannedEntryRequest } from '../types/budget';
+import type { CategoryBudget, CreateCategoryBudgetRequest, CreatePlannedEntryRequest, PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import type { ApiResponse } from '../types/transaction';
 import {
@@ -10,10 +10,16 @@ import {
   deleteCategoryBudget,
   consolidateCategoryBudget,
   createPlannedEntry,
+  getPlannedEntriesForMonth,
+  // matchPlannedEntry, // TODO: Will be used when match modal is implemented
+  unmatchPlannedEntry,
+  dismissPlannedEntry,
+  undismissPlannedEntry,
 } from '../api/budget';
 import { financialUrl } from '../config/api';
 import PlannedEntryForm from './PlannedEntryForm';
 import MonthlyBudgetCard from './MonthlyBudgetCard';
+import PlannedEntryCard from './PlannedEntryCard';
 
 interface MonthlyBudgetData {
   month: number;
@@ -30,6 +36,8 @@ export default function CategoryBudgetDashboard() {
   const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudgetData[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [actualSpending, setActualSpending] = useState<Record<number, string>>({});
+  const [plannedEntries, setPlannedEntries] = useState<PlannedEntryWithStatus[]>([]);
+  const [plannedEntriesLoading, setPlannedEntriesLoading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,10 +129,31 @@ export default function CategoryBudgetDashboard() {
       });
 
       await fetchActualSpending(Array.from(allCategoryIds));
+
+      // Fetch planned entries for current month
+      await fetchPlannedEntries();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPlannedEntries = async () => {
+    if (!token) return;
+
+    setPlannedEntriesLoading(true);
+    try {
+      const entries = await getPlannedEntriesForMonth(currentMonth, currentYear, {
+        token,
+        organizationId: '1',
+      });
+      setPlannedEntries(entries || []);
+    } catch (err) {
+      console.error('Failed to fetch planned entries:', err);
+      // Don't set error state to avoid blocking the rest of the UI
+    } finally {
+      setPlannedEntriesLoading(false);
     }
   };
 
@@ -287,29 +316,103 @@ export default function CategoryBudgetDashboard() {
     }
   };
 
-  const handleCreatePlannedEntry = async (data: {
-    category_id: number;
-    description: string;
-    amount: number;
-    is_recurrent: boolean;
-    expected_day?: number;
-    is_saved_pattern: boolean;
-  }) => {
+  const handleCreatePlannedEntry = async (data: CreatePlannedEntryRequest) => {
     if (!token) return;
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await createPlannedEntry(data as CreatePlannedEntryRequest, { token, organizationId: '1' });
+      await createPlannedEntry(data, { token, organizationId: '1' });
 
-      setSuccessMessage('Planned entry created successfully!');
+      setSuccessMessage('Entrada planejada criada com sucesso!');
       setShowCreateEntryModal(false);
       await fetchAllData();
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create planned entry');
+      setError(err instanceof Error ? err.message : 'Falha ao criar entrada planejada');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Planned Entry Status Handlers
+  const handleMatchPlannedEntry = async (entryId: number) => {
+    // TODO: Open a modal to select a transaction to match
+    // For now, this is a placeholder
+    console.log('Match entry:', entryId);
+    setError('Matching UI not yet implemented. Use the transaction view to match.');
+  };
+
+  const handleUnmatchPlannedEntry = async (entryId: number) => {
+    if (!token) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await unmatchPlannedEntry(entryId, currentMonth, currentYear, {
+        token,
+        organizationId: '1',
+      });
+
+      setSuccessMessage('Entrada desvinculada com sucesso!');
+      await fetchPlannedEntries();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao desvincular entrada');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDismissPlannedEntry = async (entryId: number, reason?: string) => {
+    if (!token) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await dismissPlannedEntry(entryId, {
+        month: currentMonth,
+        year: currentYear,
+        reason,
+      }, {
+        token,
+        organizationId: '1',
+      });
+
+      setSuccessMessage('Entrada dispensada com sucesso!');
+      await fetchPlannedEntries();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao dispensar entrada');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUndismissPlannedEntry = async (entryId: number) => {
+    if (!token) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await undismissPlannedEntry(entryId, currentMonth, currentYear, {
+        token,
+        organizationId: '1',
+      });
+
+      setSuccessMessage('Entrada reativada com sucesso!');
+      await fetchPlannedEntries();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao reativar entrada');
     } finally {
       setIsSubmitting(false);
     }
@@ -407,6 +510,78 @@ export default function CategoryBudgetDashboard() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
+        {/* Planned Entries Section */}
+        {plannedEntries.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Entradas Planejadas - {new Date(currentYear, currentMonth - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </h2>
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 bg-green-500 rounded-full"></span>
+                  <span className="text-gray-600">Recebido</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 bg-yellow-500 rounded-full"></span>
+                  <span className="text-gray-600">Pendente</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 bg-red-500 rounded-full"></span>
+                  <span className="text-gray-600">Atrasado</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
+                  <span className="text-gray-600">Dispensado</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Alert for missed entries */}
+            {plannedEntries.some(e => e.Status === 'missed') && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-center gap-3">
+                <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span className="text-red-800">
+                  <strong>Atenção!</strong> Existem entradas planejadas em atraso que precisam de atenção.
+                </span>
+              </div>
+            )}
+
+            {plannedEntriesLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white rounded-lg shadow p-4 animate-pulse">
+                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                    <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {plannedEntries.map((entry) => {
+                  const category = categories.find(c => c.category_id === entry.CategoryID);
+                  return (
+                    <PlannedEntryCard
+                      key={entry.PlannedEntryID}
+                      entry={entry}
+                      categoryName={category?.name || 'Categoria desconhecida'}
+                      month={currentMonth}
+                      year={currentYear}
+                      onMatch={handleMatchPlannedEntry}
+                      onUnmatch={handleUnmatchPlannedEntry}
+                      onDismiss={handleDismissPlannedEntry}
+                      onUndismiss={handleUndismissPlannedEntry}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -554,7 +729,7 @@ export default function CategoryBudgetDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Create Planned Entry
+                Criar Entrada Planejada
               </h3>
 
               <PlannedEntryForm

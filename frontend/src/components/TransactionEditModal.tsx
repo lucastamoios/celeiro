@@ -486,16 +486,12 @@ export default function TransactionEditModal({
           categories={categories}
           onClose={() => setShowAdvancedPatternCreator(false)}
           onSave={handleSavePattern}
-          initialData={
-            categoryId
-              ? {
-                  description: transaction.original_description || description,
-                  categoryId: categoryId,
-                  amount: transaction.amount,
-                  expectedDay: new Date(transaction.transaction_date).getDate(),
-                }
-              : undefined
-          }
+          initialData={{
+            description: transaction.original_description || description,
+            categoryId: categoryId ?? undefined,
+            amount: transaction.amount,
+            expectedDay: new Date(transaction.transaction_date).getDate(),
+          }}
         />
       )}
     </div>

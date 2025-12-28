@@ -76,6 +76,13 @@ type Service interface {
 	DeletePlannedEntry(ctx context.Context, params DeletePlannedEntryInput) error
 	GenerateMonthlyInstances(ctx context.Context, params GenerateMonthlyInstancesInput) ([]PlannedEntry, error)
 
+	// Planned Entry Statuses (Entrada Planejada)
+	GetPlannedEntriesForMonth(ctx context.Context, params GetPlannedEntriesForMonthInput) ([]PlannedEntryWithStatus, error)
+	MatchPlannedEntryToTransaction(ctx context.Context, params MatchPlannedEntryInput) (PlannedEntryStatus, error)
+	UnmatchPlannedEntry(ctx context.Context, params UnmatchPlannedEntryInput) error
+	DismissPlannedEntry(ctx context.Context, params DismissPlannedEntryInput) (PlannedEntryStatus, error)
+	UndismissPlannedEntry(ctx context.Context, params UndismissPlannedEntryInput) (PlannedEntryStatus, error)
+
 	// Monthly Snapshots
 	GetMonthlySnapshots(ctx context.Context, params GetMonthlySnapshotsInput) ([]MonthlySnapshot, error)
 	GetMonthlySnapshotByID(ctx context.Context, params GetMonthlySnapshotByIDInput) (MonthlySnapshot, error)
@@ -1253,28 +1260,45 @@ func (s *service) GetSavedPatterns(ctx context.Context, params GetSavedPatternsI
 }
 
 type CreatePlannedEntryInput struct {
-	UserID         int
-	OrganizationID int
-	CategoryID     int
-	Description    string
-	Amount         decimal.Decimal
-	IsRecurrent    bool
-	ParentEntryID  *int
-	ExpectedDay    *int
-	IsSavedPattern bool
+	UserID           int
+	OrganizationID   int
+	CategoryID       int
+	PatternID        *int
+	Description      string
+	Amount           decimal.Decimal
+	AmountMin        *decimal.Decimal
+	AmountMax        *decimal.Decimal
+	ExpectedDayStart *int
+	ExpectedDayEnd   *int
+	ExpectedDay      *int
+	EntryType        string
+	IsRecurrent      bool
+	ParentEntryID    *int
+	IsSavedPattern   bool
 }
 
 func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEntryInput) (PlannedEntry, error) {
+	// Default entry type to expense if not provided
+	if params.EntryType == "" {
+		params.EntryType = PlannedEntryTypeExpense
+	}
+
 	model, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
-		UserID:         params.UserID,
-		OrganizationID: params.OrganizationID,
-		CategoryID:     params.CategoryID,
-		Description:    params.Description,
-		Amount:         params.Amount,
-		IsRecurrent:    params.IsRecurrent,
-		ParentEntryID:  params.ParentEntryID,
-		ExpectedDay:    params.ExpectedDay,
-		IsSavedPattern: params.IsSavedPattern,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+		CategoryID:       params.CategoryID,
+		PatternID:        params.PatternID,
+		Description:      params.Description,
+		Amount:           params.Amount,
+		AmountMin:        params.AmountMin,
+		AmountMax:        params.AmountMax,
+		ExpectedDayStart: params.ExpectedDayStart,
+		ExpectedDayEnd:   params.ExpectedDayEnd,
+		ExpectedDay:      params.ExpectedDay,
+		EntryType:        params.EntryType,
+		IsRecurrent:      params.IsRecurrent,
+		ParentEntryID:    params.ParentEntryID,
+		IsSavedPattern:   params.IsSavedPattern,
 	})
 	if err != nil {
 		return PlannedEntry{}, errors.Wrap(err, "failed to create planned entry")
@@ -1284,24 +1308,36 @@ func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEn
 }
 
 type UpdatePlannedEntryInput struct {
-	PlannedEntryID int
-	UserID         int
-	OrganizationID int
-	Description    *string
-	Amount         *decimal.Decimal
-	ExpectedDay    *int
-	IsActive       *bool
+	PlannedEntryID   int
+	UserID           int
+	OrganizationID   int
+	PatternID        *int
+	Description      *string
+	Amount           *decimal.Decimal
+	AmountMin        *decimal.Decimal
+	AmountMax        *decimal.Decimal
+	ExpectedDayStart *int
+	ExpectedDayEnd   *int
+	ExpectedDay      *int
+	EntryType        *string
+	IsActive         *bool
 }
 
 func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEntryInput) (PlannedEntry, error) {
 	model, err := s.Repository.ModifyPlannedEntry(ctx, modifyPlannedEntryParams{
-		PlannedEntryID: params.PlannedEntryID,
-		UserID:         params.UserID,
-		OrganizationID: params.OrganizationID,
-		Description:    params.Description,
-		Amount:         params.Amount,
-		ExpectedDay:    params.ExpectedDay,
-		IsActive:       params.IsActive,
+		PlannedEntryID:   params.PlannedEntryID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+		PatternID:        params.PatternID,
+		Description:      params.Description,
+		Amount:           params.Amount,
+		AmountMin:        params.AmountMin,
+		AmountMax:        params.AmountMax,
+		ExpectedDayStart: params.ExpectedDayStart,
+		ExpectedDayEnd:   params.ExpectedDayEnd,
+		ExpectedDay:      params.ExpectedDay,
+		EntryType:        params.EntryType,
+		IsActive:         params.IsActive,
 	})
 	if err != nil {
 		return PlannedEntry{}, errors.Wrap(err, "failed to update planned entry")
@@ -1435,4 +1471,308 @@ func (s *service) GetMonthlySnapshotByID(ctx context.Context, params GetMonthlyS
 	}
 
 	return MonthlySnapshot{}.FromModel(&model), nil
+}
+
+// ============================================================================
+// Planned Entry Statuses (Entrada Planejada)
+// ============================================================================
+
+type GetPlannedEntriesForMonthInput struct {
+	UserID         int
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// GetPlannedEntriesForMonth returns all planned entries with their monthly status
+func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlannedEntriesForMonthInput) ([]PlannedEntryWithStatus, error) {
+	// 1. Fetch active planned entries that have a pattern (true entrada planejada)
+	isActive := true
+	entries, err := s.Repository.FetchPlannedEntriesWithPattern(ctx, fetchPlannedEntriesWithPatternParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		IsActive:       &isActive,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch planned entries")
+	}
+
+	// 2. Fetch statuses for the given month
+	statuses, err := s.Repository.FetchPlannedEntryStatusesByMonth(ctx, fetchPlannedEntryStatusesByMonthParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Month:          params.Month,
+		Year:           params.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch planned entry statuses")
+	}
+
+	// 3. Create a map of status by planned entry ID
+	statusMap := make(map[int]PlannedEntryStatusModel)
+	for _, status := range statuses {
+		statusMap[status.PlannedEntryID] = status
+	}
+
+	// 4. Fetch linked patterns
+	patterns, err := s.Repository.FetchAdvancedPatterns(ctx, fetchAdvancedPatternsParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		IsActive:       &isActive,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch patterns")
+	}
+
+	patternMap := make(map[int]AdvancedPatternModel)
+	for _, pattern := range patterns {
+		patternMap[pattern.PatternID] = pattern
+	}
+
+	// 5. Build result with computed status
+	currentDay := s.system.Time.Now().Day()
+	currentMonth := int(s.system.Time.Now().Month())
+	currentYear := s.system.Time.Now().Year()
+
+	result := make([]PlannedEntryWithStatus, 0, len(entries))
+	for _, entry := range entries {
+		entryDTO := PlannedEntry{}.FromModel(&entry)
+		statusDTO := PlannedEntryWithStatus{
+			PlannedEntry: entryDTO,
+		}
+
+		// Check if we have a status for this month
+		if status, exists := statusMap[entry.PlannedEntryID]; exists {
+			statusDTO.Status = status.Status
+			statusDTO.StatusColor = GetStatusColor(status.Status)
+			statusDTO.MatchedAmount = status.MatchedAmount
+			statusDTO.MatchedTransactionID = status.MatchedTransactionID
+			if status.MatchedAt != nil {
+				matchedAt := status.MatchedAt.Format("2006-01-02T15:04:05Z")
+				statusDTO.MatchedAt = &matchedAt
+			}
+		} else {
+			// Compute status based on current day and expected day range
+			statusDTO.Status = s.computePlannedEntryStatus(entry, currentDay, currentMonth, currentYear, params.Month, params.Year)
+			statusDTO.StatusColor = GetStatusColor(statusDTO.Status)
+		}
+
+		// Add linked pattern if available
+		if entry.PatternID != nil {
+			if pattern, exists := patternMap[*entry.PatternID]; exists {
+				patternDTO := AdvancedPattern{}.FromModel(&pattern)
+				statusDTO.LinkedPattern = &patternDTO
+			}
+		}
+
+		result = append(result, statusDTO)
+	}
+
+	return result, nil
+}
+
+// computePlannedEntryStatus calculates the status based on current date and expected period
+func (s *service) computePlannedEntryStatus(entry PlannedEntryModel, currentDay, currentMonth, currentYear, targetMonth, targetYear int) string {
+	// If target month is in the past
+	if targetYear < currentYear || (targetYear == currentYear && targetMonth < currentMonth) {
+		return PlannedEntryStatusMissed
+	}
+
+	// If target month is in the future
+	if targetYear > currentYear || (targetYear == currentYear && targetMonth > currentMonth) {
+		return PlannedEntryStatusPending
+	}
+
+	// Same month - check expected day
+	if entry.ExpectedDayEnd != nil && currentDay > *entry.ExpectedDayEnd {
+		return PlannedEntryStatusMissed
+	}
+
+	return PlannedEntryStatusPending
+}
+
+type MatchPlannedEntryInput struct {
+	PlannedEntryID int
+	TransactionID  int
+	Month          int
+	Year           int
+	UserID         int
+	OrganizationID int
+}
+
+// MatchPlannedEntryToTransaction links a transaction to a planned entry
+func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params MatchPlannedEntryInput) (PlannedEntryStatus, error) {
+	// 1. Verify the planned entry exists and belongs to the user
+	entry, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
+		PlannedEntryID: params.PlannedEntryID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to fetch planned entry")
+	}
+
+	// 2. Verify the transaction exists and belongs to the user
+	tx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
+		TransactionID:  params.TransactionID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to fetch transaction")
+	}
+
+	// 3. First create/update the status as "matched"
+	matchedAt := s.system.Time.Now().Format("2006-01-02T15:04:05Z")
+	statusModel, err := s.Repository.UpsertPlannedEntryStatus(ctx, upsertPlannedEntryStatusParams{
+		PlannedEntryID: params.PlannedEntryID,
+		Month:          params.Month,
+		Year:           params.Year,
+		Status:         PlannedEntryStatusMatched,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to create status")
+	}
+
+	// 4. Update the status with transaction details
+	statusModel, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
+		StatusID:             statusModel.StatusID,
+		MatchedTransactionID: &params.TransactionID,
+		MatchedAmount:        &tx.Amount,
+		MatchedAt:            &matchedAt,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to update status with match details")
+	}
+
+	// 5. Update the transaction with the category from the planned entry
+	if entry.CategoryID > 0 {
+		_, err = s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
+			TransactionID:  params.TransactionID,
+			UserID:         params.UserID,
+			OrganizationID: params.OrganizationID,
+			CategoryID:     &entry.CategoryID,
+		})
+		if err != nil {
+			s.logger.Warn(ctx, "failed to update transaction category",
+				"transaction_id", params.TransactionID,
+				"category_id", entry.CategoryID,
+				"error", err.Error(),
+			)
+		}
+	}
+
+	return PlannedEntryStatus{}.FromModel(&statusModel), nil
+}
+
+type UnmatchPlannedEntryInput struct {
+	PlannedEntryID int
+	Month          int
+	Year           int
+	UserID         int
+	OrganizationID int
+}
+
+// UnmatchPlannedEntry removes the link between a transaction and a planned entry
+func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlannedEntryInput) error {
+	// 1. Fetch the status
+	status, err := s.Repository.FetchPlannedEntryStatus(ctx, fetchPlannedEntryStatusParams{
+		PlannedEntryID: params.PlannedEntryID,
+		Month:          params.Month,
+		Year:           params.Year,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch status")
+	}
+
+	// 2. Update status back to pending
+	pendingStatus := PlannedEntryStatusPending
+	_, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
+		StatusID: status.StatusID,
+		Status:   &pendingStatus,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to update status")
+	}
+
+	return nil
+}
+
+type DismissPlannedEntryInput struct {
+	PlannedEntryID  int
+	Month           int
+	Year            int
+	Reason          string
+	UserID          int
+	OrganizationID  int
+}
+
+// DismissPlannedEntry dismisses a planned entry for a specific month
+func (s *service) DismissPlannedEntry(ctx context.Context, params DismissPlannedEntryInput) (PlannedEntryStatus, error) {
+	// 1. Verify the planned entry exists and belongs to the user
+	_, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
+		PlannedEntryID: params.PlannedEntryID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to fetch planned entry")
+	}
+
+	// 2. Create/update the status as "dismissed"
+	statusModel, err := s.Repository.UpsertPlannedEntryStatus(ctx, upsertPlannedEntryStatusParams{
+		PlannedEntryID: params.PlannedEntryID,
+		Month:          params.Month,
+		Year:           params.Year,
+		Status:         PlannedEntryStatusDismissed,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to create status")
+	}
+
+	// 3. Update with dismissal details
+	dismissedAt := s.system.Time.Now().Format("2006-01-02T15:04:05Z")
+	statusModel, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
+		StatusID:        statusModel.StatusID,
+		DismissedAt:     &dismissedAt,
+		DismissalReason: &params.Reason,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to update status with dismissal details")
+	}
+
+	return PlannedEntryStatus{}.FromModel(&statusModel), nil
+}
+
+type UndismissPlannedEntryInput struct {
+	PlannedEntryID int
+	Month          int
+	Year           int
+	UserID         int
+	OrganizationID int
+}
+
+// UndismissPlannedEntry reverts a dismissed planned entry back to pending
+func (s *service) UndismissPlannedEntry(ctx context.Context, params UndismissPlannedEntryInput) (PlannedEntryStatus, error) {
+	// 1. Fetch the status
+	status, err := s.Repository.FetchPlannedEntryStatus(ctx, fetchPlannedEntryStatusParams{
+		PlannedEntryID: params.PlannedEntryID,
+		Month:          params.Month,
+		Year:           params.Year,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to fetch status")
+	}
+
+	// 2. Update status back to pending
+	pendingStatus := PlannedEntryStatusPending
+	status, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
+		StatusID: status.StatusID,
+		Status:   &pendingStatus,
+	})
+	if err != nil {
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to update status")
+	}
+
+	return PlannedEntryStatus{}.FromModel(&status), nil
 }

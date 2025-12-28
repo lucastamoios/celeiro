@@ -3,16 +3,16 @@ import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
+import TransactionEditModal from './TransactionEditModal';
 
 export default function UncategorizedTransactions() {
   const { token } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Map<number, Category>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [editingTransaction, setEditingTransaction] = useState<number | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -52,7 +52,9 @@ export default function UncategorizedTransactions() {
       }
 
       const catData = await catResponse.json();
-      setCategories(catData.data || []);
+      const categoryMap = new Map<number, Category>();
+      (catData.data || []).forEach((cat: Category) => categoryMap.set(cat.category_id, cat));
+      setCategories(categoryMap);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -60,41 +62,19 @@ export default function UncategorizedTransactions() {
     }
   };
 
-  const handleCategorize = async (transactionId: number, categoryId: number) => {
-    if (!token) return;
+  const handleOpenEditModal = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+  };
 
-    try {
-      // Find the transaction to get its account_id
-      const transaction = transactions.find(t => t.transaction_id === transactionId);
-      if (!transaction) return;
+  const handleCloseEditModal = () => {
+    setEditingTransaction(null);
+  };
 
-      const response = await fetch(
-        financialUrl(`accounts/${transaction.account_id}/transactions/${transactionId}`),
-        {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'X-Active-Organization': '1',
-          },
-          body: JSON.stringify({ category_id: categoryId }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to categorize transaction');
-      }
-
-      setSuccess('Transação categorizada com sucesso!');
-      setTimeout(() => setSuccess(null), 3000);
-      
-      // Remove from list
-      setTransactions(prev => prev.filter(t => t.transaction_id !== transactionId));
-      setEditingTransaction(null);
-      setSelectedCategory(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to categorize');
-    }
+  const handleSaveTransaction = async () => {
+    setSuccess('Transação atualizada com sucesso!');
+    setTimeout(() => setSuccess(null), 3000);
+    await fetchData();
+    setEditingTransaction(null);
   };
 
   const formatCurrency = (amount: string | number) => {
@@ -126,7 +106,7 @@ export default function UncategorizedTransactions() {
             📋 Transações Não Categorizadas
           </h1>
           <p className="text-gray-600">
-            {transactions.length} transação{transactions.length !== 1 ? 'ões' : ''} aguardando classificação
+            {transactions.length} {transactions.length === 1 ? 'transação' : 'transações'} aguardando classificação
           </p>
         </div>
 
@@ -188,7 +168,11 @@ export default function UncategorizedTransactions() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transactions.map((transaction) => (
-                    <tr key={transaction.transaction_id} className="hover:bg-gray-50">
+                    <tr
+                      key={transaction.transaction_id}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleOpenEditModal(transaction)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(transaction.transaction_date)}
                       </td>
@@ -201,52 +185,15 @@ export default function UncategorizedTransactions() {
                         {transaction.transaction_type === 'credit' ? '+' : '-'} {formatCurrency(transaction.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {editingTransaction === transaction.transaction_id ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <select
-                              value={selectedCategory || ''}
-                              onChange={(e) => setSelectedCategory(Number(e.target.value))}
-                              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                              autoFocus
-                            >
-                              <option value="">Selecione...</option>
-                              {categories.map((cat) => (
-                                <option key={cat.category_id} value={cat.category_id}>
-                                  {cat.icon} {cat.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              onClick={() => selectedCategory && handleCategorize(transaction.transaction_id, selectedCategory)}
-                              disabled={!selectedCategory}
-                              className="p-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Salvar"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEditingTransaction(null);
-                                setSelectedCategory(null);
-                              }}
-                              className="p-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
-                              title="Cancelar"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setEditingTransaction(transaction.transaction_id)}
-                            className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium transition-colors"
-                          >
-                            Categorizar
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditModal(transaction);
+                          }}
+                          className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium transition-colors"
+                        >
+                          Editar
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -256,6 +203,16 @@ export default function UncategorizedTransactions() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingTransaction && (
+        <TransactionEditModal
+          transaction={editingTransaction}
+          categories={categories}
+          onClose={handleCloseEditModal}
+          onSave={handleSaveTransaction}
+        />
+      )}
     </div>
   );
 }
