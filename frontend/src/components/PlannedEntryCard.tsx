@@ -12,6 +12,7 @@ interface PlannedEntryCardProps {
   onDismiss?: (entryId: number, reason?: string) => void;
   onUndismiss?: (entryId: number) => void;
   onEdit?: (entry: PlannedEntryWithStatus) => void;
+  onDelete?: (entryId: number) => void;
 }
 
 export default function PlannedEntryCard({
@@ -24,6 +25,7 @@ export default function PlannedEntryCard({
   onDismiss,
   onUndismiss,
   onEdit,
+  onDelete,
 }: PlannedEntryCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [showDismissModal, setShowDismissModal] = useState(false);
@@ -165,7 +167,7 @@ export default function PlannedEntryCard({
 
             {showActions && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                {entry.Status === 'pending' && onMatch && (
+                {(entry.Status === 'pending' || entry.Status === 'missed') && onMatch && (
                   <button
                     onClick={() => {
                       onMatch(entry.PlannedEntryID);
@@ -218,6 +220,19 @@ export default function PlannedEntryCard({
                     className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
                   >
                     Editar
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`Tem certeza que deseja excluir "${entry.Description}"? Esta ação não pode ser desfeita.`)) {
+                        onDelete(entry.PlannedEntryID);
+                      }
+                      setShowActions(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600"
+                  >
+                    Excluir
                   </button>
                 )}
               </div>

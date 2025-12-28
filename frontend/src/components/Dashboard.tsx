@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
+import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
+import type { PlannedEntryWithStatus } from '../types/budget';
 
 interface Account {
   AccountID: number;
@@ -19,6 +21,24 @@ interface CategoryExpense {
   percentage: number;
 }
 
+interface BudgetSummary {
+  totalPlanned: number;
+  totalActual: number;
+  variance: number;
+  variancePercent: number;
+  budgetsByCategory: {
+    category: Category;
+    planned: number;
+    actual: number;
+  }[];
+  plannedEntries: {
+    total: number;
+    matched: number;
+    pending: number;
+    missed: number;
+  };
+}
+
 interface DashboardStats {
   totalIncome: number;
   totalExpenses: number;
@@ -27,6 +47,7 @@ interface DashboardStats {
   month: number;
   year: number;
   categoryExpenses: CategoryExpense[];
+  budgetSummary: BudgetSummary | null;
 }
 
 interface DashboardProps {
@@ -43,6 +64,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
     categoryExpenses: [],
+    budgetSummary: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -181,6 +203,67 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         uncategorizedCount = filteredUncategorized.length;
       }
 
+      // Fetch budget data for the current month
+      let budgetSummary: BudgetSummary | null = null;
+      try {
+        // API uses 1-indexed months, but targetMonth is 0-indexed
+        const apiMonth = targetMonth + 1;
+
+        const [categoryBudgets, plannedEntriesData] = await Promise.all([
+          getCategoryBudgets({ month: apiMonth, year: targetYear }, { token }),
+          getPlannedEntriesForMonth(apiMonth, targetYear, { token }),
+        ]);
+
+        if (categoryBudgets && categoryBudgets.length > 0) {
+          // Build budget summary
+          const budgetsByCategory: BudgetSummary['budgetsByCategory'] = [];
+          let totalPlanned = 0;
+          let totalActual = 0;
+
+          for (const budget of categoryBudgets) {
+            const planned = parseFloat(budget.PlannedAmount) || 0;
+            totalPlanned += planned;
+
+            // Find actual spending for this category from categoryMap
+            const categoryData = categoryMap.get(budget.CategoryID);
+            const actual = categoryData ? categoryData.amount : 0;
+            totalActual += actual;
+
+            // Find category info
+            const category = categories.find(c => c.category_id === budget.CategoryID);
+            if (category) {
+              budgetsByCategory.push({ category, planned, actual });
+            }
+          }
+
+          // Sort by planned amount descending
+          budgetsByCategory.sort((a, b) => b.planned - a.planned);
+
+          // Calculate planned entries stats
+          const plannedEntriesStats = {
+            total: plannedEntriesData?.length || 0,
+            matched: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'matched').length || 0,
+            pending: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'pending').length || 0,
+            missed: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'missed').length || 0,
+          };
+
+          const variance = totalPlanned - totalActual;
+          const variancePercent = totalPlanned > 0 ? (variance / totalPlanned) * 100 : 0;
+
+          budgetSummary = {
+            totalPlanned,
+            totalActual,
+            variance,
+            variancePercent,
+            budgetsByCategory: budgetsByCategory.slice(0, 5), // Top 5 categories
+            plannedEntries: plannedEntriesStats,
+          };
+        }
+      } catch (budgetErr) {
+        console.warn('Failed to fetch budget data:', budgetErr);
+        // Continue without budget data
+      }
+
       setStats({
         totalIncome: income,
         totalExpenses: expenses,
@@ -189,6 +272,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         month: targetMonth,
         year: targetYear,
         categoryExpenses,
+        budgetSummary,
       });
     } catch (err) {
       console.error('Failed to fetch stats:', err);
@@ -287,6 +371,146 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             <p className="text-sm text-gray-500">Diferença entre receitas e despesas</p>
           </div>
         </div>
+
+        {/* Budget Summary Section */}
+        {stats.budgetSummary && (
+          <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Orçamento do Mês</h2>
+              <div className="flex items-center gap-2">
+                {stats.budgetSummary.plannedEntries.missed > 0 && (
+                  <span className="text-xs font-medium text-red-600 bg-red-50 px-3 py-1 rounded-full">
+                    {stats.budgetSummary.plannedEntries.missed} atrasado{stats.budgetSummary.plannedEntries.missed > 1 ? 's' : ''}
+                  </span>
+                )}
+                {stats.budgetSummary.plannedEntries.pending > 0 && (
+                  <span className="text-xs font-medium text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
+                    {stats.budgetSummary.plannedEntries.pending} pendente{stats.budgetSummary.plannedEntries.pending > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Budget Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-sm text-gray-600 mb-1">Planejado</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats.budgetSummary.totalPlanned)}
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-sm text-gray-600 mb-1">Gasto</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats.budgetSummary.totalActual)}
+                </div>
+              </div>
+              <div className={`rounded-xl p-4 ${
+                stats.budgetSummary.variance >= 0
+                  ? 'bg-emerald-50'
+                  : 'bg-red-50'
+              }`}>
+                <div className="text-sm text-gray-600 mb-1">
+                  {stats.budgetSummary.variance >= 0 ? 'Sobra' : 'Excedido'}
+                </div>
+                <div className={`text-2xl font-bold ${
+                  stats.budgetSummary.variance >= 0
+                    ? 'text-emerald-600'
+                    : 'text-red-600'
+                }`}>
+                  {formatCurrency(Math.abs(stats.budgetSummary.variance))}
+                </div>
+              </div>
+            </div>
+
+            {/* Budget Progress Bar */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-gray-600">Progresso do Orçamento</span>
+                <span className="font-medium">
+                  {Math.min(100, Math.round((stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100))}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                <div
+                  className={`h-4 rounded-full transition-all duration-500 ${
+                    stats.budgetSummary.totalActual <= stats.budgetSummary.totalPlanned
+                      ? 'bg-blue-500'
+                      : 'bg-red-500'
+                  }`}
+                  style={{
+                    width: `${Math.min(100, (stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Top Categories */}
+            {stats.budgetSummary.budgetsByCategory.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Por Categoria</h3>
+                <div className="space-y-3">
+                  {stats.budgetSummary.budgetsByCategory.map(({ category, planned, actual }) => {
+                    const percentage = planned > 0 ? (actual / planned) * 100 : 0;
+                    const isOverBudget = actual > planned;
+                    const hexColor = category.color || '#6B7280';
+
+                    return (
+                      <div key={category.category_id} className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                          style={{ backgroundColor: `${hexColor}20` }}>
+                          {category.icon || '📦'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-900 truncate">{category.name}</span>
+                            <span className={`text-xs font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-600'}`}>
+                              {formatCurrency(actual)} / {formatCurrency(planned)}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                isOverBudget ? 'bg-red-500' : ''
+                              }`}
+                              style={{
+                                width: `${Math.min(100, percentage)}%`,
+                                backgroundColor: isOverBudget ? undefined : hexColor,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Planned Entries Summary */}
+            {stats.budgetSummary.plannedEntries.total > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Entradas Planejadas</h3>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                    <span className="text-gray-600">{stats.budgetSummary.plannedEntries.matched} recebido{stats.budgetSummary.plannedEntries.matched !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                    <span className="text-gray-600">{stats.budgetSummary.plannedEntries.pending} pendente{stats.budgetSummary.plannedEntries.pending !== 1 ? 's' : ''}</span>
+                  </div>
+                  {stats.budgetSummary.plannedEntries.missed > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                      <span className="text-gray-600">{stats.budgetSummary.plannedEntries.missed} atrasado{stats.budgetSummary.plannedEntries.missed !== 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Category Expenses Chart */}
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">

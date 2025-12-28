@@ -25,20 +25,13 @@ function AppContent() {
         <div className="max-w-7xl mx-auto px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-8">
-              <div className="text-xl font-bold text-gray-900">
+              <button
+                onClick={() => setCurrentView('dashboard')}
+                className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
+              >
                 Celeiro 🌾
-              </div>
+              </button>
               <div className="flex space-x-4">
-                <button
-                  onClick={() => setCurrentView('dashboard')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'dashboard'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  📊 Dashboard
-                </button>
                 <button
                   onClick={() => setCurrentView('transactions')}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${

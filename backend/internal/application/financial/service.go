@@ -1201,7 +1201,6 @@ type GetPlannedEntriesInput struct {
 	OrganizationID int
 	CategoryID     *int
 	IsRecurrent    *bool
-	IsSavedPattern *bool
 	IsActive       *bool
 }
 
@@ -1211,7 +1210,6 @@ func (s *service) GetPlannedEntries(ctx context.Context, params GetPlannedEntrie
 		OrganizationID: params.OrganizationID,
 		CategoryID:     params.CategoryID,
 		IsRecurrent:    params.IsRecurrent,
-		IsSavedPattern: params.IsSavedPattern,
 		IsActive:       params.IsActive,
 	})
 	if err != nil {
@@ -1246,11 +1244,14 @@ type GetSavedPatternsInput struct {
 	CategoryID     *int
 }
 
+// GetSavedPatterns returns planned entries that have a linked pattern
+// This is the new approach - patterns are entries with pattern_id != NULL
 func (s *service) GetSavedPatterns(ctx context.Context, params GetSavedPatternsInput) ([]PlannedEntry, error) {
-	models, err := s.Repository.FetchSavedPatterns(ctx, fetchSavedPatternsParams{
+	isActiveTrue := true
+	models, err := s.Repository.FetchPlannedEntriesWithPattern(ctx, fetchPlannedEntriesWithPatternParams{
 		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
-		CategoryID:     params.CategoryID,
+		IsActive:       &isActiveTrue,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch saved patterns")
@@ -1274,7 +1275,6 @@ type CreatePlannedEntryInput struct {
 	EntryType        string
 	IsRecurrent      bool
 	ParentEntryID    *int
-	IsSavedPattern   bool
 }
 
 func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEntryInput) (PlannedEntry, error) {
@@ -1298,7 +1298,6 @@ func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEn
 		EntryType:        params.EntryType,
 		IsRecurrent:      params.IsRecurrent,
 		ParentEntryID:    params.ParentEntryID,
-		IsSavedPattern:   params.IsSavedPattern,
 	})
 	if err != nil {
 		return PlannedEntry{}, errors.Wrap(err, "failed to create planned entry")
@@ -1418,7 +1417,7 @@ func (s *service) GenerateMonthlyInstances(ctx context.Context, params GenerateM
 		IsRecurrent:    false,
 		ParentEntryID:  &params.ParentEntryID,
 		ExpectedDay:    parent.ExpectedDay,
-		IsSavedPattern: false,
+		EntryType:      parent.EntryType,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create monthly instance")
@@ -1486,11 +1485,14 @@ type GetPlannedEntriesForMonthInput struct {
 
 // GetPlannedEntriesForMonth returns all planned entries with their monthly status
 func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlannedEntriesForMonthInput) ([]PlannedEntryWithStatus, error) {
-	// 1. Fetch active planned entries that have a pattern (true entrada planejada)
+	// 1. Fetch active recurrent planned entries (entradas planejadas)
+	// These are entries that should appear every month for tracking
 	isActive := true
-	entries, err := s.Repository.FetchPlannedEntriesWithPattern(ctx, fetchPlannedEntriesWithPatternParams{
+	isRecurrent := true
+	entries, err := s.Repository.FetchPlannedEntries(ctx, fetchPlannedEntriesParams{
 		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
+		IsRecurrent:    &isRecurrent,
 		IsActive:       &isActive,
 	})
 	if err != nil {
