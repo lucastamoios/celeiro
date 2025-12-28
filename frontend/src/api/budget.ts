@@ -8,9 +8,13 @@ import type {
   CreateCategoryBudgetRequest,
   UpdateCategoryBudgetRequest,
   PlannedEntry,
+  PlannedEntryWithStatus,
+  PlannedEntryStatus,
   CreatePlannedEntryRequest,
   UpdatePlannedEntryRequest,
   GenerateMonthlyInstancesRequest,
+  MatchPlannedEntryRequest,
+  DismissPlannedEntryRequest,
   MonthlySnapshot,
   IncomePlanningReport,
 } from '../types/budget';
@@ -470,6 +474,147 @@ export async function generateMonthlyInstances(
   }
 
   const result: ApiResponse<PlannedEntry[]> = await response.json();
+  return result.data;
+}
+
+// ============================================================================
+// Planned Entry Status (Entrada Planejada)
+// ============================================================================
+
+/**
+ * Get planned entries with status for a specific month/year
+ */
+export async function getPlannedEntriesForMonth(
+  month: number,
+  year: number,
+  options: RequestOptions
+): Promise<PlannedEntryWithStatus[]> {
+  const params = new URLSearchParams();
+  params.append('month', month.toString());
+  params.append('year', year.toString());
+
+  const url = `${API_CONFIG.baseURL}/financial/planned-entries/month?${params.toString()}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: createHeaders(options),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to fetch planned entries for month: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntryWithStatus[]> = await response.json();
+  return result.data;
+}
+
+/**
+ * Match a transaction to a planned entry for a specific month
+ */
+export async function matchPlannedEntry(
+  entryId: number,
+  data: MatchPlannedEntryRequest,
+  options: RequestOptions
+): Promise<PlannedEntryStatus> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}/match`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to match planned entry: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntryStatus> = await response.json();
+  return result.data;
+}
+
+/**
+ * Remove the match between a planned entry and a transaction
+ */
+export async function unmatchPlannedEntry(
+  entryId: number,
+  month: number,
+  year: number,
+  options: RequestOptions
+): Promise<void> {
+  const params = new URLSearchParams();
+  params.append('month', month.toString());
+  params.append('year', year.toString());
+
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}/match?${params.toString()}`,
+    {
+      method: 'DELETE',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to unmatch planned entry: ${error}`);
+  }
+}
+
+/**
+ * Dismiss a planned entry for a specific month
+ */
+export async function dismissPlannedEntry(
+  entryId: number,
+  data: DismissPlannedEntryRequest,
+  options: RequestOptions
+): Promise<PlannedEntryStatus> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}/dismiss`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to dismiss planned entry: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntryStatus> = await response.json();
+  return result.data;
+}
+
+/**
+ * Undismiss a planned entry for a specific month
+ */
+export async function undismissPlannedEntry(
+  entryId: number,
+  month: number,
+  year: number,
+  options: RequestOptions
+): Promise<PlannedEntryStatus> {
+  const params = new URLSearchParams();
+  params.append('month', month.toString());
+  params.append('year', year.toString());
+
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}/dismiss?${params.toString()}`,
+    {
+      method: 'DELETE',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to undismiss planned entry: ${error}`);
+  }
+
+  const result: ApiResponse<PlannedEntryStatus> = await response.json();
   return result.data;
 }
 

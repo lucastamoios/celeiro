@@ -78,10 +78,15 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		r.Get("/planned-entries", mw.RequireSession(fh.ListPlannedEntries, []accounts.Permission{}))
 		r.Post("/planned-entries", mw.RequireSession(fh.CreatePlannedEntry, []accounts.Permission{}))
 		r.Get("/planned-entries/patterns", mw.RequireSession(fh.GetSavedPatterns, []accounts.Permission{}))
+		r.Get("/planned-entries/month", mw.RequireSession(fh.GetPlannedEntriesForMonth, []accounts.Permission{}))
 		r.Get("/planned-entries/{id}", mw.RequireSession(fh.GetPlannedEntry, []accounts.Permission{}))
 		r.Put("/planned-entries/{id}", mw.RequireSession(fh.UpdatePlannedEntry, []accounts.Permission{}))
 		r.Delete("/planned-entries/{id}", mw.RequireSession(fh.DeletePlannedEntry, []accounts.Permission{}))
 		r.Post("/planned-entries/{id}/generate", mw.RequireSession(fh.GenerateMonthlyInstances, []accounts.Permission{}))
+		r.Post("/planned-entries/{id}/match", mw.RequireSession(fh.MatchPlannedEntry, []accounts.Permission{}))
+		r.Delete("/planned-entries/{id}/match", mw.RequireSession(fh.UnmatchPlannedEntry, []accounts.Permission{}))
+		r.Post("/planned-entries/{id}/dismiss", mw.RequireSession(fh.DismissPlannedEntry, []accounts.Permission{}))
+		r.Delete("/planned-entries/{id}/dismiss", mw.RequireSession(fh.UndismissPlannedEntry, []accounts.Permission{}))
 
 		// Monthly Snapshots
 		r.Get("/snapshots", mw.RequireSession(fh.ListMonthlySnapshots, []accounts.Permission{}))

@@ -67,9 +67,17 @@ type Repository interface {
 	FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error)
 	FetchPlannedEntriesByParent(ctx context.Context, params fetchPlannedEntriesByParentParams) ([]PlannedEntryModel, error)
 	FetchSavedPatterns(ctx context.Context, params fetchSavedPatternsParams) ([]PlannedEntryModel, error)
+	FetchPlannedEntriesWithPattern(ctx context.Context, params fetchPlannedEntriesWithPatternParams) ([]PlannedEntryModel, error)
 	InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error)
 	ModifyPlannedEntry(ctx context.Context, params modifyPlannedEntryParams) (PlannedEntryModel, error)
 	RemovePlannedEntry(ctx context.Context, params removePlannedEntryParams) error
+
+	// Planned Entry Statuses
+	FetchPlannedEntryStatus(ctx context.Context, params fetchPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
+	FetchPlannedEntryStatusesByMonth(ctx context.Context, params fetchPlannedEntryStatusesByMonthParams) ([]PlannedEntryStatusModel, error)
+	UpsertPlannedEntryStatus(ctx context.Context, params upsertPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
+	ModifyPlannedEntryStatus(ctx context.Context, params modifyPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
+	RemovePlannedEntryStatus(ctx context.Context, params removePlannedEntryStatusParams) error
 
 	// Monthly Snapshots
 	FetchMonthlySnapshots(ctx context.Context, params fetchMonthlySnapshotsParams) ([]MonthlySnapshotModel, error)
@@ -1440,11 +1448,17 @@ const fetchPlannedEntriesQuery = `
 		user_id,
 		organization_id,
 		category_id,
+		pattern_id,
 		description,
 		amount,
+		amount_min,
+		amount_max,
+		expected_day_start,
+		expected_day_end,
+		expected_day,
+		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		expected_day,
 		is_active,
 		is_saved_pattern
 	FROM planned_entries
@@ -1480,11 +1494,17 @@ const fetchPlannedEntryByIDQuery = `
 		user_id,
 		organization_id,
 		category_id,
+		pattern_id,
 		description,
 		amount,
+		amount_min,
+		amount_max,
+		expected_day_start,
+		expected_day_end,
+		expected_day,
+		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		expected_day,
 		is_active,
 		is_saved_pattern
 	FROM planned_entries
@@ -1515,18 +1535,24 @@ const fetchPlannedEntriesByParentQuery = `
 		user_id,
 		organization_id,
 		category_id,
+		pattern_id,
 		description,
 		amount,
+		amount_min,
+		amount_max,
+		expected_day_start,
+		expected_day_end,
+		expected_day,
+		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		expected_day,
 		is_active,
 		is_saved_pattern
 	FROM planned_entries
 	WHERE parent_entry_id = $1
 		AND user_id = $2
 		AND organization_id = $3
-	ORDER BY expected_day ASC;
+	ORDER BY expected_day_start ASC, expected_day ASC;
 `
 
 func (r *repository) FetchPlannedEntriesByParent(ctx context.Context, params fetchPlannedEntriesByParentParams) ([]PlannedEntryModel, error) {
@@ -1551,11 +1577,17 @@ const fetchSavedPatternsQuery = `
 		user_id,
 		organization_id,
 		category_id,
+		pattern_id,
 		description,
 		amount,
+		amount_min,
+		amount_max,
+		expected_day_start,
+		expected_day_end,
+		expected_day,
+		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		expected_day,
 		is_active,
 		is_saved_pattern
 	FROM planned_entries
@@ -1575,15 +1607,21 @@ func (r *repository) FetchSavedPatterns(ctx context.Context, params fetchSavedPa
 }
 
 type insertPlannedEntryParams struct {
-	UserID         int
-	OrganizationID int
-	CategoryID     int
-	Description    string
-	Amount         decimal.Decimal
-	IsRecurrent    bool
-	ParentEntryID  *int
-	ExpectedDay    *int
-	IsSavedPattern bool
+	UserID           int
+	OrganizationID   int
+	CategoryID       int
+	PatternID        *int
+	Description      string
+	Amount           decimal.Decimal
+	AmountMin        *decimal.Decimal
+	AmountMax        *decimal.Decimal
+	ExpectedDayStart *int
+	ExpectedDayEnd   *int
+	ExpectedDay      *int
+	EntryType        string
+	IsRecurrent      bool
+	ParentEntryID    *int
+	IsSavedPattern   bool
 }
 
 const insertPlannedEntryQuery = `
@@ -1592,13 +1630,19 @@ const insertPlannedEntryQuery = `
 		user_id,
 		organization_id,
 		category_id,
+		pattern_id,
 		description,
 		amount,
+		amount_min,
+		amount_max,
+		expected_day_start,
+		expected_day_end,
+		expected_day,
+		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		expected_day,
 		is_saved_pattern
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	RETURNING
 		planned_entry_id,
 		created_at,
@@ -1606,11 +1650,17 @@ const insertPlannedEntryQuery = `
 		user_id,
 		organization_id,
 		category_id,
+		pattern_id,
 		description,
 		amount,
+		amount_min,
+		amount_max,
+		expected_day_start,
+		expected_day_end,
+		expected_day,
+		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		expected_day,
 		is_active,
 		is_saved_pattern;
 `
@@ -1618,30 +1668,43 @@ const insertPlannedEntryQuery = `
 func (r *repository) InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error) {
 	var entry PlannedEntryModel
 	err := r.db.Query(ctx, &entry, insertPlannedEntryQuery,
-		params.UserID, params.OrganizationID, params.CategoryID,
-		params.Description, params.Amount, params.IsRecurrent,
-		params.ParentEntryID, params.ExpectedDay, params.IsSavedPattern)
+		params.UserID, params.OrganizationID, params.CategoryID, params.PatternID,
+		params.Description, params.Amount, params.AmountMin, params.AmountMax,
+		params.ExpectedDayStart, params.ExpectedDayEnd, params.ExpectedDay,
+		params.EntryType, params.IsRecurrent, params.ParentEntryID, params.IsSavedPattern)
 	return entry, err
 }
 
 type modifyPlannedEntryParams struct {
-	PlannedEntryID int
-	UserID         int
-	OrganizationID int
-	Description    *string
-	Amount         *decimal.Decimal
-	ExpectedDay    *int
-	IsActive       *bool
+	PlannedEntryID   int
+	UserID           int
+	OrganizationID   int
+	PatternID        *int
+	Description      *string
+	Amount           *decimal.Decimal
+	AmountMin        *decimal.Decimal
+	AmountMax        *decimal.Decimal
+	ExpectedDayStart *int
+	ExpectedDayEnd   *int
+	ExpectedDay      *int
+	EntryType        *string
+	IsActive         *bool
 }
 
 const modifyPlannedEntryQuery = `
 	-- financial.modifyPlannedEntryQuery
 	UPDATE planned_entries
 	SET
-		description = COALESCE($4, description),
-		amount = COALESCE($5, amount),
-		expected_day = COALESCE($6, expected_day),
-		is_active = COALESCE($7, is_active),
+		pattern_id = COALESCE($4, pattern_id),
+		description = COALESCE($5, description),
+		amount = COALESCE($6, amount),
+		amount_min = COALESCE($7, amount_min),
+		amount_max = COALESCE($8, amount_max),
+		expected_day_start = COALESCE($9, expected_day_start),
+		expected_day_end = COALESCE($10, expected_day_end),
+		expected_day = COALESCE($11, expected_day),
+		entry_type = COALESCE($12, entry_type),
+		is_active = COALESCE($13, is_active),
 		updated_at = CURRENT_TIMESTAMP
 	WHERE planned_entry_id = $1
 		AND user_id = $2
@@ -1653,11 +1716,17 @@ const modifyPlannedEntryQuery = `
 		user_id,
 		organization_id,
 		category_id,
+		pattern_id,
 		description,
 		amount,
+		amount_min,
+		amount_max,
+		expected_day_start,
+		expected_day_end,
+		expected_day,
+		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		expected_day,
 		is_active,
 		is_saved_pattern;
 `
@@ -1666,7 +1735,9 @@ func (r *repository) ModifyPlannedEntry(ctx context.Context, params modifyPlanne
 	var entry PlannedEntryModel
 	err := r.db.Query(ctx, &entry, modifyPlannedEntryQuery,
 		params.PlannedEntryID, params.UserID, params.OrganizationID,
-		params.Description, params.Amount, params.ExpectedDay, params.IsActive)
+		params.PatternID, params.Description, params.Amount, params.AmountMin,
+		params.AmountMax, params.ExpectedDayStart, params.ExpectedDayEnd,
+		params.ExpectedDay, params.EntryType, params.IsActive)
 	return entry, err
 }
 
@@ -2031,4 +2102,227 @@ func (r *repository) RemoveAdvancedPattern(ctx context.Context, params removeAdv
 	err := r.db.Query(ctx, &result, removeAdvancedPatternQuery,
 		params.PatternID, params.UserID, params.OrganizationID)
 	return err
+}
+
+// ============================================================================
+// Planned Entries With Pattern (for Entrada Planejada feature)
+// ============================================================================
+
+type fetchPlannedEntriesWithPatternParams struct {
+	UserID         int
+	OrganizationID int
+	IsActive       *bool
+}
+
+const fetchPlannedEntriesWithPatternQuery = `
+	-- financial.fetchPlannedEntriesWithPatternQuery
+	SELECT
+		planned_entry_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		category_id,
+		pattern_id,
+		description,
+		amount,
+		amount_min,
+		amount_max,
+		expected_day_start,
+		expected_day_end,
+		expected_day,
+		entry_type,
+		is_recurrent,
+		parent_entry_id,
+		is_active,
+		is_saved_pattern
+	FROM planned_entries
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND pattern_id IS NOT NULL
+		AND ($3::bool IS NULL OR is_active = $3)
+	ORDER BY entry_type ASC, description ASC;
+`
+
+func (r *repository) FetchPlannedEntriesWithPattern(ctx context.Context, params fetchPlannedEntriesWithPatternParams) ([]PlannedEntryModel, error) {
+	var entries []PlannedEntryModel
+	err := r.db.Query(ctx, &entries, fetchPlannedEntriesWithPatternQuery,
+		params.UserID, params.OrganizationID, params.IsActive)
+	return entries, err
+}
+
+// ============================================================================
+// Planned Entry Statuses
+// ============================================================================
+
+type fetchPlannedEntryStatusParams struct {
+	PlannedEntryID int
+	Month          int
+	Year           int
+}
+
+const fetchPlannedEntryStatusQuery = `
+	-- financial.fetchPlannedEntryStatusQuery
+	SELECT
+		status_id,
+		created_at,
+		updated_at,
+		planned_entry_id,
+		month,
+		year,
+		status,
+		matched_transaction_id,
+		matched_amount,
+		matched_at,
+		dismissed_at,
+		dismissal_reason
+	FROM planned_entry_statuses
+	WHERE planned_entry_id = $1
+		AND month = $2
+		AND year = $3;
+`
+
+func (r *repository) FetchPlannedEntryStatus(ctx context.Context, params fetchPlannedEntryStatusParams) (PlannedEntryStatusModel, error) {
+	var status PlannedEntryStatusModel
+	err := r.db.Query(ctx, &status, fetchPlannedEntryStatusQuery,
+		params.PlannedEntryID, params.Month, params.Year)
+	return status, err
+}
+
+type fetchPlannedEntryStatusesByMonthParams struct {
+	UserID         int
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+const fetchPlannedEntryStatusesByMonthQuery = `
+	-- financial.fetchPlannedEntryStatusesByMonthQuery
+	SELECT
+		pes.status_id,
+		pes.created_at,
+		pes.updated_at,
+		pes.planned_entry_id,
+		pes.month,
+		pes.year,
+		pes.status,
+		pes.matched_transaction_id,
+		pes.matched_amount,
+		pes.matched_at,
+		pes.dismissed_at,
+		pes.dismissal_reason
+	FROM planned_entry_statuses pes
+	INNER JOIN planned_entries pe ON pe.planned_entry_id = pes.planned_entry_id
+	WHERE pe.user_id = $1
+		AND pe.organization_id = $2
+		AND pes.month = $3
+		AND pes.year = $4
+	ORDER BY pe.entry_type ASC, pe.description ASC;
+`
+
+func (r *repository) FetchPlannedEntryStatusesByMonth(ctx context.Context, params fetchPlannedEntryStatusesByMonthParams) ([]PlannedEntryStatusModel, error) {
+	var statuses []PlannedEntryStatusModel
+	err := r.db.Query(ctx, &statuses, fetchPlannedEntryStatusesByMonthQuery,
+		params.UserID, params.OrganizationID, params.Month, params.Year)
+	return statuses, err
+}
+
+type upsertPlannedEntryStatusParams struct {
+	PlannedEntryID int
+	Month          int
+	Year           int
+	Status         string
+}
+
+const upsertPlannedEntryStatusQuery = `
+	-- financial.upsertPlannedEntryStatusQuery
+	INSERT INTO planned_entry_statuses (
+		planned_entry_id,
+		month,
+		year,
+		status
+	) VALUES ($1, $2, $3, $4)
+	ON CONFLICT (planned_entry_id, month, year)
+	DO UPDATE SET
+		status = EXCLUDED.status,
+		updated_at = CURRENT_TIMESTAMP
+	RETURNING
+		status_id,
+		created_at,
+		updated_at,
+		planned_entry_id,
+		month,
+		year,
+		status,
+		matched_transaction_id,
+		matched_amount,
+		matched_at,
+		dismissed_at,
+		dismissal_reason;
+`
+
+func (r *repository) UpsertPlannedEntryStatus(ctx context.Context, params upsertPlannedEntryStatusParams) (PlannedEntryStatusModel, error) {
+	var status PlannedEntryStatusModel
+	err := r.db.Query(ctx, &status, upsertPlannedEntryStatusQuery,
+		params.PlannedEntryID, params.Month, params.Year, params.Status)
+	return status, err
+}
+
+type modifyPlannedEntryStatusParams struct {
+	StatusID             int
+	Status               *string
+	MatchedTransactionID *int
+	MatchedAmount        *decimal.Decimal
+	MatchedAt            *string // Will be parsed as timestamp
+	DismissedAt          *string // Will be parsed as timestamp
+	DismissalReason      *string
+}
+
+const modifyPlannedEntryStatusQuery = `
+	-- financial.modifyPlannedEntryStatusQuery
+	UPDATE planned_entry_statuses
+	SET
+		status = COALESCE($2, status),
+		matched_transaction_id = COALESCE($3, matched_transaction_id),
+		matched_amount = COALESCE($4, matched_amount),
+		matched_at = COALESCE($5::timestamp, matched_at),
+		dismissed_at = COALESCE($6::timestamp, dismissed_at),
+		dismissal_reason = COALESCE($7, dismissal_reason),
+		updated_at = CURRENT_TIMESTAMP
+	WHERE status_id = $1
+	RETURNING
+		status_id,
+		created_at,
+		updated_at,
+		planned_entry_id,
+		month,
+		year,
+		status,
+		matched_transaction_id,
+		matched_amount,
+		matched_at,
+		dismissed_at,
+		dismissal_reason;
+`
+
+func (r *repository) ModifyPlannedEntryStatus(ctx context.Context, params modifyPlannedEntryStatusParams) (PlannedEntryStatusModel, error) {
+	var status PlannedEntryStatusModel
+	err := r.db.Query(ctx, &status, modifyPlannedEntryStatusQuery,
+		params.StatusID, params.Status, params.MatchedTransactionID,
+		params.MatchedAmount, params.MatchedAt, params.DismissedAt, params.DismissalReason)
+	return status, err
+}
+
+type removePlannedEntryStatusParams struct {
+	StatusID int
+}
+
+const removePlannedEntryStatusQuery = `
+	-- financial.removePlannedEntryStatusQuery
+	DELETE FROM planned_entry_statuses
+	WHERE status_id = $1;
+`
+
+func (r *repository) RemovePlannedEntryStatus(ctx context.Context, params removePlannedEntryStatusParams) error {
+	return r.db.Run(ctx, removePlannedEntryStatusQuery, params.StatusID)
 }

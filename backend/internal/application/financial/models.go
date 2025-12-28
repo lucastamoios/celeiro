@@ -180,27 +180,79 @@ type CategoryBudgetModel struct {
 type CategoryBudgetsModel []CategoryBudgetModel
 
 // PlannedEntry represents a planned transaction (recurrent or one-time)
+// Enhanced to support "Entrada Planejada" feature with pattern linking and status tracking
 type PlannedEntryModel struct {
 	PlannedEntryID int       `db:"planned_entry_id"`
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
 
-	UserID         int `db:"user_id"`
-	OrganizationID int `db:"organization_id"`
-	CategoryID     int `db:"category_id"`
+	UserID         int  `db:"user_id"`
+	OrganizationID int  `db:"organization_id"`
+	CategoryID     int  `db:"category_id"`
+	PatternID      *int `db:"pattern_id"` // Link to advanced pattern for auto-matching
 
 	Description string          `db:"description"`
-	Amount      decimal.Decimal `db:"amount"`
+	Amount      decimal.Decimal `db:"amount"` // Display amount
 
-	IsRecurrent    bool  `db:"is_recurrent"`
-	ParentEntryID  *int  `db:"parent_entry_id"`
-	ExpectedDay    *int  `db:"expected_day"`
+	// Amount range for matching (budget calculation uses AmountMax)
+	AmountMin *decimal.Decimal `db:"amount_min"`
+	AmountMax *decimal.Decimal `db:"amount_max"`
+
+	// Expected day range (e.g., expected between 14th-18th)
+	ExpectedDayStart *int `db:"expected_day_start"`
+	ExpectedDayEnd   *int `db:"expected_day_end"`
+	ExpectedDay      *int `db:"expected_day"` // Legacy field, kept for compatibility
+
+	// Entry type: 'expense' or 'income'
+	EntryType string `db:"entry_type"`
+
+	IsRecurrent   bool `db:"is_recurrent"`
+	ParentEntryID *int `db:"parent_entry_id"`
 
 	IsActive       bool `db:"is_active"`
 	IsSavedPattern bool `db:"is_saved_pattern"`
 }
 
 type PlannedEntriesModel []PlannedEntryModel
+
+// PlannedEntryStatus constants
+const (
+	PlannedEntryStatusPending   = "pending"   // Waiting for match
+	PlannedEntryStatusMatched   = "matched"   // Transaction matched
+	PlannedEntryStatusMissed    = "missed"    // Expected period passed, no match
+	PlannedEntryStatusDismissed = "dismissed" // User dismissed for this month
+)
+
+// PlannedEntryType constants
+const (
+	PlannedEntryTypeExpense = "expense"
+	PlannedEntryTypeIncome  = "income"
+)
+
+// PlannedEntryStatusModel tracks the monthly status of a planned entry
+type PlannedEntryStatusModel struct {
+	StatusID  int       `db:"status_id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+
+	PlannedEntryID int `db:"planned_entry_id"`
+	Month          int `db:"month"`
+	Year           int `db:"year"`
+
+	// Status: pending, matched, missed, dismissed
+	Status string `db:"status"`
+
+	// Matched transaction info (when status = matched)
+	MatchedTransactionID *int             `db:"matched_transaction_id"`
+	MatchedAmount        *decimal.Decimal `db:"matched_amount"`
+	MatchedAt            *time.Time       `db:"matched_at"`
+
+	// Dismissal info (when status = dismissed)
+	DismissedAt     *time.Time `db:"dismissed_at"`
+	DismissalReason *string    `db:"dismissal_reason"`
+}
+
+type PlannedEntryStatusesModel []PlannedEntryStatusModel
 
 // MonthlySnapshot represents historical budget vs actual data
 type MonthlySnapshotModel struct {

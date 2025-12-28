@@ -329,38 +329,58 @@ func (c CategoryBudgets) FromModel(models []CategoryBudgetModel) CategoryBudgets
 	return budgets
 }
 
-// PlannedEntry DTO
+// PlannedEntry DTO - Enhanced for "Entrada Planejada" feature
 type PlannedEntry struct {
-	PlannedEntryID int
-	UserID         int
-	OrganizationID int
-	CategoryID     int
-	Description    string
-	Amount         decimal.Decimal
-	IsRecurrent    bool
-	ParentEntryID  *int
-	ExpectedDay    *int
-	IsActive       bool
-	IsSavedPattern bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	PlannedEntryID int             `json:"planned_entry_id"`
+	UserID         int             `json:"user_id"`
+	OrganizationID int             `json:"organization_id"`
+	CategoryID     int             `json:"category_id"`
+	PatternID      *int            `json:"pattern_id,omitempty"`
+	Description    string          `json:"description"`
+	Amount         decimal.Decimal `json:"amount"`
+
+	// Amount range for matching (budget uses AmountMax)
+	AmountMin *decimal.Decimal `json:"amount_min,omitempty"`
+	AmountMax *decimal.Decimal `json:"amount_max,omitempty"`
+
+	// Expected day range
+	ExpectedDayStart *int `json:"expected_day_start,omitempty"`
+	ExpectedDayEnd   *int `json:"expected_day_end,omitempty"`
+	ExpectedDay      *int `json:"expected_day,omitempty"` // Legacy
+
+	// Entry type: expense or income
+	EntryType string `json:"entry_type"`
+
+	IsRecurrent    bool `json:"is_recurrent"`
+	ParentEntryID  *int `json:"parent_entry_id,omitempty"`
+	IsActive       bool `json:"is_active"`
+	IsSavedPattern bool `json:"is_saved_pattern"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (p PlannedEntry) FromModel(model *PlannedEntryModel) PlannedEntry {
 	return PlannedEntry{
-		PlannedEntryID: model.PlannedEntryID,
-		UserID:         model.UserID,
-		OrganizationID: model.OrganizationID,
-		CategoryID:     model.CategoryID,
-		Description:    model.Description,
-		Amount:         model.Amount,
-		IsRecurrent:    model.IsRecurrent,
-		ParentEntryID:  model.ParentEntryID,
-		ExpectedDay:    model.ExpectedDay,
-		IsActive:       model.IsActive,
-		IsSavedPattern: model.IsSavedPattern,
-		CreatedAt:      model.CreatedAt,
-		UpdatedAt:      model.UpdatedAt,
+		PlannedEntryID:   model.PlannedEntryID,
+		UserID:           model.UserID,
+		OrganizationID:   model.OrganizationID,
+		CategoryID:       model.CategoryID,
+		PatternID:        model.PatternID,
+		Description:      model.Description,
+		Amount:           model.Amount,
+		AmountMin:        model.AmountMin,
+		AmountMax:        model.AmountMax,
+		ExpectedDayStart: model.ExpectedDayStart,
+		ExpectedDayEnd:   model.ExpectedDayEnd,
+		ExpectedDay:      model.ExpectedDay,
+		EntryType:        model.EntryType,
+		IsRecurrent:      model.IsRecurrent,
+		ParentEntryID:    model.ParentEntryID,
+		IsActive:         model.IsActive,
+		IsSavedPattern:   model.IsSavedPattern,
+		CreatedAt:        model.CreatedAt,
+		UpdatedAt:        model.UpdatedAt,
 	}
 }
 
@@ -372,6 +392,85 @@ func (p PlannedEntries) FromModel(models []PlannedEntryModel) PlannedEntries {
 		entries[i] = PlannedEntry{}.FromModel(&model)
 	}
 	return entries
+}
+
+// PlannedEntryStatus DTO - Tracks monthly status of a planned entry
+type PlannedEntryStatus struct {
+	StatusID       int  `json:"status_id"`
+	PlannedEntryID int  `json:"planned_entry_id"`
+	Month          int  `json:"month"`
+	Year           int  `json:"year"`
+	Status         string `json:"status"` // pending, matched, missed, dismissed
+
+	// Matched transaction info
+	MatchedTransactionID *int             `json:"matched_transaction_id,omitempty"`
+	MatchedAmount        *decimal.Decimal `json:"matched_amount,omitempty"`
+	MatchedAt            *time.Time       `json:"matched_at,omitempty"`
+
+	// Dismissal info
+	DismissedAt     *time.Time `json:"dismissed_at,omitempty"`
+	DismissalReason *string    `json:"dismissal_reason,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (s PlannedEntryStatus) FromModel(model *PlannedEntryStatusModel) PlannedEntryStatus {
+	return PlannedEntryStatus{
+		StatusID:             model.StatusID,
+		PlannedEntryID:       model.PlannedEntryID,
+		Month:                model.Month,
+		Year:                 model.Year,
+		Status:               model.Status,
+		MatchedTransactionID: model.MatchedTransactionID,
+		MatchedAmount:        model.MatchedAmount,
+		MatchedAt:            model.MatchedAt,
+		DismissedAt:          model.DismissedAt,
+		DismissalReason:      model.DismissalReason,
+		CreatedAt:            model.CreatedAt,
+		UpdatedAt:            model.UpdatedAt,
+	}
+}
+
+type PlannedEntryStatuses []PlannedEntryStatus
+
+func (s PlannedEntryStatuses) FromModel(models []PlannedEntryStatusModel) PlannedEntryStatuses {
+	statuses := make(PlannedEntryStatuses, len(models))
+	for i, model := range models {
+		statuses[i] = PlannedEntryStatus{}.FromModel(&model)
+	}
+	return statuses
+}
+
+// PlannedEntryWithStatus combines a planned entry with its current month status
+type PlannedEntryWithStatus struct {
+	PlannedEntry
+	Status        string           `json:"status"`        // Current status for the month
+	StatusColor   string           `json:"status_color"`  // green, yellow, red, gray
+	MatchedAmount *decimal.Decimal `json:"matched_amount,omitempty"`
+
+	// Matched transaction info (when status = matched)
+	MatchedTransactionID *int    `json:"matched_transaction_id,omitempty"`
+	MatchedAt            *string `json:"matched_at,omitempty"` // ISO 8601 format
+
+	// Optional linked pattern info
+	LinkedPattern *AdvancedPattern `json:"linked_pattern,omitempty"`
+}
+
+// GetStatusColor returns the appropriate color for a status
+func GetStatusColor(status string) string {
+	switch status {
+	case PlannedEntryStatusMatched:
+		return "green"
+	case PlannedEntryStatusPending:
+		return "yellow"
+	case PlannedEntryStatusMissed:
+		return "red"
+	case PlannedEntryStatusDismissed:
+		return "gray"
+	default:
+		return "gray"
+	}
 }
 
 // MonthlySnapshot DTO

@@ -3,7 +3,7 @@ import type { Category } from '../types/category';
 
 export interface InitialPatternData {
   description: string;
-  categoryId: number;
+  categoryId?: number;
   amount?: string;
   expectedDay?: number;
 }
