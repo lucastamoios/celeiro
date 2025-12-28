@@ -1384,6 +1384,40 @@ func (h *Handler) SaveTransactionAsPattern(w http.ResponseWriter, r *http.Reques
 	responses.NewSuccess(pattern, w)
 }
 
+// GetTransactionPlannedEntry retrieves the planned entry linked to a transaction
+// GET /financial/transactions/{id}/planned-entry
+func (h *Handler) GetTransactionPlannedEntry(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	transactionID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	entry, err := h.app.FinancialService.GetPlannedEntryForTransaction(r.Context(), financialApp.GetPlannedEntryForTransactionInput{
+		TransactionID:  transactionID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	// Return empty object if no linked entry (instead of null for better frontend handling)
+	if entry == nil {
+		responses.NewSuccess(struct{}{}, w)
+		return
+	}
+
+	responses.NewSuccess(entry, w)
+}
+
 // ============================================================================
 // Advanced Patterns
 // ============================================================================

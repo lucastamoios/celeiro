@@ -152,7 +152,43 @@ func (s *service) GetAdvancedPatterns(ctx context.Context, input GetAdvancedPatt
 		return nil, fmt.Errorf("failed to fetch advanced patterns: %w", err)
 	}
 
-	return AdvancedPatterns{}.FromModel(patterns), nil
+	result := AdvancedPatterns{}.FromModel(patterns)
+
+	// Fetch linked planned entries for all patterns
+	if len(patterns) > 0 {
+		patternIDs := make([]int, len(patterns))
+		for i, p := range patterns {
+			patternIDs[i] = p.PatternID
+		}
+
+		linkedEntries, err := s.Repository.FetchPlannedEntriesByPatternIDs(ctx, fetchPlannedEntriesByPatternIDsParams{
+			PatternIDs:     patternIDs,
+			UserID:         input.UserID,
+			OrganizationID: input.OrganizationID,
+		})
+		if err != nil {
+			// Log warning but don't fail the request
+			// The patterns are still useful without linked entries
+		} else {
+			// Group linked entries by pattern ID
+			entriesByPattern := make(map[int][]LinkedPlannedEntrySummary)
+			for _, entry := range linkedEntries {
+				entriesByPattern[entry.PatternID] = append(entriesByPattern[entry.PatternID], LinkedPlannedEntrySummary{
+					PlannedEntryID: entry.PlannedEntryID,
+					Name:           entry.Description,
+				})
+			}
+
+			// Attach to each pattern
+			for i := range result {
+				if entries, ok := entriesByPattern[result[i].PatternID]; ok {
+					result[i].LinkedPlannedEntries = entries
+				}
+			}
+		}
+	}
+
+	return result, nil
 }
 
 func (s *service) GetAdvancedPatternByID(ctx context.Context, input GetAdvancedPatternByIDInput) (AdvancedPattern, error) {

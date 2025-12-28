@@ -305,6 +305,13 @@ type PatternsModel []PatternModel
 type AdvancedPatternModel = PatternModel
 type AdvancedPatternsModel = PatternsModel
 
+// PlannedEntryByPatternModel is a minimal model for planned entries linked to patterns
+type PlannedEntryByPatternModel struct {
+	PlannedEntryID int    `db:"planned_entry_id"`
+	PatternID      int    `db:"pattern_id"`
+	Description    string `db:"description"`
+}
+
 // Transaction Matching Constants
 const (
 	// Matching weights (must sum to 1.0)

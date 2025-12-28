@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
+import type { PlannedEntryWithStatus } from '../types/budget';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { CATEGORY_COLORS } from '../utils/colors';
+import { getPlannedEntryForTransaction } from '../api/budget';
 import AdvancedPatternCreator, { type AdvancedPattern } from './AdvancedPatternCreator';
 
 const AVAILABLE_ICONS = ['🍔', '🚗', '🏠', '💡', '🎮', '👕', '💊', '📚', '✈️', '🎁', '💰', '📱', '🏥', '🎬', '🛒', '☕', '🍕', '🎵', '🏋️', '🐕'];
@@ -31,12 +33,41 @@ export default function TransactionEditModal({
   
   // Advanced pattern creator
   const [showAdvancedPatternCreator, setShowAdvancedPatternCreator] = useState(false);
-  
+
+  // Linked planned entry
+  const [linkedPlannedEntry, setLinkedPlannedEntry] = useState<PlannedEntryWithStatus | null>(null);
+  const [loadingPlannedEntry, setLoadingPlannedEntry] = useState(true);
+
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('📁');
   const [newCategoryColor, setNewCategoryColor] = useState(CATEGORY_COLORS[0]);
   const [creatingCategory, setCreatingCategory] = useState(false);
+
+  // Fetch linked planned entry when modal opens
+  useEffect(() => {
+    const fetchLinkedPlannedEntry = async () => {
+      if (!token) {
+        setLoadingPlannedEntry(false);
+        return;
+      }
+
+      try {
+        const entry = await getPlannedEntryForTransaction(
+          transaction.transaction_id,
+          { token, organizationId: '1' }
+        );
+        setLinkedPlannedEntry(entry);
+      } catch (err) {
+        console.error('Failed to fetch linked planned entry:', err);
+        // Don't set error - this is optional information
+      } finally {
+        setLoadingPlannedEntry(false);
+      }
+    };
+
+    fetchLinkedPlannedEntry();
+  }, [token, transaction.transaction_id]);
 
   const handleSave = async () => {
     if (!token) return;
@@ -232,6 +263,51 @@ export default function TransactionEditModal({
               </div>
             )}
           </div>
+
+          {/* Linked Planned Entry */}
+          {!loadingPlannedEntry && linkedPlannedEntry && (
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 border border-purple-200">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📋</span>
+                    <span className="text-sm font-medium text-purple-700">Entrada Planejada Vinculada</span>
+                  </div>
+                  <h4 className="font-semibold text-gray-900">{linkedPlannedEntry.Description}</h4>
+                  <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
+                    <span className="flex items-center gap-1">
+                      💰 {formatCurrency(linkedPlannedEntry.Amount)}
+                    </span>
+                    {linkedPlannedEntry.MatchedAt && (
+                      <span className="flex items-center gap-1">
+                        📅 Vinculado em {formatDate(linkedPlannedEntry.MatchedAt)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                  linkedPlannedEntry.Status === 'matched'
+                    ? 'bg-green-100 text-green-700'
+                    : linkedPlannedEntry.Status === 'pending'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : linkedPlannedEntry.Status === 'missed'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {linkedPlannedEntry.Status === 'matched' ? '✓ Vinculado'
+                    : linkedPlannedEntry.Status === 'pending' ? '⏳ Pendente'
+                    : linkedPlannedEntry.Status === 'missed' ? '⚠️ Atrasado'
+                    : linkedPlannedEntry.Status}
+                </span>
+              </div>
+            </div>
+          )}
+          {loadingPlannedEntry && (
+            <div className="bg-gray-50 rounded-xl p-4 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+              <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          )}
 
           {/* Description */}
           <div>

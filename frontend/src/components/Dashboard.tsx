@@ -445,40 +445,46 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
               </div>
             </div>
 
-            {/* Top Categories */}
-            {stats.budgetSummary.budgetsByCategory.length > 0 && (
+            {/* Gastos por Categoria */}
+            {stats.categoryExpenses.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Por Categoria</h3>
-                <div className="space-y-3">
-                  {stats.budgetSummary.budgetsByCategory.map(({ category, planned, actual }) => {
-                    const percentage = planned > 0 ? (actual / planned) * 100 : 0;
-                    const isOverBudget = actual > planned;
+                <div className="space-y-4">
+                  {stats.categoryExpenses.map(({ category, amount, percentage }) => {
                     const hexColor = category.color || '#6B7280';
+                    const r = parseInt(hexColor.slice(1, 3), 16);
+                    const g = parseInt(hexColor.slice(3, 5), 16);
+                    const b = parseInt(hexColor.slice(5, 7), 16);
 
                     return (
-                      <div key={category.category_id} className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
-                          style={{ backgroundColor: `${hexColor}20` }}>
-                          {category.icon || '📦'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-900 truncate">{category.name}</span>
-                            <span className={`text-xs font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-600'}`}>
-                              {formatCurrency(actual)} / {formatCurrency(planned)}
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div key={category.category_id}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
                             <div
-                              className={`h-2 rounded-full transition-all duration-300 ${
-                                isOverBudget ? 'bg-red-500' : ''
-                              }`}
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                               style={{
-                                width: `${Math.min(100, percentage)}%`,
-                                backgroundColor: isOverBudget ? undefined : hexColor,
+                                backgroundColor: `rgba(${r}, ${g}, ${b}, 0.1)`,
+                                borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`,
+                                borderWidth: '2px',
+                                borderStyle: 'solid',
                               }}
-                            />
+                            >
+                              {category.icon || '📦'}
+                            </div>
+                            <div>
+                              <span className="text-sm font-semibold text-gray-900">{category.name}</span>
+                              <div className="text-xs text-gray-500">{percentage.toFixed(1)}% do total</div>
+                            </div>
                           </div>
+                          <span className="text-sm font-bold text-gray-900">{formatCurrency(amount)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="h-3 rounded-full transition-all duration-500"
+                            style={{
+                              width: `${percentage}%`,
+                              backgroundColor: hexColor,
+                            }}
+                          />
                         </div>
                       </div>
                     );
@@ -511,63 +517,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             )}
           </div>
         )}
-
-        {/* Category Expenses Chart */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Gastos por Categoria</h2>
-          
-          {stats.categoryExpenses.length > 0 ? (
-            <div className="space-y-4">
-              {stats.categoryExpenses.map(({ category, amount, percentage }) => {
-                const hexColor = category.color || '#6B7280';
-                const r = parseInt(hexColor.slice(1, 3), 16);
-                const g = parseInt(hexColor.slice(3, 5), 16);
-                const b = parseInt(hexColor.slice(5, 7), 16);
-                
-                return (
-                  <div key={category.category_id}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                          style={{ 
-                            backgroundColor: `rgba(${r}, ${g}, ${b}, 0.1)`,
-                            borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`,
-                            borderWidth: '2px',
-                            borderStyle: 'solid',
-                          }}
-                        >
-                          {category.icon || '📦'}
-                        </div>
-                        <div>
-                          <span className="text-sm font-semibold text-gray-900">{category.name}</span>
-                          <div className="text-xs text-gray-500">{percentage.toFixed(1)}% do total</div>
-                        </div>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900">{formatCurrency(amount)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                      <div
-                        className="h-3 rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${percentage}%`,
-                          backgroundColor: hexColor,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📊</div>
-              <p className="text-gray-500 text-sm">
-                Nenhuma despesa categorizada este mês
-              </p>
-            </div>
-          )}
-        </div>
 
         {/* Uncategorized Transactions Alert */}
         {stats.uncategorizedCount > 0 && (
