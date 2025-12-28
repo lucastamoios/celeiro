@@ -331,33 +331,32 @@ func (c CategoryBudgets) FromModel(models []CategoryBudgetModel) CategoryBudgets
 
 // PlannedEntry DTO - Enhanced for "Entrada Planejada" feature
 type PlannedEntry struct {
-	PlannedEntryID int             `json:"planned_entry_id"`
-	UserID         int             `json:"user_id"`
-	OrganizationID int             `json:"organization_id"`
-	CategoryID     int             `json:"category_id"`
-	PatternID      *int            `json:"pattern_id,omitempty"`
-	Description    string          `json:"description"`
-	Amount         decimal.Decimal `json:"amount"`
+	PlannedEntryID int
+	UserID         int
+	OrganizationID int
+	CategoryID     int
+	PatternID      *int            `json:",omitempty"`
+	Description    string
+	Amount         decimal.Decimal
 
 	// Amount range for matching (budget uses AmountMax)
-	AmountMin *decimal.Decimal `json:"amount_min,omitempty"`
-	AmountMax *decimal.Decimal `json:"amount_max,omitempty"`
+	AmountMin *decimal.Decimal `json:",omitempty"`
+	AmountMax *decimal.Decimal `json:",omitempty"`
 
 	// Expected day range
-	ExpectedDayStart *int `json:"expected_day_start,omitempty"`
-	ExpectedDayEnd   *int `json:"expected_day_end,omitempty"`
-	ExpectedDay      *int `json:"expected_day,omitempty"` // Legacy
+	ExpectedDayStart *int `json:",omitempty"`
+	ExpectedDayEnd   *int `json:",omitempty"`
+	ExpectedDay      *int `json:",omitempty"` // Legacy
 
 	// Entry type: expense or income
-	EntryType string `json:"entry_type"`
+	EntryType string
 
-	IsRecurrent    bool `json:"is_recurrent"`
-	ParentEntryID  *int `json:"parent_entry_id,omitempty"`
-	IsActive       bool `json:"is_active"`
-	IsSavedPattern bool `json:"is_saved_pattern"`
+	IsRecurrent   bool
+	ParentEntryID *int `json:",omitempty"`
+	IsActive      bool
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (p PlannedEntry) FromModel(model *PlannedEntryModel) PlannedEntry {
@@ -375,12 +374,11 @@ func (p PlannedEntry) FromModel(model *PlannedEntryModel) PlannedEntry {
 		ExpectedDayEnd:   model.ExpectedDayEnd,
 		ExpectedDay:      model.ExpectedDay,
 		EntryType:        model.EntryType,
-		IsRecurrent:      model.IsRecurrent,
-		ParentEntryID:    model.ParentEntryID,
-		IsActive:         model.IsActive,
-		IsSavedPattern:   model.IsSavedPattern,
-		CreatedAt:        model.CreatedAt,
-		UpdatedAt:        model.UpdatedAt,
+		IsRecurrent:   model.IsRecurrent,
+		ParentEntryID: model.ParentEntryID,
+		IsActive:      model.IsActive,
+		CreatedAt:     model.CreatedAt,
+		UpdatedAt:     model.UpdatedAt,
 	}
 }
 
@@ -396,23 +394,23 @@ func (p PlannedEntries) FromModel(models []PlannedEntryModel) PlannedEntries {
 
 // PlannedEntryStatus DTO - Tracks monthly status of a planned entry
 type PlannedEntryStatus struct {
-	StatusID       int  `json:"status_id"`
-	PlannedEntryID int  `json:"planned_entry_id"`
-	Month          int  `json:"month"`
-	Year           int  `json:"year"`
-	Status         string `json:"status"` // pending, matched, missed, dismissed
+	StatusID       int
+	PlannedEntryID int
+	Month          int
+	Year           int
+	Status         string // pending, matched, missed, dismissed
 
 	// Matched transaction info
-	MatchedTransactionID *int             `json:"matched_transaction_id,omitempty"`
-	MatchedAmount        *decimal.Decimal `json:"matched_amount,omitempty"`
-	MatchedAt            *time.Time       `json:"matched_at,omitempty"`
+	MatchedTransactionID *int             `json:",omitempty"`
+	MatchedAmount        *decimal.Decimal `json:",omitempty"`
+	MatchedAt            *time.Time       `json:",omitempty"`
 
 	// Dismissal info
-	DismissedAt     *time.Time `json:"dismissed_at,omitempty"`
-	DismissalReason *string    `json:"dismissal_reason,omitempty"`
+	DismissedAt     *time.Time `json:",omitempty"`
+	DismissalReason *string    `json:",omitempty"`
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (s PlannedEntryStatus) FromModel(model *PlannedEntryStatusModel) PlannedEntryStatus {
@@ -445,16 +443,16 @@ func (s PlannedEntryStatuses) FromModel(models []PlannedEntryStatusModel) Planne
 // PlannedEntryWithStatus combines a planned entry with its current month status
 type PlannedEntryWithStatus struct {
 	PlannedEntry
-	Status        string           `json:"status"`        // Current status for the month
-	StatusColor   string           `json:"status_color"`  // green, yellow, red, gray
-	MatchedAmount *decimal.Decimal `json:"matched_amount,omitempty"`
+	Status        string           // Current status for the month
+	StatusColor   string           // green, yellow, red, gray
+	MatchedAmount *decimal.Decimal `json:",omitempty"`
 
 	// Matched transaction info (when status = matched)
-	MatchedTransactionID *int    `json:"matched_transaction_id,omitempty"`
-	MatchedAt            *string `json:"matched_at,omitempty"` // ISO 8601 format
+	MatchedTransactionID *int    `json:",omitempty"`
+	MatchedAt            *string `json:",omitempty"` // ISO 8601 format
 
 	// Optional linked pattern info
-	LinkedPattern *AdvancedPattern `json:"linked_pattern,omitempty"`
+	LinkedPattern *AdvancedPattern `json:",omitempty"`
 }
 
 // GetStatusColor returns the appropriate color for a status
@@ -516,20 +514,20 @@ func (m MonthlySnapshots) FromModel(models []MonthlySnapshotModel) MonthlySnapsh
 
 // AdvancedPattern DTO
 type AdvancedPattern struct {
-	PatternID          int              `json:"pattern_id"`
-	UserID             int              `json:"user_id"`
-	OrganizationID     int              `json:"organization_id"`
-	DescriptionPattern *string          `json:"description_pattern,omitempty"`
-	DatePattern        *string          `json:"date_pattern,omitempty"`
-	WeekdayPattern     *string          `json:"weekday_pattern,omitempty"`
-	AmountMin          *decimal.Decimal `json:"amount_min,omitempty"`
-	AmountMax          *decimal.Decimal `json:"amount_max,omitempty"`
-	TargetDescription  string           `json:"target_description"`
-	TargetCategoryID   int              `json:"target_category_id"`
-	ApplyRetroactively bool             `json:"apply_retroactively"`
-	IsActive           bool             `json:"is_active"`
-	CreatedAt          time.Time        `json:"created_at"`
-	UpdatedAt          time.Time        `json:"updated_at"`
+	PatternID          int
+	UserID             int
+	OrganizationID     int
+	DescriptionPattern *string          `json:",omitempty"`
+	DatePattern        *string          `json:",omitempty"`
+	WeekdayPattern     *string          `json:",omitempty"`
+	AmountMin          *decimal.Decimal `json:",omitempty"`
+	AmountMax          *decimal.Decimal `json:",omitempty"`
+	TargetDescription  string
+	TargetCategoryID   int
+	ApplyRetroactively bool
+	IsActive           bool
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 func (a AdvancedPattern) FromModel(model *AdvancedPatternModel) AdvancedPattern {

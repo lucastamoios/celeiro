@@ -209,8 +209,7 @@ type PlannedEntryModel struct {
 	IsRecurrent   bool `db:"is_recurrent"`
 	ParentEntryID *int `db:"parent_entry_id"`
 
-	IsActive       bool `db:"is_active"`
-	IsSavedPattern bool `db:"is_saved_pattern"`
+	IsActive bool `db:"is_active"`
 }
 
 type PlannedEntriesModel []PlannedEntryModel

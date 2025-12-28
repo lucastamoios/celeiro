@@ -892,7 +892,7 @@ func (h *Handler) ListPlannedEntries(w http.ResponseWriter, r *http.Request) {
 
 	// Parse optional query parameters
 	var categoryID *int
-	var isRecurrent, isSavedPattern, isActive *bool
+	var isRecurrent, isActive *bool
 
 	if catStr := r.URL.Query().Get("category_id"); catStr != "" {
 		c, err := strconv.Atoi(catStr)
@@ -904,10 +904,6 @@ func (h *Handler) ListPlannedEntries(w http.ResponseWriter, r *http.Request) {
 		b := recStr == "true"
 		isRecurrent = &b
 	}
-	if patStr := r.URL.Query().Get("is_saved_pattern"); patStr != "" {
-		b := patStr == "true"
-		isSavedPattern = &b
-	}
 	if actStr := r.URL.Query().Get("is_active"); actStr != "" {
 		b := actStr == "true"
 		isActive = &b
@@ -918,7 +914,6 @@ func (h *Handler) ListPlannedEntries(w http.ResponseWriter, r *http.Request) {
 		OrganizationID: organizationID,
 		CategoryID:     categoryID,
 		IsRecurrent:    isRecurrent,
-		IsSavedPattern: isSavedPattern,
 		IsActive:       isActive,
 	})
 	if err != nil {
@@ -1001,10 +996,9 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		ExpectedDayStart   *int     `json:"expected_day_start,omitempty"`
 		ExpectedDayEnd     *int     `json:"expected_day_end,omitempty"`
 		ExpectedDay        *int     `json:"expected_day,omitempty"`
-		EntryType          string   `json:"entry_type"`
-		IsRecurrent        bool     `json:"is_recurrent"`
-		ParentEntryID      *int     `json:"parent_entry_id,omitempty"`
-		IsSavedPattern     bool     `json:"is_saved_pattern"`
+		EntryType     string `json:"entry_type"`
+		IsRecurrent   bool   `json:"is_recurrent"`
+		ParentEntryID *int   `json:"parent_entry_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1023,9 +1017,9 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		amountMax = &amt
 	}
 
-	// If saving as pattern, create an Advanced Pattern first
+	// If a description pattern is provided, create an Advanced Pattern first
 	var patternID *int
-	if req.IsSavedPattern && req.DescriptionPattern != nil && *req.DescriptionPattern != "" {
+	if req.DescriptionPattern != nil && *req.DescriptionPattern != "" {
 		pattern, err := h.app.FinancialService.CreateAdvancedPattern(r.Context(), financialApp.CreateAdvancedPatternInput{
 			UserID:             userID,
 			OrganizationID:     organizationID,
@@ -1060,7 +1054,6 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		EntryType:        req.EntryType,
 		IsRecurrent:      req.IsRecurrent,
 		ParentEntryID:    req.ParentEntryID,
-		IsSavedPattern:   req.IsSavedPattern,
 	})
 	if err != nil {
 		responses.NewError(w, err)

@@ -434,19 +434,16 @@ export async function deletePlannedEntry(
   entryId: number,
   options: RequestOptions
 ): Promise<void> {
-  const url = `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}`;
-  console.log('DELETE request to:', url, 'with ID:', entryId); // Debug log
-
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: createHeaders(options),
-  });
-
-  console.log('DELETE response status:', response.status); // Debug log
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries/${entryId}`,
+    {
+      method: 'DELETE',
+      headers: createHeaders(options),
+    }
+  );
 
   if (!response.ok) {
     const error = await response.text();
-    console.error('DELETE error response:', error); // Debug log
     throw new Error(`Failed to delete planned entry: ${error}`);
   }
 }
@@ -493,12 +490,13 @@ export async function getPlannedEntriesForMonth(
   params.append('month', month.toString());
   params.append('year', year.toString());
 
-  const url = `${API_CONFIG.baseURL}/financial/planned-entries/month?${params.toString()}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: createHeaders(options),
-  });
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/planned-entries/month?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: createHeaders(options),
+    }
+  );
 
   if (!response.ok) {
     const error = await response.text();

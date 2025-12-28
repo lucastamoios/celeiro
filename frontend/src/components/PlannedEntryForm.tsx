@@ -1,17 +1,79 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Category } from '../types/category';
+import type { Transaction } from '../types/transaction';
 import type { PlannedEntry, CreatePlannedEntryRequest } from '../types/budget';
 
 interface PlannedEntryFormProps {
   categories: Category[];
+  transactions?: Transaction[]; // For pattern autocomplete
+  transactionsLoading?: boolean; // Loading state for transactions
   onSubmit: (data: CreatePlannedEntryRequest) => void;
   onCancel: () => void;
   initialEntry?: PlannedEntry;
   isLoading?: boolean;
 }
 
+// Match scoring function - returns a score (higher = better match)
+// Returns 0 if no match, 1 for fuzzy, 2 for contains, 3 for exact word match
+function getMatchScore(text: string, query: string): number {
+  if (!query.trim()) return 1; // No query = all match equally
+
+  const textLower = text.toLowerCase();
+  const queryLower = query.toLowerCase().trim();
+
+  // Exact match or starts with query = highest priority
+  if (textLower === queryLower || textLower.startsWith(queryLower + ' ') || textLower.startsWith(queryLower)) {
+    return 4;
+  }
+
+  // Contains the exact word (surrounded by spaces or at boundaries)
+  const wordBoundaryRegex = new RegExp(`(^|\\s|[^a-zA-Z0-9])${queryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|\\s|[^a-zA-Z0-9])`, 'i');
+  if (wordBoundaryRegex.test(text)) {
+    return 3;
+  }
+
+  // Contains as substring
+  if (textLower.includes(queryLower)) {
+    return 2;
+  }
+
+  // Fuzzy match - all characters appear in order
+  let queryIndex = 0;
+  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
+    if (textLower[i] === queryLower[queryIndex]) {
+      queryIndex++;
+    }
+  }
+  if (queryIndex === queryLower.length) {
+    return 1;
+  }
+
+  return 0; // No match
+}
+
+// Get unique descriptions from transactions
+function getUniqueDescriptions(transactions: Transaction[]): { description: string; count: number; example: Transaction }[] {
+  const descMap = new Map<string, { count: number; example: Transaction }>();
+
+  for (const tx of transactions) {
+    const desc = tx.original_description || tx.description;
+    const existing = descMap.get(desc);
+    if (existing) {
+      existing.count++;
+    } else {
+      descMap.set(desc, { count: 1, example: tx });
+    }
+  }
+
+  return Array.from(descMap.entries())
+    .map(([description, data]) => ({ description, ...data }))
+    .sort((a, b) => b.count - a.count); // Sort by frequency
+}
+
 export default function PlannedEntryForm({
   categories,
+  transactions = [],
+  transactionsLoading = false,
   onSubmit,
   onCancel,
   initialEntry,
@@ -56,6 +118,52 @@ export default function PlannedEntryForm({
     initialEntry?.IsSavedPattern || false
   );
   const [descriptionPattern, setDescriptionPattern] = useState<string>('');
+  const [showPatternDropdown, setShowPatternDropdown] = useState(false);
+  const patternInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get unique transaction descriptions for autocomplete
+  const uniqueDescriptions = useMemo(() => getUniqueDescriptions(transactions), [transactions]);
+
+  // Filter and sort descriptions based on pattern input
+  const filteredDescriptions = useMemo(() => {
+    if (!descriptionPattern.trim()) {
+      return uniqueDescriptions.slice(0, 15); // Show top 15 most frequent
+    }
+
+    // Score each item and filter out non-matches
+    const scoredItems = uniqueDescriptions
+      .map(item => ({
+        ...item,
+        score: getMatchScore(item.description, descriptionPattern),
+      }))
+      .filter(item => item.score > 0);
+
+    // Sort by score (descending), then by frequency (descending)
+    scoredItems.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.count - a.count;
+    });
+
+    return scoredItems.slice(0, 15);
+  }, [uniqueDescriptions, descriptionPattern]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        patternInputRef.current &&
+        !patternInputRef.current.contains(event.target as Node)
+      ) {
+        setShowPatternDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [errors, setErrors] = useState<{
     categoryId?: string;
@@ -475,24 +583,103 @@ export default function PlannedEntryForm({
             >
               Padrão de Descrição *
             </label>
-            <input
-              id="descriptionPattern"
-              type="text"
-              value={descriptionPattern}
-              onChange={(e) => {
-                setDescriptionPattern(e.target.value);
-                if (errors.descriptionPattern) {
-                  setErrors({ ...errors, descriptionPattern: undefined });
-                }
-              }}
-              disabled={isLoading}
-              placeholder="Ex: NETFLIX, PIX RECEBIDO"
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                errors.descriptionPattern ? 'border-red-500' : 'border-gray-300'
-              }`}
-            />
-            <p className="mt-1 text-xs text-gray-600">
-              Texto que será buscado na descrição das transações para auto-matching.
+            <div className="relative">
+              <input
+                ref={patternInputRef}
+                id="descriptionPattern"
+                type="text"
+                value={descriptionPattern}
+                onChange={(e) => {
+                  setDescriptionPattern(e.target.value);
+                  setShowPatternDropdown(true);
+                  if (errors.descriptionPattern) {
+                    setErrors({ ...errors, descriptionPattern: undefined });
+                  }
+                }}
+                onFocus={() => setShowPatternDropdown(true)}
+                disabled={isLoading}
+                placeholder="Digite para buscar nas transações..."
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                  errors.descriptionPattern ? 'border-red-500' : 'border-gray-300'
+                }`}
+              />
+
+              {/* Transaction Dropdown */}
+              {showPatternDropdown && transactions.length > 0 && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+                >
+                  <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border-b sticky top-0">
+                    {filteredDescriptions.length > 0
+                      ? `${filteredDescriptions.length} transações encontradas - clique para usar`
+                      : 'Nenhuma transação encontrada'
+                    }
+                  </div>
+                  {filteredDescriptions.map((item, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      title={item.description}
+                      onClick={() => {
+                        setDescriptionPattern(item.description);
+                        setShowPatternDropdown(false);
+                        if (errors.descriptionPattern) {
+                          setErrors({ ...errors, descriptionPattern: undefined });
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-sm text-gray-900 truncate flex-1 mr-2 group-hover:whitespace-normal group-hover:break-words"
+                          title={item.description}
+                        >
+                          {item.description}
+                        </span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">
+                          {item.count}x
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-xs ${item.example.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(item.example.amount))}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(item.example.transaction_date).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                  {filteredDescriptions.length === 0 && (
+                    <div className="px-3 py-4 text-center text-sm text-gray-500">
+                      Nenhuma transação corresponde ao filtro
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Show loading state when fetching transactions */}
+              {showPatternDropdown && transactionsLoading && (
+                <div className="absolute z-20 w-full mt-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700 flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Carregando transações...
+                </div>
+              )}
+
+              {/* Show hint when no transactions and not loading */}
+              {showPatternDropdown && !transactionsLoading && transactions.length === 0 && (
+                <div className="absolute z-20 w-full mt-1 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-yellow-700">
+                  ⚠️ Nenhuma transação carregada. Digite o padrão manualmente.
+                </div>
+              )}
+            </div>
+
+            <p className="mt-2 text-xs text-gray-600">
+              Selecione uma transação acima ou digite um padrão manualmente.
               Ex: "NETFLIX" irá corresponder a "NETFLIX.COM" ou "PAGAMENTO NETFLIX".
             </p>
             {errors.descriptionPattern && (

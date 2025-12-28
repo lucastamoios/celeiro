@@ -32,7 +32,7 @@ func (s *service) SaveTransactionAsPattern(ctx context.Context, input SaveTransa
 		return PlannedEntry{}, fmt.Errorf("transaction must be categorized before saving as pattern")
 	}
 
-	// 3. Create planned entry with is_saved_pattern = true
+	// 3. Create planned entry (pattern linking is handled separately)
 	entry, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
@@ -42,7 +42,7 @@ func (s *service) SaveTransactionAsPattern(ctx context.Context, input SaveTransa
 		IsRecurrent:    input.IsRecurrent,
 		ParentEntryID:  nil, // Patterns are top-level entries
 		ExpectedDay:    input.ExpectedDay,
-		IsSavedPattern: true, // Mark as pattern
+		EntryType:      PlannedEntryTypeExpense, // Default to expense
 	})
 	if err != nil {
 		return PlannedEntry{}, fmt.Errorf("failed to create pattern: %w", err)
@@ -78,11 +78,12 @@ func (s *service) GetMatchSuggestionsForTransaction(ctx context.Context, input G
 		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
 	}
 
-	// 2. Fetch all saved patterns (optionally filtered by category)
-	patterns, err := s.Repository.FetchSavedPatterns(ctx, fetchSavedPatternsParams{
+	// 2. Fetch all planned entries with linked patterns
+	isActiveTrue := true
+	patterns, err := s.Repository.FetchPlannedEntriesWithPattern(ctx, fetchPlannedEntriesWithPatternParams{
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
-		CategoryID:     input.CategoryID,
+		IsActive:       &isActiveTrue,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch patterns: %w", err)
@@ -141,9 +142,9 @@ func (s *service) ApplyPatternToTransaction(ctx context.Context, input ApplyPatt
 		return Transaction{}, fmt.Errorf("failed to fetch pattern: %w", err)
 	}
 
-	// 2. Validate it's actually a saved pattern
-	if !pattern.IsSavedPattern {
-		return Transaction{}, fmt.Errorf("entry %d is not a saved pattern", input.PatternID)
+	// 2. Validate it has a linked pattern
+	if pattern.PatternID == nil {
+		return Transaction{}, fmt.Errorf("entry %d does not have a linked pattern", input.PatternID)
 	}
 
 	// 3. Update the transaction's category

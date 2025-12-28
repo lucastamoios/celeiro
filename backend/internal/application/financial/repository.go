@@ -66,7 +66,6 @@ type Repository interface {
 	FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error)
 	FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error)
 	FetchPlannedEntriesByParent(ctx context.Context, params fetchPlannedEntriesByParentParams) ([]PlannedEntryModel, error)
-	FetchSavedPatterns(ctx context.Context, params fetchSavedPatternsParams) ([]PlannedEntryModel, error)
 	FetchPlannedEntriesWithPattern(ctx context.Context, params fetchPlannedEntriesWithPatternParams) ([]PlannedEntryModel, error)
 	InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error)
 	ModifyPlannedEntry(ctx context.Context, params modifyPlannedEntryParams) (PlannedEntryModel, error)
@@ -1435,7 +1434,6 @@ type fetchPlannedEntriesParams struct {
 	OrganizationID int
 	CategoryID     *int
 	IsRecurrent    *bool
-	IsSavedPattern *bool
 	IsActive       *bool
 }
 
@@ -1459,15 +1457,13 @@ const fetchPlannedEntriesQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		is_active,
-		is_saved_pattern
+		is_active
 	FROM planned_entries
 	WHERE user_id = $1
 		AND organization_id = $2
 		AND ($3::int IS NULL OR category_id = $3)
 		AND ($4::bool IS NULL OR is_recurrent = $4)
-		AND ($5::bool IS NULL OR is_saved_pattern = $5)
-		AND ($6::bool IS NULL OR is_active = $6)
+		AND ($5::bool IS NULL OR is_active = $5)
 	ORDER BY created_at DESC;
 `
 
@@ -1475,7 +1471,7 @@ func (r *repository) FetchPlannedEntries(ctx context.Context, params fetchPlanne
 	var entries []PlannedEntryModel
 	err := r.db.Query(ctx, &entries, fetchPlannedEntriesQuery,
 		params.UserID, params.OrganizationID, params.CategoryID,
-		params.IsRecurrent, params.IsSavedPattern, params.IsActive)
+		params.IsRecurrent, params.IsActive)
 	return entries, err
 }
 
@@ -1505,8 +1501,7 @@ const fetchPlannedEntryByIDQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		is_active,
-		is_saved_pattern
+		is_active
 	FROM planned_entries
 	WHERE planned_entry_id = $1
 		AND user_id = $2
@@ -1546,8 +1541,7 @@ const fetchPlannedEntriesByParentQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		is_active,
-		is_saved_pattern
+		is_active
 	FROM planned_entries
 	WHERE parent_entry_id = $1
 		AND user_id = $2
@@ -1559,50 +1553,6 @@ func (r *repository) FetchPlannedEntriesByParent(ctx context.Context, params fet
 	var entries []PlannedEntryModel
 	err := r.db.Query(ctx, &entries, fetchPlannedEntriesByParentQuery,
 		params.ParentEntryID, params.UserID, params.OrganizationID)
-	return entries, err
-}
-
-type fetchSavedPatternsParams struct {
-	UserID         int
-	OrganizationID int
-	CategoryID     *int
-}
-
-const fetchSavedPatternsQuery = `
-	-- financial.fetchSavedPatternsQuery
-	SELECT
-		planned_entry_id,
-		created_at,
-		updated_at,
-		user_id,
-		organization_id,
-		category_id,
-		pattern_id,
-		description,
-		amount,
-		amount_min,
-		amount_max,
-		expected_day_start,
-		expected_day_end,
-		expected_day,
-		entry_type,
-		is_recurrent,
-		parent_entry_id,
-		is_active,
-		is_saved_pattern
-	FROM planned_entries
-	WHERE user_id = $1
-		AND organization_id = $2
-		AND is_saved_pattern = true
-		AND is_active = true
-		AND ($3::int IS NULL OR category_id = $3)
-	ORDER BY created_at DESC;
-`
-
-func (r *repository) FetchSavedPatterns(ctx context.Context, params fetchSavedPatternsParams) ([]PlannedEntryModel, error) {
-	var entries []PlannedEntryModel
-	err := r.db.Query(ctx, &entries, fetchSavedPatternsQuery,
-		params.UserID, params.OrganizationID, params.CategoryID)
 	return entries, err
 }
 
@@ -1621,7 +1571,6 @@ type insertPlannedEntryParams struct {
 	EntryType        string
 	IsRecurrent      bool
 	ParentEntryID    *int
-	IsSavedPattern   bool
 }
 
 const insertPlannedEntryQuery = `
@@ -1640,9 +1589,8 @@ const insertPlannedEntryQuery = `
 		expected_day,
 		entry_type,
 		is_recurrent,
-		parent_entry_id,
-		is_saved_pattern
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		parent_entry_id
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	RETURNING
 		planned_entry_id,
 		created_at,
@@ -1661,8 +1609,7 @@ const insertPlannedEntryQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		is_active,
-		is_saved_pattern;
+		is_active;
 `
 
 func (r *repository) InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error) {
@@ -1671,7 +1618,7 @@ func (r *repository) InsertPlannedEntry(ctx context.Context, params insertPlanne
 		params.UserID, params.OrganizationID, params.CategoryID, params.PatternID,
 		params.Description, params.Amount, params.AmountMin, params.AmountMax,
 		params.ExpectedDayStart, params.ExpectedDayEnd, params.ExpectedDay,
-		params.EntryType, params.IsRecurrent, params.ParentEntryID, params.IsSavedPattern)
+		params.EntryType, params.IsRecurrent, params.ParentEntryID)
 	return entry, err
 }
 
@@ -1727,8 +1674,7 @@ const modifyPlannedEntryQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		is_active,
-		is_saved_pattern;
+		is_active;
 `
 
 func (r *repository) ModifyPlannedEntry(ctx context.Context, params modifyPlannedEntryParams) (PlannedEntryModel, error) {
@@ -2134,8 +2080,7 @@ const fetchPlannedEntriesWithPatternQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
-		is_active,
-		is_saved_pattern
+		is_active
 	FROM planned_entries
 	WHERE user_id = $1
 		AND organization_id = $2
