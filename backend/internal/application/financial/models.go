@@ -71,6 +71,9 @@ type TransactionModel struct {
 	// Status
 	IsIgnored bool `db:"is_ignored"`
 
+	// Savings Goal (orthogonal to category)
+	SavingsGoalID *int `db:"savings_goal_id"`
+
 	// Metadata
 	Notes *string        `db:"notes"`
 	Tags  pq.StringArray `db:"tags"`
@@ -189,7 +192,8 @@ type PlannedEntryModel struct {
 	UserID         int  `db:"user_id"`
 	OrganizationID int  `db:"organization_id"`
 	CategoryID     int  `db:"category_id"`
-	PatternID      *int `db:"pattern_id"` // Link to advanced pattern for auto-matching
+	PatternID      *int `db:"pattern_id"`      // Link to advanced pattern for auto-matching
+	SavingsGoalID  *int `db:"savings_goal_id"` // Link to savings goal for auto-linking matched transactions
 
 	Description string          `db:"description"`
 	Amount      decimal.Decimal `db:"amount"` // Display amount
@@ -310,6 +314,46 @@ type PlannedEntryByPatternModel struct {
 	PlannedEntryID int    `db:"planned_entry_id"`
 	PatternID      int    `db:"pattern_id"`
 	Description    string `db:"description"`
+}
+
+// SavingsGoal type constants
+const (
+	SavingsGoalTypeReserva      = "reserva"      // For planned future expenses with deadlines
+	SavingsGoalTypeInvestimento = "investimento" // For long-term savings without strict deadlines
+)
+
+// SavingsGoalModel represents a savings goal (meta)
+type SavingsGoalModel struct {
+	SavingsGoalID int       `db:"savings_goal_id"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
+
+	UserID         int `db:"user_id"`
+	OrganizationID int `db:"organization_id"`
+
+	Name          string          `db:"name"`
+	GoalType      string          `db:"goal_type"` // reserva, investimento
+	TargetAmount  decimal.Decimal `db:"target_amount"`
+	InitialAmount decimal.Decimal `db:"initial_amount"` // Pre-existing balance when goal was created
+	DueDate       *time.Time      `db:"due_date"`       // Required for reserva, optional for investimento
+
+	Icon  *string `db:"icon"`  // Emoji icon
+	Color *string `db:"color"` // Hex color
+
+	IsActive    bool       `db:"is_active"`
+	IsCompleted bool       `db:"is_completed"`
+	CompletedAt *time.Time `db:"completed_at"`
+
+	Notes *string `db:"notes"`
+}
+
+type SavingsGoalsModel []SavingsGoalModel
+
+// GoalMonthlyContributionModel represents aggregated contributions to a goal for a month
+type GoalMonthlyContributionModel struct {
+	Month  int             `db:"month"`
+	Year   int             `db:"year"`
+	Amount decimal.Decimal `db:"amount"`
 }
 
 // Transaction Matching Constants

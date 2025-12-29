@@ -108,6 +108,18 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		r.Put("/patterns/{id}", mw.RequireSession(fh.UpdateAdvancedPattern, []accounts.Permission{}))
 		r.Delete("/patterns/{id}", mw.RequireSession(fh.DeleteAdvancedPattern, []accounts.Permission{}))
 		r.Post("/patterns/{id}/apply-retroactively", mw.RequireSession(fh.ApplyPatternRetroactively, []accounts.Permission{}))
+
+		// Savings Goals
+		r.Get("/savings-goals", mw.RequireSession(fh.ListSavingsGoals, []accounts.Permission{}))
+		r.Post("/savings-goals", mw.RequireSession(fh.CreateSavingsGoal, []accounts.Permission{}))
+		r.Get("/savings-goals/{id}", mw.RequireSession(fh.GetSavingsGoal, []accounts.Permission{}))
+		r.Get("/savings-goals/{id}/progress", mw.RequireSession(fh.GetSavingsGoalProgress, []accounts.Permission{}))
+		r.Get("/savings-goals/{id}/summary", mw.RequireSession(fh.GetSavingsGoalSummary, []accounts.Permission{}))
+		r.Put("/savings-goals/{id}", mw.RequireSession(fh.UpdateSavingsGoal, []accounts.Permission{}))
+		r.Delete("/savings-goals/{id}", mw.RequireSession(fh.DeleteSavingsGoal, []accounts.Permission{}))
+		r.Post("/savings-goals/{id}/complete", mw.RequireSession(fh.CompleteSavingsGoal, []accounts.Permission{}))
+		r.Post("/savings-goals/{id}/reopen", mw.RequireSession(fh.ReopenSavingsGoal, []accounts.Permission{}))
+		r.Post("/savings-goals/{id}/contribute", mw.RequireSession(fh.AddContribution, []accounts.Permission{}))
 	})
 
 	return r

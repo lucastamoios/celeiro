@@ -1962,3 +1962,335 @@ func (h *Handler) UndismissPlannedEntry(w http.ResponseWriter, r *http.Request) 
 
 	responses.NewSuccess(status, w)
 }
+
+// ============================================================================
+// Savings Goals
+// ============================================================================
+
+func (h *Handler) ListSavingsGoals(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	// Parse optional query parameters
+	var isActive *bool
+	if activeStr := r.URL.Query().Get("is_active"); activeStr != "" {
+		active := activeStr == "true"
+		isActive = &active
+	}
+
+	var isCompleted *bool
+	if completedStr := r.URL.Query().Get("is_completed"); completedStr != "" {
+		completed := completedStr == "true"
+		isCompleted = &completed
+	}
+
+	var goalType *string
+	if typeStr := r.URL.Query().Get("goal_type"); typeStr != "" {
+		goalType = &typeStr
+	}
+
+	goals, err := h.app.FinancialService.GetSavingsGoals(r.Context(), financialApp.GetSavingsGoalsInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+		IsActive:       isActive,
+		IsCompleted:    isCompleted,
+		GoalType:       goalType,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(goals, w)
+}
+
+func (h *Handler) GetSavingsGoal(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	goalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	goal, err := h.app.FinancialService.GetSavingsGoalByID(r.Context(), financialApp.GetSavingsGoalByIDInput{
+		SavingsGoalID:  goalID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(goal, w)
+}
+
+func (h *Handler) GetSavingsGoalProgress(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	goalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	progress, err := h.app.FinancialService.GetSavingsGoalProgress(r.Context(), financialApp.GetSavingsGoalProgressInput{
+		SavingsGoalID:  goalID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(progress, w)
+}
+
+func (h *Handler) GetSavingsGoalSummary(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	goalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	summary, err := h.app.FinancialService.GetGoalSummary(r.Context(), financialApp.GetGoalSummaryInput{
+		SavingsGoalID:  goalID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(summary, w)
+}
+
+func (h *Handler) CreateSavingsGoal(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	var req struct {
+		Name          string  `json:"name"`
+		GoalType      string  `json:"goal_type"`
+		TargetAmount  float64 `json:"target_amount"`
+		InitialAmount float64 `json:"initial_amount"` // Pre-existing balance
+		DueDate       *string `json:"due_date,omitempty"`
+		Icon          *string `json:"icon,omitempty"`
+		Color         *string `json:"color,omitempty"`
+		Notes         *string `json:"notes,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	goal, err := h.app.FinancialService.CreateSavingsGoal(r.Context(), financialApp.CreateSavingsGoalInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Name:           req.Name,
+		GoalType:       req.GoalType,
+		TargetAmount:   decimal.NewFromFloat(req.TargetAmount),
+		InitialAmount:  decimal.NewFromFloat(req.InitialAmount),
+		DueDate:        req.DueDate,
+		Icon:           req.Icon,
+		Color:          req.Color,
+		Notes:          req.Notes,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(goal, w)
+}
+
+func (h *Handler) UpdateSavingsGoal(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	goalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		Name         *string  `json:"name,omitempty"`
+		TargetAmount *float64 `json:"target_amount,omitempty"`
+		DueDate      *string  `json:"due_date,omitempty"`
+		Icon         *string  `json:"icon,omitempty"`
+		Color        *string  `json:"color,omitempty"`
+		Notes        *string  `json:"notes,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Convert target amount to decimal if provided
+	var targetAmount *decimal.Decimal
+	if req.TargetAmount != nil {
+		amt := decimal.NewFromFloat(*req.TargetAmount)
+		targetAmount = &amt
+	}
+
+	goal, err := h.app.FinancialService.UpdateSavingsGoal(r.Context(), financialApp.UpdateSavingsGoalInput{
+		SavingsGoalID:  goalID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Name:           req.Name,
+		TargetAmount:   targetAmount,
+		DueDate:        req.DueDate,
+		Icon:           req.Icon,
+		Color:          req.Color,
+		Notes:          req.Notes,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(goal, w)
+}
+
+func (h *Handler) DeleteSavingsGoal(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	goalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	err = h.app.FinancialService.DeleteSavingsGoal(r.Context(), financialApp.DeleteSavingsGoalInput{
+		SavingsGoalID:  goalID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(map[string]string{"message": "savings goal deleted successfully"}, w)
+}
+
+func (h *Handler) CompleteSavingsGoal(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	goalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	goal, err := h.app.FinancialService.CompleteSavingsGoal(r.Context(), financialApp.CompleteSavingsGoalInput{
+		SavingsGoalID:  goalID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(goal, w)
+}
+
+func (h *Handler) ReopenSavingsGoal(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	goalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	goal, err := h.app.FinancialService.ReopenSavingsGoal(r.Context(), financialApp.ReopenSavingsGoalInput{
+		SavingsGoalID:  goalID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(goal, w)
+}
+
+func (h *Handler) AddContribution(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	goalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		Amount float64 `json:"amount"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	progress, err := h.app.FinancialService.AddContribution(r.Context(), financialApp.AddContributionInput{
+		SavingsGoalID:  goalID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Amount:         decimal.NewFromFloat(req.Amount),
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(progress, w)
+}
