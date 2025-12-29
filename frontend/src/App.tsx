@@ -7,8 +7,9 @@ import CategoryBudgetDashboard from './components/CategoryBudgetDashboard'
 import PatternManager from './components/PatternManager'
 import CategoryManager from './components/CategoryManager'
 import UncategorizedTransactions from './components/UncategorizedTransactions'
+import SavingsGoalsPage from './components/SavingsGoalsPage'
 
-type View = 'dashboard' | 'transactions' | 'budgets' | 'patterns' | 'categories' | 'uncategorized';
+type View = 'dashboard' | 'transactions' | 'budgets' | 'patterns' | 'categories' | 'uncategorized' | 'goals';
 
 function AppContent() {
   const { isAuthenticated, logout } = useAuth();
@@ -72,6 +73,16 @@ function AppContent() {
                 >
                   📂 Categorias
                 </button>
+                <button
+                  onClick={() => setCurrentView('goals')}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentView === 'goals'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🎯 Metas
+                </button>
                 {currentView === 'budgets' && (
                   <button
                     onClick={() => {
@@ -105,6 +116,7 @@ function AppContent() {
       {currentView === 'patterns' && <PatternManager />}
       {currentView === 'categories' && <CategoryManager />}
       {currentView === 'uncategorized' && <UncategorizedTransactions />}
+      {currentView === 'goals' && <SavingsGoalsPage />}
     </div>
   );
 }

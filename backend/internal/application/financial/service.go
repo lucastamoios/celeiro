@@ -104,6 +104,18 @@ type Service interface {
 	UpdateAdvancedPattern(ctx context.Context, input UpdateAdvancedPatternInput) (AdvancedPattern, error)
 	DeleteAdvancedPattern(ctx context.Context, input DeleteAdvancedPatternInput) error
 	ApplyPatternRetroactivelySync(ctx context.Context, input ApplyPatternRetroactivelyInput) (ApplyPatternRetroactivelyOutput, error)
+
+	// Savings Goals
+	GetSavingsGoals(ctx context.Context, input GetSavingsGoalsInput) ([]SavingsGoal, error)
+	GetSavingsGoalByID(ctx context.Context, input GetSavingsGoalByIDInput) (SavingsGoal, error)
+	GetSavingsGoalProgress(ctx context.Context, input GetSavingsGoalProgressInput) (SavingsGoalProgress, error)
+	CreateSavingsGoal(ctx context.Context, input CreateSavingsGoalInput) (SavingsGoal, error)
+	UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoalInput) (SavingsGoal, error)
+	DeleteSavingsGoal(ctx context.Context, input DeleteSavingsGoalInput) error
+	CompleteSavingsGoal(ctx context.Context, input CompleteSavingsGoalInput) (SavingsGoal, error)
+	ReopenSavingsGoal(ctx context.Context, input ReopenSavingsGoalInput) (SavingsGoal, error)
+	GetGoalSummary(ctx context.Context, input GetGoalSummaryInput) (SavingsGoalDetail, error)
+	AddContribution(ctx context.Context, input AddContributionInput) (SavingsGoalProgress, error)
 }
 
 type service struct {

@@ -91,6 +91,16 @@ type Repository interface {
 	ModifyAdvancedPattern(ctx context.Context, params modifyAdvancedPatternParams) (AdvancedPatternModel, error)
 	RemoveAdvancedPattern(ctx context.Context, params removeAdvancedPatternParams) error
 	FetchPlannedEntriesByPatternIDs(ctx context.Context, params fetchPlannedEntriesByPatternIDsParams) ([]PlannedEntryByPatternModel, error)
+
+	// Savings Goals
+	FetchSavingsGoals(ctx context.Context, params fetchSavingsGoalsParams) ([]SavingsGoalModel, error)
+	FetchSavingsGoalByID(ctx context.Context, params fetchSavingsGoalByIDParams) (SavingsGoalModel, error)
+	InsertSavingsGoal(ctx context.Context, params insertSavingsGoalParams) (SavingsGoalModel, error)
+	ModifySavingsGoal(ctx context.Context, params modifySavingsGoalParams) (SavingsGoalModel, error)
+	RemoveSavingsGoal(ctx context.Context, params removeSavingsGoalParams) error
+	AddContribution(ctx context.Context, params addContributionParams) (SavingsGoalModel, error)
+	FetchGoalContributions(ctx context.Context, params fetchGoalContributionsParams) ([]TransactionModel, error)
+	FetchGoalMonthlyContributions(ctx context.Context, params fetchGoalMonthlyContributionsParams) ([]GoalMonthlyContributionModel, error)
 }
 
 type repository struct {
@@ -430,6 +440,7 @@ const fetchTransactionsQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.savings_goal_id,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -477,6 +488,7 @@ const fetchTransactionByIDQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.savings_goal_id,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -522,6 +534,7 @@ const fetchUncategorizedTransactionsQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.savings_goal_id,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -569,6 +582,7 @@ const fetchTransactionsForPatternMatchingQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.savings_goal_id,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -615,6 +629,7 @@ const fetchTransactionsByMonthQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.savings_goal_id,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -708,6 +723,7 @@ type modifyTransactionParams struct {
 	UserID         int
 	OrganizationID int
 	CategoryID     *int
+	SavingsGoalID  *int // Use -1 to clear (set to NULL)
 	Description    *string
 	Amount         *decimal.Decimal
 	Notes          *string
@@ -718,12 +734,13 @@ const modifyTransactionQuery = `
 	-- financial.modifyTransactionQuery
 	UPDATE transactions t
 	SET category_id = COALESCE($4, t.category_id),
-		description = COALESCE($5, t.description),
+		savings_goal_id = CASE WHEN $5 = -1 THEN NULL ELSE COALESCE($5, t.savings_goal_id) END,
+		description = COALESCE($6, t.description),
 		-- Preserve original_description on first edit (if it's NULL, copy current description)
 		original_description = COALESCE(t.original_description, t.description),
-		amount = COALESCE($6, t.amount),
-		notes = COALESCE($7, t.notes),
-		is_ignored = COALESCE($8, t.is_ignored),
+		amount = COALESCE($7, t.amount),
+		notes = COALESCE($8, t.notes),
+		is_ignored = COALESCE($9, t.is_ignored),
 		updated_at = NOW()
 	FROM accounts a
 	WHERE t.transaction_id = $1
@@ -731,16 +748,16 @@ const modifyTransactionQuery = `
 		AND a.user_id = $2
 		AND a.organization_id = $3
 	RETURNING t.transaction_id, t.created_at, t.updated_at, t.account_id, t.category_id, t.description,
-			  t.original_description, t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid, 
-			  t.ofx_check_number, t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id, 
-			  t.is_ignored, t.notes, t.tags;
+			  t.original_description, t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid,
+			  t.ofx_check_number, t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id,
+			  t.is_ignored, t.savings_goal_id, t.notes, t.tags;
 `
 
 func (r *repository) ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error) {
 	var result TransactionModel
 	err := r.db.Query(ctx, &result, modifyTransactionQuery,
 		params.TransactionID, params.UserID, params.OrganizationID,
-		params.CategoryID, params.Description, params.Amount, params.Notes, params.IsIgnored)
+		params.CategoryID, params.SavingsGoalID, params.Description, params.Amount, params.Notes, params.IsIgnored)
 	if err != nil {
 		return TransactionModel{}, err
 	}
@@ -1449,6 +1466,7 @@ const fetchPlannedEntriesQuery = `
 		organization_id,
 		category_id,
 		pattern_id,
+		savings_goal_id,
 		description,
 		amount,
 		amount_min,
@@ -1493,6 +1511,7 @@ const fetchPlannedEntryByIDQuery = `
 		organization_id,
 		category_id,
 		pattern_id,
+		savings_goal_id,
 		description,
 		amount,
 		amount_min,
@@ -1533,6 +1552,7 @@ const fetchPlannedEntriesByParentQuery = `
 		organization_id,
 		category_id,
 		pattern_id,
+		savings_goal_id,
 		description,
 		amount,
 		amount_min,
@@ -1563,6 +1583,7 @@ type insertPlannedEntryParams struct {
 	OrganizationID   int
 	CategoryID       int
 	PatternID        *int
+	SavingsGoalID    *int
 	Description      string
 	Amount           decimal.Decimal
 	AmountMin        *decimal.Decimal
@@ -1582,6 +1603,7 @@ const insertPlannedEntryQuery = `
 		organization_id,
 		category_id,
 		pattern_id,
+		savings_goal_id,
 		description,
 		amount,
 		amount_min,
@@ -1592,7 +1614,7 @@ const insertPlannedEntryQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	RETURNING
 		planned_entry_id,
 		created_at,
@@ -1601,6 +1623,7 @@ const insertPlannedEntryQuery = `
 		organization_id,
 		category_id,
 		pattern_id,
+		savings_goal_id,
 		description,
 		amount,
 		amount_min,
@@ -1618,7 +1641,7 @@ func (r *repository) InsertPlannedEntry(ctx context.Context, params insertPlanne
 	var entry PlannedEntryModel
 	err := r.db.Query(ctx, &entry, insertPlannedEntryQuery,
 		params.UserID, params.OrganizationID, params.CategoryID, params.PatternID,
-		params.Description, params.Amount, params.AmountMin, params.AmountMax,
+		params.SavingsGoalID, params.Description, params.Amount, params.AmountMin, params.AmountMax,
 		params.ExpectedDayStart, params.ExpectedDayEnd, params.ExpectedDay,
 		params.EntryType, params.IsRecurrent, params.ParentEntryID)
 	return entry, err
@@ -1629,6 +1652,7 @@ type modifyPlannedEntryParams struct {
 	UserID           int
 	OrganizationID   int
 	PatternID        *int
+	SavingsGoalID    *int // Use -1 to clear (set to NULL)
 	Description      *string
 	Amount           *decimal.Decimal
 	AmountMin        *decimal.Decimal
@@ -1645,15 +1669,20 @@ const modifyPlannedEntryQuery = `
 	UPDATE planned_entries
 	SET
 		pattern_id = COALESCE($4, pattern_id),
-		description = COALESCE($5, description),
-		amount = COALESCE($6, amount),
-		amount_min = COALESCE($7, amount_min),
-		amount_max = COALESCE($8, amount_max),
-		expected_day_start = COALESCE($9, expected_day_start),
-		expected_day_end = COALESCE($10, expected_day_end),
-		expected_day = COALESCE($11, expected_day),
-		entry_type = COALESCE($12, entry_type),
-		is_active = COALESCE($13, is_active),
+		savings_goal_id = CASE
+			WHEN $5::int = -1 THEN NULL
+			WHEN $5::int IS NOT NULL THEN $5
+			ELSE savings_goal_id
+		END,
+		description = COALESCE($6, description),
+		amount = COALESCE($7, amount),
+		amount_min = COALESCE($8, amount_min),
+		amount_max = COALESCE($9, amount_max),
+		expected_day_start = COALESCE($10, expected_day_start),
+		expected_day_end = COALESCE($11, expected_day_end),
+		expected_day = COALESCE($12, expected_day),
+		entry_type = COALESCE($13, entry_type),
+		is_active = COALESCE($14, is_active),
 		updated_at = CURRENT_TIMESTAMP
 	WHERE planned_entry_id = $1
 		AND user_id = $2
@@ -1666,6 +1695,7 @@ const modifyPlannedEntryQuery = `
 		organization_id,
 		category_id,
 		pattern_id,
+		savings_goal_id,
 		description,
 		amount,
 		amount_min,
@@ -1683,7 +1713,7 @@ func (r *repository) ModifyPlannedEntry(ctx context.Context, params modifyPlanne
 	var entry PlannedEntryModel
 	err := r.db.Query(ctx, &entry, modifyPlannedEntryQuery,
 		params.PlannedEntryID, params.UserID, params.OrganizationID,
-		params.PatternID, params.Description, params.Amount, params.AmountMin,
+		params.PatternID, params.SavingsGoalID, params.Description, params.Amount, params.AmountMin,
 		params.AmountMax, params.ExpectedDayStart, params.ExpectedDayEnd,
 		params.ExpectedDay, params.EntryType, params.IsActive)
 	return entry, err
@@ -2102,6 +2132,7 @@ const fetchPlannedEntriesWithPatternQuery = `
 		organization_id,
 		category_id,
 		pattern_id,
+		savings_goal_id,
 		description,
 		amount,
 		amount_min,
@@ -2338,4 +2369,341 @@ const removePlannedEntryStatusQuery = `
 
 func (r *repository) RemovePlannedEntryStatus(ctx context.Context, params removePlannedEntryStatusParams) error {
 	return r.db.Run(ctx, removePlannedEntryStatusQuery, params.StatusID)
+}
+
+// ============================================================================
+// Savings Goals
+// ============================================================================
+
+type fetchSavingsGoalsParams struct {
+	UserID         int
+	OrganizationID int
+	IsActive       *bool
+	IsCompleted    *bool
+	GoalType       *string
+}
+
+const fetchSavingsGoalsQuery = `
+	-- financial.fetchSavingsGoalsQuery
+	SELECT
+		savings_goal_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		goal_type,
+		target_amount,
+		initial_amount,
+		due_date,
+		icon,
+		color,
+		is_active,
+		is_completed,
+		completed_at,
+		notes
+	FROM savings_goals
+	WHERE user_id = $1
+		AND organization_id = $2
+		AND ($3::boolean IS NULL OR is_active = $3)
+		AND ($4::boolean IS NULL OR is_completed = $4)
+		AND ($5::text IS NULL OR goal_type = $5)
+	ORDER BY is_completed ASC, created_at DESC;
+`
+
+func (r *repository) FetchSavingsGoals(ctx context.Context, params fetchSavingsGoalsParams) ([]SavingsGoalModel, error) {
+	var goals []SavingsGoalModel
+	err := r.db.Query(ctx, &goals, fetchSavingsGoalsQuery,
+		params.UserID, params.OrganizationID, params.IsActive, params.IsCompleted, params.GoalType)
+	return goals, err
+}
+
+type fetchSavingsGoalByIDParams struct {
+	SavingsGoalID  int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchSavingsGoalByIDQuery = `
+	-- financial.fetchSavingsGoalByIDQuery
+	SELECT
+		savings_goal_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		goal_type,
+		target_amount,
+		initial_amount,
+		due_date,
+		icon,
+		color,
+		is_active,
+		is_completed,
+		completed_at,
+		notes
+	FROM savings_goals
+	WHERE savings_goal_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) FetchSavingsGoalByID(ctx context.Context, params fetchSavingsGoalByIDParams) (SavingsGoalModel, error) {
+	var goal SavingsGoalModel
+	err := r.db.Query(ctx, &goal, fetchSavingsGoalByIDQuery,
+		params.SavingsGoalID, params.UserID, params.OrganizationID)
+	return goal, err
+}
+
+type insertSavingsGoalParams struct {
+	UserID         int
+	OrganizationID int
+	Name           string
+	GoalType       string
+	TargetAmount   decimal.Decimal
+	InitialAmount  decimal.Decimal // Pre-existing balance when goal is created
+	DueDate        *string         // YYYY-MM-DD format
+	Icon           *string
+	Color          *string
+	Notes          *string
+}
+
+const insertSavingsGoalQuery = `
+	-- financial.insertSavingsGoalQuery
+	INSERT INTO savings_goals (
+		user_id,
+		organization_id,
+		name,
+		goal_type,
+		target_amount,
+		initial_amount,
+		due_date,
+		icon,
+		color,
+		notes
+	) VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10)
+	RETURNING
+		savings_goal_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		goal_type,
+		target_amount,
+		initial_amount,
+		due_date,
+		icon,
+		color,
+		is_active,
+		is_completed,
+		completed_at,
+		notes;
+`
+
+func (r *repository) InsertSavingsGoal(ctx context.Context, params insertSavingsGoalParams) (SavingsGoalModel, error) {
+	var goal SavingsGoalModel
+	err := r.db.Query(ctx, &goal, insertSavingsGoalQuery,
+		params.UserID, params.OrganizationID, params.Name, params.GoalType,
+		params.TargetAmount, params.InitialAmount, params.DueDate, params.Icon, params.Color, params.Notes)
+	return goal, err
+}
+
+type modifySavingsGoalParams struct {
+	SavingsGoalID  int
+	UserID         int
+	OrganizationID int
+	Name           *string
+	TargetAmount   *decimal.Decimal
+	DueDate        *string // YYYY-MM-DD format, empty string to clear
+	Icon           *string
+	Color          *string
+	Notes          *string
+	IsActive       *bool
+	IsCompleted    *bool
+}
+
+const modifySavingsGoalQuery = `
+	-- financial.modifySavingsGoalQuery
+	UPDATE savings_goals
+	SET
+		name = COALESCE($4, name),
+		target_amount = COALESCE($5, target_amount),
+		due_date = CASE WHEN $6 = '' THEN NULL WHEN $6 IS NOT NULL THEN $6::date ELSE due_date END,
+		icon = COALESCE($7, icon),
+		color = COALESCE($8, color),
+		notes = COALESCE($9, notes),
+		is_active = COALESCE($10, is_active),
+		is_completed = COALESCE($11, is_completed),
+		completed_at = CASE
+			WHEN $11 = true AND is_completed = false THEN CURRENT_TIMESTAMP
+			WHEN $11 = false THEN NULL
+			ELSE completed_at
+		END,
+		updated_at = CURRENT_TIMESTAMP
+	WHERE savings_goal_id = $1
+		AND user_id = $2
+		AND organization_id = $3
+	RETURNING
+		savings_goal_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		goal_type,
+		target_amount,
+		initial_amount,
+		due_date,
+		icon,
+		color,
+		is_active,
+		is_completed,
+		completed_at,
+		notes;
+`
+
+func (r *repository) ModifySavingsGoal(ctx context.Context, params modifySavingsGoalParams) (SavingsGoalModel, error) {
+	var goal SavingsGoalModel
+	err := r.db.Query(ctx, &goal, modifySavingsGoalQuery,
+		params.SavingsGoalID, params.UserID, params.OrganizationID,
+		params.Name, params.TargetAmount, params.DueDate,
+		params.Icon, params.Color, params.Notes, params.IsActive, params.IsCompleted)
+	return goal, err
+}
+
+type removeSavingsGoalParams struct {
+	SavingsGoalID  int
+	UserID         int
+	OrganizationID int
+}
+
+// RemoveSavingsGoal performs a soft delete by setting is_active = false
+const removeSavingsGoalQuery = `
+	-- financial.removeSavingsGoalQuery
+	UPDATE savings_goals
+	SET is_active = false, updated_at = CURRENT_TIMESTAMP
+	WHERE savings_goal_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) RemoveSavingsGoal(ctx context.Context, params removeSavingsGoalParams) error {
+	return r.db.Run(ctx, removeSavingsGoalQuery,
+		params.SavingsGoalID, params.UserID, params.OrganizationID)
+}
+
+type addContributionParams struct {
+	SavingsGoalID  int
+	UserID         int
+	OrganizationID int
+	Amount         decimal.Decimal
+}
+
+const addContributionQuery = `
+	-- financial.addContributionQuery
+	UPDATE savings_goals
+	SET
+		initial_amount = initial_amount + $4,
+		updated_at = CURRENT_TIMESTAMP
+	WHERE savings_goal_id = $1
+		AND user_id = $2
+		AND organization_id = $3
+	RETURNING
+		savings_goal_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		goal_type,
+		target_amount,
+		initial_amount,
+		due_date,
+		icon,
+		color,
+		is_active,
+		is_completed,
+		completed_at,
+		notes;
+`
+
+func (r *repository) AddContribution(ctx context.Context, params addContributionParams) (SavingsGoalModel, error) {
+	var goal SavingsGoalModel
+	err := r.db.Query(ctx, &goal, addContributionQuery,
+		params.SavingsGoalID, params.UserID, params.OrganizationID, params.Amount)
+	return goal, err
+}
+
+type fetchGoalContributionsParams struct {
+	SavingsGoalID  int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchGoalContributionsQuery = `
+	-- financial.fetchGoalContributionsQuery
+	SELECT
+		t.transaction_id,
+		t.created_at,
+		t.updated_at,
+		t.account_id,
+		t.category_id,
+		t.description,
+		t.original_description,
+		t.amount,
+		t.transaction_date,
+		t.transaction_type,
+		t.ofx_fitid,
+		t.ofx_check_number,
+		t.ofx_memo,
+		t.raw_ofx_data,
+		t.is_classified,
+		t.classification_rule_id,
+		t.is_ignored,
+		t.savings_goal_id,
+		t.notes,
+		t.tags
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE t.savings_goal_id = $1
+		AND a.user_id = $2
+		AND a.organization_id = $3
+	ORDER BY t.transaction_date DESC;
+`
+
+func (r *repository) FetchGoalContributions(ctx context.Context, params fetchGoalContributionsParams) ([]TransactionModel, error) {
+	var transactions []TransactionModel
+	err := r.db.Query(ctx, &transactions, fetchGoalContributionsQuery,
+		params.SavingsGoalID, params.UserID, params.OrganizationID)
+	return transactions, err
+}
+
+type fetchGoalMonthlyContributionsParams struct {
+	SavingsGoalID  int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchGoalMonthlyContributionsQuery = `
+	-- financial.fetchGoalMonthlyContributionsQuery
+	SELECT
+		EXTRACT(MONTH FROM t.transaction_date)::int as month,
+		EXTRACT(YEAR FROM t.transaction_date)::int as year,
+		SUM(ABS(t.amount)) as amount
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE t.savings_goal_id = $1
+		AND a.user_id = $2
+		AND a.organization_id = $3
+	GROUP BY EXTRACT(MONTH FROM t.transaction_date), EXTRACT(YEAR FROM t.transaction_date)
+	ORDER BY year DESC, month DESC;
+`
+
+func (r *repository) FetchGoalMonthlyContributions(ctx context.Context, params fetchGoalMonthlyContributionsParams) ([]GoalMonthlyContributionModel, error) {
+	var contributions []GoalMonthlyContributionModel
+	err := r.db.Query(ctx, &contributions, fetchGoalMonthlyContributionsQuery,
+		params.SavingsGoalID, params.UserID, params.OrganizationID)
+	return contributions, err
 }

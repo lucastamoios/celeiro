@@ -87,6 +87,7 @@ type Transaction struct {
 	TransactionID        int             `json:"transaction_id"`
 	AccountID            int             `json:"account_id"`
 	CategoryID           *int            `json:"category_id,omitempty"`
+	SavingsGoalID        *int            `json:"savings_goal_id,omitempty"` // Linked savings goal (orthogonal to category)
 	Description          string          `json:"description"`
 	OriginalDescription  *string         `json:"original_description,omitempty"` // Immutable OFX description
 	Amount               decimal.Decimal `json:"amount"`
@@ -110,6 +111,7 @@ func (t Transaction) FromModel(model *TransactionModel) Transaction {
 		TransactionID:        model.TransactionID,
 		AccountID:            model.AccountID,
 		CategoryID:           model.CategoryID,
+		SavingsGoalID:        model.SavingsGoalID,
 		Description:          model.Description,
 		OriginalDescription:  model.OriginalDescription,
 		Amount:               model.Amount,
@@ -335,7 +337,8 @@ type PlannedEntry struct {
 	UserID         int
 	OrganizationID int
 	CategoryID     int
-	PatternID      *int            `json:",omitempty"`
+	PatternID      *int `json:",omitempty"`
+	SavingsGoalID  *int `json:",omitempty"` // Link to savings goal for auto-linking matched transactions
 	Description    string
 	Amount         decimal.Decimal
 
@@ -366,6 +369,7 @@ func (p PlannedEntry) FromModel(model *PlannedEntryModel) PlannedEntry {
 		OrganizationID:   model.OrganizationID,
 		CategoryID:       model.CategoryID,
 		PatternID:        model.PatternID,
+		SavingsGoalID:    model.SavingsGoalID,
 		Description:      model.Description,
 		Amount:           model.Amount,
 		AmountMin:        model.AmountMin,
@@ -374,11 +378,11 @@ func (p PlannedEntry) FromModel(model *PlannedEntryModel) PlannedEntry {
 		ExpectedDayEnd:   model.ExpectedDayEnd,
 		ExpectedDay:      model.ExpectedDay,
 		EntryType:        model.EntryType,
-		IsRecurrent:   model.IsRecurrent,
-		ParentEntryID: model.ParentEntryID,
-		IsActive:      model.IsActive,
-		CreatedAt:     model.CreatedAt,
-		UpdatedAt:     model.UpdatedAt,
+		IsRecurrent:      model.IsRecurrent,
+		ParentEntryID:    model.ParentEntryID,
+		IsActive:         model.IsActive,
+		CreatedAt:        model.CreatedAt,
+		UpdatedAt:        model.UpdatedAt,
 	}
 }
 
@@ -572,4 +576,104 @@ func (a AdvancedPatterns) FromModel(models []AdvancedPatternModel) AdvancedPatte
 type AmountRange struct {
 	Min float64 `json:"min"`
 	Max float64 `json:"max"`
+}
+
+// SavingsGoal DTO
+type SavingsGoal struct {
+	SavingsGoalID  int             `json:"savings_goal_id"`
+	UserID         int             `json:"user_id"`
+	OrganizationID int             `json:"organization_id"`
+	Name           string          `json:"name"`
+	GoalType       string          `json:"goal_type"` // reserva, investimento
+	TargetAmount   decimal.Decimal `json:"target_amount"`
+	InitialAmount  decimal.Decimal `json:"initial_amount"` // Pre-existing balance when goal was created
+	DueDate        *string         `json:"due_date,omitempty"` // ISO 8601 date format
+	Icon           *string         `json:"icon,omitempty"`
+	Color          *string         `json:"color,omitempty"`
+	IsActive       bool            `json:"is_active"`
+	IsCompleted    bool            `json:"is_completed"`
+	CompletedAt    *string         `json:"completed_at,omitempty"` // ISO 8601 datetime
+	Notes          *string         `json:"notes,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+}
+
+func (s SavingsGoal) FromModel(model *SavingsGoalModel) SavingsGoal {
+	dto := SavingsGoal{
+		SavingsGoalID:  model.SavingsGoalID,
+		UserID:         model.UserID,
+		OrganizationID: model.OrganizationID,
+		Name:           model.Name,
+		GoalType:       model.GoalType,
+		TargetAmount:   model.TargetAmount,
+		InitialAmount:  model.InitialAmount,
+		Icon:           model.Icon,
+		Color:          model.Color,
+		IsActive:       model.IsActive,
+		IsCompleted:    model.IsCompleted,
+		Notes:          model.Notes,
+		CreatedAt:      model.CreatedAt,
+		UpdatedAt:      model.UpdatedAt,
+	}
+	if model.DueDate != nil {
+		formatted := model.DueDate.Format("2006-01-02")
+		dto.DueDate = &formatted
+	}
+	if model.CompletedAt != nil {
+		formatted := model.CompletedAt.Format(time.RFC3339)
+		dto.CompletedAt = &formatted
+	}
+	return dto
+}
+
+type SavingsGoals []SavingsGoal
+
+func (s SavingsGoals) FromModel(models []SavingsGoalModel) SavingsGoals {
+	goals := make(SavingsGoals, len(models))
+	for i, model := range models {
+		goals[i] = SavingsGoal{}.FromModel(&model)
+	}
+	return goals
+}
+
+// SavingsGoalProgress represents the progress toward a savings goal
+type SavingsGoalProgress struct {
+	Goal SavingsGoal `json:"goal"`
+
+	// Current progress
+	CurrentAmount   decimal.Decimal `json:"current_amount"`
+	ProgressPercent decimal.Decimal `json:"progress_percent"`
+
+	// Reserva-specific fields (only for goal_type = "reserva")
+	MonthsRemaining *int             `json:"months_remaining,omitempty"`
+	MonthlyTarget   *decimal.Decimal `json:"monthly_target,omitempty"`
+	IsOnTrack       *bool            `json:"is_on_track,omitempty"`
+
+	// Monthly breakdown of contributions
+	MonthlyContributions []MonthlyContribution `json:"monthly_contributions,omitempty"`
+}
+
+// MonthlyContribution represents contributions to a goal in a specific month
+type MonthlyContribution struct {
+	Month  int             `json:"month"`
+	Year   int             `json:"year"`
+	Amount decimal.Decimal `json:"amount"`
+}
+
+// SavingsGoalSummary is a minimal representation for lists and dropdowns
+type SavingsGoalSummary struct {
+	SavingsGoalID int             `json:"savings_goal_id"`
+	Name          string          `json:"name"`
+	GoalType      string          `json:"goal_type"`
+	TargetAmount  decimal.Decimal `json:"target_amount"`
+	CurrentAmount decimal.Decimal `json:"current_amount"`
+	Icon          *string         `json:"icon,omitempty"`
+	Color         *string         `json:"color,omitempty"`
+	IsCompleted   bool            `json:"is_completed"`
+}
+
+// SavingsGoalDetail contains full goal information with progress and linked transactions
+type SavingsGoalDetail struct {
+	Progress     SavingsGoalProgress `json:"progress"`
+	Transactions Transactions        `json:"transactions"`
 }
