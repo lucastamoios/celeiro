@@ -18,7 +18,7 @@ interface MonthlyBudgetCardProps {
   hasPreviousMonthBudgets?: boolean;
   onEditBudget: (budget: CategoryBudget) => void;
   onDeleteBudget: (budgetId: number) => void;
-  onDeleteMonth?: () => void;
+  onDeleteMonth?: () => Promise<void>;
   onConsolidate: (budgetId: number) => void;
   onToggleExpand: () => void;
   onCopyFromPreviousMonth?: () => void;
@@ -56,18 +56,24 @@ export default function MonthlyBudgetCard({
   onDeleteEntry,
 }: MonthlyBudgetCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && !isDeleting) {
       setShowDeleteConfirm(false);
     }
-  }, []);
+  }, [isDeleting]);
 
-  const handleConfirmDelete = () => {
-    if (onDeleteMonth) {
-      onDeleteMonth();
+  const handleConfirmDelete = async () => {
+    if (onDeleteMonth && !isDeleting) {
+      setIsDeleting(true);
+      try {
+        await onDeleteMonth();
+        setShowDeleteConfirm(false);
+      } finally {
+        setIsDeleting(false);
+      }
     }
-    setShowDeleteConfirm(false);
   };
   const getMonthName = (monthNum: number, yearNum: number) => {
     const date = new Date(yearNum, monthNum - 1, 1);
@@ -326,11 +332,11 @@ export default function MonthlyBudgetCard({
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Excluir orçamentos</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-6">
-              Tem certeza que deseja excluir os dados de <strong>{getMonthName(month, year)}</strong>?
+            <div className="text-sm text-gray-600 mb-6">
+              <p>Tem certeza que deseja excluir os dados de <strong>{getMonthName(month, year)}</strong>?</p>
               {(budgetArray.length > 0 || plannedEntries.length > 0) && (
-                <span className="block mt-2">
-                  Serão removidos:
+                <div className="mt-2">
+                  <p>Serão removidos:</p>
                   <ul className="list-disc list-inside mt-1 text-gray-500">
                     {budgetArray.length > 0 && (
                       <li>{budgetArray.length} {budgetArray.length === 1 ? 'orçamento' : 'orçamentos'}</li>
@@ -339,22 +345,24 @@ export default function MonthlyBudgetCard({
                       <li>{plannedEntries.length} {plannedEntries.length === 1 ? 'entrada planejada será dispensada' : 'entradas planejadas serão dispensadas'}</li>
                     )}
                   </ul>
-                </span>
+                </div>
               )}
-              <span className="text-red-600 mt-2 block">Esta ação não pode ser desfeita.</span>
-            </p>
+              <p className="text-red-600 mt-2">Esta ação não pode ser desfeita.</p>
+            </div>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                disabled={isDeleting}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Excluir
+                {isDeleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>

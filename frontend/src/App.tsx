@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
@@ -11,9 +11,25 @@ import SavingsGoalsPage from './components/SavingsGoalsPage'
 
 type View = 'dashboard' | 'transactions' | 'budgets' | 'patterns' | 'categories' | 'uncategorized' | 'goals';
 
+const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'patterns', 'categories', 'uncategorized', 'goals'];
+const VIEW_STORAGE_KEY = 'celeiro_current_view';
+
+function getInitialView(): View {
+  const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+  if (stored && VALID_VIEWS.includes(stored as View)) {
+    return stored as View;
+  }
+  return 'dashboard';
+}
+
 function AppContent() {
   const { isAuthenticated, logout } = useAuth();
-  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [currentView, setCurrentViewState] = useState<View>(getInitialView);
+
+  const setCurrentView = useCallback((view: View) => {
+    setCurrentViewState(view);
+    localStorage.setItem(VIEW_STORAGE_KEY, view);
+  }, []);
 
   if (!isAuthenticated) {
     return <Login />;

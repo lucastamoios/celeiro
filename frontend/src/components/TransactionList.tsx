@@ -4,6 +4,7 @@ import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
 import { apiUrl, financialUrl } from '../config/api';
 import TransactionEditModal from './TransactionEditModal';
+import TransactionCreateModal from './TransactionCreateModal';
 // Simple patterns have been removed - unified pattern system now in PatternManager
 
 interface Account {
@@ -32,6 +33,7 @@ export default function TransactionList() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -193,6 +195,12 @@ export default function TransactionList() {
     await fetchData();
   };
 
+  const handleCreateTransaction = async () => {
+    setUploadSuccess(`✅ Transação criada com sucesso!`);
+    setTimeout(() => setUploadSuccess(null), 3000);
+    await fetchData();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8 animate-pulse">
@@ -285,16 +293,24 @@ export default function TransactionList() {
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <label className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
-              {uploading ? 'Importando...' : '📤 Importar OFX'}
-              <input
-                type="file"
-                accept=".ofx"
-                onChange={handleFileUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                ➕ Nova Transação
+              </button>
+              <label className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
+                {uploading ? 'Importando...' : '📤 Importar OFX'}
+                <input
+                  type="file"
+                  accept=".ofx"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            </div>
 
             {uploadSuccess && (
               <p className="text-sm text-green-600 font-medium">{uploadSuccess}</p>
@@ -392,6 +408,16 @@ export default function TransactionList() {
           categories={categories}
           onClose={handleCloseEditModal}
           onSave={handleSaveTransaction}
+        />
+      )}
+
+      {/* Create Modal */}
+      {showCreateModal && selectedAccountId && (
+        <TransactionCreateModal
+          accountId={selectedAccountId}
+          categories={categories}
+          onClose={() => setShowCreateModal(false)}
+          onSave={handleCreateTransaction}
         />
       )}
     </div>

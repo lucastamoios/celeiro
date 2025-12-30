@@ -109,7 +109,11 @@ export default function CategoryBudgetDashboard() {
   }, [token]);
 
   const fetchAllData = async () => {
-    if (!token) return;
+    console.log('📊 [fetchAllData] Starting data fetch...');
+    if (!token) {
+      console.log('📊 [fetchAllData] No token, aborting');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -142,15 +146,19 @@ export default function CategoryBudgetDashboard() {
           year: date.getFullYear(),
         });
       }
+      console.log('📊 [fetchAllData] Months to fetch:', monthsToFetch);
 
       // Fetch budgets for all months in parallel
       const allBudgetsPromises = monthsToFetch.map(({ month, year }) =>
         getCategoryBudgets(
           { month, year },
           { token, organizationId: '1' }
-        ).then(budgets => ({ month, year, budgets: budgets || [] }))
+        ).then(budgets => {
+          console.log(`📊 [fetchAllData] Budgets for ${month}/${year}:`, budgets?.length || 0, 'items', budgets?.map(b => ({ id: b.CategoryBudgetID, categoryId: b.CategoryID })));
+          return { month, year, budgets: budgets || [] };
+        })
         .catch(err => {
-          console.error(`Failed to fetch budgets for ${month}/${year}:`, err);
+          console.error(`❌ [fetchAllData] Failed to fetch budgets for ${month}/${year}:`, err);
           return { month, year, budgets: [] };
         })
       );
@@ -169,11 +177,20 @@ export default function CategoryBudgetDashboard() {
         };
       });
 
+      console.log('📊 [fetchAllData] Final monthly data:', monthlyData.map(m => ({
+        month: m.month,
+        year: m.year,
+        budgetCount: m.budgets.length,
+        budgetIds: m.budgets.map(b => b.CategoryBudgetID),
+      })));
+
       setMonthlyBudgets(monthlyData);
 
       // Fetch all transactions to calculate actual spending
       await fetchAndCalculateActualSpending();
+      console.log('📊 [fetchAllData] Data fetch complete');
     } catch (err) {
+      console.error('❌ [fetchAllData] Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
@@ -515,10 +532,18 @@ export default function CategoryBudgetDashboard() {
     budgetIds: number[],
     plannedEntryIds: number[]
   ) => {
-    if (!token) return;
+    console.log('🗑️ [handleDeleteMonth] Starting deletion for:', { month, year });
+    console.log('🗑️ [handleDeleteMonth] Budget IDs to delete:', budgetIds);
+    console.log('🗑️ [handleDeleteMonth] Planned Entry IDs to dismiss:', plannedEntryIds);
+
+    if (!token) {
+      console.log('🗑️ [handleDeleteMonth] No token, aborting');
+      return;
+    }
 
     // Nothing to delete
     if (budgetIds.length === 0 && plannedEntryIds.length === 0) {
+      console.log('🗑️ [handleDeleteMonth] Nothing to delete');
       setError('Não há dados para excluir neste mês');
       setTimeout(() => setError(null), 3000);
       return;
@@ -529,29 +554,56 @@ export default function CategoryBudgetDashboard() {
 
     try {
       // Delete all budgets for this month in parallel
-      const budgetDeletions = budgetIds.map((id) =>
-        deleteCategoryBudget(id, { token, organizationId: '1' })
-      );
+      console.log('🗑️ [handleDeleteMonth] Starting budget deletions...');
+      const budgetDeletions = budgetIds.map((id) => {
+        console.log(`🗑️ [handleDeleteMonth] Deleting budget ID: ${id}`);
+        return deleteCategoryBudget(id, { token, organizationId: '1' })
+          .then((result) => {
+            console.log(`✅ [handleDeleteMonth] Budget ${id} deleted successfully`, result);
+            return result;
+          })
+          .catch((err) => {
+            console.error(`❌ [handleDeleteMonth] Budget ${id} deletion FAILED:`, err);
+            throw err;
+          });
+      });
 
       // Dismiss all planned entries for this month in parallel
-      const entryDismissals = plannedEntryIds.map((id) =>
-        dismissPlannedEntry(id, { month, year }, { token, organizationId: '1' })
-      );
+      console.log('🗑️ [handleDeleteMonth] Starting planned entry dismissals...');
+      const entryDismissals = plannedEntryIds.map((id) => {
+        console.log(`🗑️ [handleDeleteMonth] Dismissing planned entry ID: ${id} for month ${month}/${year}`);
+        return dismissPlannedEntry(id, { month, year }, { token, organizationId: '1' })
+          .then((result) => {
+            console.log(`✅ [handleDeleteMonth] Planned entry ${id} dismissed successfully`, result);
+            return result;
+          })
+          .catch((err) => {
+            console.error(`❌ [handleDeleteMonth] Planned entry ${id} dismissal FAILED:`, err);
+            throw err;
+          });
+      });
 
-      await Promise.all([...budgetDeletions, ...entryDismissals]);
+      console.log('🗑️ [handleDeleteMonth] Waiting for all operations to complete...');
+      const results = await Promise.all([...budgetDeletions, ...entryDismissals]);
+      console.log('✅ [handleDeleteMonth] All operations completed:', results);
 
       const monthName = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
       const parts = [];
       if (budgetIds.length > 0) parts.push(`${budgetIds.length} orçamentos`);
       if (plannedEntryIds.length > 0) parts.push(`${plannedEntryIds.length} entradas planejadas`);
       setSuccessMessage(`✅ ${parts.join(' e ')} de ${monthName} ${year} removidos com sucesso!`);
+
+      console.log('🗑️ [handleDeleteMonth] Refreshing data with fetchAllData()...');
       await fetchAllData();
+      console.log('✅ [handleDeleteMonth] Data refreshed, checking monthlyBudgets state...');
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
+      console.error('❌ [handleDeleteMonth] Error during deletion:', err);
       setError(err instanceof Error ? err.message : 'Falha ao excluir dados do mês');
     } finally {
       setIsSubmitting(false);
+      console.log('🗑️ [handleDeleteMonth] Deletion process finished');
     }
   };
 
@@ -1035,10 +1087,10 @@ export default function CategoryBudgetDashboard() {
                     hasPreviousMonthBudgets={hasPreviousMonthBudgets}
                     onEditBudget={handleEditBudget}
                     onDeleteBudget={handleDeleteBudget}
-                    onDeleteMonth={() => {
+                    onDeleteMonth={async () => {
                       const budgetIds = budgets.map((b) => b.CategoryBudgetID);
                       const plannedEntryIds = entries.map((e) => e.PlannedEntryID);
-                      handleDeleteMonth(month, year, budgetIds, plannedEntryIds);
+                      await handleDeleteMonth(month, year, budgetIds, plannedEntryIds);
                     }}
                     onConsolidate={handleConsolidateBudget}
                     onToggleExpand={() => handleToggleMonthExpand(month, year)}

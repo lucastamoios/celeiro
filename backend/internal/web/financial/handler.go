@@ -391,6 +391,85 @@ func (h *Handler) ImportOFX(w http.ResponseWriter, r *http.Request) {
 	responses.NewSuccess(result, w)
 }
 
+func (h *Handler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	accountID, err := strconv.Atoi(chi.URLParam(r, "accountId"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Verify account ownership
+	_, err = h.app.FinancialService.GetAccountByID(r.Context(), financialApp.GetAccountByIDInput{
+		AccountID:      accountID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	var req struct {
+		Description     string   `json:"description"`
+		Amount          float64  `json:"amount"`
+		TransactionDate string   `json:"transaction_date"`
+		TransactionType string   `json:"transaction_type"`
+		CategoryID      *int     `json:"category_id,omitempty"`
+		Notes           *string  `json:"notes,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Validation
+	if req.Description == "" {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+	if req.Amount <= 0 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+	if req.TransactionDate == "" {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+	if req.TransactionType != "debit" && req.TransactionType != "credit" {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Convert notes to string
+	notes := ""
+	if req.Notes != nil {
+		notes = *req.Notes
+	}
+
+	transaction, err := h.app.FinancialService.CreateTransaction(r.Context(), financialApp.CreateTransactionInput{
+		AccountID:       accountID,
+		CategoryID:      req.CategoryID,
+		Description:     req.Description,
+		Amount:          decimal.NewFromFloat(req.Amount),
+		TransactionDate: req.TransactionDate,
+		TransactionType: req.TransactionType,
+		Notes:           notes,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(transaction, w)
+}
+
 func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
