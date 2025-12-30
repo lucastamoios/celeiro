@@ -36,6 +36,10 @@ export default function CategoryBudgetDashboard() {
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
+  // Selected month for navigation (defaults to current month)
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
   const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudgetData[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   // Per-month actual spending: { "month-year": { categoryId: "amount" } }
@@ -966,6 +970,64 @@ export default function CategoryBudgetDashboard() {
     setError(null);
   };
 
+  // Month navigation helpers
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
+  const getMonthName = (month: number) => monthNames[month - 1];
+
+  const handlePreviousMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear(selectedYear - 1);
+    } else {
+      setSelectedMonth(selectedMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear(selectedYear + 1);
+    } else {
+      setSelectedMonth(selectedMonth + 1);
+    }
+  };
+
+  const handleGoToCurrentMonth = () => {
+    setSelectedMonth(currentMonth);
+    setSelectedYear(currentYear);
+  };
+
+  const isCurrentMonth = selectedMonth === currentMonth && selectedYear === currentYear;
+
+  // Get data for the selected month
+  const selectedMonthKey = `${selectedMonth}-${selectedYear}`;
+  const selectedMonthData = monthlyBudgets.find(
+    m => m.month === selectedMonth && m.year === selectedYear
+  );
+  const selectedMonthBudgets = selectedMonthData?.budgets || [];
+  const selectedMonthSpending = actualSpending[selectedMonthKey] || {};
+  const selectedMonthEntries = expandedMonthEntries[selectedMonthKey] || [];
+  const selectedMonthEntriesLoading = expandedMonthLoading[selectedMonthKey] || false;
+
+  // Calculate totals for summary
+  const totalPlanned = selectedMonthBudgets.reduce(
+    (sum, b) => sum + parseFloat(b.PlannedAmount || '0'), 0
+  );
+  const totalSpent = Object.values(selectedMonthSpending).reduce(
+    (sum, amount) => sum + parseFloat(amount || '0'), 0
+  );
+  const spentPercentage = totalPlanned > 0 ? Math.round((totalSpent / totalPlanned) * 100) : 0;
+
+  // Check if previous month has budgets (for copy button)
+  const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
+  const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+  const prevMonthData = monthlyBudgets.find(m => m.month === prevMonth && m.year === prevYear);
+  const hasPreviousMonthBudgets = prevMonthData ? prevMonthData.budgets.length > 0 : false;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8 animate-pulse">
@@ -1012,27 +1074,123 @@ export default function CategoryBudgetDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Orçamentos</h1>
-            <p className="text-gray-600">
-              Acompanhe seus orçamentos mensais por categoria
-            </p>
+        {/* Month Navigation Header */}
+        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center justify-between">
+            {/* Month Navigation */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handlePreviousMonth}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Mês anterior"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <div className="text-center min-w-[180px]">
+                <h1 className="text-xl font-bold text-gray-900">
+                  {getMonthName(selectedMonth)} {selectedYear}
+                </h1>
+                {isCurrentMonth && (
+                  <span className="text-xs text-blue-600 font-medium">Mês atual</span>
+                )}
+              </div>
+
+              <button
+                onClick={handleNextMonth}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Próximo mês"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              {!isCurrentMonth && (
+                <button
+                  onClick={handleGoToCurrentMonth}
+                  className="ml-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  Hoje
+                </button>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCreateEntryModal(true)}
+                className="px-3 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                + Entrada
+              </button>
+              <button
+                onClick={() => setShowCreateBudgetModal(true)}
+                className="px-3 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                + Orçamento
+              </button>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowCreateEntryModal(true)}
-              className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              + Entrada Planejada
-            </button>
-            <button
-              onClick={() => setShowCreateBudgetModal(true)}
-              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              + Orçamento de Categoria
-            </button>
+        </div>
+
+        {/* Monthly Summary Card */}
+        <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-100 p-5">
+          <div className="grid grid-cols-3 gap-6 mb-4">
+            {/* Planned */}
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-1">Planejado</p>
+              <p className="text-2xl font-bold text-gray-900">
+                R$ {totalPlanned.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {/* Spent */}
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-1">Gasto</p>
+              <p className={`text-2xl font-bold ${spentPercentage > 100 ? 'text-red-600' : 'text-gray-900'}`}>
+                R$ {totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {/* Progress */}
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-1">Progresso</p>
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      spentPercentage > 100 ? 'bg-red-500' : spentPercentage > 80 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.min(spentPercentage, 100)}%` }}
+                  />
+                </div>
+                <span className={`text-lg font-bold ${spentPercentage > 100 ? 'text-red-600' : 'text-gray-900'}`}>
+                  {spentPercentage}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="flex items-center justify-center gap-4 text-sm text-gray-600 pt-3 border-t border-blue-100">
+            <span>{selectedMonthBudgets.length} {selectedMonthBudgets.length === 1 ? 'categoria' : 'categorias'}</span>
+            <span className="text-blue-300">•</span>
+            <span>{selectedMonthEntries.length} {selectedMonthEntries.length === 1 ? 'entrada' : 'entradas'} planejadas</span>
+            {hasPreviousMonthBudgets && selectedMonthBudgets.length === 0 && (
+              <>
+                <span className="text-blue-300">•</span>
+                <button
+                  onClick={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
+                  disabled={isSubmitting}
+                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors disabled:opacity-50"
+                >
+                  📋 Copiar do mês anterior
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -1048,78 +1206,65 @@ export default function CategoryBudgetDashboard() {
           </div>
         )}
 
-        {/* Monthly Budget Timeline */}
-        {monthlyBudgets.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+        {/* Single Month Budget View */}
+        {selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
             <div className="text-gray-400 text-6xl mb-4">📊</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Nenhum orçamento encontrado
+              Nenhum orçamento para {getMonthName(selectedMonth)} {selectedYear}
             </h3>
             <p className="text-gray-600 mb-4">
-              Crie seu primeiro orçamento de categoria para começar a rastrear despesas
+              Crie um orçamento de categoria ou entrada planejada para começar
             </p>
-            <button
-              onClick={() => setShowCreateBudgetModal(true)}
-              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              + Criar Primeiro Orçamento
-            </button>
+            <div className="flex gap-3 justify-center">
+              {hasPreviousMonthBudgets && (
+                <button
+                  onClick={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+                >
+                  📋 Copiar do mês anterior
+                </button>
+              )}
+              <button
+                onClick={() => setShowCreateBudgetModal(true)}
+                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                + Criar Orçamento
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="space-y-8">
-            {monthlyBudgets
-              .slice()
-              .reverse()
-              .map(({ month, year, budgets, isConsolidated }, index, arr) => {
-                const isCurrent = month === currentMonth && year === currentYear;
-                const key = `${month}-${year}`;
-                const isExpanded = expandedMonths.has(key);
-                const entries = expandedMonthEntries[key] || [];
-                const entriesLoading = expandedMonthLoading[key] || false;
-
-                // Check if previous month has budgets (for copy button)
-                // Previous month in the reversed array is actually next index
-                const prevMonthData = arr[index + 1];
-                const hasPreviousMonthBudgets = prevMonthData ? prevMonthData.budgets.length > 0 : false;
-
-                // Get spending for this specific month
-                const monthKey = `${month}-${year}`;
-                const monthSpending = actualSpending[monthKey] || {};
-
-                return (
-                  <MonthlyBudgetCard
-                    key={`${year}-${month}`}
-                    month={month}
-                    year={year}
-                    budgets={budgets}
-                    categories={categories}
-                    actualSpending={monthSpending}
-                    isCurrent={isCurrent}
-                    isConsolidated={isConsolidated}
-                    isExpanded={isExpanded}
-                    plannedEntries={entries}
-                    plannedEntriesLoading={entriesLoading}
-                    hasPreviousMonthBudgets={hasPreviousMonthBudgets}
-                    onEditBudget={handleEditBudget}
-                    onDeleteBudget={handleDeleteBudget}
-                    onDeleteMonth={async () => {
-                      const budgetIds = budgets.map((b) => b.CategoryBudgetID);
-                      const plannedEntryIds = entries.map((e) => e.PlannedEntryID);
-                      await handleDeleteMonth(month, year, budgetIds, plannedEntryIds);
-                    }}
-                    onConsolidate={handleConsolidateBudget}
-                    onToggleExpand={() => handleToggleMonthExpand(month, year)}
-                    onCopyFromPreviousMonth={() => handleCopyFromPreviousMonth(month, year)}
-                    onMatchEntry={(entryId) => handleMatchExpandedEntry(entryId, month, year)}
-                    onUnmatchEntry={(entryId) => handleUnmatchExpandedEntry(entryId, month, year)}
-                    onDismissEntry={(entryId, reason) => handleDismissExpandedEntry(entryId, month, year, reason)}
-                    onUndismissEntry={(entryId) => handleUndismissExpandedEntry(entryId, month, year)}
-                    onEditEntry={(entry) => handleEditPlannedEntry(entry, month, year)}
-                    onDeleteEntry={(entryId) => handleDeletePlannedEntry(entryId, month, year)}
-                  />
-                );
-              })}
-          </div>
+          <MonthlyBudgetCard
+            month={selectedMonth}
+            year={selectedYear}
+            budgets={selectedMonthBudgets}
+            categories={categories}
+            actualSpending={selectedMonthSpending}
+            isCurrent={isCurrentMonth}
+            isConsolidated={selectedMonthData?.isConsolidated || false}
+            isExpanded={expandedMonths.has(selectedMonthKey)}
+            plannedEntries={selectedMonthEntries}
+            plannedEntriesLoading={selectedMonthEntriesLoading}
+            hasPreviousMonthBudgets={hasPreviousMonthBudgets}
+            onEditBudget={handleEditBudget}
+            onDeleteBudget={handleDeleteBudget}
+            onDeleteMonth={async () => {
+              const budgetIds = selectedMonthBudgets.map((b) => b.CategoryBudgetID);
+              const plannedEntryIds = selectedMonthEntries.map((e) => e.PlannedEntryID);
+              await handleDeleteMonth(selectedMonth, selectedYear, budgetIds, plannedEntryIds);
+            }}
+            onConsolidate={handleConsolidateBudget}
+            onToggleExpand={() => handleToggleMonthExpand(selectedMonth, selectedYear)}
+            onCopyFromPreviousMonth={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
+            onMatchEntry={(entryId) => handleMatchExpandedEntry(entryId, selectedMonth, selectedYear)}
+            onUnmatchEntry={(entryId) => handleUnmatchExpandedEntry(entryId, selectedMonth, selectedYear)}
+            onDismissEntry={(entryId, reason) => handleDismissExpandedEntry(entryId, selectedMonth, selectedYear, reason)}
+            onUndismissEntry={(entryId) => handleUndismissExpandedEntry(entryId, selectedMonth, selectedYear)}
+            onEditEntry={(entry) => handleEditPlannedEntry(entry, selectedMonth, selectedYear)}
+            onDeleteEntry={(entryId) => handleDeletePlannedEntry(entryId, selectedMonth, selectedYear)}
+            hideHeader={true}
+          />
         )}
 
         {/* Create/Edit Budget Modal */}
