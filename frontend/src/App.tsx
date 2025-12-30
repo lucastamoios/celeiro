@@ -41,7 +41,7 @@ function AppContent() {
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  Transações
+                  💳 Transações
                 </button>
                 <button
                   onClick={() => setCurrentView('budgets')}
@@ -51,7 +51,7 @@ function AppContent() {
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  Orçamentos
+                  📊 Orçamentos
                 </button>
                 <button
                   onClick={() => setCurrentView('patterns')}
@@ -61,7 +61,7 @@ function AppContent() {
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  🎯 Padrões
+                  🔄 Padrões
                 </button>
                 <button
                   onClick={() => setCurrentView('categories')}

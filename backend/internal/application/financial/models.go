@@ -405,3 +405,54 @@ func (m *MatchScore) MatchConfidence() string {
 	}
 	return "LOW"
 }
+
+// =============================================================================
+// Amazon Sync Types
+// =============================================================================
+
+// AmazonOrderInput represents an order received from the Chrome extension
+type AmazonOrderInput struct {
+	OrderID         string          // Amazon order ID (e.g., "123-4567890-1234567")
+	DateString      string          // Original date string from Amazon
+	ParsedDate      *string         // ISO format date if parsed
+	TotalString     string          // Original total string (e.g., "R$ 123,45")
+	ParsedTotal     decimal.Decimal // Parsed amount
+	ItemDescription string          // Combined item description
+}
+
+// SyncAmazonOrdersInput contains the request for syncing Amazon orders
+type SyncAmazonOrdersInput struct {
+	UserID         int
+	OrganizationID int
+	Orders         []AmazonOrderInput
+	Month          int
+	Year           int
+}
+
+// SyncAmazonOrdersResult contains the result of the sync operation
+type SyncAmazonOrdersResult struct {
+	MatchedCount   int                    `json:"matched_count"`
+	TotalOrders    int                    `json:"total_orders"`
+	MatchedOrders  []AmazonMatchedOrder   `json:"matched_orders"`
+	UnmatchedOrders []AmazonUnmatchedOrder `json:"unmatched_orders"`
+	Message        string                 `json:"message"`
+}
+
+// AmazonMatchedOrder represents a successfully matched Amazon order
+type AmazonMatchedOrder struct {
+	OrderID          string          `json:"order_id"`
+	TransactionID    int             `json:"transaction_id"`
+	OriginalDesc     string          `json:"original_description"`
+	NewDescription   string          `json:"new_description"`
+	OrderAmount      decimal.Decimal `json:"order_amount"`
+	TransactionAmount decimal.Decimal `json:"transaction_amount"`
+}
+
+// AmazonUnmatchedOrder represents an Amazon order that couldn't be matched
+type AmazonUnmatchedOrder struct {
+	OrderID     string          `json:"order_id"`
+	Amount      decimal.Decimal `json:"amount"`
+	Date        string          `json:"date"`
+	Description string          `json:"description"`
+	Reason      string          `json:"reason"`
+}

@@ -1,0 +1,20 @@
+# Development override - use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Or set COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Use named volume for Go modules cache (faster rebuilds)
+      - go_modules:/go/pkg/mod
+      # Keep tmp dir in container (Air build artifacts)
+      - /app/tmp
+    # Override command to use Air
+    command: ["air", "-c", ".air.toml"]
+
+volumes:
+  go_modules:

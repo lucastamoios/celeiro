@@ -24,6 +24,7 @@ type Config struct {
 	ServiceInstanceID string
 	ServiceVersion    string
 	OTELEndpoint      string
+	OTELEnabled       bool
 	MailerType        string
 	SMTP2GO           SMTP2GOConfig
 }
@@ -50,6 +51,7 @@ func New() *Config {
 	serviceInstanceID := flag.String("service-instance-id", getEnvAsString("SERVICE_INSTANCE_ID", "1"), "Service instance ID")
 	serviceVersion := flag.String("service-version", getEnvAsString("SERVICE_VERSION", "unknown"), "Service version")
 	otelEndpoint := flag.String("otel-endpoint", getEnvAsString("OTEL_ENDPOINT", "localhost:4317"), "OTEL endpoint")
+	otelEnabled := flag.Bool("otel-enabled", getEnvAsBool("OTEL_ENABLED", true), "Enable OTEL metrics and tracing")
 	mailerType := flag.String("mailer-type", getEnvAsString("MAILER_TYPE", "local"), "Mailer type")
 
 	smtp2goAPIKey := flag.String("smtp2go-api-key", getEnvAsString("SMTP2GO_API_KEY", ""), "SMTP2GO API key")
@@ -74,6 +76,7 @@ func New() *Config {
 		ServiceInstanceID: *serviceInstanceID,
 		ServiceVersion:    *serviceVersion,
 		OTELEndpoint:      *otelEndpoint,
+		OTELEnabled:       *otelEnabled,
 		MailerType:        *mailerType,
 		SMTP2GO: SMTP2GOConfig{
 			APIKey:        *smtp2goAPIKey,
@@ -101,5 +104,22 @@ func getEnvAsString(name string, defaultValue string) string {
 	if value := os.Getenv(name); value != "" {
 		return value
 	}
+	return defaultValue
+}
+
+func getEnvAsBool(name string, defaultValue bool) bool {
+	valueStr := os.Getenv(name)
+	if valueStr == "" {
+		return defaultValue
+	}
+
+	// Accept common boolean representations
+	switch valueStr {
+	case "true", "1", "yes", "on":
+		return true
+	case "false", "0", "no", "off":
+		return false
+	}
+
 	return defaultValue
 }

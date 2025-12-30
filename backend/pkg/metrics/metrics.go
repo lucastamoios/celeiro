@@ -46,6 +46,11 @@ type Metrics struct {
 
 // NewMetrics creates a new metrics instance with OpenTelemetry
 func NewMetrics(cfg *config.Config) (*Metrics, error) {
+	// If OTEL is disabled, return no-op metrics
+	if !cfg.OTELEnabled {
+		return NewNoOpMetrics(), nil
+	}
+
 	// Set resource attributes (without schema URL to avoid conflicts)
 	res := resource.NewWithAttributes(
 		"",

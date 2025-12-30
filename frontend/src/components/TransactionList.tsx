@@ -1,4 +1,4 @@
-import { useEffect, useState, Fragment } from 'react';
+import { useEffect, useState } from 'react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
@@ -32,7 +32,6 @@ export default function TransactionList() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -182,7 +181,6 @@ export default function TransactionList() {
 
   const handleOpenEditModal = (transaction: Transaction) => {
     setEditingTransaction(transaction);
-    setOpenMenuId(null);
   };
 
   const handleCloseEditModal = () => {
@@ -193,38 +191,6 @@ export default function TransactionList() {
     setUploadSuccess(`✅ Transação atualizada com sucesso!`);
     setTimeout(() => setUploadSuccess(null), 3000);
     await fetchData();
-  };
-
-  const handleDelete = async (transactionId: number) => {
-    if (!token || !confirm('Tem certeza que deseja deletar esta transação?')) return;
-
-    setError(null);
-
-    try {
-      const response = await fetch(
-        `${financialUrl('accounts')}/1/transactions/${transactionId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to delete transaction');
-      }
-
-      setUploadSuccess(`✅ Transação deletada com sucesso!`);
-      setTimeout(() => setUploadSuccess(null), 3000);
-
-      // Refresh transactions
-      await fetchData();
-      setOpenMenuId(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete transaction');
-    }
   };
 
   if (loading) {
@@ -375,15 +341,12 @@ export default function TransactionList() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Categoria
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ações
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentMonthTransactions.map((transaction) => (
-                  <Fragment key={transaction.transaction_id}>
-                    <tr 
+                    <tr
+                      key={transaction.transaction_id}
                       className={`hover:bg-blue-50 cursor-pointer transition-colors ${transaction.is_ignored ? 'opacity-40 bg-gray-50' : ''}`}
                       onClick={() => handleOpenEditModal(transaction)}
                     >
@@ -414,56 +377,7 @@ export default function TransactionList() {
                           <span className="text-gray-400 italic">Não classificada</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(openMenuId === transaction.transaction_id ? null : transaction.transaction_id);
-                          }}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                          title="Mais ações"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                          </svg>
-                        </button>
-
-                        {openMenuId === transaction.transaction_id && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setOpenMenuId(null)}
-                            />
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-20">
-                              <div className="py-1">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenEditModal(transaction);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
-                                >
-                                  <span>✏️</span>
-                                  <span>Editar</span>
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(transaction.transaction_id);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                                >
-                                  <span>🗑️</span>
-                                  <span>Deletar</span>
-                                </button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </td>
                     </tr>
-
-                  </Fragment>
                 ))}
               </tbody>
             </table>

@@ -66,6 +66,36 @@ export default function SavingsGoalsPage() {
   const [contributionError, setContributionError] = useState<string | null>(null);
   const [submittingContribution, setSubmittingContribution] = useState(false);
 
+  // Handle ESC key to close modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showForm) {
+          setShowForm(false);
+          resetForm();
+        } else if (contributingGoalId !== null) {
+          closeContributionModal();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showForm, contributingGoalId]);
+
+  // Handle backdrop click to close modals
+  const handleFormBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setShowForm(false);
+      resetForm();
+    }
+  }, []);
+
+  const handleContributionBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      closeContributionModal();
+    }
+  }, []);
+
   const fetchGoals = useCallback(async () => {
     if (!token) {
       setLoading(false);
@@ -426,7 +456,10 @@ export default function SavingsGoalsPage() {
 
         {/* Create/Edit Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={handleFormBackdropClick}
+          >
             <div className="bg-white rounded-lg shadow-xl p-6 w-[500px] max-w-[90vw] max-h-[90vh] overflow-y-auto">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 {editingGoal ? 'Editar Meta' : 'Nova Meta'}
@@ -613,7 +646,10 @@ export default function SavingsGoalsPage() {
 
         {/* Contribution Modal */}
         {contributingGoal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={handleContributionBackdropClick}
+          >
             <div className="bg-white rounded-lg shadow-xl p-6 w-[400px] max-w-[90vw]">
               <h2 className="text-xl font-bold text-gray-900 mb-2">
                 💰 Adicionar Contribuição

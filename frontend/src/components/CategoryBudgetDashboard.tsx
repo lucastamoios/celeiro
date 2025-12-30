@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import type { CategoryBudget, CreateCategoryBudgetRequest, CreatePlannedEntryRequest, PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
@@ -9,6 +9,7 @@ import {
   updateCategoryBudget,
   deleteCategoryBudget,
   consolidateCategoryBudget,
+  copyCategoryBudgetsFromMonth,
   createPlannedEntry,
   updatePlannedEntry,
   deletePlannedEntry,
@@ -37,7 +38,8 @@ export default function CategoryBudgetDashboard() {
 
   const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudgetData[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [actualSpending, setActualSpending] = useState<Record<number, string>>({});
+  // Per-month actual spending: { "month-year": { categoryId: "amount" } }
+  const [actualSpending, setActualSpending] = useState<Record<string, Record<number, string>>>({});
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
 
@@ -65,6 +67,41 @@ export default function CategoryBudgetDashboard() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [budgetType, setBudgetType] = useState<'fixed' | 'calculated' | 'maior'>('fixed');
   const [plannedAmount, setPlannedAmount] = useState<string>('');
+
+  // Handle ESC key to close modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showCreateBudgetModal) {
+          setShowCreateBudgetModal(false);
+          setEditingBudget(null);
+        } else if (showCreateEntryModal) {
+          setShowCreateEntryModal(false);
+          setEditingEntry(null);
+        } else if (showMatchModal) {
+          setShowMatchModal(false);
+          setMatchingEntry(null);
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showCreateBudgetModal, showCreateEntryModal, showMatchModal]);
+
+  // Handle backdrop click for modals
+  const handleBudgetModalBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setShowCreateBudgetModal(false);
+      setEditingBudget(null);
+    }
+  }, []);
+
+  const handleEntryModalBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setShowCreateEntryModal(false);
+      setEditingEntry(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -134,13 +171,8 @@ export default function CategoryBudgetDashboard() {
 
       setMonthlyBudgets(monthlyData);
 
-      // Fetch actual spending for all category IDs
-      const allCategoryIds = new Set<number>();
-      allBudgetsResults.forEach(({ budgets }) => {
-        budgets.forEach(b => allCategoryIds.add(b.CategoryID));
-      });
-
-      await fetchActualSpending(Array.from(allCategoryIds));
+      // Fetch all transactions to calculate actual spending
+      await fetchAndCalculateActualSpending();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -148,16 +180,146 @@ export default function CategoryBudgetDashboard() {
     }
   };
 
-  const fetchActualSpending = async (categoryIds: number[]) => {
-    if (!token || categoryIds.length === 0) return;
+  // Fetch all transactions and planned entries, then calculate spending per category per month
+  // For "Maior" budgets: Planned Entries + Unmatched Transactions (to avoid double-counting)
+  const fetchAndCalculateActualSpending = async () => {
+    if (!token) return;
 
-    // TODO: This should be replaced with a proper backend endpoint
-    // For now, we'll set placeholder values
-    const spending: Record<number, string> = {};
-    categoryIds.forEach(id => {
-      spending[id] = '0.00'; // Placeholder
-    });
-    setActualSpending(spending);
+    try {
+      // Generate list of months to fetch (last 6 months + current month)
+      const monthsToFetch: Array<{ month: number; year: number }> = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(currentYear, currentMonth - 1 - i, 1);
+        monthsToFetch.push({
+          month: date.getMonth() + 1,
+          year: date.getFullYear(),
+        });
+      }
+
+      // Fetch accounts first
+      const accountsResponse = await fetch(financialUrl('accounts'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Active-Organization': '1',
+        },
+      });
+
+      if (!accountsResponse.ok) {
+        console.error('Failed to fetch accounts:', accountsResponse.status);
+        return;
+      }
+
+      const accountsData: ApiResponse<Array<{ AccountID: number }>> = await accountsResponse.json();
+      const accounts = accountsData.data || [];
+
+      if (accounts.length === 0) {
+        console.warn('No accounts found for spending calculation');
+        return;
+      }
+
+      // Fetch transactions and planned entries in parallel
+      const [allTxArrays, allEntriesResults] = await Promise.all([
+        // Fetch transactions from each account
+        Promise.all(accounts.map(account =>
+          fetch(financialUrl(`accounts/${account.AccountID}/transactions`), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'X-Active-Organization': '1',
+            },
+          })
+            .then(res => res.ok ? res.json() : { data: [] })
+            .then((data: ApiResponse<Transaction[]>) => data.data || [])
+            .catch(() => [] as Transaction[])
+        )),
+        // Fetch planned entries for all months
+        Promise.all(monthsToFetch.map(({ month, year }) =>
+          getPlannedEntriesForMonth(month, year, { token, organizationId: '1' })
+            .then(entries => ({ month, year, entries: entries || [] }))
+            .catch(() => ({ month, year, entries: [] as PlannedEntryWithStatus[] }))
+        ))
+      ]);
+
+      const transactions = allTxArrays.flat();
+      setAllTransactions(transactions);
+
+      // Build a map of planned entries by month-year
+      const plannedEntriesByMonth: Record<string, PlannedEntryWithStatus[]> = {};
+      allEntriesResults.forEach(({ month, year, entries }) => {
+        const key = `${month}-${year}`;
+        plannedEntriesByMonth[key] = entries;
+      });
+
+      // Also update expandedMonthEntries with this data
+      setExpandedMonthEntries(plannedEntriesByMonth);
+
+      // Calculate spending: Planned Entries + Unmatched Transactions
+      const spending: Record<string, Record<number, string>> = {};
+
+      // Step 1: Build a set of matched transaction IDs per month
+      const matchedTxIdsByMonth: Record<string, Set<number>> = {};
+      Object.entries(plannedEntriesByMonth).forEach(([key, entries]) => {
+        matchedTxIdsByMonth[key] = new Set();
+        entries.forEach(entry => {
+          if (entry.MatchedTransactionID) {
+            matchedTxIdsByMonth[key].add(entry.MatchedTransactionID);
+          }
+        });
+      });
+
+      // Step 2: Add planned entries contribution
+      Object.entries(plannedEntriesByMonth).forEach(([key, entries]) => {
+        if (!spending[key]) {
+          spending[key] = {};
+        }
+
+        entries.forEach(entry => {
+          // Skip dismissed entries only - include both income and expense entries
+          if (entry.Status === 'dismissed') {
+            return;
+          }
+
+          // Use MatchedAmount if matched, otherwise use Amount (expected)
+          const amount = entry.Status === 'matched' && entry.MatchedAmount
+            ? parseFloat(entry.MatchedAmount)
+            : parseFloat(entry.Amount);
+
+          if (!isNaN(amount) && amount > 0) {
+            const currentAmount = parseFloat(spending[key][entry.CategoryID] || '0');
+            spending[key][entry.CategoryID] = (currentAmount + amount).toFixed(2);
+          }
+        });
+      });
+
+      // Step 3: Add unmatched transactions (both credits and debits)
+      transactions.forEach(tx => {
+        // Skip ignored transactions and uncategorized - include both income and expense
+        if (tx.is_ignored || !tx.category_id) {
+          return;
+        }
+
+        const txDate = new Date(tx.transaction_date);
+        const month = txDate.getMonth() + 1;
+        const year = txDate.getFullYear();
+        const key = `${month}-${year}`;
+
+        // Skip if this transaction is matched to a planned entry
+        if (matchedTxIdsByMonth[key]?.has(tx.transaction_id)) {
+          return;
+        }
+
+        if (!spending[key]) {
+          spending[key] = {};
+        }
+
+        const currentAmount = parseFloat(spending[key][tx.category_id] || '0');
+        const txAmount = parseFloat(tx.amount);
+        spending[key][tx.category_id] = (currentAmount + txAmount).toFixed(2);
+      });
+
+      setActualSpending(spending);
+    } catch (err) {
+      console.error('Failed to calculate actual spending:', err);
+    }
   };
 
   // Fetch transactions for pattern autocomplete (called when modal opens)
@@ -347,6 +509,52 @@ export default function CategoryBudgetDashboard() {
     }
   };
 
+  const handleDeleteMonth = async (
+    month: number,
+    year: number,
+    budgetIds: number[],
+    plannedEntryIds: number[]
+  ) => {
+    if (!token) return;
+
+    // Nothing to delete
+    if (budgetIds.length === 0 && plannedEntryIds.length === 0) {
+      setError('Não há dados para excluir neste mês');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Delete all budgets for this month in parallel
+      const budgetDeletions = budgetIds.map((id) =>
+        deleteCategoryBudget(id, { token, organizationId: '1' })
+      );
+
+      // Dismiss all planned entries for this month in parallel
+      const entryDismissals = plannedEntryIds.map((id) =>
+        dismissPlannedEntry(id, { month, year }, { token, organizationId: '1' })
+      );
+
+      await Promise.all([...budgetDeletions, ...entryDismissals]);
+
+      const monthName = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+      const parts = [];
+      if (budgetIds.length > 0) parts.push(`${budgetIds.length} orçamentos`);
+      if (plannedEntryIds.length > 0) parts.push(`${plannedEntryIds.length} entradas planejadas`);
+      setSuccessMessage(`✅ ${parts.join(' e ')} de ${monthName} ${year} removidos com sucesso!`);
+      await fetchAllData();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao excluir dados do mês');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleConsolidateBudget = async (budgetId: number) => {
     if (!token) return;
 
@@ -362,6 +570,42 @@ export default function CategoryBudgetDashboard() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to consolidate budget');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyFromPreviousMonth = async (targetMonth: number, targetYear: number) => {
+    if (!token) return;
+
+    // Calculate previous month
+    let sourceMonth = targetMonth - 1;
+    let sourceYear = targetYear;
+    if (sourceMonth < 1) {
+      sourceMonth = 12;
+      sourceYear -= 1;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await copyCategoryBudgetsFromMonth(
+        {
+          source_month: sourceMonth,
+          source_year: sourceYear,
+          target_month: targetMonth,
+          target_year: targetYear,
+        },
+        { token, organizationId: '1' }
+      );
+
+      setSuccessMessage('Orçamentos copiados com sucesso!');
+      await fetchAllData();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao copiar orçamentos');
     } finally {
       setIsSubmitting(false);
     }
@@ -466,7 +710,8 @@ export default function CategoryBudgetDashboard() {
       });
 
       setSuccessMessage('Entrada desvinculada com sucesso!');
-      await fetchEntriesForMonth(month, year);
+      // Recalculate spending since match status changed
+      await fetchAndCalculateActualSpending();
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -493,7 +738,8 @@ export default function CategoryBudgetDashboard() {
       });
 
       setSuccessMessage('Entrada dispensada com sucesso!');
-      await fetchEntriesForMonth(month, year);
+      // Recalculate spending since dismissed entries are excluded
+      await fetchAndCalculateActualSpending();
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -516,7 +762,8 @@ export default function CategoryBudgetDashboard() {
       });
 
       setSuccessMessage('Entrada reativada com sucesso!');
-      await fetchEntriesForMonth(month, year);
+      // Recalculate spending since entry is now active again
+      await fetchAndCalculateActualSpending();
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -552,11 +799,8 @@ export default function CategoryBudgetDashboard() {
       setMatchingEntry(null);
       setMatchingMonthYear(null);
 
-      // Refresh entries for the specific month
-      const key = `${matchingMonthYear.month}-${matchingMonthYear.year}`;
-      if (expandedMonthEntries[key]) {
-        await fetchEntriesForMonth(matchingMonthYear.month, matchingMonthYear.year);
-      }
+      // Recalculate spending since match status changed
+      await fetchAndCalculateActualSpending();
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -759,12 +1003,21 @@ export default function CategoryBudgetDashboard() {
             {monthlyBudgets
               .slice()
               .reverse()
-              .map(({ month, year, budgets, isConsolidated }) => {
+              .map(({ month, year, budgets, isConsolidated }, index, arr) => {
                 const isCurrent = month === currentMonth && year === currentYear;
                 const key = `${month}-${year}`;
                 const isExpanded = expandedMonths.has(key);
                 const entries = expandedMonthEntries[key] || [];
                 const entriesLoading = expandedMonthLoading[key] || false;
+
+                // Check if previous month has budgets (for copy button)
+                // Previous month in the reversed array is actually next index
+                const prevMonthData = arr[index + 1];
+                const hasPreviousMonthBudgets = prevMonthData ? prevMonthData.budgets.length > 0 : false;
+
+                // Get spending for this specific month
+                const monthKey = `${month}-${year}`;
+                const monthSpending = actualSpending[monthKey] || {};
 
                 return (
                   <MonthlyBudgetCard
@@ -773,16 +1026,23 @@ export default function CategoryBudgetDashboard() {
                     year={year}
                     budgets={budgets}
                     categories={categories}
-                    actualSpending={actualSpending}
+                    actualSpending={monthSpending}
                     isCurrent={isCurrent}
                     isConsolidated={isConsolidated}
                     isExpanded={isExpanded}
                     plannedEntries={entries}
                     plannedEntriesLoading={entriesLoading}
+                    hasPreviousMonthBudgets={hasPreviousMonthBudgets}
                     onEditBudget={handleEditBudget}
                     onDeleteBudget={handleDeleteBudget}
+                    onDeleteMonth={() => {
+                      const budgetIds = budgets.map((b) => b.CategoryBudgetID);
+                      const plannedEntryIds = entries.map((e) => e.PlannedEntryID);
+                      handleDeleteMonth(month, year, budgetIds, plannedEntryIds);
+                    }}
                     onConsolidate={handleConsolidateBudget}
                     onToggleExpand={() => handleToggleMonthExpand(month, year)}
+                    onCopyFromPreviousMonth={() => handleCopyFromPreviousMonth(month, year)}
                     onMatchEntry={(entryId) => handleMatchExpandedEntry(entryId, month, year)}
                     onUnmatchEntry={(entryId) => handleUnmatchExpandedEntry(entryId, month, year)}
                     onDismissEntry={(entryId, reason) => handleDismissExpandedEntry(entryId, month, year, reason)}
@@ -797,7 +1057,10 @@ export default function CategoryBudgetDashboard() {
 
         {/* Create/Edit Budget Modal */}
         {showCreateBudgetModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={handleBudgetModalBackdropClick}
+          >
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
                 {editingBudget ? 'Edit Category Budget' : 'Create Category Budget'}
@@ -893,7 +1156,10 @@ export default function CategoryBudgetDashboard() {
 
         {/* Create/Edit Planned Entry Modal */}
         {showCreateEntryModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={handleEntryModalBackdropClick}
+          >
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
                 {editingEntry ? 'Editar Entrada Planejada' : 'Criar Entrada Planejada'}

@@ -2,6 +2,10 @@ package financial
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
 
 	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	"github.com/catrutech/celeiro/pkg/errors"
@@ -66,6 +70,7 @@ type Service interface {
 	UpdateCategoryBudget(ctx context.Context, params UpdateCategoryBudgetInput) (CategoryBudget, error)
 	DeleteCategoryBudget(ctx context.Context, params DeleteCategoryBudgetInput) error
 	ConsolidateCategoryBudget(ctx context.Context, params ConsolidateCategoryBudgetInput) (MonthlySnapshot, error)
+	CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyCategoryBudgetsInput) ([]CategoryBudget, error)
 
 	// Planned Entries
 	GetPlannedEntries(ctx context.Context, params GetPlannedEntriesInput) ([]PlannedEntry, error)
@@ -116,6 +121,9 @@ type Service interface {
 	ReopenSavingsGoal(ctx context.Context, input ReopenSavingsGoalInput) (SavingsGoal, error)
 	GetGoalSummary(ctx context.Context, input GetGoalSummaryInput) (SavingsGoalDetail, error)
 	AddContribution(ctx context.Context, input AddContributionInput) (SavingsGoalProgress, error)
+
+	// Amazon Sync
+	SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersInput) (*SyncAmazonOrdersResult, error)
 }
 
 type service struct {
@@ -1205,6 +1213,80 @@ func (s *service) ConsolidateCategoryBudget(ctx context.Context, params Consolid
 	return MonthlySnapshot{}.FromModel(&snapshot), nil
 }
 
+// CopyCategoryBudgetsInput contains the parameters for copying budgets
+type CopyCategoryBudgetsInput struct {
+	UserID         int
+	OrganizationID int
+	SourceMonth    int
+	SourceYear     int
+	TargetMonth    int
+	TargetYear     int
+}
+
+func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyCategoryBudgetsInput) ([]CategoryBudget, error) {
+	// Fetch all budgets from the source month
+	sourceBudgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Month:          &params.SourceMonth,
+		Year:           &params.SourceYear,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch source month budgets")
+	}
+
+	if len(sourceBudgets) == 0 {
+		return nil, errors.New("no budgets found in source month to copy")
+	}
+
+	// Check if target month already has budgets
+	existingBudgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Month:          &params.TargetMonth,
+		Year:           &params.TargetYear,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check existing budgets")
+	}
+
+	// Build a map of existing category IDs in target month
+	existingCategoryIDs := make(map[int]bool)
+	for _, b := range existingBudgets {
+		existingCategoryIDs[b.CategoryID] = true
+	}
+
+	// Create new budgets for the target month (skip categories that already exist)
+	var createdBudgets []CategoryBudget
+	for _, src := range sourceBudgets {
+		// Skip if category already has a budget in target month
+		if existingCategoryIDs[src.CategoryID] {
+			continue
+		}
+
+		model, err := s.Repository.InsertCategoryBudget(ctx, insertCategoryBudgetParams{
+			UserID:         params.UserID,
+			OrganizationID: params.OrganizationID,
+			CategoryID:     src.CategoryID,
+			Month:          params.TargetMonth,
+			Year:           params.TargetYear,
+			BudgetType:     src.BudgetType,
+			PlannedAmount:  src.PlannedAmount,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("failed to create budget for category %d", src.CategoryID))
+		}
+
+		createdBudgets = append(createdBudgets, CategoryBudget{}.FromModel(&model))
+	}
+
+	if len(createdBudgets) == 0 {
+		return nil, errors.New("all categories from source month already have budgets in target month")
+	}
+
+	return createdBudgets, nil
+}
+
 // ============================================================================
 // Planned Entries
 // ============================================================================
@@ -1809,7 +1891,7 @@ func (s *service) GetPlannedEntryForTransaction(ctx context.Context, params GetP
 	})
 	if err != nil {
 		// If not found, return nil (not an error, just no linked entry)
-		if err.Error() == "sql: no rows in result set" {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, errors.Wrap(err, "failed to fetch planned entry status")
@@ -1843,4 +1925,260 @@ func (s *service) GetPlannedEntryForTransaction(ctx context.Context, params GetP
 	}
 
 	return result, nil
+}
+
+// =============================================================================
+// Amazon Sync
+// =============================================================================
+
+// SyncAmazonOrders matches Amazon orders with transactions and updates descriptions
+func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersInput) (*SyncAmazonOrdersResult, error) {
+	s.logger.Info(ctx, "Starting Amazon orders sync",
+		"user_id", params.UserID,
+		"organization_id", params.OrganizationID,
+		"order_count", len(params.Orders),
+		"month", params.Month,
+		"year", params.Year,
+	)
+
+	// Fetch all transactions for the organization in the given month/year
+	transactions, err := s.Repository.FetchTransactionsByMonth(ctx, fetchTransactionsByMonthParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Month:          params.Month,
+		Year:           params.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch transactions")
+	}
+
+	s.logger.Info(ctx, "Found transactions for matching",
+		"transaction_count", len(transactions),
+	)
+
+	result := &SyncAmazonOrdersResult{
+		TotalOrders:    len(params.Orders),
+		MatchedOrders:  make([]AmazonMatchedOrder, 0),
+		UnmatchedOrders: make([]AmazonUnmatchedOrder, 0),
+	}
+
+	// Track matched transaction IDs to avoid duplicates
+	matchedTxIDs := make(map[int]bool)
+
+	// For each Amazon order, find a matching transaction
+	for _, order := range params.Orders {
+		if order.ParsedTotal.IsZero() {
+			result.UnmatchedOrders = append(result.UnmatchedOrders, AmazonUnmatchedOrder{
+				OrderID:     order.OrderID,
+				Amount:      order.ParsedTotal,
+				Date:        order.DateString,
+				Description: order.ItemDescription,
+				Reason:      "Valor do pedido não disponível",
+			})
+			continue
+		}
+
+		// Parse order date if available
+		var orderDate *time.Time
+		if order.ParsedDate != nil && *order.ParsedDate != "" {
+			if parsed, err := time.Parse("2006-01-02", *order.ParsedDate); err == nil {
+				orderDate = &parsed
+			}
+		}
+
+		// Find matching transaction by amount (with tolerance) and date (±2 days)
+		var bestMatch *TransactionModel
+		var bestMatchScore float64 = 0
+
+		for i := range transactions {
+			tx := &transactions[i]
+
+			// Skip already matched transactions
+			if matchedTxIDs[tx.TransactionID] {
+				continue
+			}
+
+			// Calculate amount match score
+			// Amazon orders are typically negative (purchases), so compare absolute values
+			orderAmt := order.ParsedTotal.Abs()
+			txAmt := tx.Amount.Abs()
+
+			// Calculate percentage difference
+			if orderAmt.IsZero() || txAmt.IsZero() {
+				continue
+			}
+
+			diff := orderAmt.Sub(txAmt).Abs()
+			percentDiff := diff.Div(orderAmt).InexactFloat64()
+
+			// Allow 2% tolerance for rounding differences
+			if percentDiff > 0.02 {
+				continue
+			}
+
+			// Check date proximity (±5 days tolerance for credit card processing delays)
+			var dateScore float64 = 0.3 // Default score if no date available
+			if orderDate != nil {
+				daysDiff := int(tx.TransactionDate.Sub(*orderDate).Hours() / 24)
+				if daysDiff < 0 {
+					daysDiff = -daysDiff
+				}
+
+				// Skip if more than 5 days apart
+				if daysDiff > 5 {
+					continue
+				}
+
+				// Score based on date proximity (0 days = 0.5, decreasing by 0.08 per day)
+				dateScore = 0.5 - (float64(daysDiff) * 0.08)
+			}
+
+			// Score based on how close the amounts are (1.0 = exact match)
+			score := 1.0 - percentDiff + dateScore
+
+			// Prefer transactions with Amazon-related patterns in description
+			desc := tx.Description
+			if tx.OriginalDescription != nil {
+				desc = *tx.OriginalDescription
+			}
+			isAmazonTx := containsIgnoreCase(desc, "amazon") ||
+				containsIgnoreCase(desc, "amzn") ||
+				containsIgnoreCase(desc, "mktplc") ||
+				containsIgnoreCase(desc, "marketplace")
+			if isAmazonTx {
+				score += 0.5
+			}
+
+			if score > bestMatchScore {
+				bestMatchScore = score
+				bestMatch = tx
+			}
+		}
+
+		if bestMatch != nil {
+			// Build new description with Amazon order info
+			newDesc := order.ItemDescription
+			if order.OrderID != "" {
+				newDesc = fmt.Sprintf("Amazon: %s (Pedido: %s)", order.ItemDescription, order.OrderID)
+			} else if order.ItemDescription != "" {
+				newDesc = fmt.Sprintf("Amazon: %s", order.ItemDescription)
+			}
+
+			// Update transaction description
+			_, err := s.UpdateTransaction(ctx, UpdateTransactionInput{
+				TransactionID:  bestMatch.TransactionID,
+				UserID:         params.UserID,
+				OrganizationID: params.OrganizationID,
+				Description:    &newDesc,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "Failed to update transaction",
+					"transaction_id", bestMatch.TransactionID,
+					"error", err.Error(),
+				)
+				result.UnmatchedOrders = append(result.UnmatchedOrders, AmazonUnmatchedOrder{
+					OrderID:     order.OrderID,
+					Amount:      order.ParsedTotal,
+					Date:        order.DateString,
+					Description: order.ItemDescription,
+					Reason:      "Erro ao atualizar transação",
+				})
+				continue
+			}
+
+			// Track matched transaction
+			matchedTxIDs[bestMatch.TransactionID] = true
+
+			result.MatchedOrders = append(result.MatchedOrders, AmazonMatchedOrder{
+				OrderID:           order.OrderID,
+				TransactionID:     bestMatch.TransactionID,
+				OriginalDesc:      bestMatch.Description,
+				NewDescription:    newDesc,
+				OrderAmount:       order.ParsedTotal,
+				TransactionAmount: bestMatch.Amount,
+			})
+		} else {
+			// Log why no match was found - find potential candidates
+			reason := "Nenhuma transação correspondente encontrada"
+			orderAmt := order.ParsedTotal.Abs()
+
+			// Look for close matches to explain why they didn't match
+			for _, tx := range transactions {
+				if matchedTxIDs[tx.TransactionID] {
+					continue
+				}
+				txAmt := tx.Amount.Abs()
+				diff := orderAmt.Sub(txAmt).Abs()
+				percentDiff := diff.Div(orderAmt).InexactFloat64() * 100
+
+				desc := tx.Description
+				if tx.OriginalDescription != nil {
+					desc = *tx.OriginalDescription
+				}
+
+				isAmazonTx := containsIgnoreCase(desc, "amazon") ||
+					containsIgnoreCase(desc, "amzn") ||
+					containsIgnoreCase(desc, "mktplc") ||
+					containsIgnoreCase(desc, "marketplace")
+
+				if isAmazonTx {
+					// This is an Amazon transaction that didn't match - explain why
+					if orderDate != nil {
+						daysDiff := int(tx.TransactionDate.Sub(*orderDate).Hours() / 24)
+						if daysDiff < 0 {
+							daysDiff = -daysDiff
+						}
+						if percentDiff <= 2 && daysDiff > 5 {
+							reason = fmt.Sprintf("Valor OK (%.1f%% diff) mas data muito distante (%d dias): TX %s em %s",
+								percentDiff, daysDiff, desc, tx.TransactionDate.Format("02/01"))
+							break
+						}
+						if percentDiff > 2 && daysDiff <= 5 {
+							reason = fmt.Sprintf("Data OK (%d dias) mas valor diferente (%.1f%%): TX R$%.2f vs Pedido R$%.2f",
+								daysDiff, percentDiff, txAmt.InexactFloat64(), orderAmt.InexactFloat64())
+							break
+						}
+						if percentDiff > 2 && daysDiff > 5 {
+							reason = fmt.Sprintf("Candidato Amazon: %s - valor %.1f%% diff, %d dias diff",
+								desc, percentDiff, daysDiff)
+						}
+					} else {
+						if percentDiff <= 2 {
+							reason = fmt.Sprintf("Valor OK mas sem data para comparar: TX %s", desc)
+							break
+						}
+					}
+				}
+			}
+
+			result.UnmatchedOrders = append(result.UnmatchedOrders, AmazonUnmatchedOrder{
+				OrderID:     order.OrderID,
+				Amount:      order.ParsedTotal,
+				Date:        order.DateString,
+				Description: order.ItemDescription,
+				Reason:      reason,
+			})
+		}
+	}
+
+	result.MatchedCount = len(result.MatchedOrders)
+
+	if result.MatchedCount > 0 {
+		result.Message = fmt.Sprintf("Sincronizado! %d de %d pedidos correspondidos", result.MatchedCount, result.TotalOrders)
+	} else {
+		result.Message = "Nenhum pedido correspondido"
+	}
+
+	s.logger.Info(ctx, "Amazon sync completed",
+		"matched", result.MatchedCount,
+		"unmatched", len(result.UnmatchedOrders),
+		"total", result.TotalOrders,
+	)
+
+	return result, nil
+}
+
+// containsIgnoreCase checks if s contains substr (case-insensitive)
+func containsIgnoreCase(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

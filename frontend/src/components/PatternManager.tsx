@@ -4,6 +4,8 @@ import { financialUrl } from '../config/api';
 import type { Category } from '../types/category';
 import type { ApiResponse } from '../types/transaction';
 import AdvancedPatternCreator, { type AdvancedPattern as AdvancedPatternInput, type InitialPatternData } from './AdvancedPatternCreator';
+import PlannedEntryLinkModal from './PlannedEntryLinkModal';
+import { updatePlannedEntry, createPlannedEntry } from '../api/budget';
 
 interface LinkedPlannedEntry {
   planned_entry_id: number;
@@ -42,9 +44,40 @@ export default function PatternManager() {
   const [initialPatternData, setInitialPatternData] = useState<InitialPatternData | undefined>(undefined);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Linking pattern to planned entry
+  const [linkingPattern, setLinkingPattern] = useState<AdvancedPattern | null>(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showCreateEntryModal, setShowCreateEntryModal] = useState(false);
+  const [creatingEntry, setCreatingEntry] = useState(false);
+
+  // Create entry form state
+  const [newEntryDescription, setNewEntryDescription] = useState('');
+  const [newEntryAmountMin, setNewEntryAmountMin] = useState('');
+  const [newEntryAmountMax, setNewEntryAmountMax] = useState('');
+  const [newEntryType, setNewEntryType] = useState<'expense' | 'income'>('expense');
+  const [newEntryIsRecurrent, setNewEntryIsRecurrent] = useState(true);
+
+  // Pattern card menu state
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
   useEffect(() => {
     fetchData();
   }, [token]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId !== null) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('[aria-label="Ações"]') && !target.closest('.absolute')) {
+          setOpenMenuId(null);
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
 
   const fetchData = async () => {
     if (!token) return;
@@ -91,6 +124,11 @@ export default function PatternManager() {
     console.log('Saving pattern:', { isEditing, url, method, pattern });
 
     try {
+      // When creating a new pattern (not editing), automatically apply to existing transactions
+      const requestBody = isEditing
+        ? pattern
+        : { ...pattern, apply_retroactively: true };
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -98,7 +136,7 @@ export default function PatternManager() {
           'X-Active-Organization': '1',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(pattern),
+        body: JSON.stringify(requestBody),
       });
 
       console.log('Response status:', response.status);
@@ -112,7 +150,7 @@ export default function PatternManager() {
       const result = await response.json();
       console.log('Success result:', result);
 
-      setSuccess(isEditing ? '✅ Padrão atualizado com sucesso!' : '✅ Padrão criado com sucesso!');
+      setSuccess(isEditing ? '✅ Padrão atualizado com sucesso!' : '✅ Padrão criado e aplicado às transações existentes!');
       setTimeout(() => setSuccess(null), 3000);
       setShowCreator(false);
       setEditingPattern(null);
@@ -195,6 +233,82 @@ export default function PatternManager() {
     setShowCreator(false);
     setEditingPattern(null);
     setInitialPatternData(undefined);
+  };
+
+  // Open link modal for a pattern
+  const handleOpenLinkModal = (pattern: AdvancedPattern) => {
+    setLinkingPattern(pattern);
+    setShowLinkModal(true);
+  };
+
+  // Link pattern to existing planned entry
+  const handleLinkToEntry = async (entryId: number) => {
+    if (!token || !linkingPattern) return;
+
+    try {
+      await updatePlannedEntry(entryId, { pattern_id: linkingPattern.pattern_id }, {
+        token,
+        organizationId: '1',
+      });
+
+      setSuccess(`✅ Padrão vinculado à entrada planejada!`);
+      setTimeout(() => setSuccess(null), 3000);
+      setShowLinkModal(false);
+      setLinkingPattern(null);
+      fetchData(); // Refresh to show linked entries
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao vincular padrão');
+    }
+  };
+
+  // Open create entry modal for a pattern
+  const handleOpenCreateEntryModal = (pattern: AdvancedPattern) => {
+    setLinkingPattern(pattern);
+    setNewEntryDescription(pattern.target_description);
+    setNewEntryAmountMin(pattern.amount_min || '');
+    setNewEntryAmountMax(pattern.amount_max || '');
+    setNewEntryType('expense');
+    setNewEntryIsRecurrent(true);
+    setShowCreateEntryModal(true);
+  };
+
+  // Create new planned entry from pattern
+  const handleCreateEntryFromPattern = async () => {
+    if (!token || !linkingPattern) return;
+
+    setCreatingEntry(true);
+    setError(null);
+
+    try {
+      const amountMin = parseFloat(newEntryAmountMin) || 0;
+      const amountMax = parseFloat(newEntryAmountMax) || amountMin;
+
+      await createPlannedEntry({
+        category_id: linkingPattern.target_category_id,
+        description: newEntryDescription,
+        amount: amountMax, // Main amount is max
+        amount_min: amountMin,
+        amount_max: amountMax,
+        entry_type: newEntryType,
+        is_recurrent: newEntryIsRecurrent,
+        is_saved_pattern: true,
+        pattern_id: linkingPattern.pattern_id,
+        description_pattern: linkingPattern.description_pattern,
+      }, {
+        token,
+        organizationId: '1',
+      });
+
+      setSuccess(`✅ Entrada planejada criada e vinculada ao padrão!`);
+      setTimeout(() => setSuccess(null), 3000);
+      setShowCreateEntryModal(false);
+      setLinkingPattern(null);
+      fetchData(); // Refresh to show linked entries
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao criar entrada planejada');
+    } finally {
+      setCreatingEntry(false);
+    }
   };
 
   const handleEditPattern = (pattern: AdvancedPattern) => {
@@ -319,173 +433,201 @@ export default function PatternManager() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {patterns.map(pattern => (
-              <div
-                key={pattern.pattern_id}
-                className={`bg-white rounded-lg shadow-md p-6 border-2 transition-all ${
-                  pattern.is_active
-                    ? 'border-blue-200 hover:border-blue-300'
-                    : 'border-gray-200 opacity-60'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-3">
-                    {/* Header */}
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {pattern.target_description}
-                      </h3>
-                      {!pattern.is_active && (
-                        <span className="px-2 py-0.5 text-xs font-semibold text-gray-600 bg-gray-100 rounded-full">
-                          Inativo
-                        </span>
-                      )}
-                      {pattern.apply_retroactively && (
-                        <span className="px-2 py-0.5 text-xs font-semibold text-purple-600 bg-purple-100 rounded-full">
-                          🔄 Retroativo
-                        </span>
-                      )}
-                    </div>
+            {patterns.map(pattern => {
+              const category = categories.get(pattern.target_category_id);
+              const hasLinkedEntries = pattern.linked_planned_entries && pattern.linked_planned_entries.length > 0;
 
-                    {/* Category */}
-                    {categories.has(pattern.target_category_id) && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                        <span>{categories.get(pattern.target_category_id)!.icon}</span>
-                        <span>{categories.get(pattern.target_category_id)!.name}</span>
-                      </div>
-                    )}
+              return (
+                <div
+                  key={pattern.pattern_id}
+                  className={`bg-white rounded-lg shadow-sm border transition-all ${
+                    pattern.is_active
+                      ? 'border-gray-200 hover:shadow-md'
+                      : 'border-gray-200 opacity-60'
+                  }`}
+                >
+                  {/* Compact Card Layout */}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      {/* Left: Main Info */}
+                      <div className="flex-1 min-w-0">
+                        {/* Header Row */}
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <h3 className="text-base font-semibold text-gray-900 truncate">
+                            {pattern.target_description}
+                          </h3>
+                          {category && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                              {category.icon} {category.name}
+                            </span>
+                          )}
+                          {hasLinkedEntries && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                              Vinculado
+                            </span>
+                          )}
+                          {!pattern.is_active && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                              Inativo
+                            </span>
+                          )}
+                        </div>
 
-                    {/* Linked Planned Entries */}
-                    {pattern.linked_planned_entries && pattern.linked_planned_entries.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-gray-500 font-medium">📋 Entradas Planejadas:</span>
-                        {pattern.linked_planned_entries.map(entry => (
-                          <span
-                            key={entry.planned_entry_id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full"
-                          >
-                            {entry.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Pattern Details */}
-                    <div className="grid gap-2 text-sm">
-                      <div className="flex items-start gap-2">
-                        <span className="text-gray-500 font-medium min-w-[120px]">📝 Descrição:</span>
-                        <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono text-gray-800">
-                          {pattern.description_pattern}
-                        </code>
-                      </div>
-
-                      {pattern.date_pattern && (
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 font-medium min-w-[120px]">📅 Data:</span>
-                          <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono text-gray-800">
-                            {pattern.date_pattern}
+                        {/* Pattern regex */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs text-gray-500">Padrão:</span>
+                          <code className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono text-gray-700 truncate max-w-md">
+                            {pattern.description_pattern}
                           </code>
                         </div>
-                      )}
 
-                      {pattern.weekday_pattern && (
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 font-medium min-w-[120px]">🗓️ Dia da semana:</span>
-                          <span className="text-gray-700">
-                            {formatWeekday(pattern.weekday_pattern)}
-                          </span>
+                        {/* Additional filters (compact) */}
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          {pattern.weekday_pattern && (
+                            <span>🗓️ {formatWeekday(pattern.weekday_pattern)}</span>
+                          )}
+                          {pattern.amount_min && pattern.amount_max && (
+                            <span>💰 {formatAmount(pattern.amount_min)} - {formatAmount(pattern.amount_max)}</span>
+                          )}
+                          {pattern.date_pattern && (
+                            <span>📅 {pattern.date_pattern}</span>
+                          )}
                         </div>
-                      )}
 
-                      {pattern.amount_min && pattern.amount_max && (
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 font-medium min-w-[120px]">💰 Valor:</span>
-                          <span className="text-gray-700">
-                            {formatAmount(pattern.amount_min)} - {formatAmount(pattern.amount_max)}
-                          </span>
-                        </div>
-                      )}
+                        {/* Linked entries (if any) */}
+                        {hasLinkedEntries && (
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <span className="text-xs text-gray-500">📋</span>
+                            {pattern.linked_planned_entries!.map(entry => (
+                              <span
+                                key={entry.planned_entry_id}
+                                className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 rounded"
+                              >
+                                {entry.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Three-dots Menu */}
+                      <div className="relative flex-shrink-0">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === pattern.pattern_id ? null : pattern.pattern_id)}
+                          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                          aria-label="Ações"
+                        >
+                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {openMenuId === pattern.pattern_id && (
+                          <div className="absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                            {/* Apply Retroactively */}
+                            <button
+                              onClick={() => {
+                                handleApplyRetroactively(pattern.pattern_id);
+                                setOpenMenuId(null);
+                              }}
+                              disabled={applyingPattern === pattern.pattern_id}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+                            >
+                              {applyingPattern === pattern.pattern_id ? (
+                                <>
+                                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Aplicando...
+                                </>
+                              ) : (
+                                <>🔄 Aplicar a existentes</>
+                              )}
+                            </button>
+
+                            {/* Toggle Active */}
+                            <button
+                              onClick={() => {
+                                handleToggleActive(pattern);
+                                setOpenMenuId(null);
+                              }}
+                              disabled={togglingPattern === pattern.pattern_id}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              {pattern.is_active ? '⏸️ Desativar' : '▶️ Ativar'}
+                            </button>
+
+                            {/* Edit */}
+                            <button
+                              onClick={() => {
+                                handleEditPattern(pattern);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              ✏️ Editar
+                            </button>
+
+                            <div className="border-t border-gray-100 my-1"></div>
+
+                            {/* Link to Entry */}
+                            <button
+                              onClick={() => {
+                                handleOpenLinkModal(pattern);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              🔗 Vincular a Entrada
+                            </button>
+
+                            {/* Create Entry */}
+                            <button
+                              onClick={() => {
+                                handleOpenCreateEntryModal(pattern);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              📋 Criar Entrada Planejada
+                            </button>
+
+                            <div className="border-t border-gray-100 my-1"></div>
+
+                            {/* Delete */}
+                            <button
+                              onClick={() => {
+                                handleDeletePattern(pattern.pattern_id);
+                                setOpenMenuId(null);
+                              }}
+                              disabled={deletingPattern === pattern.pattern_id}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {deletingPattern === pattern.pattern_id ? (
+                                <span className="flex items-center gap-2">
+                                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Deletando...
+                                </span>
+                              ) : (
+                                '🗑️ Deletar'
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-
-                    {/* Timestamps */}
-                    <div className="text-xs text-gray-400 pt-2">
-                      Criado em: {new Date(pattern.created_at).toLocaleDateString('pt-BR')}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={() => handleApplyRetroactively(pattern.pattern_id)}
-                      disabled={applyingPattern === pattern.pattern_id}
-                      className="px-4 py-2 text-sm font-medium bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50"
-                      title="Aplicar a transações existentes"
-                    >
-                      {applyingPattern === pattern.pattern_id ? (
-                        <span className="flex items-center gap-1.5">
-                          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Aplicando...
-                        </span>
-                      ) : (
-                        '🔄 Aplicar a existentes'
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => handleToggleActive(pattern)}
-                      disabled={togglingPattern === pattern.pattern_id}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                        pattern.is_active
-                          ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      } disabled:opacity-50`}
-                    >
-                      {togglingPattern === pattern.pattern_id ? (
-                        <span className="flex items-center gap-1.5">
-                          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          ...
-                        </span>
-                      ) : pattern.is_active ? (
-                        '⏸️ Desativar'
-                      ) : (
-                        '▶️ Ativar'
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => handleEditPattern(pattern)}
-                      className="px-4 py-2 text-sm font-medium bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                    >
-                      ✏️ Editar
-                    </button>
-
-                    <button
-                      onClick={() => handleDeletePattern(pattern.pattern_id)}
-                      disabled={deletingPattern === pattern.pattern_id}
-                      className="px-4 py-2 text-sm font-medium bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
-                    >
-                      {deletingPattern === pattern.pattern_id ? (
-                        <span className="flex items-center gap-1.5">
-                          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Deletando...
-                        </span>
-                      ) : (
-                        '🗑️ Deletar'
-                      )}
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -506,6 +648,192 @@ export default function PatternManager() {
               target_category_id: editingPattern.target_category_id,
             } : undefined}
           />
+        )}
+
+        {/* Link to Planned Entry Modal */}
+        {showLinkModal && linkingPattern && (
+          <PlannedEntryLinkModal
+            pattern={linkingPattern}
+            categories={categories}
+            onClose={() => {
+              setShowLinkModal(false);
+              setLinkingPattern(null);
+            }}
+            onLink={handleLinkToEntry}
+          />
+        )}
+
+        {/* Create Planned Entry from Pattern Modal */}
+        {showCreateEntryModal && linkingPattern && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowCreateEntryModal(false);
+                setLinkingPattern(null);
+              }
+            }}
+          >
+            <div className="bg-white rounded-lg shadow-xl w-[500px] max-w-[95vw] max-h-[85vh] flex flex-col">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-green-600 text-white rounded-t-lg">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">📋 Criar Entrada Planejada</h2>
+                  <button
+                    onClick={() => {
+                      setShowCreateEntryModal(false);
+                      setLinkingPattern(null);
+                    }}
+                    className="text-white/80 hover:text-white transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="mt-2 text-sm text-white/90">
+                  Baseado no padrão: <code className="bg-white/20 px-1.5 py-0.5 rounded">{linkingPattern.description_pattern}</code>
+                </div>
+              </div>
+
+              {/* Form */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                {/* Category (read-only) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Categoria
+                  </label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700">
+                    {categories.get(linkingPattern.target_category_id)?.icon}{' '}
+                    {categories.get(linkingPattern.target_category_id)?.name}
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descrição *
+                  </label>
+                  <input
+                    type="text"
+                    value={newEntryDescription}
+                    onChange={(e) => setNewEntryDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder="Nome da entrada"
+                  />
+                </div>
+
+                {/* Amount Range */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Valor Mínimo
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newEntryAmountMin}
+                      onChange={(e) => setNewEntryAmountMin(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Valor Máximo
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newEntryAmountMax}
+                      onChange={(e) => setNewEntryAmountMax(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      placeholder="0,00"
+                    />
+                  </div>
+                </div>
+
+                {/* Entry Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="entryType"
+                        checked={newEntryType === 'expense'}
+                        onChange={() => setNewEntryType('expense')}
+                        className="text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-sm text-gray-700">Despesa</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="entryType"
+                        checked={newEntryType === 'income'}
+                        onChange={() => setNewEntryType('income')}
+                        className="text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-sm text-gray-700">Receita</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Recurrent */}
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newEntryIsRecurrent}
+                      onChange={(e) => setNewEntryIsRecurrent(e.target.checked)}
+                      className="rounded text-teal-600 focus:ring-teal-500"
+                    />
+                    <span className="text-sm text-gray-700">Recorrente (mensal)</span>
+                  </label>
+                </div>
+
+                {/* Info */}
+                <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 text-sm text-teal-700">
+                  <strong>💡 Dica:</strong> A entrada será automaticamente vinculada ao padrão.
+                  Quando uma transação corresponder ao padrão, ela poderá ser automaticamente
+                  associada a esta entrada planejada.
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowCreateEntryModal(false);
+                    setLinkingPattern(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateEntryFromPattern}
+                  disabled={creatingEntry || !newEntryDescription.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {creatingEntry ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Criando...
+                    </>
+                  ) : (
+                    'Criar Entrada'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -6,6 +6,7 @@ interface CategoryBudgetCardProps {
   budget: CategoryBudget;
   categoryName: string;
   actualSpent: string; // Current spending for this category
+  canConsolidate?: boolean; // Only allow consolidation after month ends
   onEdit?: (budget: CategoryBudget) => void;
   onDelete?: (budgetId: number) => void;
   onConsolidate?: (budgetId: number) => void;
@@ -15,22 +16,24 @@ export default function CategoryBudgetCard({
   budget,
   categoryName,
   actualSpent,
+  canConsolidate = false,
   onEdit,
   onDelete,
   onConsolidate,
 }: CategoryBudgetCardProps) {
   const [showActions, setShowActions] = useState(false);
 
-  const formatCurrency = (amount: string) => {
+  const formatCurrency = (amount: string | number) => {
+    const num = typeof amount === 'number' ? amount : parseFloat(amount);
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
-    }).format(parseFloat(amount));
+    }).format(isNaN(num) ? 0 : num);
   };
 
-  // Calculate variance
-  const plannedNum = parseFloat(budget.PlannedAmount);
-  const actualNum = parseFloat(actualSpent);
+  // Calculate variance (with safety checks for NaN)
+  const plannedNum = parseFloat(budget.PlannedAmount || '0') || 0;
+  const actualNum = parseFloat(actualSpent || '0') || 0;
   const variance = actualNum - plannedNum;
   const variancePercent = plannedNum > 0 ? (variance / plannedNum) * 100 : 0;
   const varianceStatus = getVarianceStatus(variancePercent);
@@ -136,7 +139,7 @@ export default function CategoryBudgetCard({
                     Edit Budget
                   </button>
                 )}
-                {onConsolidate && (
+                {onConsolidate && canConsolidate && (
                   <button
                     onClick={() => {
                       onConsolidate(budget.CategoryBudgetID);
@@ -144,20 +147,20 @@ export default function CategoryBudgetCard({
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
                   >
-                    Consolidate
+                    Consolidar
                   </button>
                 )}
                 {onDelete && (
                   <button
                     onClick={() => {
-                      if (confirm('Are you sure you want to delete this budget?')) {
+                      if (confirm(`Tem certeza que deseja excluir o orçamento de "${categoryName}"?`)) {
                         onDelete(budget.CategoryBudgetID);
                       }
                       setShowActions(false);
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600"
                   >
-                    Delete
+                    Excluir
                   </button>
                 )}
               </div>

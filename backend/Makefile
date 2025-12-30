@@ -15,7 +15,7 @@
 #   make test         - Run tests
 #   make cli          - Show available CLI commands
 
-.PHONY: up down restart full-restart setup test
+.PHONY: up down restart full-restart setup test dev
 
 # Check if .env.dev exists, fail with helpful message if not
 ifeq (,$(wildcard .env.dev))
@@ -92,3 +92,8 @@ migrate.reset:
 
 gentypes:
 	go run ./cmd/tygo/main.go
+
+dev:
+	@echo "Run 'make dev' from the repository root instead."
+	@echo "This starts backend (Air) + frontend (Vite) with hot reload."
+	@exit 1

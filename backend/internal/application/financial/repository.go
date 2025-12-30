@@ -244,8 +244,12 @@ type removeCategoryParams struct {
 
 const removeCategoryQuery = `
 	-- financial.removeCategoryQuery
+	-- First uncategorize all transactions, then delete the category
+	WITH uncategorize AS (
+		UPDATE transactions SET category_id = NULL WHERE category_id = $1
+	)
 	DELETE FROM categories
-	WHERE category_id = $1 AND user_id = $2 AND is_system = false;
+	WHERE category_id = $1 AND (user_id = $2 OR is_system = true);
 `
 
 func (r *repository) RemoveCategory(ctx context.Context, params removeCategoryParams) error {

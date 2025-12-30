@@ -42,6 +42,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		r.Get("/categories", mw.RequireSession(fh.ListCategories, []accounts.Permission{}))
 		r.Post("/categories", mw.RequireSession(fh.CreateCategory, []accounts.Permission{}))
 		r.Patch("/categories/{id}", mw.RequireSession(fh.UpdateCategory, []accounts.Permission{}))
+		r.Delete("/categories/{id}", mw.RequireSession(fh.DeleteCategory, []accounts.Permission{}))
 
 		// Accounts
 		r.Get("/accounts", mw.RequireSession(fh.ListAccounts, []accounts.Permission{}))
@@ -73,6 +74,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		r.Put("/budgets/categories/{id}", mw.RequireSession(fh.UpdateCategoryBudget, []accounts.Permission{}))
 		r.Delete("/budgets/categories/{id}", mw.RequireSession(fh.DeleteCategoryBudget, []accounts.Permission{}))
 		r.Post("/budgets/categories/{id}/consolidate", mw.RequireSession(fh.ConsolidateCategoryBudget, []accounts.Permission{}))
+		r.Post("/budgets/categories/copy", mw.RequireSession(fh.CopyCategoryBudgetsFromMonth, []accounts.Permission{}))
 
 		// Planned Entries
 		r.Get("/planned-entries", mw.RequireSession(fh.ListPlannedEntries, []accounts.Permission{}))
@@ -120,6 +122,9 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		r.Post("/savings-goals/{id}/complete", mw.RequireSession(fh.CompleteSavingsGoal, []accounts.Permission{}))
 		r.Post("/savings-goals/{id}/reopen", mw.RequireSession(fh.ReopenSavingsGoal, []accounts.Permission{}))
 		r.Post("/savings-goals/{id}/contribute", mw.RequireSession(fh.AddContribution, []accounts.Permission{}))
+
+		// Amazon Sync (Chrome Extension)
+		r.Post("/amazon/sync", mw.RequireSession(fh.SyncAmazonOrders, []accounts.Permission{}))
 	})
 
 	return r

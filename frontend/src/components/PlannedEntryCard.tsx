@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { PlannedEntryWithStatus, PlannedEntryStatusType } from '../types/budget';
 import { getStatusBadgeClasses, getStatusLabel } from '../types/budget';
 
@@ -30,6 +30,25 @@ export default function PlannedEntryCard({
   const [showActions, setShowActions] = useState(false);
   const [showDismissModal, setShowDismissModal] = useState(false);
   const [dismissReason, setDismissReason] = useState('');
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showDismissModal) {
+        setShowDismissModal(false);
+        setDismissReason('');
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showDismissModal]);
+
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setShowDismissModal(false);
+      setDismissReason('');
+    }
+  }, []);
 
   const formatCurrency = (amount: string) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -135,8 +154,14 @@ export default function PlannedEntryCard({
                 </span>
               )}
               {entry.LinkedPattern && (
-                <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800">
-                  Padrão Vinculado
+                <span
+                  className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800 flex items-center gap-1"
+                  title={`Vinculado ao padrão: ${entry.LinkedPattern.DescriptionPattern || entry.LinkedPattern.TargetDescription}`}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  Padrão
                 </span>
               )}
             </div>
@@ -287,7 +312,10 @@ export default function PlannedEntryCard({
 
       {/* Dismiss Modal */}
       {showDismissModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleBackdropClick}
+        >
           <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-[90vw]">
             <h3 className="text-lg font-semibold mb-4">Dispensar Entrada Planejada</h3>
             <p className="text-sm text-gray-600 mb-4">
