@@ -272,6 +272,21 @@ export default function CategoryBudgetDashboard() {
       // Calculate spending: Planned Entries + Unmatched Transactions
       const spending: Record<string, Record<number, string>> = {};
 
+      // Build a set of income category IDs (to exclude from spending)
+      // Note: We need to fetch categories here since this function runs separately
+      const categoriesResponse = await fetch(financialUrl('categories'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Active-Organization': '1',
+        },
+      });
+      const categoriesData: ApiResponse<Category[]> = await categoriesResponse.json();
+      const incomeCategoryIds = new Set<number>(
+        (categoriesData.data || [])
+          .filter(c => c.category_type === 'income')
+          .map(c => c.category_id)
+      );
+
       // Step 1: Build a set of matched transaction IDs per month
       const matchedTxIdsByMonth: Record<string, Set<number>> = {};
       Object.entries(plannedEntriesByMonth).forEach(([key, entries]) => {
@@ -283,15 +298,15 @@ export default function CategoryBudgetDashboard() {
         });
       });
 
-      // Step 2: Add planned entries contribution
+      // Step 2: Add planned entries contribution (expenses only)
       Object.entries(plannedEntriesByMonth).forEach(([key, entries]) => {
         if (!spending[key]) {
           spending[key] = {};
         }
 
         entries.forEach(entry => {
-          // Skip dismissed entries only - include both income and expense entries
-          if (entry.Status === 'dismissed') {
+          // Skip dismissed entries, income entries, and entries for income categories
+          if (entry.Status === 'dismissed' || entry.EntryType === 'income' || incomeCategoryIds.has(entry.CategoryID)) {
             return;
           }
 
@@ -307,10 +322,10 @@ export default function CategoryBudgetDashboard() {
         });
       });
 
-      // Step 3: Add unmatched transactions (both credits and debits)
+      // Step 3: Add unmatched transactions (debits/expenses only)
       transactions.forEach(tx => {
-        // Skip ignored transactions and uncategorized - include both income and expense
-        if (tx.is_ignored || !tx.category_id) {
+        // Skip ignored, uncategorized, credit transactions, and transactions in income categories
+        if (tx.is_ignored || !tx.category_id || tx.transaction_type === 'credit' || incomeCategoryIds.has(tx.category_id)) {
           return;
         }
 

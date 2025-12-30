@@ -63,6 +63,7 @@ export default function CategoryManager() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('📁');
+  const [newCategoryType, setNewCategoryType] = useState<'expense' | 'income'>('expense');
   const [creating, setCreating] = useState(false);
   
   // Edit budget state
@@ -119,6 +120,7 @@ export default function CategoryManager() {
           setShowCreateModal(false);
           setNewCategoryName('');
           setNewCategoryIcon('📁');
+          setNewCategoryType('expense');
         }
       }
     };
@@ -188,6 +190,7 @@ export default function CategoryManager() {
           name: newCategoryName.trim(),
           icon: newCategoryIcon,
           color: selectedColor,
+          category_type: newCategoryType,
         }),
       });
 
@@ -200,6 +203,7 @@ export default function CategoryManager() {
       setShowCreateModal(false);
       setNewCategoryName('');
       setNewCategoryIcon('📁');
+      setNewCategoryType('expense');
       await fetchData();
       
       setTimeout(() => setSuccess(null), 3000);
@@ -510,68 +514,78 @@ export default function CategoryManager() {
               return (
                 <div
                   key={category.category_id}
-                  className="border-2 rounded-2xl p-5 transition-all duration-200 group"
+                  className="relative border-2 rounded-2xl p-5 transition-all duration-200 group"
                   style={colors.style}
                 >
+                  {/* Floating action buttons - overlay on top right */}
+                  {!isEditingColor && deletingCategory !== category.category_id && (
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                      <button
+                        onClick={() => handleStartEditDetails(category)}
+                        className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-sm hover:shadow"
+                        title="Editar nome e ícone"
+                      >
+                        <svg className="w-4 h-4 text-gray-600 hover:text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleStartEditColor(category.category_id, category.color)}
+                        className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-sm hover:shadow"
+                        title="Editar cor"
+                      >
+                        <svg className="w-4 h-4 text-gray-600 hover:text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleStartDelete(category.category_id)}
+                        className="p-2 bg-white/70 backdrop-blur-sm hover:bg-red-100/90 rounded-lg shadow-sm hover:shadow"
+                        title="Excluir categoria"
+                      >
+                        <svg className="w-4 h-4 text-gray-600 hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {deletingCategory === category.category_id && (
+                    <div className="absolute top-2 right-2 flex items-center gap-2 bg-red-50/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-red-200 z-10">
+                      <span className="text-xs text-red-700">Excluir?</span>
+                      <button
+                        onClick={() => handleDeleteCategory(category.category_id)}
+                        className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                      >
+                        Sim
+                      </button>
+                      <button
+                        onClick={handleCancelDelete}
+                        className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                      >
+                        Não
+                      </button>
+                    </div>
+                  )}
                   {/* Header with icon and name */}
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg" style={colors.accentStyle}>
                         {category.icon}
                       </div>
                       <div>
                         <h3 className="font-semibold" style={colors.textStyle}>{category.name}</h3>
-                        <span className="text-xs text-gray-500">Personalizada</span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-500">Personalizada</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                            category.category_type === 'income'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {category.category_type === 'income' ? '📈 Receita' : '📉 Despesa'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    {!isEditingColor && deletingCategory !== category.category_id && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button
-                          onClick={() => handleStartEditDetails(category)}
-                          className="p-2 hover:bg-white/80 rounded-lg shadow-sm hover:shadow"
-                          title="Editar nome e ícone"
-                        >
-                          <svg className="w-4 h-4 text-gray-600 hover:text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleStartEditColor(category.category_id, category.color)}
-                          className="p-2 hover:bg-white/80 rounded-lg shadow-sm hover:shadow"
-                          title="Editar cor"
-                        >
-                          <svg className="w-4 h-4 text-gray-600 hover:text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleStartDelete(category.category_id)}
-                          className="p-2 hover:bg-red-100 rounded-lg shadow-sm hover:shadow"
-                          title="Excluir categoria"
-                        >
-                          <svg className="w-4 h-4 text-gray-600 hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                    {deletingCategory === category.category_id && (
-                      <div className="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-lg border border-red-200">
-                        <span className="text-xs text-red-700">Excluir?</span>
-                        <button
-                          onClick={() => handleDeleteCategory(category.category_id)}
-                          className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                        >
-                          Sim
-                        </button>
-                        <button
-                          onClick={handleCancelDelete}
-                          className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
-                        >
-                          Não
-                        </button>
-                      </div>
-                    )}
                   </div>
 
                   {/* Color picker section */}
@@ -756,12 +770,21 @@ export default function CategoryManager() {
                     </div>
                     <div>
                       <h3 className="font-semibold" style={colors.textStyle}>{category.name}</h3>
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-200/50 px-2 py-0.5 rounded-full">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                        </svg>
-                        Sistema
-                      </span>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-200/50 px-2 py-0.5 rounded-full">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                          </svg>
+                          Sistema
+                        </span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                          category.category_type === 'income'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {category.category_type === 'income' ? '📈 Receita' : '📉 Despesa'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   {deletingCategory !== category.category_id ? (
@@ -955,6 +978,39 @@ export default function CategoryManager() {
                   />
                 </div>
               </div>
+
+              {/* Category Type Toggle */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de categoria
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewCategoryType('expense')}
+                    className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
+                      newCategoryType === 'expense'
+                        ? 'border-red-500 bg-red-50 text-red-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span>📉</span>
+                    <span className="font-medium">Despesa</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewCategoryType('income')}
+                    className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
+                      newCategoryType === 'income'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span>📈</span>
+                    <span className="font-medium">Receita</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
@@ -964,6 +1020,7 @@ export default function CategoryManager() {
                   setShowCreateModal(false);
                   setNewCategoryName('');
                   setNewCategoryIcon('📁');
+                  setNewCategoryType('expense');
                 }}
                 className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-200 rounded-xl transition-colors"
                 disabled={creating}

@@ -13,11 +13,12 @@ type CategoryModel struct {
 	CreatedAt  time.Time `db:"created_at"`
 	UpdatedAt  time.Time `db:"updated_at"`
 
-	Name     string `db:"name"`
-	Icon     string `db:"icon"`
-	Color    string `db:"color"`
-	IsSystem bool   `db:"is_system"`
-	UserID   *int   `db:"user_id"` // NULL for system categories
+	Name         string `db:"name"`
+	Icon         string `db:"icon"`
+	Color        string `db:"color"`
+	IsSystem     bool   `db:"is_system"`
+	UserID       *int   `db:"user_id"`       // NULL for system categories
+	CategoryType string `db:"category_type"` // 'expense' or 'income'
 }
 
 type CategoriesModel []CategoryModel
@@ -348,6 +349,32 @@ type SavingsGoalModel struct {
 }
 
 type SavingsGoalsModel []SavingsGoalModel
+
+// TagModel represents a user-defined tag for transaction labeling
+type TagModel struct {
+	TagID     int       `db:"tag_id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+
+	UserID         int `db:"user_id"`
+	OrganizationID int `db:"organization_id"`
+
+	Name  string `db:"name"`
+	Icon  string `db:"icon"`
+	Color string `db:"color"`
+}
+
+type TagsModel []TagModel
+
+// TransactionTagModel represents the many-to-many relationship between transactions and tags
+type TransactionTagModel struct {
+	TransactionTagID int       `db:"transaction_tag_id"`
+	TransactionID    int       `db:"transaction_id"`
+	TagID            int       `db:"tag_id"`
+	CreatedAt        time.Time `db:"created_at"`
+}
+
+type TransactionTagsModel []TransactionTagModel
 
 // GoalMonthlyContributionModel represents aggregated contributions to a goal for a month
 type GoalMonthlyContributionModel struct {

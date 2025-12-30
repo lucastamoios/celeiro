@@ -124,6 +124,17 @@ type Service interface {
 
 	// Amazon Sync
 	SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersInput) (*SyncAmazonOrdersResult, error)
+
+	// Tags
+	GetTags(ctx context.Context, input GetTagsInput) ([]Tag, error)
+	GetTagByID(ctx context.Context, input GetTagByIDInput) (Tag, error)
+	CreateTag(ctx context.Context, input CreateTagInput) (Tag, error)
+	UpdateTag(ctx context.Context, input UpdateTagInput) (Tag, error)
+	DeleteTag(ctx context.Context, input DeleteTagInput) error
+
+	// Transaction Tags
+	GetTransactionTags(ctx context.Context, input GetTransactionTagsInput) ([]Tag, error)
+	SetTransactionTags(ctx context.Context, input SetTransactionTagsInput) error
 }
 
 type service struct {
@@ -189,18 +200,20 @@ func (s *service) GetCategoryByID(ctx context.Context, params GetCategoryByIDInp
 }
 
 type CreateCategoryInput struct {
-	UserID int
-	Name   string
-	Icon   string
-	Color  string
+	UserID       int
+	Name         string
+	Icon         string
+	Color        string
+	CategoryType string
 }
 
 func (s *service) CreateCategory(ctx context.Context, params CreateCategoryInput) (Category, error) {
 	model, err := s.Repository.InsertCategory(ctx, insertCategoryParams{
-		UserID: params.UserID,
-		Name:   params.Name,
-		Icon:   params.Icon,
-		Color:  params.Color,
+		UserID:       params.UserID,
+		Name:         params.Name,
+		Icon:         params.Icon,
+		Color:        params.Color,
+		CategoryType: params.CategoryType,
 	})
 	if err != nil {
 		return Category{}, errors.Wrap(err, "failed to create category")
@@ -210,20 +223,22 @@ func (s *service) CreateCategory(ctx context.Context, params CreateCategoryInput
 }
 
 type UpdateCategoryInput struct {
-	CategoryID int
-	UserID     int
-	Name       *string
-	Icon       *string
-	Color      *string
+	CategoryID   int
+	UserID       int
+	Name         *string
+	Icon         *string
+	Color        *string
+	CategoryType *string
 }
 
 func (s *service) UpdateCategory(ctx context.Context, params UpdateCategoryInput) (Category, error) {
 	model, err := s.Repository.ModifyCategory(ctx, modifyCategoryParams{
-		CategoryID: params.CategoryID,
-		UserID:     params.UserID,
-		Name:       params.Name,
-		Icon:       params.Icon,
-		Color:      params.Color,
+		CategoryID:   params.CategoryID,
+		UserID:       params.UserID,
+		Name:         params.Name,
+		Icon:         params.Icon,
+		Color:        params.Color,
+		CategoryType: params.CategoryType,
 	})
 	if err != nil {
 		return Category{}, errors.Wrap(err, "failed to update category")
@@ -452,6 +467,8 @@ func (s *service) GetTransactionByID(ctx context.Context, params GetTransactionB
 
 type CreateTransactionInput struct {
 	AccountID       int
+	UserID          int
+	OrganizationID  int
 	CategoryID      *int
 	Description     string
 	Amount          decimal.Decimal
@@ -460,7 +477,39 @@ type CreateTransactionInput struct {
 	Notes           string
 }
 
+// validateCategoryTransactionType validates that the category type matches the transaction type.
+// Income categories can only be assigned to credit transactions (money in).
+// Expense categories can only be assigned to debit transactions (money out).
+func (s *service) validateCategoryTransactionType(ctx context.Context, categoryID int, transactionType string, userID int) error {
+	category, err := s.Repository.FetchCategoryByID(ctx, fetchCategoryByIDParams{
+		CategoryID: categoryID,
+		UserID:     userID,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch category for validation")
+	}
+
+	// Income categories must be assigned to credit transactions
+	if category.CategoryType == "income" && transactionType == "debit" {
+		return errors.New("cannot assign income category to a debit (expense) transaction")
+	}
+
+	// Expense categories must be assigned to debit transactions
+	if category.CategoryType == "expense" && transactionType == "credit" {
+		return errors.New("cannot assign expense category to a credit (income) transaction")
+	}
+
+	return nil
+}
+
 func (s *service) CreateTransaction(ctx context.Context, params CreateTransactionInput) (Transaction, error) {
+	// Validate category type matches transaction type if category is provided
+	if params.CategoryID != nil {
+		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, params.TransactionType, params.UserID); err != nil {
+			return Transaction{}, err
+		}
+	}
+
 	model, err := s.Repository.InsertTransaction(ctx, insertTransactionParams{
 		AccountID:       params.AccountID,
 		CategoryID:      params.CategoryID,
@@ -618,6 +667,23 @@ type UpdateTransactionInput struct {
 }
 
 func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactionInput) (Transaction, error) {
+	// Validate category type matches transaction type if category is being updated
+	if params.CategoryID != nil {
+		// Fetch the existing transaction to get its transaction_type
+		existingTx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
+			TransactionID:  params.TransactionID,
+			UserID:         params.UserID,
+			OrganizationID: params.OrganizationID,
+		})
+		if err != nil {
+			return Transaction{}, errors.Wrap(err, "failed to fetch transaction for validation")
+		}
+
+		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, existingTx.TransactionType, params.UserID); err != nil {
+			return Transaction{}, err
+		}
+	}
+
 	model, err := s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
 		TransactionID:  params.TransactionID,
 		UserID:         params.UserID,
@@ -2181,4 +2247,152 @@ func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersI
 // containsIgnoreCase checks if s contains substr (case-insensitive)
 func containsIgnoreCase(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
+}
+
+// ============================================================================
+// Tags
+// ============================================================================
+
+type GetTagsInput struct {
+	UserID         int
+	OrganizationID int
+}
+
+func (s *service) GetTags(ctx context.Context, input GetTagsInput) ([]Tag, error) {
+	models, err := s.Repository.FetchTags(ctx, fetchTagsParams{
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return Tags{}.FromModel(models), nil
+}
+
+type GetTagByIDInput struct {
+	TagID          int
+	UserID         int
+	OrganizationID int
+}
+
+func (s *service) GetTagByID(ctx context.Context, input GetTagByIDInput) (Tag, error) {
+	model, err := s.Repository.FetchTagByID(ctx, fetchTagByIDParams{
+		TagID:          input.TagID,
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+	})
+	if err != nil {
+		return Tag{}, errors.Wrap(err, "failed to fetch tag")
+	}
+
+	return Tag{}.FromModel(&model), nil
+}
+
+type CreateTagInput struct {
+	UserID         int
+	OrganizationID int
+	Name           string
+	Icon           string
+	Color          string
+}
+
+func (s *service) CreateTag(ctx context.Context, input CreateTagInput) (Tag, error) {
+	// Validate required fields
+	if input.Name == "" {
+		return Tag{}, fmt.Errorf("name is required")
+	}
+
+	// Set defaults
+	icon := input.Icon
+	if icon == "" {
+		icon = "🏷️"
+	}
+	color := input.Color
+	if color == "" {
+		color = "#6B7280"
+	}
+
+	model, err := s.Repository.InsertTag(ctx, insertTagParams{
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+		Name:           input.Name,
+		Icon:           icon,
+		Color:          color,
+	})
+	if err != nil {
+		return Tag{}, err
+	}
+
+	return Tag{}.FromModel(&model), nil
+}
+
+type UpdateTagInput struct {
+	TagID          int
+	UserID         int
+	OrganizationID int
+	Name           *string
+	Icon           *string
+	Color          *string
+}
+
+func (s *service) UpdateTag(ctx context.Context, input UpdateTagInput) (Tag, error) {
+	model, err := s.Repository.ModifyTag(ctx, modifyTagParams{
+		TagID:          input.TagID,
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+		Name:           input.Name,
+		Icon:           input.Icon,
+		Color:          input.Color,
+	})
+	if err != nil {
+		return Tag{}, errors.Wrap(err, "failed to update tag")
+	}
+
+	return Tag{}.FromModel(&model), nil
+}
+
+type DeleteTagInput struct {
+	TagID          int
+	UserID         int
+	OrganizationID int
+}
+
+func (s *service) DeleteTag(ctx context.Context, input DeleteTagInput) error {
+	return s.Repository.RemoveTag(ctx, removeTagParams{
+		TagID:          input.TagID,
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+	})
+}
+
+// ============================================================================
+// Transaction Tags
+// ============================================================================
+
+type GetTransactionTagsInput struct {
+	TransactionID int
+}
+
+func (s *service) GetTransactionTags(ctx context.Context, input GetTransactionTagsInput) ([]Tag, error) {
+	models, err := s.Repository.FetchTagsByTransactionID(ctx, fetchTagsByTransactionIDParams{
+		TransactionID: input.TransactionID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return Tags{}.FromModel(models), nil
+}
+
+type SetTransactionTagsInput struct {
+	TransactionID int
+	TagIDs        []int
+}
+
+func (s *service) SetTransactionTags(ctx context.Context, input SetTransactionTagsInput) error {
+	return s.Repository.SetTransactionTags(ctx, setTransactionTagsParams{
+		TransactionID: input.TransactionID,
+		TagIDs:        input.TagIDs,
+	})
 }

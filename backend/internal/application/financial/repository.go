@@ -101,6 +101,17 @@ type Repository interface {
 	AddContribution(ctx context.Context, params addContributionParams) (SavingsGoalModel, error)
 	FetchGoalContributions(ctx context.Context, params fetchGoalContributionsParams) ([]TransactionModel, error)
 	FetchGoalMonthlyContributions(ctx context.Context, params fetchGoalMonthlyContributionsParams) ([]GoalMonthlyContributionModel, error)
+
+	// Tags
+	FetchTags(ctx context.Context, params fetchTagsParams) ([]TagModel, error)
+	FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error)
+	InsertTag(ctx context.Context, params insertTagParams) (TagModel, error)
+	ModifyTag(ctx context.Context, params modifyTagParams) (TagModel, error)
+	RemoveTag(ctx context.Context, params removeTagParams) error
+
+	// Transaction Tags (junction table)
+	FetchTagsByTransactionID(ctx context.Context, params fetchTagsByTransactionIDParams) ([]TagModel, error)
+	SetTransactionTags(ctx context.Context, params setTransactionTagsParams) error
 }
 
 type repository struct {
@@ -141,7 +152,8 @@ const fetchCategoriesQuery = `
 		icon,
 		color,
 		is_system,
-		user_id
+		user_id,
+		category_type
 	FROM categories
 	WHERE (user_id = $1 OR (is_system = true AND $2 = true))
 	ORDER BY is_system DESC, name ASC;
@@ -171,7 +183,8 @@ const fetchCategoryByIDQuery = `
 		icon,
 		color,
 		is_system,
-		user_id
+		user_id,
+		category_type
 	FROM categories
 	WHERE category_id = $1
 		AND (user_id = $2 OR is_system = true);
@@ -187,22 +200,27 @@ func (r *repository) FetchCategoryByID(ctx context.Context, params fetchCategory
 }
 
 type insertCategoryParams struct {
-	Name   string
-	Icon   string
-	Color  string
-	UserID int
+	Name         string
+	Icon         string
+	Color        string
+	UserID       int
+	CategoryType string
 }
 
 const insertCategoryQuery = `
 	-- financial.insertCategoryQuery
-	INSERT INTO categories (name, icon, color, user_id)
-	VALUES ($1, $2, $3, $4)
-	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id;
+	INSERT INTO categories (name, icon, color, user_id, category_type)
+	VALUES ($1, $2, $3, $4, $5)
+	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id, category_type;
 `
 
 func (r *repository) InsertCategory(ctx context.Context, params insertCategoryParams) (CategoryModel, error) {
 	var result CategoryModel
-	err := r.db.Query(ctx, &result, insertCategoryQuery, params.Name, params.Icon, params.Color, params.UserID)
+	categoryType := params.CategoryType
+	if categoryType == "" {
+		categoryType = "expense"
+	}
+	err := r.db.Query(ctx, &result, insertCategoryQuery, params.Name, params.Icon, params.Color, params.UserID, categoryType)
 	if err != nil {
 		return CategoryModel{}, err
 	}
@@ -210,11 +228,12 @@ func (r *repository) InsertCategory(ctx context.Context, params insertCategoryPa
 }
 
 type modifyCategoryParams struct {
-	CategoryID int
-	UserID     int
-	Name       *string
-	Icon       *string
-	Color      *string
+	CategoryID   int
+	UserID       int
+	Name         *string
+	Icon         *string
+	Color        *string
+	CategoryType *string
 }
 
 const modifyCategoryQuery = `
@@ -223,14 +242,15 @@ const modifyCategoryQuery = `
 	SET name = COALESCE($3, name),
 		icon = COALESCE($4, icon),
 		color = COALESCE($5, color),
+		category_type = COALESCE($6, category_type),
 		updated_at = NOW()
 	WHERE category_id = $1 AND user_id = $2 AND is_system = false
-	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id;
+	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id, category_type;
 `
 
 func (r *repository) ModifyCategory(ctx context.Context, params modifyCategoryParams) (CategoryModel, error) {
 	var result CategoryModel
-	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.UserID, params.Name, params.Icon, params.Color)
+	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.UserID, params.Name, params.Icon, params.Color, params.CategoryType)
 	if err != nil {
 		return CategoryModel{}, err
 	}
@@ -2710,4 +2730,199 @@ func (r *repository) FetchGoalMonthlyContributions(ctx context.Context, params f
 	err := r.db.Query(ctx, &contributions, fetchGoalMonthlyContributionsQuery,
 		params.SavingsGoalID, params.UserID, params.OrganizationID)
 	return contributions, err
+}
+
+// ============================================================================
+// Tags
+// ============================================================================
+
+type fetchTagsParams struct {
+	UserID         int
+	OrganizationID int
+}
+
+const fetchTagsQuery = `
+	-- financial.fetchTagsQuery
+	SELECT
+		tag_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		icon,
+		color
+	FROM tags
+	WHERE user_id = $1
+		AND organization_id = $2
+	ORDER BY name ASC;
+`
+
+func (r *repository) FetchTags(ctx context.Context, params fetchTagsParams) ([]TagModel, error) {
+	var tags []TagModel
+	err := r.db.Query(ctx, &tags, fetchTagsQuery, params.UserID, params.OrganizationID)
+	return tags, err
+}
+
+type fetchTagByIDParams struct {
+	TagID          int
+	UserID         int
+	OrganizationID int
+}
+
+const fetchTagByIDQuery = `
+	-- financial.fetchTagByIDQuery
+	SELECT
+		tag_id,
+		created_at,
+		updated_at,
+		user_id,
+		organization_id,
+		name,
+		icon,
+		color
+	FROM tags
+	WHERE tag_id = $1
+		AND user_id = $2
+		AND organization_id = $3;
+`
+
+func (r *repository) FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error) {
+	var tag TagModel
+	err := r.db.Query(ctx, &tag, fetchTagByIDQuery,
+		params.TagID, params.UserID, params.OrganizationID)
+	return tag, err
+}
+
+type insertTagParams struct {
+	UserID         int
+	OrganizationID int
+	Name           string
+	Icon           string
+	Color          string
+}
+
+const insertTagQuery = `
+	-- financial.insertTagQuery
+	INSERT INTO tags (user_id, organization_id, name, icon, color)
+	VALUES ($1, $2, $3, $4, $5)
+	RETURNING tag_id, created_at, updated_at, user_id, organization_id, name, icon, color;
+`
+
+func (r *repository) InsertTag(ctx context.Context, params insertTagParams) (TagModel, error) {
+	var tag TagModel
+	err := r.db.Query(ctx, &tag, insertTagQuery,
+		params.UserID, params.OrganizationID, params.Name, params.Icon, params.Color)
+	return tag, err
+}
+
+type modifyTagParams struct {
+	TagID          int
+	UserID         int
+	OrganizationID int
+	Name           *string
+	Icon           *string
+	Color          *string
+}
+
+const modifyTagQuery = `
+	-- financial.modifyTagQuery
+	UPDATE tags
+	SET name = COALESCE($4, name),
+		icon = COALESCE($5, icon),
+		color = COALESCE($6, color),
+		updated_at = NOW()
+	WHERE tag_id = $1 AND user_id = $2 AND organization_id = $3
+	RETURNING tag_id, created_at, updated_at, user_id, organization_id, name, icon, color;
+`
+
+func (r *repository) ModifyTag(ctx context.Context, params modifyTagParams) (TagModel, error) {
+	var tag TagModel
+	err := r.db.Query(ctx, &tag, modifyTagQuery,
+		params.TagID, params.UserID, params.OrganizationID,
+		params.Name, params.Icon, params.Color)
+	return tag, err
+}
+
+type removeTagParams struct {
+	TagID          int
+	UserID         int
+	OrganizationID int
+}
+
+const removeTagQuery = `
+	-- financial.removeTagQuery
+	DELETE FROM tags
+	WHERE tag_id = $1 AND user_id = $2 AND organization_id = $3;
+`
+
+func (r *repository) RemoveTag(ctx context.Context, params removeTagParams) error {
+	return r.db.Run(ctx, removeTagQuery,
+		params.TagID, params.UserID, params.OrganizationID)
+}
+
+// ============================================================================
+// Transaction Tags (junction table)
+// ============================================================================
+
+type fetchTagsByTransactionIDParams struct {
+	TransactionID int
+}
+
+const fetchTagsByTransactionIDQuery = `
+	-- financial.fetchTagsByTransactionIDQuery
+	SELECT
+		t.tag_id,
+		t.created_at,
+		t.updated_at,
+		t.user_id,
+		t.organization_id,
+		t.name,
+		t.icon,
+		t.color
+	FROM tags t
+	INNER JOIN transaction_tags tt ON tt.tag_id = t.tag_id
+	WHERE tt.transaction_id = $1
+	ORDER BY t.name ASC;
+`
+
+func (r *repository) FetchTagsByTransactionID(ctx context.Context, params fetchTagsByTransactionIDParams) ([]TagModel, error) {
+	var tags []TagModel
+	err := r.db.Query(ctx, &tags, fetchTagsByTransactionIDQuery, params.TransactionID)
+	return tags, err
+}
+
+type setTransactionTagsParams struct {
+	TransactionID int
+	TagIDs        []int
+}
+
+const deleteTransactionTagsQuery = `
+	-- financial.deleteTransactionTagsQuery
+	DELETE FROM transaction_tags WHERE transaction_id = $1;
+`
+
+const insertTransactionTagQuery = `
+	-- financial.insertTransactionTagQuery
+	INSERT INTO transaction_tags (transaction_id, tag_id)
+	VALUES ($1, $2)
+	ON CONFLICT (transaction_id, tag_id) DO NOTHING;
+`
+
+func (r *repository) SetTransactionTags(ctx context.Context, params setTransactionTagsParams) error {
+	// First, delete all existing tags for this transaction
+	err := r.db.Run(ctx, deleteTransactionTagsQuery, params.TransactionID)
+	if err != nil {
+		return err
+	}
+
+	// Then, insert all new tags
+	for _, tagID := range params.TagIDs {
+		err = r.db.Run(ctx, insertTransactionTagQuery, params.TransactionID, tagID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

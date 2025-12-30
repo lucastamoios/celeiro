@@ -6,12 +6,13 @@ import TransactionList from './components/TransactionList'
 import CategoryBudgetDashboard from './components/CategoryBudgetDashboard'
 import PatternManager from './components/PatternManager'
 import CategoryManager from './components/CategoryManager'
+import TagManager from './components/TagManager'
 import UncategorizedTransactions from './components/UncategorizedTransactions'
 import SavingsGoalsPage from './components/SavingsGoalsPage'
 
-type View = 'dashboard' | 'transactions' | 'budgets' | 'patterns' | 'categories' | 'uncategorized' | 'goals';
+type View = 'dashboard' | 'transactions' | 'budgets' | 'patterns' | 'categories' | 'tags' | 'uncategorized' | 'goals';
 
-const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'patterns', 'categories', 'uncategorized', 'goals'];
+const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'patterns', 'categories', 'tags', 'uncategorized', 'goals'];
 const VIEW_STORAGE_KEY = 'celeiro_current_view';
 
 function getInitialView(): View {
@@ -90,6 +91,16 @@ function AppContent() {
                   📂 Categorias
                 </button>
                 <button
+                  onClick={() => setCurrentView('tags')}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentView === 'tags'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  🏷️ Tags
+                </button>
+                <button
                   onClick={() => setCurrentView('goals')}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     currentView === 'goals'
@@ -131,6 +142,7 @@ function AppContent() {
       {currentView === 'budgets' && <CategoryBudgetDashboard />}
       {currentView === 'patterns' && <PatternManager />}
       {currentView === 'categories' && <CategoryManager />}
+      {currentView === 'tags' && <TagManager />}
       {currentView === 'uncategorized' && <UncategorizedTransactions />}
       {currentView === 'goals' && <SavingsGoalsPage />}
     </div>
