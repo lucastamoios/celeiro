@@ -274,18 +274,24 @@ export async function deleteCategoryBudget(
   budgetId: number,
   options: RequestOptions
 ): Promise<void> {
-  const response = await fetch(
-    `${API_CONFIG.baseURL}/financial/budgets/categories/${budgetId}`,
-    {
-      method: 'DELETE',
-      headers: createHeaders(options),
-    }
-  );
+  console.log(`🗑️ [API] deleteCategoryBudget: Sending DELETE for budget ID ${budgetId}`);
+  const url = `${API_CONFIG.baseURL}/financial/budgets/categories/${budgetId}`;
+  console.log(`🗑️ [API] deleteCategoryBudget: URL = ${url}`);
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: createHeaders(options),
+  });
+
+  console.log(`🗑️ [API] deleteCategoryBudget: Response status ${response.status} ${response.statusText}`);
 
   if (!response.ok) {
     const error = await response.text();
+    console.error(`❌ [API] deleteCategoryBudget: FAILED - ${error}`);
     throw new Error(`Failed to delete category budget: ${error}`);
   }
+
+  console.log(`✅ [API] deleteCategoryBudget: Budget ${budgetId} deleted successfully`);
 }
 
 /**

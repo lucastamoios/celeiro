@@ -220,10 +220,19 @@ export default function CategoryManager() {
   const handleSaveBudget = async (categoryId: number) => {
     if (!token) return;
 
-    const amount = parseFloat(budgetValue.replace(',', '.'));
-    if (isNaN(amount) || amount < 0) {
-      setError('Por favor, insira um valor válido');
-      return;
+    // For fixed budgets, require a valid amount
+    // For calculated/maior budgets, allow empty/zero (will be computed)
+    let amount = 0;
+    if (budgetType === 'fixed') {
+      amount = parseFloat(budgetValue.replace(',', '.'));
+      if (isNaN(amount) || amount < 0) {
+        setError('Por favor, insira um valor válido');
+        return;
+      }
+    } else {
+      // For calculated/maior, use provided value or default to 0
+      const parsed = parseFloat(budgetValue.replace(',', '.'));
+      amount = isNaN(parsed) ? 0 : parsed;
     }
 
     setSavingBudget(true);
@@ -658,12 +667,17 @@ export default function CategoryManager() {
                                 if (e.key === 'Enter') handleSaveBudget(category.category_id);
                                 if (e.key === 'Escape') handleCancelEditBudget();
                               }}
-                              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                              placeholder="0,00"
+                              className={`w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm ${budgetType !== 'fixed' ? 'bg-gray-50' : ''}`}
+                              placeholder={budgetType === 'fixed' ? '0,00' : '(opcional)'}
                               disabled={savingBudget}
                             />
                           </div>
                         </div>
+                        {budgetType !== 'fixed' && (
+                          <p className="text-xs text-gray-500">
+                            💡 Para orçamentos calculados, o valor será baseado nas entradas planejadas
+                          </p>
+                        )}
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleSaveBudget(category.category_id)}
@@ -820,12 +834,17 @@ export default function CategoryManager() {
                               if (e.key === 'Enter') handleSaveBudget(category.category_id);
                               if (e.key === 'Escape') handleCancelEditBudget();
                             }}
-                            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                            placeholder="0,00"
+                            className={`w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm ${budgetType !== 'fixed' ? 'bg-gray-50' : ''}`}
+                            placeholder={budgetType === 'fixed' ? '0,00' : '(opcional)'}
                             disabled={savingBudget}
                           />
                         </div>
                       </div>
+                      {budgetType !== 'fixed' && (
+                        <p className="text-xs text-gray-500">
+                          💡 Para orçamentos calculados, o valor será baseado nas entradas planejadas
+                        </p>
+                      )}
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleSaveBudget(category.category_id)}

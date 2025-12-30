@@ -52,6 +52,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		// Transactions
 		r.Get("/accounts/{accountId}/transactions", mw.RequireSession(fh.ListTransactions, []accounts.Permission{}))
 		r.Get("/transactions/uncategorized", mw.RequireSession(fh.ListUncategorizedTransactions, []accounts.Permission{}))
+		r.Post("/accounts/{accountId}/transactions", mw.RequireSession(fh.CreateTransaction, []accounts.Permission{}))
 		r.Post("/accounts/{accountId}/transactions/import", mw.RequireSession(fh.ImportOFX, []accounts.Permission{}))
 		r.Patch("/accounts/{accountId}/transactions/{transactionId}", mw.RequireSession(fh.UpdateTransaction, []accounts.Permission{}))
 
