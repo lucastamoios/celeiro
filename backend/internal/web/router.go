@@ -126,6 +126,17 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 
 		// Amazon Sync (Chrome Extension)
 		r.Post("/amazon/sync", mw.RequireSession(fh.SyncAmazonOrders, []accounts.Permission{}))
+
+		// Tags
+		r.Get("/tags", mw.RequireSession(fh.ListTags, []accounts.Permission{}))
+		r.Post("/tags", mw.RequireSession(fh.CreateTag, []accounts.Permission{}))
+		r.Get("/tags/{id}", mw.RequireSession(fh.GetTag, []accounts.Permission{}))
+		r.Patch("/tags/{id}", mw.RequireSession(fh.UpdateTag, []accounts.Permission{}))
+		r.Delete("/tags/{id}", mw.RequireSession(fh.DeleteTag, []accounts.Permission{}))
+
+		// Transaction Tags
+		r.Get("/transactions/{id}/tags", mw.RequireSession(fh.GetTransactionTags, []accounts.Permission{}))
+		r.Put("/transactions/{id}/tags", mw.RequireSession(fh.SetTransactionTags, []accounts.Permission{}))
 	})
 
 	return r

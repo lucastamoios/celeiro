@@ -93,9 +93,10 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name  string `json:"name"`
-		Icon  string `json:"icon"`
-		Color string `json:"color"`
+		Name         string `json:"name"`
+		Icon         string `json:"icon"`
+		Color        string `json:"color"`
+		CategoryType string `json:"category_type"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -109,11 +110,18 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		color = getRandomCategoryColor()
 	}
 
+	// Default to expense if not provided
+	categoryType := req.CategoryType
+	if categoryType == "" {
+		categoryType = "expense"
+	}
+
 	category, err := h.app.FinancialService.CreateCategory(r.Context(), financialApp.CreateCategoryInput{
-		Name:   req.Name,
-		Icon:   req.Icon,
-		Color:  color,
-		UserID: userID,
+		Name:         req.Name,
+		Icon:         req.Icon,
+		Color:        color,
+		CategoryType: categoryType,
+		UserID:       userID,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -137,9 +145,10 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name  *string `json:"name,omitempty"`
-		Icon  *string `json:"icon,omitempty"`
-		Color *string `json:"color,omitempty"`
+		Name         *string `json:"name,omitempty"`
+		Icon         *string `json:"icon,omitempty"`
+		Color        *string `json:"color,omitempty"`
+		CategoryType *string `json:"category_type,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -148,11 +157,12 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	category, err := h.app.FinancialService.UpdateCategory(r.Context(), financialApp.UpdateCategoryInput{
-		CategoryID: categoryID,
-		UserID:     userID,
-		Name:       req.Name,
-		Icon:       req.Icon,
-		Color:      req.Color,
+		CategoryID:   categoryID,
+		UserID:       userID,
+		Name:         req.Name,
+		Icon:         req.Icon,
+		Color:        req.Color,
+		CategoryType: req.CategoryType,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -455,6 +465,8 @@ func (h *Handler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 
 	transaction, err := h.app.FinancialService.CreateTransaction(r.Context(), financialApp.CreateTransactionInput{
 		AccountID:       accountID,
+		UserID:          userID,
+		OrganizationID:  organizationID,
 		CategoryID:      req.CategoryID,
 		Description:     req.Description,
 		Amount:          decimal.NewFromFloat(req.Amount),
@@ -2577,4 +2589,242 @@ func (h *Handler) SyncAmazonOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.NewSuccess(result, w)
+}
+
+// ============================================================================
+// Tags
+// ============================================================================
+
+// tagColorPalette contains visually appealing colors for tags
+var tagColorPalette = []string{
+	"#6366F1", // Indigo
+	"#8B5CF6", // Violet
+	"#EC4899", // Pink
+	"#EF4444", // Red
+	"#F97316", // Orange
+	"#F59E0B", // Amber
+	"#84CC16", // Lime
+	"#10B981", // Emerald
+	"#14B8A6", // Teal
+	"#06B6D4", // Cyan
+	"#3B82F6", // Blue
+	"#A855F7", // Purple
+}
+
+func getRandomTagColor() string {
+	return tagColorPalette[rand.Intn(len(tagColorPalette))]
+}
+
+func (h *Handler) ListTags(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	tags, err := h.app.FinancialService.GetTags(r.Context(), financialApp.GetTagsInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(tags, w)
+}
+
+func (h *Handler) GetTag(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	tagID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	tag, err := h.app.FinancialService.GetTagByID(r.Context(), financialApp.GetTagByIDInput{
+		TagID:          tagID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(tag, w)
+}
+
+func (h *Handler) CreateTag(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	var req struct {
+		Name  string `json:"name"`
+		Icon  string `json:"icon"`
+		Color string `json:"color"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Set defaults
+	if req.Icon == "" {
+		req.Icon = "🏷️"
+	}
+	if req.Color == "" {
+		req.Color = getRandomTagColor()
+	}
+
+	tag, err := h.app.FinancialService.CreateTag(r.Context(), financialApp.CreateTagInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Name:           req.Name,
+		Icon:           req.Icon,
+		Color:          req.Color,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(tag, w)
+}
+
+func (h *Handler) UpdateTag(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	tagID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		Name  *string `json:"name"`
+		Icon  *string `json:"icon"`
+		Color *string `json:"color"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	tag, err := h.app.FinancialService.UpdateTag(r.Context(), financialApp.UpdateTagInput{
+		TagID:          tagID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Name:           req.Name,
+		Icon:           req.Icon,
+		Color:          req.Color,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(tag, w)
+}
+
+func (h *Handler) DeleteTag(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	tagID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	err = h.app.FinancialService.DeleteTag(r.Context(), financialApp.DeleteTagInput{
+		TagID:          tagID,
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(map[string]string{"message": "tag deleted successfully"}, w)
+}
+
+// ============================================================================
+// Transaction Tags
+// ============================================================================
+
+func (h *Handler) GetTransactionTags(w http.ResponseWriter, r *http.Request) {
+	_, _, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	transactionID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	tags, err := h.app.FinancialService.GetTransactionTags(r.Context(), financialApp.GetTransactionTagsInput{
+		TransactionID: transactionID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(tags, w)
+}
+
+func (h *Handler) SetTransactionTags(w http.ResponseWriter, r *http.Request) {
+	_, _, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	transactionID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	var req struct {
+		TagIDs []int `json:"tag_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	err = h.app.FinancialService.SetTransactionTags(r.Context(), financialApp.SetTransactionTagsInput{
+		TransactionID: transactionID,
+		TagIDs:        req.TagIDs,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(map[string]string{"message": "tags updated successfully"}, w)
 }

@@ -3,6 +3,7 @@ export interface Category {
   name: string;
   icon: string;
   color: string;
+  category_type: 'expense' | 'income';
   is_system: boolean;
   user_id: number | null;
   created_at: string;

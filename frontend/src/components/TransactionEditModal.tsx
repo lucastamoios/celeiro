@@ -6,8 +6,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { CATEGORY_COLORS } from '../utils/colors';
 import { getPlannedEntryForTransaction } from '../api/budget';
+import { getTransactionTags, setTransactionTags } from '../api/tags';
 import { useModalDismiss } from '../hooks/useModalDismiss';
 import AdvancedPatternCreator, { type AdvancedPattern } from './AdvancedPatternCreator';
+import TagSelector from './TagSelector';
 
 const AVAILABLE_ICONS = ['🍔', '🚗', '🏠', '💡', '🎮', '👕', '💊', '📚', '✈️', '🎁', '💰', '📱', '🏥', '🎬', '🛒', '☕', '🍕', '🎵', '🏋️', '🐕'];
 
@@ -38,6 +40,10 @@ export default function TransactionEditModal({
   // Linked planned entry
   const [linkedPlannedEntry, setLinkedPlannedEntry] = useState<PlannedEntryWithStatus | null>(null);
   const [loadingPlannedEntry, setLoadingPlannedEntry] = useState(true);
+
+  // Tags
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [loadingTags, setLoadingTags] = useState(true);
 
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -73,6 +79,31 @@ export default function TransactionEditModal({
     fetchLinkedPlannedEntry();
   }, [token, transaction.transaction_id]);
 
+  // Fetch transaction tags when modal opens
+  useEffect(() => {
+    const fetchTransactionTags = async () => {
+      if (!token) {
+        setLoadingTags(false);
+        return;
+      }
+
+      try {
+        const tags = await getTransactionTags(
+          transaction.transaction_id,
+          { token, organizationId: '1' }
+        );
+        setSelectedTagIds(tags.map(tag => tag.tag_id));
+      } catch (err) {
+        console.error('Failed to fetch transaction tags:', err);
+        // Don't set error - tags are optional
+      } finally {
+        setLoadingTags(false);
+      }
+    };
+
+    fetchTransactionTags();
+  }, [token, transaction.transaction_id]);
+
   const handleSave = async () => {
     if (!token) return;
 
@@ -80,6 +111,7 @@ export default function TransactionEditModal({
     setError(null);
 
     try {
+      // Save transaction details
       const response = await fetch(
         financialUrl(`accounts/${transaction.account_id}/transactions/${transaction.transaction_id}`),
         {
@@ -99,8 +131,15 @@ export default function TransactionEditModal({
       );
 
       if (!response.ok) {
-        throw new Error('Falha ao atualizar transação');
+        throw new Error('Falha ao atualizar transacao');
       }
+
+      // Save tags
+      await setTransactionTags(
+        transaction.transaction_id,
+        selectedTagIds,
+        { token, organizationId: '1' }
+      );
 
       onSave();
       onClose();
@@ -157,7 +196,8 @@ export default function TransactionEditModal({
           name: newCategoryName,
           icon: newCategoryIcon || '📦',
           color: newCategoryColor,
-          transaction_type: transaction.transaction_type,
+          // Set category_type based on transaction type: credit → income, debit → expense
+          category_type: transaction.transaction_type === 'credit' ? 'income' : 'expense',
         }),
       });
 
@@ -326,6 +366,13 @@ export default function TransactionEditModal({
               >
                 <option value="">Selecione uma categoria</option>
                 {Array.from(categories.values())
+                  .filter((category) => {
+                    // Filter categories based on transaction type
+                    // Credit transactions (income) can only use income categories
+                    // Debit transactions (expenses) can only use expense categories
+                    const expectedType = transaction.transaction_type === 'credit' ? 'income' : 'expense';
+                    return category.category_type === expectedType;
+                  })
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map((category) => (
                     <option key={category.category_id} value={category.category_id}>
@@ -336,6 +383,12 @@ export default function TransactionEditModal({
                   ➕ Nova Categoria
                 </option>
               </select>
+              {/* Hint explaining the filtering */}
+              <p className="text-xs text-gray-500 mt-1">
+                {transaction.transaction_type === 'credit'
+                  ? '💡 Mostrando apenas categorias de receita'
+                  : '💡 Mostrando apenas categorias de despesa'}
+              </p>
 
               {/* Preview of selected category */}
               {categoryId && categories.has(categoryId) && (
@@ -354,12 +407,23 @@ export default function TransactionEditModal({
 
               {/* New Category Form */}
               {showNewCategoryForm && (
-                <div className="mt-4 p-5 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200 space-y-4">
+                <div className={`mt-4 p-5 rounded-xl border-2 space-y-4 ${
+                  transaction.transaction_type === 'credit'
+                    ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
+                    : 'bg-gradient-to-br from-red-50 to-orange-50 border-red-200'
+                }`}>
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-gray-900 flex items-center gap-2">
-                      <span className="text-xl">{newCategoryIcon}</span>
-                      Nova Categoria
-                    </h4>
+                    <div>
+                      <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                        <span className="text-xl">{newCategoryIcon}</span>
+                        Nova Categoria
+                      </h4>
+                      <p className={`text-xs mt-1 ${
+                        transaction.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.transaction_type === 'credit' ? '📈 Categoria de Receita' : '📉 Categoria de Despesa'}
+                      </p>
+                    </div>
                     <button
                       onClick={() => {
                         setShowNewCategoryForm(false);
@@ -480,8 +544,28 @@ export default function TransactionEditModal({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Adicione observações sobre esta transação"
+              placeholder="Adicione observacoes sobre esta transacao"
             />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tags
+            </label>
+            {loadingTags ? (
+              <div className="animate-pulse flex flex-wrap gap-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-8 w-20 bg-gray-200 rounded-full"></div>
+                ))}
+              </div>
+            ) : (
+              <TagSelector
+                selectedTagIds={selectedTagIds}
+                onChange={setSelectedTagIds}
+                disabled={saving}
+              />
+            )}
           </div>
 
           {/* Ignore Toggle */}
