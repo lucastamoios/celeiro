@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { CATEGORY_COLORS } from '../utils/colors';
 import { getPlannedEntryForTransaction } from '../api/budget';
+import { useModalDismiss } from '../hooks/useModalDismiss';
 import AdvancedPatternCreator, { type AdvancedPattern } from './AdvancedPatternCreator';
 
 const AVAILABLE_ICONS = ['🍔', '🚗', '🏠', '💡', '🎮', '👕', '💊', '📚', '✈️', '🎁', '💰', '📱', '🏥', '🎬', '🛒', '☕', '🍕', '🎵', '🏋️', '🐕'];
@@ -43,6 +44,9 @@ export default function TransactionEditModal({
   const [newCategoryIcon, setNewCategoryIcon] = useState('📁');
   const [newCategoryColor, setNewCategoryColor] = useState(CATEGORY_COLORS[0]);
   const [creatingCategory, setCreatingCategory] = useState(false);
+
+  // Handle ESC key and click outside to close modal
+  const { handleBackdropClick } = useModalDismiss(onClose);
 
   // Fetch linked planned entry when modal opens
   useEffect(() => {
@@ -111,7 +115,7 @@ export default function TransactionEditModal({
     if (!token) return;
 
     try {
-      // 1. Create the pattern
+      // Create the pattern with apply_retroactively: true to automatically apply to existing transactions
       const response = await fetch(financialUrl('patterns'), {
         method: 'POST',
         headers: {
@@ -119,38 +123,14 @@ export default function TransactionEditModal({
           'X-Active-Organization': '1',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(pattern),
+        body: JSON.stringify({ ...pattern, apply_retroactively: true }),
       });
 
       if (!response.ok) {
         throw new Error('Falha ao criar padrão');
       }
 
-      const result = await response.json();
-      const patternId = result.data?.pattern_id;
-
-      if (!patternId) {
-        throw new Error('ID do padrão não foi retornado');
-      }
-
-      // 2. Apply pattern retroactively to all matching transactions
-      const applyResponse = await fetch(
-        financialUrl(`patterns/${patternId}/apply-retroactively`),
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
-          },
-        }
-      );
-
-      if (!applyResponse.ok) {
-        console.error('Falha ao aplicar padrão retroativamente');
-        // Don't throw - pattern was created successfully
-      }
-
-      // 3. Close modal and notify parent to refresh data
+      // Close modal and notify parent to refresh data
       setShowAdvancedPatternCreator(false);
       onSave(); // This will refresh the transaction list
       onClose(); // Close the edit modal
@@ -219,7 +199,10 @@ export default function TransactionEditModal({
 
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={handleBackdropClick}
+    >
       <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">

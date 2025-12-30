@@ -391,44 +391,14 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
               </div>
             </div>
 
-            {/* Budget Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="text-sm text-gray-600 mb-1">Planejado</div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(stats.budgetSummary.totalPlanned)}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="text-sm text-gray-600 mb-1">Gasto</div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(stats.budgetSummary.totalActual)}
-                </div>
-              </div>
-              <div className={`rounded-xl p-4 ${
-                stats.budgetSummary.variance >= 0
-                  ? 'bg-emerald-50'
-                  : 'bg-red-50'
-              }`}>
-                <div className="text-sm text-gray-600 mb-1">
-                  {stats.budgetSummary.variance >= 0 ? 'Sobra' : 'Excedido'}
-                </div>
-                <div className={`text-2xl font-bold ${
-                  stats.budgetSummary.variance >= 0
-                    ? 'text-emerald-600'
-                    : 'text-red-600'
-                }`}>
-                  {formatCurrency(Math.abs(stats.budgetSummary.variance))}
-                </div>
-              </div>
-            </div>
-
             {/* Budget Progress Bar */}
             <div className="mb-6">
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-gray-600">Progresso do Orçamento</span>
                 <span className="font-medium">
-                  {Math.min(100, Math.round((stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100))}%
+                  {stats.budgetSummary.totalPlanned > 0
+                    ? Math.min(100, Math.round((stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100))
+                    : 0}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
@@ -439,7 +409,9 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                       : 'bg-red-500'
                   }`}
                   style={{
-                    width: `${Math.min(100, (stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100)}%`,
+                    width: `${stats.budgetSummary.totalPlanned > 0
+                      ? Math.min(100, (stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100)
+                      : 0}%`,
                   }}
                 />
               </div>

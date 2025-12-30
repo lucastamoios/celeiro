@@ -35,11 +35,12 @@ export default function BudgetProgressCard({ budgetId }: BudgetProgressCardProps
     }
   };
 
-  const formatCurrency = (amount: string) => {
+  const formatCurrency = (amount: string | number) => {
+    const num = typeof amount === 'number' ? amount : parseFloat(amount);
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
-    }).format(parseFloat(amount));
+    }).format(isNaN(num) ? 0 : num);
   };
 
   const getStatusColor = (status: string) => {
@@ -138,11 +139,11 @@ export default function BudgetProgressCard({ budgetId }: BudgetProgressCardProps
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
               className="bg-blue-500 h-3 rounded-full transition-all"
-              style={{ width: `${progress.progress_percentage}%` }}
+              style={{ width: `${progress.progress_percentage || 0}%` }}
             ></div>
           </div>
           <div className="text-right text-xs text-gray-500 mt-1">
-            {progress.progress_percentage.toFixed(1)}% elapsed
+            {(progress.progress_percentage || 0).toFixed(1)}% elapsed
           </div>
         </div>
 

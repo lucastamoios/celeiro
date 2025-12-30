@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import type { CategoryBudget, PlannedEntryWithStatus } from '../types/budget';
 import CategoryBudgetCard from './CategoryBudgetCard';
 import IncomePlanningAlert from './IncomePlanningAlert';
@@ -14,10 +15,13 @@ interface MonthlyBudgetCardProps {
   isExpanded: boolean;
   plannedEntries: PlannedEntryWithStatus[];
   plannedEntriesLoading: boolean;
+  hasPreviousMonthBudgets?: boolean;
   onEditBudget: (budget: CategoryBudget) => void;
   onDeleteBudget: (budgetId: number) => void;
+  onDeleteMonth?: () => void;
   onConsolidate: (budgetId: number) => void;
   onToggleExpand: () => void;
+  onCopyFromPreviousMonth?: () => void;
   onMatchEntry?: (entryId: number) => void;
   onUnmatchEntry?: (entryId: number) => void;
   onDismissEntry?: (entryId: number, reason?: string) => void;
@@ -37,10 +41,13 @@ export default function MonthlyBudgetCard({
   isExpanded,
   plannedEntries,
   plannedEntriesLoading,
+  hasPreviousMonthBudgets,
   onEditBudget,
   onDeleteBudget,
+  onDeleteMonth,
   onConsolidate,
   onToggleExpand,
+  onCopyFromPreviousMonth,
   onMatchEntry,
   onUnmatchEntry,
   onDismissEntry,
@@ -48,6 +55,20 @@ export default function MonthlyBudgetCard({
   onEditEntry,
   onDeleteEntry,
 }: MonthlyBudgetCardProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setShowDeleteConfirm(false);
+    }
+  }, []);
+
+  const handleConfirmDelete = () => {
+    if (onDeleteMonth) {
+      onDeleteMonth();
+    }
+    setShowDeleteConfirm(false);
+  };
   const getMonthName = (monthNum: number, yearNum: number) => {
     const date = new Date(yearNum, monthNum - 1, 1);
     const monthName = date.toLocaleDateString('pt-BR', { month: 'long' });
@@ -60,10 +81,16 @@ export default function MonthlyBudgetCard({
     return category ? category.name : 'Unknown';
   };
 
-  // Calculate totals (with safety checks)
+  // Calculate totals (with safety checks for NaN)
   const budgetArray = Array.isArray(budgets) ? budgets : [];
-  const totalPlanned = budgetArray.reduce((sum, b) => sum + parseFloat(b.PlannedAmount || '0'), 0);
-  const totalSpent = budgetArray.reduce((sum, b) => sum + parseFloat(actualSpending[b.CategoryID] || '0'), 0);
+  const totalPlanned = budgetArray.reduce((sum, b) => {
+    const val = parseFloat(b.PlannedAmount || '0');
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+  const totalSpent = budgetArray.reduce((sum, b) => {
+    const val = parseFloat(actualSpending[b.CategoryID] || '0');
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
   const totalVariance = totalPlanned - totalSpent;
 
   return (
@@ -125,6 +152,21 @@ export default function MonthlyBudgetCard({
                 ⚠️ Atrasado
               </span>
             )}
+            {/* Delete month button */}
+            {onDeleteMonth && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteConfirm(true);
+                }}
+                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                title="Excluir este mês"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
@@ -163,21 +205,41 @@ export default function MonthlyBudgetCard({
         {budgetArray.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <div className="text-4xl mb-3">📊</div>
-            <p>Nenhum orçamento cadastrado para este mês</p>
+            <p className="mb-4">Nenhum orçamento cadastrado para este mês</p>
+            {hasPreviousMonthBudgets && onCopyFromPreviousMonth && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopyFromPreviousMonth();
+                }}
+                className="px-4 py-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                📋 Copiar orçamentos do mês anterior
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {budgetArray.map((budget) => (
-              <CategoryBudgetCard
-                key={budget.CategoryBudgetID}
-                budget={budget}
-                categoryName={getCategoryName(budget.CategoryID)}
-                actualSpent={actualSpending[budget.CategoryID] || '0.00'}
-                onEdit={onEditBudget}
-                onDelete={onDeleteBudget}
-                onConsolidate={onConsolidate}
-              />
-            ))}
+            {budgetArray.map((budget) => {
+              // Only allow consolidation after the month has ended
+              const now = new Date();
+              const currentMonth = now.getMonth() + 1;
+              const currentYear = now.getFullYear();
+              const monthHasEnded = year < currentYear || (year === currentYear && month < currentMonth);
+
+              return (
+                <CategoryBudgetCard
+                  key={budget.CategoryBudgetID}
+                  budget={budget}
+                  categoryName={getCategoryName(budget.CategoryID)}
+                  actualSpent={actualSpending[budget.CategoryID] || '0.00'}
+                  canConsolidate={monthHasEnded}
+                  onEdit={onEditBudget}
+                  onDelete={onDeleteBudget}
+                  onConsolidate={onConsolidate}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -246,6 +308,56 @@ export default function MonthlyBudgetCard({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleBackdropClick}
+        >
+          <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-[90vw]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Excluir orçamentos</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Tem certeza que deseja excluir os dados de <strong>{getMonthName(month, year)}</strong>?
+              {(budgetArray.length > 0 || plannedEntries.length > 0) && (
+                <span className="block mt-2">
+                  Serão removidos:
+                  <ul className="list-disc list-inside mt-1 text-gray-500">
+                    {budgetArray.length > 0 && (
+                      <li>{budgetArray.length} {budgetArray.length === 1 ? 'orçamento' : 'orçamentos'}</li>
+                    )}
+                    {plannedEntries.length > 0 && (
+                      <li>{plannedEntries.length} {plannedEntries.length === 1 ? 'entrada planejada será dispensada' : 'entradas planejadas serão dispensadas'}</li>
+                    )}
+                  </ul>
+                </span>
+              )}
+              <span className="text-red-600 mt-2 block">Esta ação não pode ser desfeita.</span>
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

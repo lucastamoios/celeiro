@@ -50,6 +50,14 @@ func (l *LocalMailer) SendEmail(ctx context.Context, message EmailTemplateMessag
 	}
 
 	l.logger.Info(ctx, "LOCAL MAILER", "from", l.config.EmailFrom, "to", strings.Join(message.To, ", "), "subject", message.Subject, "template", message.Template)
+
+	// Log magic code for easy dev access
+	if code, ok := message.Data["code"]; ok {
+		l.logger.Info(ctx, "========================================")
+		l.logger.Info(ctx, "  LOGIN CODE", "code", code)
+		l.logger.Info(ctx, "========================================")
+	}
+
 	if err := l.saveEmailToFile(message); err != nil {
 		l.logger.Error(ctx, "Failed to save email to file", "error", err)
 	}

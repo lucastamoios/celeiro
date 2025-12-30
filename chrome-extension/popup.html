@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Celeiro Amazon Sync</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      width: 320px;
+      padding: 16px;
+      background: #f8f9fa;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      color: #212529;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #6c757d;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .config-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .config-row:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      font-size: 13px;
+      color: #495057;
+      flex: 1;
+    }
+
+    input[type="text"], input[type="number"], select {
+      padding: 6px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 13px;
+      width: 120px;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      outline: none;
+      border-color: #22c55e;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+    }
+
+    .btn-primary:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #e9ecef;
+      color: #495057;
+      margin-top: 8px;
+    }
+
+    .btn-secondary:hover {
+      background: #dee2e6;
+    }
+
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .status.info {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .status.success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status.warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .progress-container {
+      margin-top: 8px;
+      display: none;
+    }
+
+    .progress-container.show {
+      display: block;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: #e9ecef;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .progress-text {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    .results {
+      font-size: 13px;
+      color: #495057;
+    }
+
+    .results-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+
+    .results-row span:last-child {
+      font-weight: 500;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 8px;
+    }
+
+    .footer a {
+      color: #22c55e;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">C</div>
+    <h1>Celeiro Amazon Sync</h1>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <div class="section">
+    <div class="section-title">Configuração</div>
+    <div class="config-row">
+      <label for="apiUrl">URL da API:</label>
+      <input type="text" id="apiUrl" placeholder="http://localhost:8080">
+    </div>
+    <div class="config-row">
+      <label for="token">Token:</label>
+      <input type="text" id="token" placeholder="Seu token JWT">
+    </div>
+    <div class="config-row">
+      <label for="month">Mês:</label>
+      <select id="month">
+        <option value="1">Janeiro</option>
+        <option value="2">Fevereiro</option>
+        <option value="3">Março</option>
+        <option value="4">Abril</option>
+        <option value="5">Maio</option>
+        <option value="6">Junho</option>
+        <option value="7">Julho</option>
+        <option value="8">Agosto</option>
+        <option value="9">Setembro</option>
+        <option value="10">Outubro</option>
+        <option value="11">Novembro</option>
+        <option value="12">Dezembro</option>
+      </select>
+    </div>
+    <div class="config-row">
+      <label for="year">Ano:</label>
+      <input type="number" id="year" min="2020" max="2030">
+    </div>
+  </div>
+
+  <div class="section">
+    <button id="syncBtn" class="btn btn-primary">
+      🛒 Sincronizar Pedidos Amazon
+    </button>
+    <div id="progressContainer" class="progress-container">
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <div id="progressText" class="progress-text">Iniciando...</div>
+    </div>
+  </div>
+
+  <div id="resultsSection" class="section" style="display: none;">
+    <div class="section-title">Resultados</div>
+    <div class="results">
+      <div class="results-row">
+        <span>Pedidos encontrados:</span>
+        <span id="ordersFound">0</span>
+      </div>
+      <div class="results-row">
+        <span>Transações atualizadas:</span>
+        <span id="transactionsMatched">0</span>
+      </div>
+    </div>
+  </div>
+
+  <button id="openAmazonBtn" class="btn btn-secondary">
+    📦 Abrir Amazon Orders
+  </button>
+
+  <div class="footer">
+    Desenvolvido para <a href="#">Celeiro</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

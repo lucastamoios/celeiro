@@ -1,4 +1,4 @@
-.PHONY: help env up down restart full-restart logs dbshell migrate migrate.rollback migrate.reset test gentypes
+.PHONY: help env up down restart full-restart logs dbshell migrate migrate.rollback migrate.reset test gentypes dev
 
 BACKEND_DIR := backend
 BACKEND_ENV := $(BACKEND_DIR)/.env.dev
@@ -6,6 +6,7 @@ BACKEND_ENV_TEMPLATE := $(BACKEND_DIR)/.envrc
 
 help:
 	@echo "Celeiro (repo root) commands:"
+	@echo "  make dev            Start dev environment with hot reload (recommended)"
 	@echo "  make up             Start all services (docker compose)"
 	@echo "  make down           Stop all services"
 	@echo "  make restart        Restart all services (rebuild)"
@@ -14,6 +15,7 @@ help:
 	@echo "  make test           Run backend tests"
 	@echo ""
 	@echo "Notes:"
+	@echo "  - 'make dev' runs backend (Air) + frontend (Vite) locally with hot reload"
 	@echo "  - This Makefile proxies to 'backend/Makefile'."
 	@echo "  - It auto-creates backend/.env.dev from backend/.envrc when missing."
 
@@ -61,4 +63,6 @@ test: env
 gentypes: env
 	@$(MAKE) -C $(BACKEND_DIR) gentypes
 
+dev: env
+	@./scripts/dev.sh
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strconv"
 
@@ -63,6 +64,27 @@ func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	responses.NewSuccess(categories, w)
 }
 
+// categoryColorPalette contains visually appealing colors for categories
+var categoryColorPalette = []string{
+	"#F59E0B", // Amber
+	"#3B82F6", // Blue
+	"#EC4899", // Pink
+	"#84CC16", // Lime
+	"#8B5CF6", // Violet
+	"#14B8A6", // Teal
+	"#F97316", // Orange
+	"#EF4444", // Red
+	"#10B981", // Emerald
+	"#6366F1", // Indigo
+	"#F472B6", // Fuchsia
+	"#06B6D4", // Cyan
+	"#A855F7", // Purple
+}
+
+func getRandomCategoryColor() string {
+	return categoryColorPalette[rand.Intn(len(categoryColorPalette))]
+}
+
 func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	userID, _, err := h.getSessionInfo(r)
 	if err != nil {
@@ -81,10 +103,10 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Default color if not provided
+	// Random color from palette if not provided
 	color := req.Color
 	if color == "" {
-		color = "#6B7280"
+		color = getRandomCategoryColor()
 	}
 
 	category, err := h.app.FinancialService.CreateCategory(r.Context(), financialApp.CreateCategoryInput{
@@ -138,6 +160,31 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.NewSuccess(category, w)
+}
+
+func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	categoryID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	err = h.app.FinancialService.DeleteCategory(r.Context(), financialApp.DeleteCategoryInput{
+		CategoryID: categoryID,
+		UserID:     userID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(map[string]string{"message": "category deleted successfully"}, w)
 }
 
 // ============================================================================
@@ -877,6 +924,49 @@ func (h *Handler) ConsolidateCategoryBudget(w http.ResponseWriter, r *http.Reque
 	}
 
 	responses.NewSuccess(snapshot, w)
+}
+
+func (h *Handler) CopyCategoryBudgetsFromMonth(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	var req struct {
+		SourceMonth int `json:"source_month"`
+		SourceYear  int `json:"source_year"`
+		TargetMonth int `json:"target_month"`
+		TargetYear  int `json:"target_year"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Validate required fields
+	if req.SourceMonth < 1 || req.SourceMonth > 12 ||
+		req.TargetMonth < 1 || req.TargetMonth > 12 ||
+		req.SourceYear < 2000 || req.TargetYear < 2000 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	budgets, err := h.app.FinancialService.CopyCategoryBudgetsFromMonth(r.Context(), financialApp.CopyCategoryBudgetsInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+		SourceMonth:    req.SourceMonth,
+		SourceYear:     req.SourceYear,
+		TargetMonth:    req.TargetMonth,
+		TargetYear:     req.TargetYear,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(budgets, w)
 }
 
 // ============================================================================
@@ -2293,4 +2383,119 @@ func (h *Handler) AddContribution(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.NewSuccess(progress, w)
+}
+
+// ============================================================================
+// Amazon Sync
+// ============================================================================
+
+// AmazonOrder represents an order extracted from Amazon by the Chrome extension
+type AmazonOrder struct {
+	OrderID     string `json:"order_id"`
+	Date        string `json:"date"`
+	ParsedDate  *struct {
+		Day   int    `json:"day"`
+		Month int    `json:"month"`
+		Year  int    `json:"year"`
+		ISO   string `json:"iso"`
+	} `json:"parsed_date,omitempty"`
+	Total       string   `json:"total"`
+	ParsedTotal *float64 `json:"parsed_total,omitempty"`
+	Items       []struct {
+		Name string  `json:"name"`
+		URL  *string `json:"url,omitempty"`
+	} `json:"items"`
+	IsTransaction bool `json:"is_transaction,omitempty"`
+}
+
+// SyncAmazonOrders receives Amazon orders from the Chrome extension and matches them with transactions
+// POST /financial/amazon/sync
+func (h *Handler) SyncAmazonOrders(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[DEBUG] SyncAmazonOrders called")
+
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		fmt.Println("[DEBUG] SyncAmazonOrders - unauthorized:", err)
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+	fmt.Printf("[DEBUG] SyncAmazonOrders - user=%d org=%d\n", userID, organizationID)
+
+	var req struct {
+		Orders []AmazonOrder `json:"orders"`
+		Month  int           `json:"month"`
+		Year   int           `json:"year"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		fmt.Println("[DEBUG] SyncAmazonOrders - decode error:", err)
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+	fmt.Printf("[DEBUG] SyncAmazonOrders - received %d orders for %d/%d\n", len(req.Orders), req.Month, req.Year)
+
+	// Debug: print first order details
+	if len(req.Orders) > 0 {
+		o := req.Orders[0]
+		fmt.Printf("[DEBUG] First order: id=%s date=%s total=%s parsed_total=%v\n", o.OrderID, o.Date, o.Total, o.ParsedTotal)
+		if o.ParsedDate != nil {
+			fmt.Printf("[DEBUG] First order parsed_date: %+v\n", *o.ParsedDate)
+		}
+	}
+
+	// Validation
+	if len(req.Orders) == 0 {
+		responses.NewSuccess(map[string]interface{}{
+			"matched_count":   0,
+			"total_orders":    0,
+			"message":         "Nenhum pedido enviado",
+		}, w)
+		return
+	}
+
+	// Convert orders to service input
+	amazonOrders := make([]financialApp.AmazonOrderInput, 0, len(req.Orders))
+	for _, order := range req.Orders {
+		var parsedTotal decimal.Decimal
+		if order.ParsedTotal != nil {
+			parsedTotal = decimal.NewFromFloat(*order.ParsedTotal)
+		}
+
+		var parsedDate *string
+		if order.ParsedDate != nil && order.ParsedDate.ISO != "" {
+			parsedDate = &order.ParsedDate.ISO
+		}
+
+		// Build item description
+		var itemDescription string
+		if len(order.Items) > 0 {
+			itemDescription = order.Items[0].Name
+			if len(order.Items) > 1 {
+				itemDescription = fmt.Sprintf("%s (+%d itens)", order.Items[0].Name, len(order.Items)-1)
+			}
+		}
+
+		amazonOrders = append(amazonOrders, financialApp.AmazonOrderInput{
+			OrderID:         order.OrderID,
+			DateString:      order.Date,
+			ParsedDate:      parsedDate,
+			TotalString:     order.Total,
+			ParsedTotal:     parsedTotal,
+			ItemDescription: itemDescription,
+		})
+	}
+
+	result, err := h.app.FinancialService.SyncAmazonOrders(r.Context(), financialApp.SyncAmazonOrdersInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Orders:         amazonOrders,
+		Month:          req.Month,
+		Year:           req.Year,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(result, w)
 }

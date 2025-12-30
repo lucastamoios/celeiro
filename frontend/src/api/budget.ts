@@ -312,6 +312,36 @@ export async function consolidateCategoryBudget(
   return result.data;
 }
 
+/**
+ * Copy category budgets from one month to another
+ */
+export async function copyCategoryBudgetsFromMonth(
+  data: {
+    source_month: number;
+    source_year: number;
+    target_month: number;
+    target_year: number;
+  },
+  options: RequestOptions
+): Promise<CategoryBudget[]> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/budgets/categories/copy`,
+    {
+      method: 'POST',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to copy category budgets: ${error}`);
+  }
+
+  const result: ApiResponse<CategoryBudget[]> = await response.json();
+  return result.data;
+}
+
 // ============================================================================
 // Planned Entries
 // ============================================================================
