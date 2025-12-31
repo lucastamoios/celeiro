@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Coins, XCircle } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
@@ -203,7 +204,7 @@ export default function TransactionList() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 p-8 animate-pulse">
+      <div className="min-h-screen bg-stone-50 p-4 md:p-8 animate-pulse">
         <div className="max-w-7xl mx-auto">
           {/* Header skeleton */}
           <div className="mb-8">
@@ -245,7 +246,7 @@ export default function TransactionList() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-stone-50 p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-stone-50 p-4 md:p-8 flex items-center justify-center">
         <div className="max-w-md w-full bg-rust-50 border border-rust-200 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-rust-900 mb-2">Erro ao carregar transações</h3>
           <p className="text-rust-700 mb-4">{error}</p>
@@ -282,65 +283,140 @@ export default function TransactionList() {
   const balance = totalIncome - totalExpense;
 
   return (
-    <div className="min-h-screen bg-stone-50 p-8">
+    <div className="min-h-screen bg-stone-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8 flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-stone-900">Transações</h1>
-            <p className="text-stone-600 mt-2">
-              {(currentMonthTransactions?.length ?? 0)} transação{(currentMonthTransactions?.length ?? 0) !== 1 ? 'ões' : ''} em {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-            </p>
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">Transações</h1>
+          <p className="text-stone-600 mt-1">
+            {(currentMonthTransactions?.length ?? 0)} transação{(currentMonthTransactions?.length ?? 0) !== 1 ? 'ões' : ''} em {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn-primary justify-center"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nova Transação
+          </button>
+          <label className="btn-secondary justify-center cursor-pointer">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            {uploading ? 'Importando...' : 'Importar OFX'}
+            <input
+              type="file"
+              accept=".ofx"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {/* Success/Error Messages */}
+        {uploadSuccess && (
+          <div className="mb-4 p-3 bg-sage-50 border border-sage-200 text-sage-700 rounded-lg text-sm">
+            {uploadSuccess}
           </div>
+        )}
+        {error && !uploading && (
+          <div className="mb-4 p-3 bg-rust-50 border border-rust-200 text-rust-700 rounded-lg text-sm flex items-center gap-2">
+            <XCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
 
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="btn-primary"
-              >
-                ➕ Nova Transação
-              </button>
-              <label className="btn-secondary cursor-pointer">
-                {uploading ? 'Importando...' : '📤 Importar OFX'}
-                <input
-                  type="file"
-                  accept=".ofx"
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                  className="hidden"
-                />
-              </label>
+        {/* Summary Cards */}
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="card-compact flex items-center gap-3 sm:block">
+            <div className="w-10 h-10 sm:w-auto sm:h-auto bg-sage-100 rounded-lg flex items-center justify-center sm:hidden">
+              <Coins className="w-5 h-5 text-sage-600" />
             </div>
-
-            {uploadSuccess && (
-              <p className="text-sm text-sage-600 font-medium">{uploadSuccess}</p>
-            )}
-
-            {error && !uploading && (
-              <p className="text-sm text-rust-600 font-medium">❌ {error}</p>
-            )}
+            <div>
+              <div className="text-xs text-stone-500 uppercase tracking-wide mb-0.5 sm:mb-1">Receitas</div>
+              <div className="text-lg sm:text-xl font-semibold text-sage-600 tabular-nums">{formatCurrency(totalIncome.toString())}</div>
+            </div>
+          </div>
+          <div className="card-compact flex items-center gap-3 sm:block">
+            <div className="w-10 h-10 sm:w-auto sm:h-auto bg-rust-100 rounded-lg flex items-center justify-center sm:hidden">
+              <span className="text-lg">💸</span>
+            </div>
+            <div>
+              <div className="text-xs text-stone-500 uppercase tracking-wide mb-0.5 sm:mb-1">Despesas</div>
+              <div className="text-lg sm:text-xl font-semibold text-rust-600 tabular-nums">{formatCurrency(totalExpense.toString())}</div>
+            </div>
+          </div>
+          <div className="card-compact flex items-center gap-3 sm:block">
+            <div className={`w-10 h-10 sm:w-auto sm:h-auto rounded-lg flex items-center justify-center sm:hidden ${balance >= 0 ? 'bg-sage-100' : 'bg-rust-100'}`}>
+              <span className="text-lg">{balance >= 0 ? '📈' : '📉'}</span>
+            </div>
+            <div>
+              <div className="text-xs text-stone-500 uppercase tracking-wide mb-0.5 sm:mb-1">Saldo</div>
+              <div className={`text-lg sm:text-xl font-semibold tabular-nums ${balance >= 0 ? 'text-sage-600' : 'text-rust-600'}`}>
+                {formatCurrency(balance.toString())}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Discrete totals board */}
-        <div className="mb-6 grid grid-cols-3 gap-4">
-          <div className="card-compact">
-            <div className="text-xs text-stone-500 uppercase tracking-wide mb-1">Receitas</div>
-            <div className="text-xl font-semibold text-sage-600 tabular-nums">{formatCurrency(totalIncome.toString())}</div>
-          </div>
-          <div className="card-compact">
-            <div className="text-xs text-stone-500 uppercase tracking-wide mb-1">Despesas</div>
-            <div className="text-xl font-semibold text-rust-600 tabular-nums">{formatCurrency(totalExpense.toString())}</div>
-          </div>
-          <div className="card-compact">
-            <div className="text-xs text-stone-500 uppercase tracking-wide mb-1">Saldo</div>
-            <div className={`text-xl font-semibold tabular-nums ${balance >= 0 ? 'text-sage-600' : 'text-rust-600'}`}>
-              {formatCurrency(balance.toString())}
+        {/* Mobile Card View */}
+        <div className="lg:hidden space-y-3">
+          {currentMonthTransactions.map((transaction) => (
+            <div
+              key={transaction.transaction_id}
+              onClick={() => handleOpenEditModal(transaction)}
+              className={`bg-white border border-stone-200 rounded-xl p-4 cursor-pointer
+                transition-all duration-150 ease-out
+                active:scale-[0.98] active:bg-stone-50 active:shadow-inner active:border-stone-300
+                ${transaction.is_ignored ? 'opacity-50' : 'shadow-sm'}`}
+            >
+              {/* First line: Description */}
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <p className={`text-sm font-medium text-stone-900 line-clamp-2 flex-1 ${
+                  transaction.is_ignored ? 'line-through' : ''
+                }`}>
+                  {transaction.description}
+                </p>
+                <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
+                  transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
+                }`}>
+                  {transaction.transaction_type === 'credit' ? '+' : '-'}
+                  {formatCurrency(transaction.amount)}
+                </span>
+              </div>
+
+              {/* Second line: Date + Category + Ignored badge */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-stone-500 tabular-nums">
+                  {formatDate(transaction.transaction_date)}
+                </span>
+                <span className="text-stone-300">•</span>
+                {transaction.category_id && categories.has(transaction.category_id) ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-stone-600">
+                    <span>{categories.get(transaction.category_id)!.icon}</span>
+                    <span>{categories.get(transaction.category_id)!.name}</span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-stone-400 italic">Sem categoria</span>
+                )}
+                {transaction.is_ignored && (
+                  <span className="text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">
+                    IGNORADA
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          ))}
         </div>
 
-        <div className="card overflow-hidden">
+        {/* Desktop Table View */}
+        <div className="hidden lg:block card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-stone-200">
               <thead className="bg-stone-50">

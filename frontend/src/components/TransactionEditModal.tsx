@@ -92,7 +92,7 @@ export default function TransactionEditModal({
           transaction.transaction_id,
           { token, organizationId: '1' }
         );
-        setSelectedTagIds(tags.map(tag => tag.tag_id));
+        setSelectedTagIds((tags || []).map(tag => tag.tag_id));
       } catch (err) {
         console.error('Failed to fetch transaction tags:', err);
         // Don't set error - tags are optional

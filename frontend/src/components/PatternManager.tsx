@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Target, Plus, RefreshCw, XCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import type { Category } from '../types/category';
@@ -367,7 +368,7 @@ export default function PatternManager() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 p-8 animate-pulse">
+      <div className="min-h-screen bg-stone-50 p-4 md:p-8 animate-pulse">
         <div className="max-w-7xl mx-auto">
           <div className="h-9 bg-stone-200 rounded w-1/4 mb-8"></div>
           <div className="grid gap-4">
@@ -386,9 +387,9 @@ export default function PatternManager() {
   const totalPatterns = patterns.length;
 
   return (
-    <div className="min-h-screen bg-stone-50 p-8">
+    <div className="min-h-screen bg-stone-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8 flex justify-between items-start">
+        <div className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
             <h1 className="text-3xl font-bold text-stone-900">Padrões</h1>
             <p className="text-stone-600 mt-2">
@@ -401,7 +402,8 @@ export default function PatternManager() {
               onClick={() => setShowCreator(true)}
               className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all"
             >
-              ➕ Criar Padrão
+              <Plus className="w-4 h-4 inline mr-1" />
+              Criar Padrão
             </button>
 
             {success && (
@@ -409,7 +411,10 @@ export default function PatternManager() {
             )}
 
             {error && (
-              <p className="text-sm text-rust-600 font-medium">❌ {error}</p>
+              <p className="text-sm text-rust-600 font-medium flex items-center gap-1">
+                <XCircle className="w-4 h-4" />
+                {error}
+              </p>
             )}
           </div>
         </div>
@@ -417,7 +422,9 @@ export default function PatternManager() {
         {/* Patterns Section */}
         {patterns.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
-            <div className="text-6xl mb-4">🎯</div>
+            <div className="flex justify-center mb-4">
+              <Target className="w-16 h-16 text-stone-300" />
+            </div>
             <h3 className="text-lg font-semibold text-stone-900 mb-2">
               Nenhum padrão criado ainda
             </h3>
@@ -428,7 +435,8 @@ export default function PatternManager() {
               onClick={() => setShowCreator(true)}
               className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all"
             >
-              ➕ Criar Primeiro Padrão
+              <Plus className="w-4 h-4 inline mr-1" />
+              Criar Primeiro Padrão
             </button>
           </div>
         ) : (
@@ -546,7 +554,7 @@ export default function PatternManager() {
                                   Aplicando...
                                 </>
                               ) : (
-                                <>🔄 Aplicar a existentes</>
+                                <><RefreshCw className="w-4 h-4" /> Aplicar a existentes</>
                               )}
                             </button>
 
