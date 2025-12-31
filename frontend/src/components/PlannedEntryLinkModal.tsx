@@ -132,12 +132,12 @@ export default function PlannedEntryLinkModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
+        <div className="px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-t-lg">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">🔗 Vincular Padrão a Entrada Planejada</h2>
             <button
@@ -160,20 +160,20 @@ export default function PlannedEntryLinkModal({
         </div>
 
         {/* Filters */}
-        <div className="px-6 py-3 border-b border-gray-100 flex gap-3">
+        <div className="px-6 py-3 border-b border-stone-100 flex gap-3">
           <div className="flex-1">
             <input
               type="text"
               placeholder="🔍 Buscar entrada..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent"
             />
           </div>
           <select
             value={filterCategory === 'all' ? 'all' : filterCategory}
             onChange={(e) => setFilterCategory(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="px-3 py-2 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent"
           >
             <option value="all">Todas categorias</option>
             {Array.from(categories.values()).map(cat => (
@@ -189,23 +189,23 @@ export default function PlannedEntryLinkModal({
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
-                <div key={i} className="animate-pulse flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                <div key={i} className="animate-pulse flex items-center gap-4 p-3 bg-stone-50 rounded-lg">
                   <div className="flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                    <div className="h-4 bg-stone-200 rounded w-2/3 mb-2"></div>
+                    <div className="h-3 bg-stone-200 rounded w-1/3"></div>
                   </div>
-                  <div className="h-8 w-20 bg-gray-200 rounded"></div>
+                  <div className="h-8 w-20 bg-stone-200 rounded"></div>
                 </div>
               ))}
             </div>
           ) : error ? (
             <div className="text-center py-8">
-              <p className="text-red-600">{error}</p>
+              <p className="text-rust-600">{error}</p>
             </div>
           ) : sortedEntries.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-2">Nenhuma entrada planejada disponível</p>
-              <p className="text-sm text-gray-400">
+              <p className="text-stone-500 mb-2">Nenhuma entrada planejada disponível</p>
+              <p className="text-sm text-stone-400">
                 {entries.length > 0
                   ? 'Todas as entradas já estão vinculadas ou foram filtradas'
                   : 'Crie uma entrada planejada primeiro'}
@@ -222,22 +222,22 @@ export default function PlannedEntryLinkModal({
                     key={entry.PlannedEntryID}
                     className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${
                       isMatchingCategory
-                        ? 'bg-purple-50 border-purple-200'
-                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                        ? 'bg-wheat-50 border-wheat-200'
+                        : 'bg-stone-50 border-stone-200 hover:bg-stone-100'
                     }`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900 truncate">
+                        <span className="font-medium text-stone-900 truncate">
                           {entry.Description}
                         </span>
                         {isMatchingCategory && (
-                          <span className="text-xs px-1.5 py-0.5 bg-purple-200 text-purple-700 rounded">
+                          <span className="text-xs px-1.5 py-0.5 bg-wheat-200 text-wheat-700 rounded">
                             Mesma categoria
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
+                      <div className="flex items-center gap-3 mt-1 text-sm text-stone-500">
                         <span className="inline-flex items-center gap-1">
                           {category?.icon} {category?.name}
                         </span>
@@ -247,12 +247,12 @@ export default function PlannedEntryLinkModal({
                             : formatCurrency(entry.Amount)}
                         </span>
                         {entry.IsRecurrent && (
-                          <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                          <span className="text-xs px-1.5 py-0.5 bg-wheat-100 text-wheat-700 rounded">
                             Recorrente
                           </span>
                         )}
                         {entry.EntryType === 'income' && (
-                          <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
+                          <span className="text-xs px-1.5 py-0.5 bg-sage-100 text-sage-700 rounded">
                             Receita
                           </span>
                         )}
@@ -261,7 +261,7 @@ export default function PlannedEntryLinkModal({
                     <button
                       onClick={() => handleLink(entry.PlannedEntryID)}
                       disabled={linkingId !== null}
-                      className="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex-shrink-0"
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all disabled:opacity-50 flex-shrink-0"
                     >
                       {linkingId === entry.PlannedEntryID ? (
                         <span className="flex items-center gap-1.5">
@@ -283,10 +283,10 @@ export default function PlannedEntryLinkModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+        <div className="px-6 py-4 border-t border-stone-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-stone-700 bg-stone-100 rounded-lg hover:bg-stone-200 transition-colors"
           >
             Cancelar
           </button>

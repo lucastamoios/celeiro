@@ -53,7 +53,7 @@ export default function SavingsGoalCard({
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow ${
+      className={`card p-4 hover:shadow-warm-lg transition-shadow ${
         onClick ? 'cursor-pointer' : ''
       } ${goal.is_completed ? 'opacity-75' : ''}`}
       onClick={() => onClick?.(goal.savings_goal_id)}
@@ -67,19 +67,19 @@ export default function SavingsGoalCard({
             </span>
           )}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{goal.name}</h3>
+            <h3 className="text-lg font-semibold text-stone-900">{goal.name}</h3>
             <div className="flex items-center gap-2 mt-1">
               <span
                 className={`text-xs px-2 py-1 rounded ${
                   goal.goal_type === 'reserva'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-purple-100 text-purple-800'
+                    ? 'bg-wheat-100 text-wheat-800'
+                    : 'bg-terra-100 text-terra-800'
                 }`}
               >
                 {getGoalTypeLabel(goal.goal_type)}
               </span>
               {goal.is_completed && (
-                <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">
+                <span className="text-xs px-2 py-1 rounded bg-sage-100 text-sage-800">
                   ✓ Concluído
                 </span>
               )}
@@ -95,12 +95,12 @@ export default function SavingsGoalCard({
                 e.stopPropagation();
                 setShowActions(!showActions);
               }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-stone-100 rounded-full transition-colors"
               aria-label="Actions"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-gray-600"
+                className="h-5 w-5 text-stone-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -115,7 +115,7 @@ export default function SavingsGoalCard({
             </button>
 
             {showActions && (
-              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[140px]">
+              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10 min-w-[140px]">
                 {onEdit && (
                   <button
                     onClick={(e) => {
@@ -123,7 +123,7 @@ export default function SavingsGoalCard({
                       onEdit(goal);
                       setShowActions(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full px-4 py-2 text-left text-sm text-stone-700 hover:bg-stone-100"
                   >
                     ✏️ Editar
                   </button>
@@ -135,7 +135,7 @@ export default function SavingsGoalCard({
                       onAddContribution(goal.savings_goal_id);
                       setShowActions(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-blue-700 hover:bg-blue-50"
+                    className="w-full px-4 py-2 text-left text-sm text-wheat-700 hover:bg-wheat-50"
                   >
                     💰 Adicionar
                   </button>
@@ -147,7 +147,7 @@ export default function SavingsGoalCard({
                       onComplete(goal.savings_goal_id);
                       setShowActions(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50"
+                    className="w-full px-4 py-2 text-left text-sm text-sage-700 hover:bg-sage-50"
                   >
                     ✓ Concluir
                   </button>
@@ -159,7 +159,7 @@ export default function SavingsGoalCard({
                       onDelete(goal.savings_goal_id);
                       setShowActions(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                    className="w-full px-4 py-2 text-left text-sm text-rust-700 hover:bg-rust-50"
                   >
                     🗑️ Excluir
                   </button>
@@ -176,7 +176,7 @@ export default function SavingsGoalCard({
               e.stopPropagation();
               onReopen(goal.savings_goal_id);
             }}
-            className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            className="px-3 py-1 text-sm text-wheat-600 hover:bg-wheat-50 rounded transition-colors"
           >
             Reabrir
           </button>
@@ -185,11 +185,11 @@ export default function SavingsGoalCard({
 
       {/* Progress Bar */}
       <div className="mb-3">
-        <div className="flex justify-between text-sm text-gray-600 mb-1">
+        <div className="flex justify-between text-sm text-stone-600 mb-1">
           <span>Progresso</span>
           <span className="font-medium">{formatProgress(progressPercent)}</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-3">
+        <div className="w-full bg-stone-200 rounded-full h-3">
           <div
             className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(
               progressPercent
@@ -205,50 +205,50 @@ export default function SavingsGoalCard({
       {/* Amounts */}
       <div className="grid grid-cols-2 gap-4 mb-3">
         <div>
-          <p className="text-xs text-gray-500">Atual</p>
-          <p className="text-lg font-semibold text-gray-900">
+          <p className="text-xs text-stone-500">Atual</p>
+          <p className="text-lg font-semibold text-stone-900 tabular-nums">
             {formatCurrency(currentAmount)}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-gray-500">Meta</p>
-          <p className="text-lg font-semibold text-gray-900">
+          <p className="text-xs text-stone-500">Meta</p>
+          <p className="text-lg font-semibold text-stone-900 tabular-nums">
             {formatCurrency(goal.target_amount)}
           </p>
         </div>
       </div>
 
       {/* Remaining and Due Date */}
-      <div className="flex items-center justify-between text-sm border-t border-gray-100 pt-3">
+      <div className="flex items-center justify-between text-sm border-t border-stone-100 pt-3">
         <div>
-          <span className="text-gray-500">Faltam: </span>
-          <span className={remaining <= 0 ? 'text-green-600 font-medium' : 'text-gray-900'}>
+          <span className="text-stone-500">Faltam: </span>
+          <span className={remaining <= 0 ? 'text-sage-600 font-medium' : 'text-stone-900 tabular-nums'}>
             {remaining <= 0 ? 'Concluído!' : formatCurrency(remaining)}
           </span>
         </div>
 
         {goal.due_date && (
           <div className="flex items-center gap-1">
-            <span className="text-gray-400">📅</span>
-            <span className="text-gray-600">{formatDueDate(goal.due_date)}</span>
+            <span className="text-stone-400">📅</span>
+            <span className="text-stone-600">{formatDueDate(goal.due_date)}</span>
           </div>
         )}
       </div>
 
       {/* Reserva-specific metrics */}
       {goal.goal_type === 'reserva' && progress && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="mt-3 pt-3 border-t border-stone-100">
           <div className="flex items-center justify-between text-sm">
             {progress.months_remaining !== undefined && (
               <div>
-                <span className="text-gray-500">Meses restantes: </span>
+                <span className="text-stone-500">Meses restantes: </span>
                 <span className="font-medium">{progress.months_remaining}</span>
               </div>
             )}
             {progress.monthly_target && (
               <div>
-                <span className="text-gray-500">Meta mensal: </span>
-                <span className="font-medium text-blue-600">
+                <span className="text-stone-500">Meta mensal: </span>
+                <span className="font-medium text-wheat-600 tabular-nums">
                   {formatCurrency(progress.monthly_target)}
                 </span>
               </div>
@@ -270,8 +270,8 @@ export default function SavingsGoalCard({
 
       {/* Notes */}
       {goal.notes && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-sm text-gray-500 italic">"{goal.notes}"</p>
+        <div className="mt-3 pt-3 border-t border-stone-100">
+          <p className="text-sm text-stone-500 italic">"{goal.notes}"</p>
         </div>
       )}
     </div>

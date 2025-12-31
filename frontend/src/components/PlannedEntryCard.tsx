@@ -126,17 +126,17 @@ export default function PlannedEntryCard({
   return (
     <>
       <div className={`bg-white rounded-lg shadow-sm border-l-4 p-4 hover:shadow-md transition-shadow ${
-        entry.Status === 'matched' ? 'border-green-500' :
-        entry.Status === 'pending' ? 'border-yellow-500' :
-        entry.Status === 'missed' ? 'border-red-500' :
-        'border-gray-400'
+        entry.Status === 'matched' ? 'border-sage-500' :
+        entry.Status === 'pending' ? 'border-terra-500' :
+        entry.Status === 'missed' ? 'border-rust-500' :
+        'border-stone-400'
       }`}>
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900">{entry.Description}</h3>
+            <h3 className="text-lg font-semibold text-stone-900">{entry.Description}</h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
+              <span className="text-xs px-2 py-1 rounded bg-stone-100 text-stone-700">
                 {categoryName}
               </span>
               <span className={`text-xs px-2 py-1 rounded border flex items-center gap-1 ${getStatusBadgeClasses(entry.Status)}`}>
@@ -144,18 +144,18 @@ export default function PlannedEntryCard({
                 {getStatusLabel(entry.Status)}
               </span>
               {entry.IsRecurrent && (
-                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
+                <span className="text-xs px-2 py-1 rounded bg-wheat-100 text-wheat-800">
                   Recorrente
                 </span>
               )}
               {entry.EntryType === 'income' && (
-                <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">
+                <span className="text-xs px-2 py-1 rounded bg-sage-100 text-sage-800">
                   Receita
                 </span>
               )}
               {entry.LinkedPattern && (
                 <span
-                  className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800 flex items-center gap-1"
+                  className="text-xs px-2 py-1 rounded bg-terra-100 text-terra-800 flex items-center gap-1"
                   title={`Vinculado ao padrão: ${entry.LinkedPattern.DescriptionPattern || entry.LinkedPattern.TargetDescription}`}
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,12 +171,12 @@ export default function PlannedEntryCard({
           <div className="relative">
             <button
               onClick={() => setShowActions(!showActions)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-stone-100 rounded-full transition-colors"
               aria-label="Actions"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-gray-600"
+                className="h-5 w-5 text-stone-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -191,14 +191,14 @@ export default function PlannedEntryCard({
             </button>
 
             {showActions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
                 {(entry.Status === 'pending' || entry.Status === 'missed') && onMatch && (
                   <button
                     onClick={() => {
                       onMatch(entry.PlannedEntryID);
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
+                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
                   >
                     Vincular Transação
                   </button>
@@ -209,7 +209,7 @@ export default function PlannedEntryCard({
                       onUnmatch(entry.PlannedEntryID);
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
+                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
                   >
                     Desvincular
                   </button>
@@ -220,7 +220,7 @@ export default function PlannedEntryCard({
                       setShowDismissModal(true);
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
+                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
                   >
                     Dispensar
                   </button>
@@ -231,7 +231,7 @@ export default function PlannedEntryCard({
                       onUndismiss(entry.PlannedEntryID);
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
+                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
                   >
                     Reativar
                   </button>
@@ -242,7 +242,7 @@ export default function PlannedEntryCard({
                       onEdit(entry);
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
+                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
                   >
                     Editar
                   </button>
@@ -255,7 +255,7 @@ export default function PlannedEntryCard({
                       }
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600"
+                    className="w-full text-left px-4 py-2 hover:bg-rust-50 text-rust-600"
                   >
                     Excluir
                   </button>
@@ -268,15 +268,15 @@ export default function PlannedEntryCard({
         {/* Entry Details */}
         <div className="grid grid-cols-2 gap-4 mb-3">
           <div>
-            <div className="text-sm text-gray-600">Valor Esperado</div>
-            <div className="text-lg font-semibold text-gray-900">
+            <div className="text-sm text-stone-600">Valor Esperado</div>
+            <div className="text-lg font-semibold text-stone-900">
               {getAmountRange()}
             </div>
           </div>
           {getExpectedDayRange() && (
             <div>
-              <div className="text-sm text-gray-600">Período</div>
-              <div className="text-lg font-semibold text-gray-900">
+              <div className="text-sm text-stone-600">Período</div>
+              <div className="text-lg font-semibold text-stone-900">
                 {getExpectedDayRange()}
               </div>
             </div>
@@ -285,16 +285,16 @@ export default function PlannedEntryCard({
 
         {/* Matched Transaction Info */}
         {entry.Status === 'matched' && entry.MatchedAmount && (
-          <div className="border-t border-gray-200 pt-3 mt-3">
+          <div className="border-t border-stone-200 pt-3 mt-3">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-gray-600">Valor Recebido</div>
-                <div className="text-lg font-semibold text-green-600">
+                <div className="text-sm text-stone-600">Valor Recebido</div>
+                <div className="text-lg font-semibold text-sage-600">
                   {formatCurrency(entry.MatchedAmount)}
                 </div>
               </div>
               {entry.MatchedAt && (
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-stone-500">
                   em {formatDate(entry.MatchedAt)}
                 </div>
               )}
@@ -304,7 +304,7 @@ export default function PlannedEntryCard({
 
         {/* Missed Warning */}
         {entry.Status === 'missed' && (
-          <div className="mt-3 text-xs text-red-700 bg-red-50 px-3 py-2 rounded border border-red-200">
+          <div className="mt-3 text-xs text-rust-700 bg-rust-50 px-3 py-2 rounded border border-rust-200">
             <strong>⚠️ Atrasado:</strong> O período esperado já passou e nenhuma transação foi vinculada.
           </div>
         )}
@@ -313,22 +313,22 @@ export default function PlannedEntryCard({
       {/* Dismiss Modal */}
       {showDismissModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
           onClick={handleBackdropClick}
         >
           <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-[90vw]">
             <h3 className="text-lg font-semibold mb-4">Dispensar Entrada Planejada</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-stone-600 mb-4">
               Dispensar "{entry.Description}" para {new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}?
             </p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-stone-700 mb-1">
                 Motivo (opcional)
               </label>
               <textarea
                 value={dismissReason}
                 onChange={(e) => setDismissReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-stone-300 rounded-md focus:outline-none focus:ring-2 focus:ring-wheat-500"
                 rows={3}
                 placeholder="Ex: Não houve cobrança este mês"
               />
@@ -339,13 +339,13 @@ export default function PlannedEntryCard({
                   setShowDismissModal(false);
                   setDismissReason('');
                 }}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                className="px-4 py-2 text-stone-700 hover:bg-stone-100 rounded-md"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDismiss}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                className="px-4 py-2 bg-stone-600 text-white rounded-md hover:bg-stone-700"
               >
                 Dispensar
               </button>

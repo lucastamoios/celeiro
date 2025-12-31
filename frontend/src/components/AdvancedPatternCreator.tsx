@@ -155,21 +155,21 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between bg-gradient-to-r from-wheat-50 to-wheat-100">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-stone-900">
               {existingPattern 
                 ? '✏️ Editar Padrão Avançado'
                 : initialData 
                   ? '🔄 Converter para Padrão Avançado' 
                   : '🎯 Criador de Padrões Avançado'}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-stone-600 mt-1">
               {existingPattern
                 ? 'Modifique as regras de correspondência do seu padrão'
                 : initialData
@@ -179,7 +179,7 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-stone-400 hover:text-stone-600 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -189,8 +189,8 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
 
         {/* Error message */}
         {error && (
-          <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-sm text-red-800">⚠️ {error}</p>
+          <div className="mx-6 mt-4 bg-rust-50 border border-rust-200 rounded-lg p-3">
+            <p className="text-sm text-rust-800">⚠️ {error}</p>
           </div>
         )}
 
@@ -199,8 +199,8 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
           <div className="grid grid-cols-2 gap-8">
             {/* LEFT SIDE: Pattern Builder */}
             <div className="space-y-6">
-              <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
-                <h3 className="text-lg font-semibold text-purple-900 mb-4 flex items-center gap-2">
+              <div className="bg-terra-50 rounded-lg p-4 border-2 border-terra-200">
+                <h3 className="text-lg font-semibold text-terra-900 mb-4 flex items-center gap-2">
                   <span>📋</span>
                   <span>Padrão de Correspondência</span>
                 </h3>
@@ -208,7 +208,7 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                 <div className="space-y-4">
                   {/* Description Pattern */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       Padrão de Descrição (Regex) *
                     </label>
                     <input
@@ -216,16 +216,16 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                       value={descriptionPattern}
                       onChange={(e) => setDescriptionPattern(e.target.value)}
                       placeholder="Ex: AMZN.* ou ^NETFLIX.*"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 font-mono text-sm"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 font-mono text-sm"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-stone-500 mt-1">
                       Use regex para corresponder à descrição da transação
                     </p>
                   </div>
 
                   {/* Date Pattern */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       Padrão de Data (Opcional)
                     </label>
                     <input
@@ -233,16 +233,16 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                       value={datePattern}
                       onChange={(e) => setDatePattern(e.target.value)}
                       placeholder="Ex: 2024-11-.* ou .*-15 (dia 15)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 font-mono text-sm"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 font-mono text-sm"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-stone-500 mt-1">
                       Corresponde ao formato de data (YYYY-MM-DD)
                     </p>
                   </div>
 
                   {/* Weekday Pattern */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-stone-700 mb-2">
                       Dias da Semana
                     </label>
                     <div className="grid grid-cols-7 gap-2 mb-2">
@@ -253,15 +253,15 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                           onClick={() => toggleWeekday(idx)}
                           className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
                             selectedWeekdays.includes(idx)
-                              ? 'bg-purple-600 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              ? 'bg-wheat-600 text-white'
+                              : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                           }`}
                         >
                           {name.slice(0, 3)}
                         </button>
                       ))}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-stone-500">
                       Ou use regex:
                       <input
                         type="text"
@@ -271,14 +271,14 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                           setSelectedWeekdays([]);
                         }}
                         placeholder="Ex: (4|6) para Quinta ou Sábado"
-                        className="ml-2 px-2 py-1 border border-gray-300 rounded font-mono text-xs w-48"
+                        className="ml-2 px-2 py-1 border border-stone-300 rounded font-mono text-xs w-48"
                       />
                     </div>
                   </div>
 
                   {/* Amount Range */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       Faixa de Valor (Opcional)
                     </label>
                     <div className="flex items-center gap-2">
@@ -288,29 +288,29 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                         value={amountMin}
                         onChange={(e) => setAmountMin(e.target.value)}
                         placeholder="Mín"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        className="flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500"
                       />
-                      <span className="text-gray-500">até</span>
+                      <span className="text-stone-500">até</span>
                       <input
                         type="number"
                         step="0.01"
                         value={amountMax}
                         onChange={(e) => setAmountMax(e.target.value)}
                         placeholder="Máx"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        className="flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500"
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Sintaxe interna: <code className="bg-gray-100 px-1 rounded">{`<<${amountMin || 'min'}-${amountMax || 'max'}>>`}</code>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Sintaxe interna: <code className="bg-stone-100 px-1 rounded">{`<<${amountMin || 'min'}-${amountMax || 'max'}>>`}</code>
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* Pattern Preview */}
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">📄 Padrão Completo</h4>
-                <pre className="bg-white p-3 rounded border border-gray-300 text-xs font-mono overflow-x-auto">
+              <div className="bg-stone-50 rounded-lg p-4 border border-stone-200">
+                <h4 className="text-sm font-semibold text-stone-700 mb-2">📄 Padrão Completo</h4>
+                <pre className="bg-white p-3 rounded border border-stone-300 text-xs font-mono overflow-x-auto">
 {generateExamplePattern()}
                 </pre>
               </div>
@@ -318,8 +318,8 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
 
             {/* RIGHT SIDE: Target Mapping */}
             <div className="space-y-6">
-              <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
-                <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+              <div className="bg-wheat-50 rounded-lg p-4 border-2 border-wheat-200">
+                <h3 className="text-lg font-semibold text-wheat-900 mb-4 flex items-center gap-2">
                   <span>🎯</span>
                   <span>Mapeia Para</span>
                 </h3>
@@ -327,7 +327,7 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                 <div className="space-y-4">
                   {/* Target Description */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       Descrição de Destino *
                     </label>
                     <input
@@ -335,22 +335,22 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                       value={targetDescription}
                       onChange={(e) => setTargetDescription(e.target.value)}
                       placeholder="Ex: Leite em pó Amazon"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-stone-500 mt-1">
                       O nome que aparecerá nas transações correspondentes
                     </p>
                   </div>
 
                   {/* Target Category */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       Categoria de Destino *
                     </label>
                     <select
                       value={targetCategoryId}
                       onChange={(e) => setTargetCategoryId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500"
                     >
                       <option value="">Selecione uma categoria</option>
                       {Array.from(categories.values()).map(cat => (
@@ -359,7 +359,7 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
                         </option>
                       ))}
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-stone-500 mt-1">
                       A categoria que será aplicada automaticamente
                     </p>
                   </div>
@@ -368,23 +368,23 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
 
               {/* Preview Card */}
               {targetDescription && targetCategoryId && (
-                <div className="bg-green-50 rounded-lg p-4 border-2 border-green-200">
-                  <h4 className="text-sm font-semibold text-green-900 mb-3 flex items-center gap-2">
+                <div className="bg-sage-50 rounded-lg p-4 border-2 border-sage-200">
+                  <h4 className="text-sm font-semibold text-sage-900 mb-3 flex items-center gap-2">
                     <span>👁️</span>
                     <span>Preview do Resultado</span>
                   </h4>
-                  <div className="bg-white rounded-lg p-4 border border-green-300">
+                  <div className="bg-white rounded-lg p-4 border border-sage-300">
                     <div className="flex items-start justify-between">
                       <div>
-                        <div className="font-medium text-gray-900 mb-2">{targetDescription}</div>
+                        <div className="font-medium text-stone-900 mb-2">{targetDescription}</div>
                         {categories.has(parseInt(targetCategoryId)) && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-wheat-100 text-wheat-800 rounded-full">
                             <span>{categories.get(parseInt(targetCategoryId))!.icon}</span>
                             <span>{categories.get(parseInt(targetCategoryId))!.name}</span>
                           </span>
                         )}
                       </div>
-                      <span className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full border border-green-300">
+                      <span className="px-2 py-1 text-xs font-semibold bg-sage-100 text-sage-800 rounded-full border border-sage-300">
                         ✅ Matched
                       </span>
                     </div>
@@ -393,16 +393,16 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
               )}
 
               {/* Info Box */}
-              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                <h4 className="text-sm font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+              <div className="bg-terra-50 rounded-lg p-4 border border-terra-200">
+                <h4 className="text-sm font-semibold text-terra-900 mb-2 flex items-center gap-2">
                   <span>💡</span>
                   <span>Dicas</span>
                 </h4>
-                <ul className="text-xs text-yellow-800 space-y-1">
-                  <li>• Use <code className="bg-yellow-100 px-1 rounded">.*</code> para corresponder a qualquer coisa</li>
-                  <li>• Use <code className="bg-yellow-100 px-1 rounded">^</code> para início e <code className="bg-yellow-100 px-1 rounded">$</code> para fim</li>
+                <ul className="text-xs text-terra-800 space-y-1">
+                  <li>• Use <code className="bg-terra-100 px-1 rounded">.*</code> para corresponder a qualquer coisa</li>
+                  <li>• Use <code className="bg-terra-100 px-1 rounded">^</code> para início e <code className="bg-terra-100 px-1 rounded">$</code> para fim</li>
                   <li>• Dias da semana: 0=Domingo, 1=Segunda, ..., 6=Sábado</li>
-                  <li>• Use <code className="bg-yellow-100 px-1 rounded">(A|B)</code> para "A ou B"</li>
+                  <li>• Use <code className="bg-terra-100 px-1 rounded">(A|B)</code> para "A ou B"</li>
                   <li>• Faixa de valor cria filtro entre mínimo e máximo</li>
                 </ul>
               </div>
@@ -411,17 +411,17 @@ export default function AdvancedPatternCreator({ categories, onClose, onSave, in
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3 bg-gray-50">
+        <div className="px-6 py-4 border-t border-stone-200 flex items-center justify-end gap-3 bg-stone-50">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+            className="px-4 py-2 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-100 transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !descriptionPattern || !targetDescription || !targetCategoryId}
-            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+            className="px-6 py-2 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-lg hover:from-wheat-600 hover:to-wheat-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
           >
             {saving ? (
               <span className="flex items-center gap-2">

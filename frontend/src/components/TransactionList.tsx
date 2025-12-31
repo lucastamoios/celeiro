@@ -203,23 +203,23 @@ export default function TransactionList() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 animate-pulse">
+      <div className="min-h-screen bg-stone-50 p-8 animate-pulse">
         <div className="max-w-7xl mx-auto">
           {/* Header skeleton */}
           <div className="mb-8">
-            <div className="h-9 bg-gray-200 rounded w-1/4 mb-2"></div>
-            <div className="h-6 bg-gray-200 rounded w-1/6"></div>
+            <div className="h-9 bg-stone-200 rounded w-1/4 mb-2"></div>
+            <div className="h-6 bg-stone-200 rounded w-1/6"></div>
           </div>
 
           {/* Table skeleton */}
-          <div className="bg-white rounded-lg shadow">
+          <div className="card">
             <div className="p-4">
               <table className="min-w-full">
                 <thead>
                   <tr>
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                       <th key={i} className="px-6 py-3">
-                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                        <div className="h-4 bg-stone-200 rounded w-20"></div>
                       </th>
                     ))}
                   </tr>
@@ -229,7 +229,7 @@ export default function TransactionList() {
                     <tr key={i}>
                       {[1, 2, 3, 4, 5, 6].map((j) => (
                         <td key={j} className="px-6 py-4">
-                          <div className="h-4 bg-gray-200 rounded"></div>
+                          <div className="h-4 bg-stone-200 rounded"></div>
                         </td>
                       ))}
                     </tr>
@@ -245,13 +245,13 @@ export default function TransactionList() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
-        <div className="max-w-md w-full bg-red-50 border border-red-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-red-900 mb-2">Erro ao carregar transações</h3>
-          <p className="text-red-700 mb-4">{error}</p>
+      <div className="min-h-screen bg-stone-50 p-8 flex items-center justify-center">
+        <div className="max-w-md w-full bg-rust-50 border border-rust-200 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-rust-900 mb-2">Erro ao carregar transações</h3>
+          <p className="text-rust-700 mb-4">{error}</p>
           <button
             onClick={fetchData}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            className="btn-danger"
           >
             Tentar novamente
           </button>
@@ -282,12 +282,12 @@ export default function TransactionList() {
   const balance = totalIncome - totalExpense;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-stone-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Transações</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold text-stone-900">Transações</h1>
+            <p className="text-stone-600 mt-2">
               {(currentMonthTransactions?.length ?? 0)} transação{(currentMonthTransactions?.length ?? 0) !== 1 ? 'ões' : ''} em {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
             </p>
           </div>
@@ -296,11 +296,11 @@ export default function TransactionList() {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+                className="btn-primary"
               >
                 ➕ Nova Transação
               </button>
-              <label className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
+              <label className="btn-secondary cursor-pointer">
                 {uploading ? 'Importando...' : '📤 Importar OFX'}
                 <input
                   type="file"
@@ -313,84 +313,84 @@ export default function TransactionList() {
             </div>
 
             {uploadSuccess && (
-              <p className="text-sm text-green-600 font-medium">{uploadSuccess}</p>
+              <p className="text-sm text-sage-600 font-medium">{uploadSuccess}</p>
             )}
 
             {error && !uploading && (
-              <p className="text-sm text-red-600 font-medium">❌ {error}</p>
+              <p className="text-sm text-rust-600 font-medium">❌ {error}</p>
             )}
           </div>
         </div>
 
         {/* Discrete totals board */}
         <div className="mb-6 grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Receitas</div>
-            <div className="text-xl font-semibold text-green-600">{formatCurrency(totalIncome.toString())}</div>
+          <div className="card-compact">
+            <div className="text-xs text-stone-500 uppercase tracking-wide mb-1">Receitas</div>
+            <div className="text-xl font-semibold text-sage-600 tabular-nums">{formatCurrency(totalIncome.toString())}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Despesas</div>
-            <div className="text-xl font-semibold text-red-600">{formatCurrency(totalExpense.toString())}</div>
+          <div className="card-compact">
+            <div className="text-xs text-stone-500 uppercase tracking-wide mb-1">Despesas</div>
+            <div className="text-xl font-semibold text-rust-600 tabular-nums">{formatCurrency(totalExpense.toString())}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Saldo</div>
-            <div className={`text-xl font-semibold ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+          <div className="card-compact">
+            <div className="text-xs text-stone-500 uppercase tracking-wide mb-1">Saldo</div>
+            <div className={`text-xl font-semibold tabular-nums ${balance >= 0 ? 'text-sage-600' : 'text-rust-600'}`}>
               {formatCurrency(balance.toString())}
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-stone-200">
+              <thead className="bg-stone-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                     Data
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                     Descrição
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-stone-500 uppercase tracking-wider">
                     Valor
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                     Categoria
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-stone-200">
                 {currentMonthTransactions.map((transaction) => (
                     <tr
                       key={transaction.transaction_id}
-                      className={`hover:bg-blue-50 cursor-pointer transition-colors ${transaction.is_ignored ? 'opacity-40 bg-gray-50' : ''}`}
+                      className={`hover:bg-wheat-50 cursor-pointer transition-colors ${transaction.is_ignored ? 'opacity-40 bg-stone-50' : ''}`}
                       onClick={() => handleOpenEditModal(transaction)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-900 tabular-nums">
                         {formatDate(transaction.transaction_date)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
+                      <td className="px-6 py-4 text-sm text-stone-900 max-w-md">
                         <div className={`truncate flex items-center gap-2 ${transaction.is_ignored ? 'line-through' : ''}`}>
                           {transaction.description}
                           {transaction.is_ignored && (
-                            <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-medium">IGNORADA</span>
+                            <span className="text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">IGNORADA</span>
                           )}
                         </div>
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
-                        transaction.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium tabular-nums ${
+                        transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
                       }`}>
                         {transaction.transaction_type === 'credit' ? '+' : '-'}
                         {formatCurrency(transaction.amount)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-500">
                         {transaction.category_id && categories.has(transaction.category_id) ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-wheat-100 text-wheat-700 rounded-full">
                             <span>{categories.get(transaction.category_id)!.icon}</span>
                             <span>{categories.get(transaction.category_id)!.name}</span>
                           </span>
                         ) : (
-                          <span className="text-gray-400 italic">Não classificada</span>
+                          <span className="text-stone-400 italic">Não classificada</span>
                         )}
                       </td>
                     </tr>

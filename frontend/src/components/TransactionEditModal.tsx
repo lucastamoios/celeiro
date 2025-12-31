@@ -240,16 +240,16 @@ export default function TransactionEditModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-warm-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-          <h2 className="text-xl font-bold text-gray-900">Editar Transação</h2>
+        <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="text-xl font-bold text-stone-900">Editar Transação</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-stone-400 hover:text-stone-600 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -260,49 +260,49 @@ export default function TransactionEditModal({
         {/* Content */}
         <div className="p-6 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="bg-rust-50 border border-rust-200 text-rust-700 px-4 py-3 rounded-lg">
               {error}
             </div>
           )}
 
           {/* Transaction Info */}
-          <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+          <div className="bg-stone-50 rounded-xl p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Data</span>
-              <span className="font-medium text-gray-900">{formatDate(transaction.transaction_date)}</span>
+              <span className="text-sm text-stone-600">Data</span>
+              <span className="font-medium text-stone-900 tabular-nums">{formatDate(transaction.transaction_date)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Valor</span>
-              <span className={`font-bold text-lg ${
-                transaction.transaction_type === 'credit' ? 'text-emerald-600' : 'text-red-600'
+              <span className="text-sm text-stone-600">Valor</span>
+              <span className={`font-bold text-lg tabular-nums ${
+                transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
               }`}>
                 {transaction.transaction_type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
               </span>
             </div>
             {transaction.original_description && (
-              <div className="pt-2 border-t border-gray-200">
-                <span className="text-xs text-gray-500">Descrição Original (OFX)</span>
-                <p className="text-sm text-gray-700 mt-1">{transaction.original_description}</p>
+              <div className="pt-2 border-t border-stone-200">
+                <span className="text-xs text-stone-500">Descrição Original (OFX)</span>
+                <p className="text-sm text-stone-700 mt-1">{transaction.original_description}</p>
               </div>
             )}
           </div>
 
           {/* Linked Planned Entry */}
           {!loadingPlannedEntry && linkedPlannedEntry && (
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 border border-purple-200">
+            <div className="bg-gradient-to-r from-wheat-50 to-wheat-100 rounded-xl p-4 border border-wheat-200">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">📋</span>
-                    <span className="text-sm font-medium text-purple-700">Entrada Planejada Vinculada</span>
+                    <span className="text-sm font-medium text-wheat-700">Entrada Planejada Vinculada</span>
                   </div>
-                  <h4 className="font-semibold text-gray-900">{linkedPlannedEntry.Description}</h4>
-                  <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
-                    <span className="flex items-center gap-1">
+                  <h4 className="font-semibold text-stone-900">{linkedPlannedEntry.Description}</h4>
+                  <div className="flex items-center gap-3 mt-2 text-sm text-stone-600">
+                    <span className="flex items-center gap-1 tabular-nums">
                       💰 {formatCurrency(linkedPlannedEntry.Amount)}
                     </span>
                     {linkedPlannedEntry.MatchedAt && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 tabular-nums">
                         📅 Vinculado em {formatDate(linkedPlannedEntry.MatchedAt)}
                       </span>
                     )}
@@ -310,12 +310,12 @@ export default function TransactionEditModal({
                 </div>
                 <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                   linkedPlannedEntry.Status === 'matched'
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-sage-100 text-sage-700'
                     : linkedPlannedEntry.Status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-700'
+                    ? 'bg-terra-100 text-terra-700'
                     : linkedPlannedEntry.Status === 'missed'
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-700'
+                    ? 'bg-rust-100 text-rust-700'
+                    : 'bg-stone-100 text-stone-700'
                 }`}>
                   {linkedPlannedEntry.Status === 'matched' ? '✓ Vinculado'
                     : linkedPlannedEntry.Status === 'pending' ? '⏳ Pendente'
@@ -326,29 +326,29 @@ export default function TransactionEditModal({
             </div>
           )}
           {loadingPlannedEntry && (
-            <div className="bg-gray-50 rounded-xl p-4 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+            <div className="bg-stone-50 rounded-xl p-4 animate-pulse">
+              <div className="h-4 bg-stone-200 rounded w-1/4 mb-2"></div>
+              <div className="h-5 bg-stone-200 rounded w-1/2"></div>
             </div>
           )}
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-stone-700 mb-2">
               Descrição
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="input"
               placeholder="Descrição da transação"
             />
           </div>
 
           {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-stone-700 mb-2">
               Categoria
             </label>
             <div className="space-y-2">
@@ -362,7 +362,7 @@ export default function TransactionEditModal({
                     setCategoryId(value ? parseInt(value) : null);
                   }
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="input"
               >
                 <option value="">Selecione uma categoria</option>
                 {Array.from(categories.values())
@@ -379,12 +379,12 @@ export default function TransactionEditModal({
                       {category.icon} {category.name}
                     </option>
                   ))}
-                <option value="new" className="font-bold text-blue-600">
+                <option value="new" className="font-bold text-wheat-600">
                   ➕ Nova Categoria
                 </option>
               </select>
               {/* Hint explaining the filtering */}
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-stone-500 mt-1">
                 {transaction.transaction_type === 'credit'
                   ? '💡 Mostrando apenas categorias de receita'
                   : '💡 Mostrando apenas categorias de despesa'}
@@ -392,15 +392,15 @@ export default function TransactionEditModal({
 
               {/* Preview of selected category */}
               {categoryId && categories.has(categoryId) && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-stone-50 border border-stone-200">
                   <span className="text-2xl">{categories.get(categoryId)!.icon}</span>
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900">{categories.get(categoryId)!.name}</div>
-                    <div className="text-xs text-gray-500">Categoria selecionada</div>
+                    <div className="font-medium text-stone-900">{categories.get(categoryId)!.name}</div>
+                    <div className="text-xs text-stone-500">Categoria selecionada</div>
                   </div>
                   <div
-                    className="w-4 h-4 rounded-full border-2 border-white shadow"
-                    style={{ backgroundColor: categories.get(categoryId)!.color || '#6B7280' }}
+                    className="w-4 h-4 rounded-full border-2 border-white shadow-warm-sm"
+                    style={{ backgroundColor: categories.get(categoryId)!.color || '#78716C' }}
                   />
                 </div>
               )}
@@ -409,17 +409,17 @@ export default function TransactionEditModal({
               {showNewCategoryForm && (
                 <div className={`mt-4 p-5 rounded-xl border-2 space-y-4 ${
                   transaction.transaction_type === 'credit'
-                    ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
-                    : 'bg-gradient-to-br from-red-50 to-orange-50 border-red-200'
+                    ? 'bg-gradient-to-br from-sage-50 to-sage-100 border-sage-200'
+                    : 'bg-gradient-to-br from-rust-50 to-terra-50 border-rust-200'
                 }`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                      <h4 className="font-bold text-stone-900 flex items-center gap-2">
                         <span className="text-xl">{newCategoryIcon}</span>
                         Nova Categoria
                       </h4>
                       <p className={`text-xs mt-1 ${
-                        transaction.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'
+                        transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
                       }`}>
                         {transaction.transaction_type === 'credit' ? '📈 Categoria de Receita' : '📉 Categoria de Despesa'}
                       </p>
@@ -431,7 +431,7 @@ export default function TransactionEditModal({
                         setNewCategoryIcon('📁');
                         setNewCategoryColor(CATEGORY_COLORS[0]);
                       }}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      className="text-stone-400 hover:text-stone-600 transition-colors"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -441,7 +441,7 @@ export default function TransactionEditModal({
 
                   {/* Icon Selection */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-stone-700 mb-2">
                       Escolha um ícone
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -452,8 +452,8 @@ export default function TransactionEditModal({
                           onClick={() => setNewCategoryIcon(icon)}
                           className={`w-10 h-10 rounded-lg text-lg flex items-center justify-center transition-all duration-200 ${
                             newCategoryIcon === icon
-                              ? 'bg-emerald-500 text-white shadow-lg scale-110'
-                              : 'bg-white hover:bg-gray-100 border border-gray-200'
+                              ? 'bg-wheat-500 text-white shadow-warm-lg scale-110'
+                              : 'bg-white hover:bg-stone-100 border border-stone-200'
                           }`}
                         >
                           {icon}
@@ -464,7 +464,7 @@ export default function TransactionEditModal({
 
                   {/* Name Input */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-stone-700 mb-2">
                       Nome da categoria
                     </label>
                     <div className="relative">
@@ -475,7 +475,7 @@ export default function TransactionEditModal({
                         type="text"
                         value={newCategoryName}
                         onChange={(e) => setNewCategoryName(e.target.value)}
-                        className="w-full pl-12 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
+                        className="w-full pl-12 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent bg-white"
                         placeholder="Ex: Academia, Streaming..."
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && newCategoryName.trim()) {
@@ -488,7 +488,7 @@ export default function TransactionEditModal({
 
                   {/* Color Selection */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-stone-700 mb-2">
                       Escolha uma cor
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -499,7 +499,7 @@ export default function TransactionEditModal({
                           onClick={() => setNewCategoryColor(color)}
                           className={`w-10 h-10 rounded-lg transition-all duration-200 border-2 ${
                             newCategoryColor === color
-                              ? 'border-gray-900 scale-110 shadow-lg'
+                              ? 'border-stone-900 scale-110 shadow-warm-lg'
                               : 'border-transparent hover:scale-105'
                           }`}
                           style={{ backgroundColor: color }}
@@ -512,7 +512,7 @@ export default function TransactionEditModal({
                   <button
                     onClick={handleCreateCategory}
                     disabled={!newCategoryName.trim() || creatingCategory}
-                    className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-lg hover:from-wheat-600 hover:to-wheat-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-warm-lg flex items-center justify-center gap-2"
                   >
                     {creatingCategory ? (
                       <>
@@ -536,27 +536,27 @@ export default function TransactionEditModal({
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-stone-700 mb-2">
               Notas (opcional)
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="input resize-none"
               placeholder="Adicione observacoes sobre esta transacao"
             />
           </div>
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-stone-700 mb-2">
               Tags
             </label>
             {loadingTags ? (
               <div className="animate-pulse flex flex-wrap gap-2">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-8 w-20 bg-gray-200 rounded-full"></div>
+                  <div key={i} className="h-8 w-20 bg-stone-200 rounded-full"></div>
                 ))}
               </div>
             ) : (
@@ -569,15 +569,15 @@ export default function TransactionEditModal({
           </div>
 
           {/* Ignore Toggle */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-stone-50 rounded-lg">
             <div>
-              <div className="font-medium text-gray-900">Ignorar transação</div>
-              <div className="text-sm text-gray-500">Não será contabilizada nos relatórios</div>
+              <div className="font-medium text-stone-900">Ignorar transação</div>
+              <div className="text-sm text-stone-500">Não será contabilizada nos relatórios</div>
             </div>
             <button
               onClick={() => setIsIgnored(!isIgnored)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                isIgnored ? 'bg-red-600' : 'bg-gray-300'
+                isIgnored ? 'bg-rust-600' : 'bg-stone-300'
               }`}
             >
               <span
@@ -589,34 +589,34 @@ export default function TransactionEditModal({
           </div>
 
           {/* Create Pattern Section */}
-          <div className="border-t border-gray-200 pt-6">
+          <div className="border-t border-stone-200 pt-6">
             <button
               onClick={() => setShowAdvancedPatternCreator(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all font-medium shadow-lg"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all font-medium shadow-warm-lg"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
               🎯 Criar Padrão Avançado
             </button>
-            <p className="text-xs text-gray-500 mt-2 text-center">
+            <p className="text-xs text-stone-500 mt-2 text-center">
               Crie regras inteligentes com regex, dias da semana, valores e mais
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div className="sticky bottom-0 bg-stone-50 border-t border-stone-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
           <button
             onClick={onClose}
-            className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            className="btn-secondary"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !description}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+            className="btn-primary"
           >
             {saving ? 'Salvando...' : 'Salvar'}
           </button>

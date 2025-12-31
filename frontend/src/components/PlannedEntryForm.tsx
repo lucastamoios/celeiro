@@ -307,7 +307,7 @@ export default function PlannedEntryForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Entry Type Selector */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-stone-700 mb-2">
           Tipo de Entrada *
         </label>
         <div className="flex gap-4">
@@ -319,9 +319,9 @@ export default function PlannedEntryForm({
               checked={entryType === 'expense'}
               onChange={() => setEntryType('expense')}
               disabled={isLoading}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+              className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300"
             />
-            <span className="ml-2 text-sm text-gray-700">Despesa</span>
+            <span className="ml-2 text-sm text-stone-700">Despesa</span>
           </label>
           <label className="flex items-center">
             <input
@@ -331,9 +331,9 @@ export default function PlannedEntryForm({
               checked={entryType === 'income'}
               onChange={() => setEntryType('income')}
               disabled={isLoading}
-              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
+              className="h-4 w-4 text-sage-600 focus:ring-sage-500 border-stone-300"
             />
-            <span className="ml-2 text-sm text-gray-700">Receita</span>
+            <span className="ml-2 text-sm text-stone-700">Receita</span>
           </label>
         </div>
       </div>
@@ -342,7 +342,7 @@ export default function PlannedEntryForm({
       <div>
         <label
           htmlFor="category"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-stone-700 mb-1"
         >
           Categoria *
         </label>
@@ -356,8 +356,8 @@ export default function PlannedEntryForm({
             }
           }}
           disabled={isLoading}
-          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-            errors.categoryId ? 'border-red-500' : 'border-gray-300'
+          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+            errors.categoryId ? 'border-rust-500' : 'border-stone-300'
           }`}
         >
           <option value="">Selecione uma categoria</option>
@@ -368,7 +368,7 @@ export default function PlannedEntryForm({
           ))}
         </select>
         {errors.categoryId && (
-          <p className="mt-1 text-sm text-red-600">{errors.categoryId}</p>
+          <p className="mt-1 text-sm text-rust-600">{errors.categoryId}</p>
         )}
       </div>
 
@@ -376,7 +376,7 @@ export default function PlannedEntryForm({
       <div>
         <label
           htmlFor="description"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-stone-700 mb-1"
         >
           Descrição *
         </label>
@@ -392,22 +392,22 @@ export default function PlannedEntryForm({
           }}
           disabled={isLoading}
           placeholder="Ex: Netflix, Aluguel, Salário"
-          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-            errors.description ? 'border-red-500' : 'border-gray-300'
+          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+            errors.description ? 'border-rust-500' : 'border-stone-300'
           }`}
         />
         {errors.description && (
-          <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+          <p className="mt-1 text-sm text-rust-600">{errors.description}</p>
         )}
       </div>
 
       {/* Amount Range */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-stone-700">
             Valor {useSingleAmount ? '*' : 'Mínimo *'}
           </label>
-          <label className="flex items-center text-sm text-gray-600">
+          <label className="flex items-center text-sm text-stone-600">
             <input
               type="checkbox"
               checked={!useSingleAmount}
@@ -418,7 +418,7 @@ export default function PlannedEntryForm({
                 }
               }}
               disabled={isLoading}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+              className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300 rounded mr-2"
             />
             Usar faixa de valor
           </label>
@@ -426,50 +426,50 @@ export default function PlannedEntryForm({
 
         <div className={`grid gap-3 ${useSingleAmount ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <div className="relative">
-            <span className="absolute left-3 top-2 text-gray-500">R$</span>
+            <span className="absolute left-3 top-2 text-stone-500">R$</span>
             <input
               type="text"
               value={amountMin}
               onChange={(e) => handleAmountChange(e.target.value, setAmountMin, 'amountMin')}
               disabled={isLoading}
               placeholder="0.00"
-              className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                errors.amountMin ? 'border-red-500' : 'border-gray-300'
+              className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+                errors.amountMin ? 'border-rust-500' : 'border-stone-300'
               }`}
             />
             {errors.amountMin && (
-              <p className="mt-1 text-sm text-red-600">{errors.amountMin}</p>
+              <p className="mt-1 text-sm text-rust-600">{errors.amountMin}</p>
             )}
           </div>
 
           {!useSingleAmount && (
             <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-500">R$</span>
+              <span className="absolute left-3 top-2 text-stone-500">R$</span>
               <input
                 type="text"
                 value={amountMax}
                 onChange={(e) => handleAmountChange(e.target.value, setAmountMax, 'amountMax')}
                 disabled={isLoading}
                 placeholder="0.00"
-                className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                  errors.amountMax ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+                  errors.amountMax ? 'border-rust-500' : 'border-stone-300'
                 }`}
               />
               {errors.amountMax && (
-                <p className="mt-1 text-sm text-red-600">{errors.amountMax}</p>
+                <p className="mt-1 text-sm text-rust-600">{errors.amountMax}</p>
               )}
             </div>
           )}
         </div>
 
         {amountMin && !errors.amountMin && (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-stone-600">
             {useSingleAmount
               ? `Valor: ${formatCurrencyPreview(amountMin)}`
               : `Faixa: ${formatCurrencyPreview(amountMin)} - ${formatCurrencyPreview(amountMax || amountMin)}`
             }
             {!useSingleAmount && (
-              <span className="text-xs text-blue-600 ml-2">
+              <span className="text-xs text-wheat-600 ml-2">
                 (orçamento usa valor máximo)
               </span>
             )}
@@ -480,10 +480,10 @@ export default function PlannedEntryForm({
       {/* Expected Day Range */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-stone-700">
             Dia Esperado {useSingleDay ? '' : 'Inicial'}
           </label>
-          <label className="flex items-center text-sm text-gray-600">
+          <label className="flex items-center text-sm text-stone-600">
             <input
               type="checkbox"
               checked={!useSingleDay}
@@ -494,7 +494,7 @@ export default function PlannedEntryForm({
                 }
               }}
               disabled={isLoading}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+              className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300 rounded mr-2"
             />
             Usar período (faixa de dias)
           </label>
@@ -508,12 +508,12 @@ export default function PlannedEntryForm({
               onChange={(e) => handleDayChange(e.target.value, setExpectedDayStart, 'expectedDayStart')}
               disabled={isLoading}
               placeholder={useSingleDay ? "Ex: 15" : "Dia inicial"}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                errors.expectedDayStart ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+                errors.expectedDayStart ? 'border-rust-500' : 'border-stone-300'
               }`}
             />
             {errors.expectedDayStart && (
-              <p className="mt-1 text-sm text-red-600">{errors.expectedDayStart}</p>
+              <p className="mt-1 text-sm text-rust-600">{errors.expectedDayStart}</p>
             )}
           </div>
 
@@ -525,18 +525,18 @@ export default function PlannedEntryForm({
                 onChange={(e) => handleDayChange(e.target.value, setExpectedDayEnd, 'expectedDayEnd')}
                 disabled={isLoading}
                 placeholder="Dia final"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                  errors.expectedDayEnd ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+                  errors.expectedDayEnd ? 'border-rust-500' : 'border-stone-300'
                 }`}
               />
               {errors.expectedDayEnd && (
-                <p className="mt-1 text-sm text-red-600">{errors.expectedDayEnd}</p>
+                <p className="mt-1 text-sm text-rust-600">{errors.expectedDayEnd}</p>
               )}
             </div>
           )}
         </div>
 
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-stone-500">
           {useSingleDay
             ? 'Opcional: Dia do mês esperado para esta entrada'
             : 'Opcional: Período esperado (ex: dia 14 a 18 do mês)'
@@ -545,7 +545,7 @@ export default function PlannedEntryForm({
       </div>
 
       {/* Checkboxes */}
-      <div className="space-y-2 pt-2 border-t border-gray-200">
+      <div className="space-y-2 pt-2 border-t border-stone-200">
         <div className="flex items-center pt-2">
           <input
             id="isRecurrent"
@@ -553,9 +553,9 @@ export default function PlannedEntryForm({
             checked={isRecurrent}
             onChange={(e) => setIsRecurrent(e.target.checked)}
             disabled={isLoading}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+            className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300 rounded disabled:opacity-50"
           />
-          <label htmlFor="isRecurrent" className="ml-2 text-sm text-gray-700">
+          <label htmlFor="isRecurrent" className="ml-2 text-sm text-stone-700">
             Entrada recorrente (aparece todo mês)
           </label>
         </div>
@@ -567,19 +567,19 @@ export default function PlannedEntryForm({
             checked={isSavedPattern}
             onChange={(e) => setIsSavedPattern(e.target.checked)}
             disabled={isLoading}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+            className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300 rounded disabled:opacity-50"
           />
-          <label htmlFor="isSavedPattern" className="ml-2 text-sm text-gray-700">
+          <label htmlFor="isSavedPattern" className="ml-2 text-sm text-stone-700">
             Criar padrão para auto-matching
           </label>
         </div>
 
         {/* Description Pattern Field - shown when isSavedPattern is checked */}
         {isSavedPattern && (
-          <div className="ml-6 mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="ml-6 mt-3 p-3 bg-wheat-50 rounded-lg border border-wheat-200">
             <label
               htmlFor="descriptionPattern"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-stone-700 mb-1"
             >
               Padrão de Descrição *
             </label>
@@ -599,8 +599,8 @@ export default function PlannedEntryForm({
                 onFocus={() => setShowPatternDropdown(true)}
                 disabled={isLoading}
                 placeholder="Digite para buscar nas transações..."
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                  errors.descriptionPattern ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+                  errors.descriptionPattern ? 'border-rust-500' : 'border-stone-300'
                 }`}
               />
 
@@ -608,9 +608,9 @@ export default function PlannedEntryForm({
               {showPatternDropdown && transactions.length > 0 && (
                 <div
                   ref={dropdownRef}
-                  className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+                  className="absolute z-20 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
                 >
-                  <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border-b sticky top-0">
+                  <div className="px-3 py-2 text-xs text-stone-500 bg-stone-50 border-b sticky top-0">
                     {filteredDescriptions.length > 0
                       ? `${filteredDescriptions.length} transações encontradas - clique para usar`
                       : 'Nenhuma transação encontrada'
@@ -628,31 +628,31 @@ export default function PlannedEntryForm({
                           setErrors({ ...errors, descriptionPattern: undefined });
                         }
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors group"
+                      className="w-full text-left px-3 py-2 hover:bg-wheat-50 border-b border-stone-100 last:border-b-0 transition-colors group"
                     >
                       <div className="flex items-center justify-between">
                         <span
-                          className="text-sm text-gray-900 truncate flex-1 mr-2 group-hover:whitespace-normal group-hover:break-words"
+                          className="text-sm text-stone-900 truncate flex-1 mr-2 group-hover:whitespace-normal group-hover:break-words"
                           title={item.description}
                         >
                           {item.description}
                         </span>
-                        <span className="text-xs text-gray-500 flex-shrink-0">
+                        <span className="text-xs text-stone-500 flex-shrink-0">
                           {item.count}x
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-xs ${item.example.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`text-xs ${item.example.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'}`}>
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(item.example.amount))}
                         </span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-stone-400">
                           {new Date(item.example.transaction_date).toLocaleDateString('pt-BR')}
                         </span>
                       </div>
                     </button>
                   ))}
                   {filteredDescriptions.length === 0 && (
-                    <div className="px-3 py-4 text-center text-sm text-gray-500">
+                    <div className="px-3 py-4 text-center text-sm text-stone-500">
                       Nenhuma transação corresponde ao filtro
                     </div>
                   )}
@@ -661,7 +661,7 @@ export default function PlannedEntryForm({
 
               {/* Show loading state when fetching transactions */}
               {showPatternDropdown && transactionsLoading && (
-                <div className="absolute z-20 w-full mt-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700 flex items-center gap-2">
+                <div className="absolute z-20 w-full mt-1 bg-wheat-50 border border-wheat-200 rounded-lg px-3 py-2 text-xs text-wheat-700 flex items-center gap-2">
                   <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -672,18 +672,18 @@ export default function PlannedEntryForm({
 
               {/* Show hint when no transactions and not loading */}
               {showPatternDropdown && !transactionsLoading && transactions.length === 0 && (
-                <div className="absolute z-20 w-full mt-1 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-yellow-700">
+                <div className="absolute z-20 w-full mt-1 bg-terra-50 border border-terra-200 rounded-lg px-3 py-2 text-xs text-terra-700">
                   ⚠️ Nenhuma transação carregada. Digite o padrão manualmente.
                 </div>
               )}
             </div>
 
-            <p className="mt-2 text-xs text-gray-600">
+            <p className="mt-2 text-xs text-stone-600">
               Selecione uma transação acima ou digite um padrão manualmente.
               Ex: "NETFLIX" irá corresponder a "NETFLIX.COM" ou "PAGAMENTO NETFLIX".
             </p>
             {errors.descriptionPattern && (
-              <p className="mt-1 text-sm text-red-600">{errors.descriptionPattern}</p>
+              <p className="mt-1 text-sm text-rust-600">{errors.descriptionPattern}</p>
             )}
           </div>
         )}
@@ -695,14 +695,14 @@ export default function PlannedEntryForm({
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={isLoading}
-          className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           {isLoading ? 'Salvando...' : initialEntry ? 'Atualizar' : 'Criar Entrada'}
         </button>

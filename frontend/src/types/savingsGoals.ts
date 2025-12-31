@@ -139,17 +139,19 @@ export function getGoalTypeDescription(goalType: SavingsGoalType): string {
 }
 
 export function getProgressColor(progressPercent: number): string {
-  if (progressPercent >= 100) return 'bg-green-500';
-  if (progressPercent >= 75) return 'bg-green-400';
-  if (progressPercent >= 50) return 'bg-yellow-400';
-  if (progressPercent >= 25) return 'bg-orange-400';
-  return 'bg-red-400';
+  // Harvest palette: sage (success) → wheat (primary) → terra (warning) → rust (danger)
+  if (progressPercent >= 100) return 'bg-sage-500';
+  if (progressPercent >= 75) return 'bg-sage-400';
+  if (progressPercent >= 50) return 'bg-wheat-400';
+  if (progressPercent >= 25) return 'bg-terra-400';
+  return 'bg-rust-400';
 }
 
 export function getProgressBadgeClasses(isOnTrack: boolean | undefined): string {
-  if (isOnTrack === undefined) return 'bg-gray-100 text-gray-600 border-gray-200';
-  if (isOnTrack) return 'bg-green-100 text-green-800 border-green-200';
-  return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+  // Harvest palette: stone (neutral), sage (on track), terra (behind)
+  if (isOnTrack === undefined) return 'bg-stone-100 text-stone-600 border-stone-200';
+  if (isOnTrack) return 'bg-sage-100 text-sage-800 border-sage-200';
+  return 'bg-terra-100 text-terra-800 border-terra-200';
 }
 
 export function formatCurrency(amount: string | number): string {
@@ -165,16 +167,16 @@ export function formatProgress(percent: string | number): string {
   return `${num.toFixed(1)}%`;
 }
 
-// Default goal colors for the color picker
+// Default goal colors for the color picker (Harvest palette aligned)
 export const GOAL_COLORS = [
-  '#3B82F6', // Blue
-  '#10B981', // Green
-  '#8B5CF6', // Purple
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#06B6D4', // Cyan
-  '#EC4899', // Pink
-  '#84CC16', // Lime
+  '#d4a574', // Wheat-400
+  '#b8956a', // Wheat-500
+  '#6b9080', // Sage-500
+  '#8fbc8f', // Sage-400
+  '#c4956a', // Terra-400
+  '#b87333', // Terra-500
+  '#c77b58', // Rust-400
+  '#78716c', // Stone-500
 ] as const;
 
 // Default goal icons

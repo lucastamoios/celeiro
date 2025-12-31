@@ -327,29 +327,29 @@ export default function SavingsGoalsPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-stone-50 p-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">🎯 Metas de Poupança</h1>
-          <p className="text-gray-600">Carregando...</p>
+          <h1 className="text-2xl font-bold text-stone-900 mb-4">🎯 Metas de Poupança</h1>
+          <p className="text-stone-600">Carregando...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-stone-50 p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">🎯 Metas de Poupança</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-2xl font-bold text-stone-900">🎯 Metas de Poupança</h1>
+            <p className="text-stone-600 mt-1">
               Acompanhe suas metas de economia e investimento
             </p>
           </div>
           <button
             onClick={openCreateForm}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="btn-primary flex items-center gap-2"
           >
             <span>+</span>
             <span>Nova Meta</span>
@@ -359,27 +359,27 @@ export default function SavingsGoalsPage() {
         {/* Summary Cards */}
         {goals.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <p className="text-sm text-gray-500">Total das Metas</p>
-              <p className="text-2xl font-bold text-gray-900">
+            <div className="card-compact">
+              <p className="text-xs text-stone-500 uppercase tracking-wide mb-1">Total das Metas</p>
+              <p className="text-xl font-semibold text-stone-900 tabular-nums">
                 {formatCurrency(totalTarget)}
               </p>
             </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <p className="text-sm text-gray-500">Total Acumulado</p>
-              <p className="text-2xl font-bold text-green-600">
+            <div className="card-compact">
+              <p className="text-xs text-stone-500 uppercase tracking-wide mb-1">Total Acumulado</p>
+              <p className="text-xl font-semibold text-sage-600 tabular-nums">
                 {formatCurrency(totalCurrent)}
               </p>
             </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <p className="text-sm text-gray-500">Progresso Geral</p>
+            <div className="card-compact">
+              <p className="text-xs text-stone-500 uppercase tracking-wide mb-1">Progresso Geral</p>
               <div className="flex items-center gap-3">
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-xl font-semibold text-wheat-600 tabular-nums">
                   {overallProgress.toFixed(1)}%
                 </p>
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                <div className="flex-1 bg-stone-200 rounded-full h-2">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all"
+                    className="bg-wheat-500 h-2 rounded-full transition-all"
                     style={{ width: `${Math.min(overallProgress, 100)}%` }}
                   />
                 </div>
@@ -391,23 +391,23 @@ export default function SavingsGoalsPage() {
         {/* Filters */}
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Tipo:</label>
+            <label className="text-sm text-stone-600">Tipo:</label>
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as SavingsGoalType | 'all')}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-1.5 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500"
             >
               <option value="all">Todos</option>
               <option value="reserva">Reserva</option>
               <option value="investimento">Investimento</option>
             </select>
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
             <input
               type="checkbox"
               checked={showCompleted}
               onChange={(e) => setShowCompleted(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
             />
             Mostrar concluídos
           </label>
@@ -415,7 +415,7 @@ export default function SavingsGoalsPage() {
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <div className="bg-rust-50 border border-rust-200 text-rust-700 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
         )}
@@ -424,15 +424,15 @@ export default function SavingsGoalsPage() {
         {goals.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🎯</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-stone-900 mb-2">
               Nenhuma meta encontrada
             </h3>
-            <p className="text-gray-500 mb-4">
+            <p className="text-stone-500 mb-4">
               Crie sua primeira meta de poupança para começar a acompanhar seu progresso.
             </p>
             <button
               onClick={openCreateForm}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="btn-primary"
             >
               Criar Meta
             </button>
@@ -457,16 +457,16 @@ export default function SavingsGoalsPage() {
         {/* Create/Edit Modal */}
         {showForm && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
             onClick={handleFormBackdropClick}
           >
-            <div className="bg-white rounded-lg shadow-xl p-6 w-[500px] max-w-[90vw] max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
+            <div className="bg-white rounded-2xl shadow-warm-xl p-6 w-[500px] max-w-[90vw] max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl font-bold text-stone-900 mb-4">
                 {editingGoal ? 'Editar Meta' : 'Nova Meta'}
               </h2>
 
               {formError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                <div className="bg-rust-50 border border-rust-200 text-rust-700 px-4 py-3 rounded-lg mb-4">
                   {formError}
                 </div>
               )}
@@ -474,15 +474,15 @@ export default function SavingsGoalsPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nome da Meta *
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Nome da Meta <span className="text-rust-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Ex: Viagem para Europa"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="input"
                     required
                   />
                 </div>
@@ -490,8 +490,8 @@ export default function SavingsGoalsPage() {
                 {/* Goal Type (only for new goals) */}
                 {!editingGoal && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de Meta *
+                    <label className="block text-sm font-medium text-stone-700 mb-2">
+                      Tipo de Meta <span className="text-rust-500">*</span>
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       {(['reserva', 'investimento'] as SavingsGoalType[]).map((type) => (
@@ -499,16 +499,16 @@ export default function SavingsGoalsPage() {
                           key={type}
                           type="button"
                           onClick={() => setFormData({ ...formData, goal_type: type })}
-                          className={`p-3 border rounded-lg text-left transition-colors ${
+                          className={`p-3 border-2 rounded-lg text-left transition-colors ${
                             formData.goal_type === type
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-300 hover:border-gray-400'
+                              ? 'border-wheat-500 bg-wheat-50'
+                              : 'border-stone-200 hover:border-stone-300'
                           }`}
                         >
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-stone-900">
                             {type === 'reserva' ? '📅' : '📈'} {getGoalTypeLabel(type)}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-stone-500 mt-1">
                             {getGoalTypeDescription(type)}
                           </p>
                         </button>
@@ -519,11 +519,11 @@ export default function SavingsGoalsPage() {
 
                 {/* Target Amount */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valor da Meta *
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Valor da Meta <span className="text-rust-500">*</span>
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">
                       R$
                     </span>
                     <input
@@ -535,7 +535,7 @@ export default function SavingsGoalsPage() {
                         setFormData({ ...formData, target_amount: e.target.value })
                       }
                       placeholder="0,00"
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full pl-10 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent tabular-nums"
                       required
                     />
                   </div>
@@ -543,18 +543,18 @@ export default function SavingsGoalsPage() {
 
                 {/* Due Date (required for reserva) */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data Limite {formData.goal_type === 'reserva' && '*'}
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Data Limite {formData.goal_type === 'reserva' && <span className="text-rust-500">*</span>}
                   </label>
                   <input
                     type="date"
                     value={formData.due_date}
                     onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="input tabular-nums"
                     required={formData.goal_type === 'reserva'}
                   />
                   {formData.goal_type === 'reserva' && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-stone-500 mt-1">
                       Obrigatório para metas do tipo Reserva
                     </p>
                   )}
@@ -562,7 +562,7 @@ export default function SavingsGoalsPage() {
 
                 {/* Icon Picker */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-stone-700 mb-2">
                     Ícone
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -573,8 +573,8 @@ export default function SavingsGoalsPage() {
                         onClick={() => setFormData({ ...formData, icon })}
                         className={`w-10 h-10 text-xl rounded-lg border-2 transition-colors ${
                           formData.icon === icon
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-wheat-500 bg-wheat-50'
+                            : 'border-stone-200 hover:border-stone-300'
                         }`}
                       >
                         {icon}
@@ -585,7 +585,7 @@ export default function SavingsGoalsPage() {
 
                 {/* Color Picker */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-stone-700 mb-2">
                     Cor da Barra de Progresso
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -596,8 +596,8 @@ export default function SavingsGoalsPage() {
                         onClick={() => setFormData({ ...formData, color })}
                         className={`w-8 h-8 rounded-full border-2 transition-transform ${
                           formData.color === color
-                            ? 'border-gray-900 scale-110'
-                            : 'border-gray-300 hover:scale-105'
+                            ? 'border-stone-900 scale-110 shadow-warm-sm'
+                            : 'border-stone-300 hover:scale-105'
                         }`}
                         style={{ backgroundColor: color }}
                       />
@@ -607,7 +607,7 @@ export default function SavingsGoalsPage() {
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Observações
                   </label>
                   <textarea
@@ -615,7 +615,7 @@ export default function SavingsGoalsPage() {
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     placeholder="Anotações sobre esta meta..."
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="input resize-none"
                   />
                 </div>
 
@@ -627,14 +627,14 @@ export default function SavingsGoalsPage() {
                       setShowForm(false);
                       resetForm();
                     }}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="btn-secondary"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="btn-primary"
                   >
                     {saving ? 'Salvando...' : editingGoal ? 'Salvar' : 'Criar Meta'}
                   </button>
@@ -647,30 +647,30 @@ export default function SavingsGoalsPage() {
         {/* Contribution Modal */}
         {contributingGoal && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
             onClick={handleContributionBackdropClick}
           >
-            <div className="bg-white rounded-lg shadow-xl p-6 w-[400px] max-w-[90vw]">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
+            <div className="bg-white rounded-2xl shadow-warm-xl p-6 w-[400px] max-w-[90vw]">
+              <h2 className="text-xl font-bold text-stone-900 mb-2">
                 💰 Adicionar Contribuição
               </h2>
-              <p className="text-gray-600 mb-4">
+              <p className="text-stone-600 mb-4">
                 Meta: <span className="font-medium">{contributingGoal.name}</span>
               </p>
 
               {contributionError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                <div className="bg-rust-50 border border-rust-200 text-rust-700 px-4 py-3 rounded-lg mb-4">
                   {contributionError}
                 </div>
               )}
 
               <form onSubmit={handleSubmitContribution} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Valor
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">
                       R$
                     </span>
                     <input
@@ -679,11 +679,11 @@ export default function SavingsGoalsPage() {
                       value={contributionAmount}
                       onChange={(e) => setContributionAmount(e.target.value)}
                       placeholder="0,00"
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full pl-10 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent tabular-nums"
                       autoFocus
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-stone-500 mt-1">
                     Use valores positivos para adicionar ou negativos para subtrair
                   </p>
                 </div>
@@ -692,14 +692,14 @@ export default function SavingsGoalsPage() {
                   <button
                     type="button"
                     onClick={closeContributionModal}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="btn-secondary"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={submittingContribution}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="btn-primary"
                   >
                     {submittingContribution ? 'Salvando...' : 'Adicionar'}
                   </button>

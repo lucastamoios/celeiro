@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
+import { getStatusIndicator, getProgressBarClasses } from '../utils/colors';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import type { PlannedEntryWithStatus } from '../types/budget';
@@ -54,6 +55,58 @@ interface DashboardProps {
   onNavigateToUncategorized: () => void;
 }
 
+// Calculate budget status for hero card
+function getBudgetStatus(totalActual: number, totalPlanned: number): {
+  status: 'on-track' | 'warning' | 'over-budget';
+  message: string;
+  icon: string;
+  bgClass: string;
+  textClass: string;
+  borderClass: string;
+} {
+  if (totalPlanned === 0) {
+    return {
+      status: 'on-track',
+      message: 'Configure seu orçamento',
+      icon: '📋',
+      bgClass: 'bg-stone-50',
+      textClass: 'text-stone-600',
+      borderClass: 'border-stone-200',
+    };
+  }
+
+  const percentSpent = (totalActual / totalPlanned) * 100;
+
+  if (percentSpent > 100) {
+    return {
+      status: 'over-budget',
+      message: 'Orçamento excedido',
+      icon: '⚠️',
+      bgClass: 'bg-rust-50',
+      textClass: 'text-rust-700',
+      borderClass: 'border-rust-200',
+    };
+  }
+  if (percentSpent >= 80) {
+    return {
+      status: 'warning',
+      message: 'Atenção ao orçamento',
+      icon: '📊',
+      bgClass: 'bg-terra-50',
+      textClass: 'text-terra-700',
+      borderClass: 'border-terra-200',
+    };
+  }
+  return {
+    status: 'on-track',
+    message: 'Você está no caminho certo!',
+    icon: '✓',
+    bgClass: 'bg-sage-50',
+    textClass: 'text-sage-700',
+    borderClass: 'border-sage-200',
+  };
+}
+
 export default function Dashboard({ onNavigateToUncategorized }: DashboardProps) {
   const { token } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
@@ -96,7 +149,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
       if (!accountsResponse.ok) throw new Error('Failed to fetch accounts');
       if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
-      
+
       const accountsData = await accountsResponse.json();
       const categoriesData = await categoriesResponse.json();
       const accounts: Account[] = accountsData.data || [];
@@ -121,14 +174,12 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         }
       }
 
-      // Get current month/year from transactions (use the most recent transaction's month)
-      // This way we show stats for the month that has transactions
+      // Get current month/year from transactions
       let targetMonth = new Date().getMonth();
       let targetYear = new Date().getFullYear();
-      
+
       if (allTransactions.length > 0) {
-        // Sort by date descending to get most recent
-        const sortedTx = [...allTransactions].sort((a, b) => 
+        const sortedTx = [...allTransactions].sort((a, b) =>
           new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
         );
         const mostRecentDate = new Date(sortedTx[0].transaction_date);
@@ -156,13 +207,13 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
       // Calculate expenses by category
       const categoryMap = new Map<number, { category: Category; amount: number }>();
-      
+
       currentMonthTx
         .filter(tx => tx.transaction_type === 'debit' && tx.category_id)
         .forEach(tx => {
           const categoryId = tx.category_id!;
           const amount = parseFloat(tx.amount.toString());
-          
+
           if (categoryMap.has(categoryId)) {
             categoryMap.get(categoryId)!.amount += amount;
           } else {
@@ -180,10 +231,10 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           amount,
           percentage: expenses > 0 ? (amount / expenses) * 100 : 0,
         }))
-        .sort((a, b) => b.amount - a.amount) // Sort by amount descending
-        .slice(0, 8); // Top 8 categories
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 8);
 
-      // Fetch uncategorized count (filtered by current month)
+      // Fetch uncategorized count
       const uncatResponse = await fetch(financialUrl('transactions/uncategorized'), {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -195,7 +246,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       if (uncatResponse.ok) {
         const uncatData = await uncatResponse.json();
         const allUncategorized = uncatData.data || [];
-        // Filter by the selected month/year
         const filteredUncategorized = allUncategorized.filter((tx: { transaction_date: string }) => {
           const txDate = new Date(tx.transaction_date);
           return txDate.getMonth() === targetMonth && txDate.getFullYear() === targetYear;
@@ -206,7 +256,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       // Fetch budget data for the current month
       let budgetSummary: BudgetSummary | null = null;
       try {
-        // API uses 1-indexed months, but targetMonth is 0-indexed
         const apiMonth = targetMonth + 1;
 
         const [categoryBudgets, plannedEntriesData] = await Promise.all([
@@ -215,7 +264,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         ]);
 
         if (categoryBudgets && categoryBudgets.length > 0) {
-          // Build budget summary
           const budgetsByCategory: BudgetSummary['budgetsByCategory'] = [];
           let totalPlanned = 0;
           let totalActual = 0;
@@ -224,22 +272,18 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             const planned = parseFloat(budget.PlannedAmount) || 0;
             totalPlanned += planned;
 
-            // Find actual spending for this category from categoryMap
             const categoryData = categoryMap.get(budget.CategoryID);
             const actual = categoryData ? categoryData.amount : 0;
             totalActual += actual;
 
-            // Find category info
             const category = categories.find(c => c.category_id === budget.CategoryID);
             if (category) {
               budgetsByCategory.push({ category, planned, actual });
             }
           }
 
-          // Sort by planned amount descending
           budgetsByCategory.sort((a, b) => b.planned - a.planned);
 
-          // Calculate planned entries stats
           const plannedEntriesStats = {
             total: plannedEntriesData?.length || 0,
             matched: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'matched').length || 0,
@@ -255,13 +299,12 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             totalActual,
             variance,
             variancePercent,
-            budgetsByCategory: budgetsByCategory.slice(0, 5), // Top 5 categories
+            budgetsByCategory: budgetsByCategory.slice(0, 5),
             plannedEntries: plannedEntriesStats,
           };
         }
       } catch (budgetErr) {
         console.warn('Failed to fetch budget data:', budgetErr);
-        // Continue without budget data
       }
 
       setStats({
@@ -288,257 +331,323 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     }).format(amount);
   };
 
-  const getBalanceColor = () => {
-    if (stats.balance > 0) return 'text-emerald-600';
-    if (stats.balance < 0) return 'text-red-600';
-    return 'text-gray-600';
-  };
-
-  const getBalanceIcon = () => {
-    if (stats.balance > 0) return '📈';
-    if (stats.balance < 0) return '📉';
-    return '➖';
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse text-gray-500">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-wheat-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-stone-500 text-sm">Carregando...</span>
+        </div>
       </div>
     );
   }
 
+  // Calculate budget status for hero card
+  const budgetStatus = getBudgetStatus(
+    stats.budgetSummary?.totalActual || 0,
+    stats.budgetSummary?.totalPlanned || 0
+  );
+
+  const percentSpent = stats.budgetSummary && stats.budgetSummary.totalPlanned > 0
+    ? Math.round((stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100)
+    : 0;
+
+  const available = stats.budgetSummary
+    ? stats.budgetSummary.totalPlanned - stats.budgetSummary.totalActual
+    : 0;
+
+  // Check if there are attention items
+  const hasAttentionItems = stats.uncategorizedCount > 0 ||
+    (stats.budgetSummary?.plannedEntries.missed || 0) > 0 ||
+    stats.categoryExpenses.some(ce => {
+      const budget = stats.budgetSummary?.budgetsByCategory.find(
+        b => b.category.category_id === ce.category.category_id
+      );
+      return budget && ce.amount > budget.planned;
+    });
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Dashboard 📊
-          </h1>
-          <p className="text-gray-600">
-            Visão geral das suas finanças em {new Date(stats.year, stats.month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-          </p>
-        </div>
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="mb-6">
+        <p className="text-stone-500 text-sm">
+          {new Date(stats.year, stats.month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+        </p>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Income Card */}
-          <div className="bg-white rounded-2xl shadow-sm p-6 border-2 border-emerald-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-2xl">
-                💰
-              </div>
-              <span className="text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-                Receitas
-              </span>
+      {/* Hero Status Card */}
+      <div className={`card mb-8 ${budgetStatus.borderClass} border-2`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`w-14 h-14 ${budgetStatus.bgClass} rounded-xl flex items-center justify-center text-2xl`}>
+              {budgetStatus.icon}
             </div>
-            <div className="text-3xl font-bold text-emerald-600 mb-1">
-              {formatCurrency(stats.totalIncome)}
-            </div>
-            <p className="text-sm text-gray-500">Total recebido este mês</p>
-          </div>
-
-          {/* Expenses Card */}
-          <div className="bg-white rounded-2xl shadow-sm p-6 border-2 border-red-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-2xl">
-                💸
-              </div>
-              <span className="text-sm font-medium text-red-600 bg-red-50 px-3 py-1 rounded-full">
-                Despesas
-              </span>
-            </div>
-            <div className="text-3xl font-bold text-red-600 mb-1">
-              {formatCurrency(stats.totalExpenses)}
-            </div>
-            <p className="text-sm text-gray-500">Total gasto este mês</p>
-          </div>
-
-          {/* Balance Card */}
-          <div className="bg-white rounded-2xl shadow-sm p-6 border-2 border-blue-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-                {getBalanceIcon()}
-              </div>
-              <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                Saldo
-              </span>
-            </div>
-            <div className={`text-3xl font-bold mb-1 ${getBalanceColor()}`}>
-              {formatCurrency(stats.balance)}
-            </div>
-            <p className="text-sm text-gray-500">Diferença entre receitas e despesas</p>
-          </div>
-        </div>
-
-        {/* Budget Summary Section */}
-        {stats.budgetSummary && (
-          <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Orçamento do Mês</h2>
-              <div className="flex items-center gap-2">
-                {stats.budgetSummary.plannedEntries.missed > 0 && (
-                  <span className="text-xs font-medium text-red-600 bg-red-50 px-3 py-1 rounded-full">
-                    {stats.budgetSummary.plannedEntries.missed} atrasado{stats.budgetSummary.plannedEntries.missed > 1 ? 's' : ''}
-                  </span>
-                )}
-                {stats.budgetSummary.plannedEntries.pending > 0 && (
-                  <span className="text-xs font-medium text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
-                    {stats.budgetSummary.plannedEntries.pending} pendente{stats.budgetSummary.plannedEntries.pending > 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Budget Progress Bar */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-gray-600">Progresso do Orçamento</span>
-                <span className="font-medium">
-                  {stats.budgetSummary.totalPlanned > 0
-                    ? Math.min(100, Math.round((stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100))
-                    : 0}%
+            <div>
+              <p className={`text-sm font-medium ${budgetStatus.textClass}`}>
+                {budgetStatus.message}
+              </p>
+              <p className="text-stone-900 currency-hero">
+                {formatCurrency(Math.abs(available))}
+                <span className="text-stone-500 text-lg font-normal ml-2">
+                  {available >= 0 ? 'disponível' : 'acima do limite'}
                 </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                <div
-                  className={`h-4 rounded-full transition-all duration-500 ${
-                    stats.budgetSummary.totalActual <= stats.budgetSummary.totalPlanned
-                      ? 'bg-blue-500'
-                      : 'bg-red-500'
-                  }`}
-                  style={{
-                    width: `${stats.budgetSummary.totalPlanned > 0
-                      ? Math.min(100, (stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100)
-                      : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Gastos por Categoria */}
-            {stats.categoryExpenses.length > 0 && (
-              <div>
-                <div className="space-y-4">
-                  {stats.categoryExpenses.map(({ category, amount, percentage }) => {
-                    const hexColor = category.color || '#6B7280';
-                    const r = parseInt(hexColor.slice(1, 3), 16);
-                    const g = parseInt(hexColor.slice(3, 5), 16);
-                    const b = parseInt(hexColor.slice(5, 7), 16);
-
-                    return (
-                      <div key={category.category_id}>
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                              style={{
-                                backgroundColor: `rgba(${r}, ${g}, ${b}, 0.1)`,
-                                borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`,
-                                borderWidth: '2px',
-                                borderStyle: 'solid',
-                              }}
-                            >
-                              {category.icon || '📦'}
-                            </div>
-                            <div>
-                              <span className="text-sm font-semibold text-gray-900">{category.name}</span>
-                              <div className="text-xs text-gray-500">{percentage.toFixed(1)}% do total</div>
-                            </div>
-                          </div>
-                          <span className="text-sm font-bold text-gray-900">{formatCurrency(amount)}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                          <div
-                            className="h-3 rounded-full transition-all duration-500"
-                            style={{
-                              width: `${percentage}%`,
-                              backgroundColor: hexColor,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Planned Entries Summary */}
-            {stats.budgetSummary.plannedEntries.total > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Entradas Planejadas</h3>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                    <span className="text-gray-600">{stats.budgetSummary.plannedEntries.matched} recebido{stats.budgetSummary.plannedEntries.matched !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-                    <span className="text-gray-600">{stats.budgetSummary.plannedEntries.pending} pendente{stats.budgetSummary.plannedEntries.pending !== 1 ? 's' : ''}</span>
-                  </div>
-                  {stats.budgetSummary.plannedEntries.missed > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                      <span className="text-gray-600">{stats.budgetSummary.plannedEntries.missed} atrasado{stats.budgetSummary.plannedEntries.missed !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Uncategorized Transactions Alert */}
-        {stats.uncategorizedCount > 0 && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                ⚠️
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-amber-900 mb-2">
-                  Transações Pendentes de Classificação
-                </h3>
-                <p className="text-amber-800 mb-4">
-                  Você tem <span className="font-bold">{stats.uncategorizedCount} {stats.uncategorizedCount === 1 ? 'transação' : 'transações'}</span> neste mês aguardando classificação.
-                  Categorize suas transações para ter uma visão mais precisa das suas finanças.
-                </p>
-                <button
-                  onClick={onNavigateToUncategorized}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors font-medium shadow-sm"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                  Categorizar Agora
-                </button>
-              </div>
+              </p>
             </div>
           </div>
-        )}
 
-        {/* All categorized message */}
-        {stats.uncategorizedCount === 0 && (
-          <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-2xl">
-                ✅
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-emerald-900 mb-1">
-                  Tudo Organizado!
-                </h3>
-                <p className="text-emerald-800">
-                  Todas as suas transações estão devidamente categorizadas.
-                </p>
-              </div>
+          {stats.budgetSummary && (
+            <div className="text-right">
+              <p className="text-stone-500 text-sm">
+                {formatCurrency(stats.budgetSummary.totalActual)} de {formatCurrency(stats.budgetSummary.totalPlanned)}
+              </p>
+              <p className={`text-lg font-bold ${budgetStatus.textClass}`}>
+                {percentSpent}% usado
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        {stats.budgetSummary && (
+          <div className="mt-6">
+            <div className="progress-bar h-3">
+              <div
+                className={`h-3 rounded-full transition-all duration-500 ${getProgressBarClasses(percentSpent)}`}
+                style={{ width: `${Math.min(100, percentSpent)}%` }}
+              />
             </div>
           </div>
         )}
       </div>
+
+      {/* Attention Section - Only show if there are items */}
+      {hasAttentionItems && (
+        <div className="card mb-8 border-terra-200 border-2 bg-terra-50/50">
+          <h2 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
+            <span className="text-terra-500">⚠</span> Requer Atenção
+          </h2>
+
+          <div className="space-y-3">
+            {stats.uncategorizedCount > 0 && (
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">📋</span>
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">
+                      {stats.uncategorizedCount} transaç{stats.uncategorizedCount === 1 ? 'ão' : 'ões'} sem categoria
+                    </p>
+                    <p className="text-xs text-stone-500">Categorize para melhor controle</p>
+                  </div>
+                </div>
+                <button
+                  onClick={onNavigateToUncategorized}
+                  className="btn-primary text-sm px-3 py-1.5"
+                >
+                  Categorizar
+                </button>
+              </div>
+            )}
+
+            {(stats.budgetSummary?.plannedEntries.missed || 0) > 0 && (
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">📅</span>
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">
+                      {stats.budgetSummary?.plannedEntries.missed} entrada{stats.budgetSummary?.plannedEntries.missed !== 1 ? 's' : ''} planejada{stats.budgetSummary?.plannedEntries.missed !== 1 ? 's' : ''} atrasada{stats.budgetSummary?.plannedEntries.missed !== 1 ? 's' : ''}
+                    </p>
+                    <p className="text-xs text-stone-500">Verifique as entradas esperadas</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Over-budget categories */}
+            {stats.categoryExpenses.filter(ce => {
+              const budget = stats.budgetSummary?.budgetsByCategory.find(
+                b => b.category.category_id === ce.category.category_id
+              );
+              return budget && ce.amount > budget.planned;
+            }).slice(0, 3).map(ce => (
+              <div key={ce.category.category_id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{ce.category.icon || '📦'}</span>
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">
+                      {ce.category.name} acima do limite
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      {formatCurrency(ce.amount)} gasto
+                    </p>
+                  </div>
+                </div>
+                <span className="badge-error">Excedido</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* Income */}
+        <div className="card-compact">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-sage-100 rounded-lg flex items-center justify-center">
+              <span className="text-lg">💰</span>
+            </div>
+            <div>
+              <p className="text-xs text-stone-500 uppercase tracking-wide">Receitas</p>
+              <p className="text-lg font-bold text-sage-600 tabular-nums">
+                {formatCurrency(stats.totalIncome)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Expenses */}
+        <div className="card-compact">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-rust-100 rounded-lg flex items-center justify-center">
+              <span className="text-lg">💸</span>
+            </div>
+            <div>
+              <p className="text-xs text-stone-500 uppercase tracking-wide">Despesas</p>
+              <p className="text-lg font-bold text-rust-600 tabular-nums">
+                {formatCurrency(stats.totalExpenses)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Balance */}
+        <div className="card-compact">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+              stats.balance >= 0 ? 'bg-sage-100' : 'bg-rust-100'
+            }`}>
+              <span className="text-lg">{stats.balance >= 0 ? '📈' : '📉'}</span>
+            </div>
+            <div>
+              <p className="text-xs text-stone-500 uppercase tracking-wide">Saldo</p>
+              <p className={`text-lg font-bold tabular-nums ${
+                stats.balance >= 0 ? 'text-sage-600' : 'text-rust-600'
+              }`}>
+                {formatCurrency(stats.balance)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Category Expenses */}
+      {stats.categoryExpenses.length > 0 && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-stone-900 mb-4">
+            Gastos por Categoria
+          </h2>
+
+          <div className="space-y-4">
+            {stats.categoryExpenses.map(({ category, amount, percentage }) => {
+              const budget = stats.budgetSummary?.budgetsByCategory.find(
+                b => b.category.category_id === category.category_id
+              );
+              const budgetPercent = budget && budget.planned > 0
+                ? (amount / budget.planned) * 100
+                : 0;
+              const statusIndicator = budget ? getStatusIndicator(budgetPercent) : null;
+
+              return (
+                <div key={category.category_id} className="flex items-center gap-4">
+                  {/* Status indicator */}
+                  {statusIndicator && (
+                    <div className={`status-indicator ${statusIndicator.bgClass} ${statusIndicator.colorClass}`}>
+                      {statusIndicator.icon}
+                    </div>
+                  )}
+
+                  {/* Category info */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <span className="text-xl flex-shrink-0">{category.icon || '📦'}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-stone-900 truncate">
+                          {category.name}
+                        </span>
+                        <span className="text-sm font-bold text-stone-900 tabular-nums ml-2">
+                          {formatCurrency(amount)}
+                        </span>
+                      </div>
+                      <div className="progress-bar">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-500 ${
+                            statusIndicator ? getProgressBarClasses(budgetPercent) : 'bg-stone-400'
+                          }`}
+                          style={{ width: `${Math.min(100, percentage)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-stone-500">
+                          {percentage.toFixed(1)}% do total
+                        </span>
+                        {budget && (
+                          <span className="text-xs text-stone-500">
+                            de {formatCurrency(budget.planned)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Planned entries summary */}
+          {stats.budgetSummary?.plannedEntries.total ? (
+            <div className="mt-6 pt-4 border-t border-stone-200">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-stone-600">Entradas planejadas</span>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-sage-500" />
+                    {stats.budgetSummary.plannedEntries.matched} recebidas
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-terra-500" />
+                    {stats.budgetSummary.plannedEntries.pending} pendentes
+                  </span>
+                  {stats.budgetSummary.plannedEntries.missed > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-rust-500" />
+                      {stats.budgetSummary.plannedEntries.missed} atrasadas
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* All organized message */}
+      {stats.uncategorizedCount === 0 && !hasAttentionItems && (
+        <div className="card border-sage-200 border-2 bg-sage-50/50">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-sage-100 rounded-xl flex items-center justify-center text-2xl">
+              ✅
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-sage-800">
+                Tudo Organizado!
+              </h3>
+              <p className="text-sage-700 text-sm">
+                Suas finanças estão em dia. Continue assim!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

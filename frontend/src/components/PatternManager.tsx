@@ -367,14 +367,14 @@ export default function PatternManager() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 animate-pulse">
+      <div className="min-h-screen bg-stone-50 p-8 animate-pulse">
         <div className="max-w-7xl mx-auto">
-          <div className="h-9 bg-gray-200 rounded w-1/4 mb-8"></div>
+          <div className="h-9 bg-stone-200 rounded w-1/4 mb-8"></div>
           <div className="grid gap-4">
             {[1, 2, 3].map(i => (
               <div key={i} className="bg-white rounded-lg shadow p-6">
-                <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                <div className="h-6 bg-stone-200 rounded w-1/3 mb-4"></div>
+                <div className="h-4 bg-stone-200 rounded w-2/3"></div>
               </div>
             ))}
           </div>
@@ -386,12 +386,12 @@ export default function PatternManager() {
   const totalPatterns = patterns.length;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-stone-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Padrões</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold text-stone-900">Padrões</h1>
+            <p className="text-stone-600 mt-2">
               {totalPatterns} padrão{totalPatterns !== 1 ? 'ões' : ''} cadastrado{totalPatterns !== 1 ? 's' : ''}
             </p>
           </div>
@@ -399,17 +399,17 @@ export default function PatternManager() {
           <div className="flex flex-col items-end gap-2">
             <button
               onClick={() => setShowCreator(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all"
             >
               ➕ Criar Padrão
             </button>
 
             {success && (
-              <p className="text-sm text-green-600 font-medium">{success}</p>
+              <p className="text-sm text-sage-600 font-medium">{success}</p>
             )}
 
             {error && (
-              <p className="text-sm text-red-600 font-medium">❌ {error}</p>
+              <p className="text-sm text-rust-600 font-medium">❌ {error}</p>
             )}
           </div>
         </div>
@@ -418,15 +418,15 @@ export default function PatternManager() {
         {patterns.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <div className="text-6xl mb-4">🎯</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-lg font-semibold text-stone-900 mb-2">
               Nenhum padrão criado ainda
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-stone-600 mb-6">
               Crie padrões com regex para categorizar transações automaticamente
             </p>
             <button
               onClick={() => setShowCreator(true)}
-              className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+              className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all"
             >
               ➕ Criar Primeiro Padrão
             </button>
@@ -442,8 +442,8 @@ export default function PatternManager() {
                   key={pattern.pattern_id}
                   className={`bg-white rounded-lg shadow-sm border transition-all ${
                     pattern.is_active
-                      ? 'border-gray-200 hover:shadow-md'
-                      : 'border-gray-200 opacity-60'
+                      ? 'border-stone-200 hover:shadow-md'
+                      : 'border-stone-200 opacity-60'
                   }`}
                 >
                   {/* Compact Card Layout */}
@@ -453,16 +453,16 @@ export default function PatternManager() {
                       <div className="flex-1 min-w-0">
                         {/* Header Row */}
                         <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <h3 className="text-base font-semibold text-gray-900 truncate">
+                          <h3 className="text-base font-semibold text-stone-900 truncate">
                             {pattern.target_description}
                           </h3>
                           {category && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-wheat-50 text-wheat-700 rounded">
                               {category.icon} {category.name}
                             </span>
                           )}
                           {hasLinkedEntries && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-sage-50 text-sage-700 rounded">
                               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
@@ -470,7 +470,7 @@ export default function PatternManager() {
                             </span>
                           )}
                           {!pattern.is_active && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-stone-100 text-stone-600 rounded">
                               Inativo
                             </span>
                           )}
@@ -478,14 +478,14 @@ export default function PatternManager() {
 
                         {/* Pattern regex */}
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs text-gray-500">Padrão:</span>
-                          <code className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono text-gray-700 truncate max-w-md">
+                          <span className="text-xs text-stone-500">Padrão:</span>
+                          <code className="bg-stone-100 px-2 py-0.5 rounded text-xs font-mono text-stone-700 truncate max-w-md">
                             {pattern.description_pattern}
                           </code>
                         </div>
 
                         {/* Additional filters (compact) */}
-                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                        <div className="flex items-center gap-3 text-xs text-stone-500">
                           {pattern.weekday_pattern && (
                             <span>🗓️ {formatWeekday(pattern.weekday_pattern)}</span>
                           )}
@@ -500,11 +500,11 @@ export default function PatternManager() {
                         {/* Linked entries (if any) */}
                         {hasLinkedEntries && (
                           <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            <span className="text-xs text-gray-500">📋</span>
+                            <span className="text-xs text-stone-500">📋</span>
                             {pattern.linked_planned_entries!.map(entry => (
                               <span
                                 key={entry.planned_entry_id}
-                                className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 rounded"
+                                className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-terra-50 text-terra-700 rounded"
                               >
                                 {entry.name}
                               </span>
@@ -517,17 +517,17 @@ export default function PatternManager() {
                       <div className="relative flex-shrink-0">
                         <button
                           onClick={() => setOpenMenuId(openMenuId === pattern.pattern_id ? null : pattern.pattern_id)}
-                          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                          className="p-2 hover:bg-stone-100 rounded-full transition-colors"
                           aria-label="Ações"
                         >
-                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </button>
 
                         {/* Dropdown Menu */}
                         {openMenuId === pattern.pattern_id && (
-                          <div className="absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                          <div className="absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
                             {/* Apply Retroactively */}
                             <button
                               onClick={() => {
@@ -535,7 +535,7 @@ export default function PatternManager() {
                                 setOpenMenuId(null);
                               }}
                               disabled={applyingPattern === pattern.pattern_id}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+                              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50 flex items-center gap-2"
                             >
                               {applyingPattern === pattern.pattern_id ? (
                                 <>
@@ -557,7 +557,7 @@ export default function PatternManager() {
                                 setOpenMenuId(null);
                               }}
                               disabled={togglingPattern === pattern.pattern_id}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50"
                             >
                               {pattern.is_active ? '⏸️ Desativar' : '▶️ Ativar'}
                             </button>
@@ -568,12 +568,12 @@ export default function PatternManager() {
                                 handleEditPattern(pattern);
                                 setOpenMenuId(null);
                               }}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
                             >
                               ✏️ Editar
                             </button>
 
-                            <div className="border-t border-gray-100 my-1"></div>
+                            <div className="border-t border-stone-100 my-1"></div>
 
                             {/* Link to Entry */}
                             <button
@@ -581,7 +581,7 @@ export default function PatternManager() {
                                 handleOpenLinkModal(pattern);
                                 setOpenMenuId(null);
                               }}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
                             >
                               🔗 Vincular a Entrada
                             </button>
@@ -592,12 +592,12 @@ export default function PatternManager() {
                                 handleOpenCreateEntryModal(pattern);
                                 setOpenMenuId(null);
                               }}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
                             >
                               📋 Criar Entrada Planejada
                             </button>
 
-                            <div className="border-t border-gray-100 my-1"></div>
+                            <div className="border-t border-stone-100 my-1"></div>
 
                             {/* Delete */}
                             <button
@@ -606,7 +606,7 @@ export default function PatternManager() {
                                 setOpenMenuId(null);
                               }}
                               disabled={deletingPattern === pattern.pattern_id}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              className="w-full text-left px-4 py-2 text-sm text-rust-600 hover:bg-rust-50 disabled:opacity-50"
                             >
                               {deletingPattern === pattern.pattern_id ? (
                                 <span className="flex items-center gap-2">
@@ -666,7 +666,7 @@ export default function PatternManager() {
         {/* Create Planned Entry from Pattern Modal */}
         {showCreateEntryModal && linkingPattern && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
                 setShowCreateEntryModal(false);
@@ -676,7 +676,7 @@ export default function PatternManager() {
           >
             <div className="bg-white rounded-lg shadow-xl w-[500px] max-w-[95vw] max-h-[85vh] flex flex-col">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-green-600 text-white rounded-t-lg">
+              <div className="px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-sage-500 to-sage-600 text-white rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold">📋 Criar Entrada Planejada</h2>
                   <button
@@ -700,10 +700,10 @@ export default function PatternManager() {
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                 {/* Category (read-only) */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Categoria
                   </label>
-                  <div className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700">
+                  <div className="px-3 py-2 bg-stone-100 rounded-lg text-stone-700">
                     {categories.get(linkingPattern.target_category_id)?.icon}{' '}
                     {categories.get(linkingPattern.target_category_id)?.name}
                   </div>
@@ -711,14 +711,14 @@ export default function PatternManager() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Descrição *
                   </label>
                   <input
                     type="text"
                     value={newEntryDescription}
                     onChange={(e) => setNewEntryDescription(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent"
                     placeholder="Nome da entrada"
                   />
                 </div>
@@ -726,7 +726,7 @@ export default function PatternManager() {
                 {/* Amount Range */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       Valor Mínimo
                     </label>
                     <input
@@ -734,12 +734,12 @@ export default function PatternManager() {
                       step="0.01"
                       value={newEntryAmountMin}
                       onChange={(e) => setNewEntryAmountMin(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent"
                       placeholder="0,00"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       Valor Máximo
                     </label>
                     <input
@@ -747,7 +747,7 @@ export default function PatternManager() {
                       step="0.01"
                       value={newEntryAmountMax}
                       onChange={(e) => setNewEntryAmountMax(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent"
                       placeholder="0,00"
                     />
                   </div>
@@ -755,7 +755,7 @@ export default function PatternManager() {
 
                 {/* Entry Type */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Tipo
                   </label>
                   <div className="flex gap-4">
@@ -765,9 +765,9 @@ export default function PatternManager() {
                         name="entryType"
                         checked={newEntryType === 'expense'}
                         onChange={() => setNewEntryType('expense')}
-                        className="text-teal-600 focus:ring-teal-500"
+                        className="text-wheat-600 focus:ring-wheat-500"
                       />
-                      <span className="text-sm text-gray-700">Despesa</span>
+                      <span className="text-sm text-stone-700">Despesa</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -775,9 +775,9 @@ export default function PatternManager() {
                         name="entryType"
                         checked={newEntryType === 'income'}
                         onChange={() => setNewEntryType('income')}
-                        className="text-teal-600 focus:ring-teal-500"
+                        className="text-wheat-600 focus:ring-wheat-500"
                       />
-                      <span className="text-sm text-gray-700">Receita</span>
+                      <span className="text-sm text-stone-700">Receita</span>
                     </label>
                   </div>
                 </div>
@@ -789,14 +789,14 @@ export default function PatternManager() {
                       type="checkbox"
                       checked={newEntryIsRecurrent}
                       onChange={(e) => setNewEntryIsRecurrent(e.target.checked)}
-                      className="rounded text-teal-600 focus:ring-teal-500"
+                      className="rounded text-wheat-600 focus:ring-wheat-500"
                     />
-                    <span className="text-sm text-gray-700">Recorrente (mensal)</span>
+                    <span className="text-sm text-stone-700">Recorrente (mensal)</span>
                   </label>
                 </div>
 
                 {/* Info */}
-                <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 text-sm text-teal-700">
+                <div className="bg-sage-50 border border-sage-200 rounded-lg p-3 text-sm text-sage-700">
                   <strong>💡 Dica:</strong> A entrada será automaticamente vinculada ao padrão.
                   Quando uma transação corresponder ao padrão, ela poderá ser automaticamente
                   associada a esta entrada planejada.
@@ -804,20 +804,20 @@ export default function PatternManager() {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <div className="px-6 py-4 border-t border-stone-200 flex justify-end gap-3">
                 <button
                   onClick={() => {
                     setShowCreateEntryModal(false);
                     setLinkingPattern(null);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-stone-700 bg-stone-100 rounded-lg hover:bg-stone-200 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleCreateEntryFromPattern}
                   disabled={creatingEntry || !newEntryDescription.trim()}
-                  className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 text-sm font-medium text-white bg-sage-600 rounded-lg hover:bg-sage-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {creatingEntry ? (
                     <>
