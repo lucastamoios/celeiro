@@ -127,9 +127,9 @@ export default function TransactionMatcherModal({
   }, [monthTransactions, searchQuery, categoryFilter, plannedEntry]);
 
   const getMatchScoreColor = (score: number): string => {
-    if (score >= 70) return 'text-green-600 bg-green-100';
-    if (score >= 40) return 'text-yellow-600 bg-yellow-100';
-    return 'text-gray-600 bg-gray-100';
+    if (score >= 70) return 'text-sage-600 bg-sage-100';
+    if (score >= 40) return 'text-terra-600 bg-terra-100';
+    return 'text-stone-600 bg-stone-100';
   };
 
   const getMatchScoreLabel = (score: number): string => {
@@ -147,21 +147,21 @@ export default function TransactionMatcherModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-stone-200">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-stone-900">
                 Vincular Transação
               </h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-stone-600 mt-1">
                 Selecione uma transação para vincular a "{plannedEntry.Description}"
               </p>
-              <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2 mt-2 text-sm text-stone-500">
                 <span>📅 {monthName}</span>
                 <span>•</span>
                 <span>💰 {formatCurrency(plannedEntry.Amount)}</span>
@@ -169,11 +169,11 @@ export default function TransactionMatcherModal({
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-stone-100 rounded-full transition-colors"
               aria-label="Fechar"
             >
               <svg
-                className="w-5 h-5 text-gray-500"
+                className="w-5 h-5 text-stone-500"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -193,7 +193,7 @@ export default function TransactionMatcherModal({
             {/* Search */}
             <div className="flex-1 relative">
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -210,7 +210,7 @@ export default function TransactionMatcherModal({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar transação..."
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full pl-10 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 text-sm"
               />
             </div>
 
@@ -218,7 +218,7 @@ export default function TransactionMatcherModal({
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 text-sm"
             >
               <option value="entry">
                 {getCategoryName(plannedEntry.CategoryID)} (Sugerida)
@@ -233,7 +233,7 @@ export default function TransactionMatcherModal({
             </select>
             <button
               onClick={() => setShowAllCategories(!showAllCategories)}
-              className="px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="px-3 py-2 text-sm text-wheat-600 hover:bg-wheat-50 rounded-lg transition-colors"
             >
               {showAllCategories ? 'Menos' : 'Mais'}
             </button>
@@ -245,17 +245,17 @@ export default function TransactionMatcherModal({
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-gray-50 rounded-lg p-4 animate-pulse">
-                  <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div key={i} className="bg-stone-50 rounded-lg p-4 animate-pulse">
+                  <div className="h-5 bg-stone-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-stone-200 rounded w-1/2"></div>
                 </div>
               ))}
             </div>
           ) : filteredTransactions.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-4xl mb-3">🔍</div>
-              <p className="text-gray-600">Nenhuma transação encontrada</p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-stone-600">Nenhuma transação encontrada</p>
+              <p className="text-sm text-stone-500 mt-1">
                 Tente ajustar os filtros ou buscar por outro termo
               </p>
             </div>
@@ -264,15 +264,15 @@ export default function TransactionMatcherModal({
               {filteredTransactions.map((tx) => (
                 <div
                   key={tx.transaction_id}
-                  className={`flex items-center justify-between p-4 rounded-lg border transition-colors hover:bg-gray-50 ${
+                  className={`flex items-center justify-between p-4 rounded-lg border transition-colors hover:bg-stone-50 ${
                     tx.matchScore >= 70
-                      ? 'border-green-200 bg-green-50/50'
-                      : 'border-gray-200 bg-white'
+                      ? 'border-sage-200 bg-sage-50/50'
+                      : 'border-stone-200 bg-white'
                   }`}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-stone-500">
                         {formatDate(tx.transaction_date)}
                       </span>
                       <span
@@ -283,15 +283,15 @@ export default function TransactionMatcherModal({
                         {getMatchScoreLabel(tx.matchScore)}
                       </span>
                       {tx.category_id === plannedEntry.CategoryID && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-wheat-100 text-wheat-700">
                           Mesma categoria
                         </span>
                       )}
                     </div>
-                    <p className="font-medium text-gray-900 truncate mt-1">
+                    <p className="font-medium text-stone-900 truncate mt-1">
                       {tx.description}
                     </p>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <p className="text-sm text-stone-500 mt-0.5">
                       {getCategoryName(tx.category_id)}
                     </p>
                   </div>
@@ -300,8 +300,8 @@ export default function TransactionMatcherModal({
                       <p
                         className={`font-semibold ${
                           tx.transaction_type === 'credit'
-                            ? 'text-green-600'
-                            : 'text-gray-900'
+                            ? 'text-sage-600'
+                            : 'text-stone-900'
                         }`}
                       >
                         {tx.transaction_type === 'credit' ? '+' : '-'}
@@ -311,7 +311,7 @@ export default function TransactionMatcherModal({
                     <button
                       onClick={() => onSelect(tx.transaction_id)}
                       disabled={isLoading}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                      className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
                     >
                       Vincular
                     </button>
@@ -323,14 +323,14 @@ export default function TransactionMatcherModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="p-4 border-t border-stone-200 bg-stone-50">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-stone-600">
               {filteredTransactions.length} transação(ões) encontrada(s)
             </p>
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="px-4 py-2 text-stone-700 hover:bg-stone-200 rounded-lg transition-colors"
             >
               Cancelar
             </button>

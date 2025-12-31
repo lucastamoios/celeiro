@@ -226,34 +226,34 @@ export interface DismissPlannedEntryRequest {
   reason?: string;
 }
 
-// Status color utility
+// Status color utility - returns Harvest palette color names
 export function getStatusColor(status: PlannedEntryStatusType): string {
   switch (status) {
     case 'matched':
-      return 'green';
+      return 'sage';
     case 'pending':
-      return 'yellow';
+      return 'terra';
     case 'missed':
-      return 'red';
+      return 'rust';
     case 'dismissed':
-      return 'gray';
+      return 'stone';
     default:
-      return 'gray';
+      return 'stone';
   }
 }
 
 export function getStatusBadgeClasses(status: PlannedEntryStatusType): string {
   switch (status) {
     case 'matched':
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'bg-sage-100 text-sage-700 border-sage-200';
     case 'pending':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      return 'bg-terra-100 text-terra-700 border-terra-200';
     case 'missed':
-      return 'bg-red-100 text-red-800 border-red-200';
+      return 'bg-rust-100 text-rust-700 border-rust-200';
     case 'dismissed':
-      return 'bg-gray-100 text-gray-500 border-gray-200';
+      return 'bg-stone-100 text-stone-500 border-stone-200';
     default:
-      return 'bg-gray-100 text-gray-500 border-gray-200';
+      return 'bg-stone-100 text-stone-500 border-stone-200';
   }
 }
 

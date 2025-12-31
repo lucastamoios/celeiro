@@ -37,17 +37,17 @@ const AVAILABLE_ICONS = [
 function getCategoryColor(category: Category) {
   const hexColor = category.color || '#6B7280';
   const styles = getCategoryColorStyle(hexColor);
-  
+
   return {
-    style: {
-      ...styles.bg,
-      ...styles.border,
-      borderWidth: '2px',
-      borderStyle: 'solid',
+    // Use neutral card styling with colored left border accent
+    cardStyle: {
+      borderLeftColor: hexColor,
+      borderLeftWidth: '4px',
     },
+    // Colored icon container (small accent)
     accentStyle: styles.accent,
-    textStyle: styles.text,
-    hoverStyle: styles.hover,
+    // Color for small indicators
+    dotColor: hexColor,
   };
 }
 
@@ -425,11 +425,11 @@ export default function CategoryManager() {
     return (
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-48"></div>
-          <div className="h-4 bg-gray-200 rounded w-72"></div>
+          <div className="h-8 bg-stone-200 rounded w-48"></div>
+          <div className="h-4 bg-stone-200 rounded w-72"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+              <div key={i} className="h-32 bg-stone-200 rounded-xl"></div>
             ))}
           </div>
         </div>
@@ -438,24 +438,24 @@ export default function CategoryManager() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
     <div className="max-w-5xl mx-auto px-6 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Categorias</h1>
-        <p className="text-gray-600">
+        <h1 className="text-3xl font-bold text-stone-900 mb-2">Categorias</h1>
+        <p className="text-stone-600">
           Gerencie suas categorias e orçamentos para {getMonthName(currentMonth)} de {currentYear}
         </p>
       </div>
 
       {/* Messages */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3">
+        <div className="mb-6 p-4 bg-rust-50 border border-rust-200 text-rust-700 rounded-xl flex items-center gap-3">
           <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
           </svg>
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700">
+          <button onClick={() => setError(null)} className="ml-auto text-rust-500 hover:text-rust-700">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
@@ -464,7 +464,7 @@ export default function CategoryManager() {
       )}
 
       {success && (
-        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl flex items-center gap-3">
+        <div className="mb-6 p-4 bg-sage-50 border border-sage-200 text-sage-700 rounded-xl flex items-center gap-3">
           <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
@@ -475,7 +475,7 @@ export default function CategoryManager() {
       {/* Create Category Button */}
       <button
         onClick={() => setShowCreateModal(true)}
-        className="mb-8 inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:from-emerald-600 hover:to-teal-600 transition-all duration-200"
+        className="btn-primary mb-8"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -487,19 +487,19 @@ export default function CategoryManager() {
       <section className="mb-10">
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">📂</span>
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-stone-900">
             Minhas Categorias
-            <span className="ml-2 text-sm font-normal text-gray-500">({userCategories.length})</span>
+            <span className="ml-2 text-sm font-normal text-stone-500">({userCategories.length})</span>
           </h2>
         </div>
 
         {userCategories.length === 0 ? (
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center">
+          <div className="bg-gradient-to-br from-stone-50 to-stone-100 border-2 border-dashed border-stone-300 rounded-2xl p-12 text-center">
             <div className="text-5xl mb-4">📁</div>
-            <p className="text-gray-600 font-medium mb-2">
+            <p className="text-stone-600 font-medium mb-2">
               Você ainda não criou nenhuma categoria personalizada.
             </p>
-            <p className="text-gray-500 text-sm">
+            <p className="text-stone-500 text-sm">
               Clique em "Nova Categoria" para começar!
             </p>
           </div>
@@ -514,8 +514,8 @@ export default function CategoryManager() {
               return (
                 <div
                   key={category.category_id}
-                  className="relative border-2 rounded-2xl p-5 transition-all duration-200 group"
-                  style={colors.style}
+                  className="relative bg-white border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
+                  style={colors.cardStyle}
                 >
                   {/* Floating action buttons - overlay on top right */}
                   {!isEditingColor && deletingCategory !== category.category_id && (
@@ -525,7 +525,7 @@ export default function CategoryManager() {
                         className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-sm hover:shadow"
                         title="Editar nome e ícone"
                       >
-                        <svg className="w-4 h-4 text-gray-600 hover:text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-stone-600 hover:text-stone-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
                       </button>
@@ -534,33 +534,33 @@ export default function CategoryManager() {
                         className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-sm hover:shadow"
                         title="Editar cor"
                       >
-                        <svg className="w-4 h-4 text-gray-600 hover:text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-stone-600 hover:text-stone-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                         </svg>
                       </button>
                       <button
                         onClick={() => handleStartDelete(category.category_id)}
-                        className="p-2 bg-white/70 backdrop-blur-sm hover:bg-red-100/90 rounded-lg shadow-sm hover:shadow"
+                        className="p-2 bg-white/70 backdrop-blur-sm hover:bg-rust-100/90 rounded-lg shadow-sm hover:shadow"
                         title="Excluir categoria"
                       >
-                        <svg className="w-4 h-4 text-gray-600 hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-stone-600 hover:text-rust-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                     </div>
                   )}
                   {deletingCategory === category.category_id && (
-                    <div className="absolute top-2 right-2 flex items-center gap-2 bg-red-50/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-red-200 z-10">
-                      <span className="text-xs text-red-700">Excluir?</span>
+                    <div className="absolute top-2 right-2 flex items-center gap-2 bg-rust-50/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-rust-200 z-10">
+                      <span className="text-xs text-rust-700">Excluir?</span>
                       <button
                         onClick={() => handleDeleteCategory(category.category_id)}
-                        className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                        className="px-2 py-1 bg-rust-500 text-white text-xs rounded hover:bg-rust-600"
                       >
                         Sim
                       </button>
                       <button
                         onClick={handleCancelDelete}
-                        className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                        className="px-2 py-1 bg-stone-300 text-stone-700 text-xs rounded hover:bg-stone-400"
                       >
                         Não
                       </button>
@@ -573,13 +573,13 @@ export default function CategoryManager() {
                         {category.icon}
                       </div>
                       <div>
-                        <h3 className="font-semibold" style={colors.textStyle}>{category.name}</h3>
+                        <h3 className="font-semibold text-stone-900">{category.name}</h3>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-500">Personalizada</span>
+                          <span className="text-xs text-stone-500">Personalizada</span>
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                             category.category_type === 'income'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
+                              ? 'bg-sage-100 text-sage-700'
+                              : 'bg-rust-100 text-rust-700'
                           }`}>
                             {category.category_type === 'income' ? '📈 Receita' : '📉 Despesa'}
                           </span>
@@ -590,7 +590,7 @@ export default function CategoryManager() {
 
                   {/* Color picker section */}
                   {isEditingColor && (
-                    <div className="mb-4 pb-4 border-b border-gray-200/50">
+                    <div className="mb-4 pb-4 border-b border-stone-200/50">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="relative">
@@ -598,22 +598,22 @@ export default function CategoryManager() {
                               type="color"
                               value={colorValue}
                               onChange={(e) => setColorValue(e.target.value)}
-                              className="w-16 h-16 rounded-xl border-2 border-gray-300 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+                              className="w-16 h-16 rounded-xl border-2 border-stone-300 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
                               style={{ padding: '4px' }}
                             />
                             <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-sm">
-                              <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-3 h-3 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                               </svg>
                             </div>
                           </div>
                           <div className="flex-1">
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Código da cor</label>
+                            <label className="block text-xs font-medium text-stone-600 mb-1">Código da cor</label>
                             <input
                               type="text"
                               value={colorValue}
                               onChange={(e) => setColorValue(e.target.value)}
-                              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                              className="w-full px-3 py-2.5 border border-stone-300 rounded-lg text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-wheat-500 focus:border-transparent"
                               placeholder="#6B7280"
                               maxLength={7}
                             />
@@ -622,7 +622,7 @@ export default function CategoryManager() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleSaveColor(category.category_id)}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium text-sm shadow-sm"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-sage-500 text-white rounded-lg hover:bg-sage-600 transition-colors font-medium text-sm shadow-sm"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -631,7 +631,7 @@ export default function CategoryManager() {
                           </button>
                           <button
                             onClick={handleCancelEditColor}
-                            className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+                            className="px-4 py-2.5 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300 transition-colors font-medium text-sm"
                           >
                             Cancelar
                           </button>
@@ -641,13 +641,13 @@ export default function CategoryManager() {
                   )}
 
                   {/* Budget section */}
-                  <div className="border-t border-gray-200/50 pt-4">
+                  <div className="border-t border-stone-200/50 pt-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600 font-medium">Orçamento mensal</span>
+                      <span className="text-sm text-stone-600 font-medium">Orçamento mensal</span>
                       {!isEditing && (
                         <button
                           onClick={() => handleStartEditBudget(category.category_id)}
-                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                          className="text-xs text-stone-500 hover:text-stone-700 flex items-center gap-1"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -663,7 +663,7 @@ export default function CategoryManager() {
                           <select
                             value={budgetType}
                             onChange={(e) => setBudgetType(e.target.value as 'fixed' | 'calculated' | 'maior')}
-                            className="px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm bg-white"
+                            className="px-2 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wheat-500 text-sm bg-white"
                             disabled={savingBudget}
                           >
                             <option value="fixed">Fixo</option>
@@ -671,7 +671,7 @@ export default function CategoryManager() {
                             <option value="maior">Maior</option>
                           </select>
                           <div className="relative flex-1">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">R$</span>
                             <input
                               ref={budgetInputRef}
                               type="text"
@@ -681,14 +681,14 @@ export default function CategoryManager() {
                                 if (e.key === 'Enter') handleSaveBudget(category.category_id);
                                 if (e.key === 'Escape') handleCancelEditBudget();
                               }}
-                              className={`w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm ${budgetType !== 'fixed' ? 'bg-gray-50' : ''}`}
+                              className={`w-full pl-9 pr-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wheat-500 text-sm ${budgetType !== 'fixed' ? 'bg-stone-50' : ''}`}
                               placeholder={budgetType === 'fixed' ? '0,00' : '(opcional)'}
                               disabled={savingBudget}
                             />
                           </div>
                         </div>
                         {budgetType !== 'fixed' && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-stone-500">
                             💡 Para orçamentos calculados, o valor será baseado nas entradas planejadas
                           </p>
                         )}
@@ -696,7 +696,7 @@ export default function CategoryManager() {
                           <button
                             onClick={() => handleSaveBudget(category.category_id)}
                             disabled={savingBudget}
-                            className="flex-1 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
+                            className="flex-1 py-2 bg-sage-500 text-white rounded-lg hover:bg-sage-600 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -706,7 +706,7 @@ export default function CategoryManager() {
                           <button
                             onClick={handleCancelEditBudget}
                             disabled={savingBudget}
-                            className="flex-1 py-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
+                            className="flex-1 py-2 bg-stone-200 text-stone-600 rounded-lg hover:bg-stone-300 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -717,13 +717,13 @@ export default function CategoryManager() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <div className="text-xl font-bold" style={colors.textStyle}>
+                        <div className="text-xl font-bold text-stone-900">
                           {budget ? formatCurrency(budget.PlannedAmount) : (
-                            <span className="text-gray-400 text-base font-normal">Não definido</span>
+                            <span className="text-stone-400 text-base font-normal">Não definido</span>
                           )}
                         </div>
                         {budget && (
-                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                          <span className="text-xs px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full">
                             {budgetTypeLabels[budget.BudgetType] || budget.BudgetType}
                           </span>
                         )}
@@ -741,12 +741,12 @@ export default function CategoryManager() {
       <section>
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">🔒</span>
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-stone-900">
             Categorias do Sistema
-            <span className="ml-2 text-sm font-normal text-gray-500">({systemCategories.length})</span>
+            <span className="ml-2 text-sm font-normal text-stone-500">({systemCategories.length})</span>
           </h2>
         </div>
-        <p className="text-gray-500 text-sm mb-4">
+        <p className="text-stone-500 text-sm mb-4">
           Estas categorias são padrão do sistema. Você pode definir orçamentos ou excluí-las se não precisar.
         </p>
 
@@ -759,8 +759,8 @@ export default function CategoryManager() {
             return (
               <div
                 key={category.category_id}
-                className="border-2 rounded-2xl p-5 transition-all duration-200 group"
-                style={colors.style}
+                className="bg-white border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
+                style={colors.cardStyle}
               >
                 {/* Header with icon and name */}
                 <div className="flex items-start justify-between mb-4">
@@ -769,9 +769,9 @@ export default function CategoryManager() {
                       {category.icon}
                     </div>
                     <div>
-                      <h3 className="font-semibold" style={colors.textStyle}>{category.name}</h3>
+                      <h3 className="font-semibold text-stone-900">{category.name}</h3>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-200/50 px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-xs text-stone-500 bg-stone-200/50 px-2 py-0.5 rounded-full">
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                           </svg>
@@ -779,8 +779,8 @@ export default function CategoryManager() {
                         </span>
                         <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                           category.category_type === 'income'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
+                            ? 'bg-sage-100 text-sage-700'
+                            : 'bg-rust-100 text-rust-700'
                         }`}>
                           {category.category_type === 'income' ? '📈 Receita' : '📉 Despesa'}
                         </span>
@@ -790,25 +790,25 @@ export default function CategoryManager() {
                   {deletingCategory !== category.category_id ? (
                     <button
                       onClick={() => handleStartDelete(category.category_id)}
-                      className="opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-red-100 rounded-lg shadow-sm hover:shadow"
+                      className="opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-rust-100 rounded-lg shadow-sm hover:shadow"
                       title="Excluir categoria"
                     >
-                      <svg className="w-4 h-4 text-gray-600 hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-stone-600 hover:text-rust-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
                   ) : (
-                    <div className="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-lg border border-red-200">
-                      <span className="text-xs text-red-700">Excluir?</span>
+                    <div className="flex items-center gap-2 bg-rust-50 px-3 py-2 rounded-lg border border-rust-200">
+                      <span className="text-xs text-rust-700">Excluir?</span>
                       <button
                         onClick={() => handleDeleteCategory(category.category_id)}
-                        className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                        className="px-2 py-1 bg-rust-500 text-white text-xs rounded hover:bg-rust-600"
                       >
                         Sim
                       </button>
                       <button
                         onClick={handleCancelDelete}
-                        className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                        className="px-2 py-1 bg-stone-300 text-stone-700 text-xs rounded hover:bg-stone-400"
                       >
                         Não
                       </button>
@@ -817,13 +817,13 @@ export default function CategoryManager() {
                 </div>
 
                 {/* Budget section */}
-                <div className="border-t border-gray-200/50 pt-4">
+                <div className="border-t border-stone-200/50 pt-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600 font-medium">Orçamento mensal</span>
+                    <span className="text-sm text-stone-600 font-medium">Orçamento mensal</span>
                     {!isEditing && (
                       <button
                         onClick={() => handleStartEditBudget(category.category_id)}
-                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                        className="text-xs text-stone-500 hover:text-stone-700 flex items-center gap-1"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -839,7 +839,7 @@ export default function CategoryManager() {
                         <select
                           value={budgetType}
                           onChange={(e) => setBudgetType(e.target.value as 'fixed' | 'calculated' | 'maior')}
-                          className="px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm bg-white"
+                          className="px-2 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wheat-500 text-sm bg-white"
                           disabled={savingBudget}
                         >
                           <option value="fixed">Fixo</option>
@@ -847,7 +847,7 @@ export default function CategoryManager() {
                           <option value="maior">Maior</option>
                         </select>
                         <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">R$</span>
                           <input
                             ref={budgetInputRef}
                             type="text"
@@ -857,14 +857,14 @@ export default function CategoryManager() {
                               if (e.key === 'Enter') handleSaveBudget(category.category_id);
                               if (e.key === 'Escape') handleCancelEditBudget();
                             }}
-                            className={`w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm ${budgetType !== 'fixed' ? 'bg-gray-50' : ''}`}
+                            className={`w-full pl-9 pr-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wheat-500 text-sm ${budgetType !== 'fixed' ? 'bg-stone-50' : ''}`}
                             placeholder={budgetType === 'fixed' ? '0,00' : '(opcional)'}
                             disabled={savingBudget}
                           />
                         </div>
                       </div>
                       {budgetType !== 'fixed' && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-stone-500">
                           💡 Para orçamentos calculados, o valor será baseado nas entradas planejadas
                         </p>
                       )}
@@ -872,7 +872,7 @@ export default function CategoryManager() {
                         <button
                           onClick={() => handleSaveBudget(category.category_id)}
                           disabled={savingBudget}
-                          className="flex-1 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
+                          className="flex-1 py-2 bg-sage-500 text-white rounded-lg hover:bg-sage-600 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -882,7 +882,7 @@ export default function CategoryManager() {
                         <button
                           onClick={handleCancelEditBudget}
                           disabled={savingBudget}
-                          className="flex-1 py-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
+                          className="flex-1 py-2 bg-stone-200 text-stone-600 rounded-lg hover:bg-stone-300 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -893,13 +893,13 @@ export default function CategoryManager() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <div className="text-xl font-bold" style={colors.textStyle}>
+                      <div className="text-xl font-bold text-stone-900">
                         {budget ? formatCurrency(budget.PlannedAmount) : (
-                          <span className="text-gray-400 text-base font-normal">Não definido</span>
+                          <span className="text-stone-400 text-base font-normal">Não definido</span>
                         )}
                       </div>
                       {budget && (
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                        <span className="text-xs px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full">
                           {budgetTypeLabels[budget.BudgetType] || budget.BudgetType}
                         </span>
                       )}
@@ -916,24 +916,24 @@ export default function CategoryManager() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          <div
+            className="absolute inset-0 bg-stone-900/50 backdrop-blur-sm"
             onClick={() => setShowCreateModal(false)}
           />
-          
+
           {/* Modal */}
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-5">
+            <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
               <h3 className="text-xl font-bold text-white">Nova Categoria</h3>
-              <p className="text-emerald-100 text-sm mt-1">Crie uma categoria personalizada</p>
+              <p className="text-wheat-100 text-sm mt-1">Crie uma categoria personalizada</p>
             </div>
 
             {/* Content */}
             <div className="p-6 space-y-5">
               {/* Icon Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-stone-700 mb-3">
                   Escolha um ícone
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -944,8 +944,8 @@ export default function CategoryManager() {
                       onClick={() => setNewCategoryIcon(icon)}
                       className={`w-11 h-11 rounded-xl text-xl flex items-center justify-center transition-all duration-200 ${
                         newCategoryIcon === icon
-                          ? 'bg-emerald-500 text-white shadow-lg scale-110'
-                          : 'bg-gray-100 hover:bg-gray-200'
+                          ? 'bg-wheat-500 text-white shadow-lg scale-110'
+                          : 'bg-stone-100 hover:bg-stone-200'
                       }`}
                     >
                       {icon}
@@ -956,7 +956,7 @@ export default function CategoryManager() {
 
               {/* Name Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Nome da categoria
                 </label>
                 <div className="relative">
@@ -968,7 +968,7 @@ export default function CategoryManager() {
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     placeholder="Ex: Academia, Streaming..."
-                    className="w-full pl-14 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900"
+                    className="w-full pl-14 pr-4 py-3 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-wheat-500 focus:border-transparent text-stone-900"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && newCategoryName.trim()) {
                         handleCreateCategory();
@@ -981,7 +981,7 @@ export default function CategoryManager() {
 
               {/* Category Type Toggle */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Tipo de categoria
                 </label>
                 <div className="flex gap-3">
@@ -990,8 +990,8 @@ export default function CategoryManager() {
                     onClick={() => setNewCategoryType('expense')}
                     className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
                       newCategoryType === 'expense'
-                        ? 'border-red-500 bg-red-50 text-red-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                        ? 'border-rust-500 bg-rust-50 text-rust-700'
+                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
                     }`}
                   >
                     <span>📉</span>
@@ -1002,8 +1002,8 @@ export default function CategoryManager() {
                     onClick={() => setNewCategoryType('income')}
                     className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
                       newCategoryType === 'income'
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                        ? 'border-sage-500 bg-sage-50 text-sage-700'
+                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
                     }`}
                   >
                     <span>📈</span>
@@ -1014,7 +1014,7 @@ export default function CategoryManager() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3">
+            <div className="px-6 py-4 bg-stone-50 flex items-center justify-end gap-3">
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -1022,7 +1022,7 @@ export default function CategoryManager() {
                   setNewCategoryIcon('📁');
                   setNewCategoryType('expense');
                 }}
-                className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-200 rounded-xl transition-colors"
+                className="px-5 py-2.5 text-stone-700 font-medium hover:bg-stone-200 rounded-xl transition-colors"
                 disabled={creating}
               >
                 Cancelar
@@ -1030,7 +1030,7 @@ export default function CategoryManager() {
               <button
                 onClick={handleCreateCategory}
                 disabled={creating || !newCategoryName.trim()}
-                className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+                className="px-5 py-2.5 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white font-semibold rounded-xl shadow-lg shadow-wheat-500/25 hover:shadow-wheat-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
               >
                 {creating ? (
                   <>
@@ -1057,7 +1057,7 @@ export default function CategoryManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-stone-900/50 backdrop-blur-sm"
             onClick={handleCloseEditModal}
           />
 
@@ -1069,16 +1069,16 @@ export default function CategoryManager() {
             }}
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 px-6 py-5">
+            <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
               <h3 className="text-xl font-bold text-white">Editar Categoria</h3>
-              <p className="text-blue-100 text-sm mt-1">Altere o nome e ícone da categoria</p>
+              <p className="text-wheat-100 text-sm mt-1">Altere o nome e ícone da categoria</p>
             </div>
 
             {/* Content */}
             <div className="p-6 space-y-5">
               {/* Icon Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-stone-700 mb-3">
                   Escolha um ícone
                 </label>
                 <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
@@ -1089,8 +1089,8 @@ export default function CategoryManager() {
                       onClick={() => setEditIcon(icon)}
                       className={`w-11 h-11 rounded-xl text-xl flex items-center justify-center transition-all duration-200 ${
                         editIcon === icon
-                          ? 'bg-blue-500 text-white shadow-lg scale-110'
-                          : 'bg-gray-100 hover:bg-gray-200'
+                          ? 'bg-wheat-500 text-white shadow-lg scale-110'
+                          : 'bg-stone-100 hover:bg-stone-200'
                       }`}
                     >
                       {icon}
@@ -1101,7 +1101,7 @@ export default function CategoryManager() {
 
               {/* Name Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Nome da categoria
                 </label>
                 <div className="relative">
@@ -1113,7 +1113,7 @@ export default function CategoryManager() {
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     placeholder="Ex: Academia, Streaming..."
-                    className="w-full pl-14 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    className="w-full pl-14 pr-4 py-3 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-wheat-500 focus:border-transparent text-stone-900"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && editName.trim()) {
                         handleSaveDetails();
@@ -1129,10 +1129,10 @@ export default function CategoryManager() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3">
+            <div className="px-6 py-4 bg-stone-50 flex items-center justify-end gap-3">
               <button
                 onClick={handleCloseEditModal}
-                className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-200 rounded-xl transition-colors"
+                className="px-5 py-2.5 text-stone-700 font-medium hover:bg-stone-200 rounded-xl transition-colors"
                 disabled={savingDetails}
               >
                 Cancelar
@@ -1140,7 +1140,7 @@ export default function CategoryManager() {
               <button
                 onClick={handleSaveDetails}
                 disabled={savingDetails || !editName.trim()}
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+                className="px-5 py-2.5 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white font-semibold rounded-xl shadow-lg shadow-wheat-500/25 hover:shadow-wheat-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
               >
                 {savingDetails ? (
                   <>

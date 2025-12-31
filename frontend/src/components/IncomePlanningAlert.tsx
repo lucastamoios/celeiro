@@ -52,15 +52,15 @@ export default function IncomePlanningAlert({ month, year }: IncomePlanningAlert
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow p-4 animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-4 bg-stone-200 rounded w-3/4"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-sm text-red-800">⚠️ {error}</p>
+      <div className="bg-rust-50 border border-rust-200 rounded-lg p-4">
+        <p className="text-sm text-rust-800">⚠️ {error}</p>
       </div>
     );
   }
@@ -84,19 +84,19 @@ export default function IncomePlanningAlert({ month, year }: IncomePlanningAlert
   // Don't show alert if status is OK
   if (report.status === 'OK') {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+      <div className="bg-sage-50 border border-sage-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
             ✅
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-semibold text-green-900 mb-1">
+            <h4 className="text-sm font-semibold text-sage-900 mb-1">
               Orçamento bem alocado
             </h4>
-            <p className="text-sm text-green-700">
+            <p className="text-sm text-sage-700">
               {report.message || 'Seu orçamento está bem distribuído'}
             </p>
-            <div className="mt-2 grid grid-cols-3 gap-4 text-xs text-green-600">
+            <div className="mt-2 grid grid-cols-3 gap-4 text-xs text-sage-600">
               <div>
                 <span className="font-medium">Renda: </span>
                 {formatCurrency(report.totalIncome || '0')}
@@ -118,40 +118,40 @@ export default function IncomePlanningAlert({ month, year }: IncomePlanningAlert
 
   // Show warning alert
   return (
-    <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4">
+    <div className="bg-terra-50 border border-terra-300 rounded-lg p-4">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
           ⚠️
         </div>
         <div className="flex-1">
-          <h4 className="text-sm font-semibold text-yellow-900 mb-1">
+          <h4 className="text-sm font-semibold text-terra-900 mb-1">
             Atenção: Renda não totalmente alocada
           </h4>
-          <p className="text-sm text-yellow-700 mb-2">
+          <p className="text-sm text-terra-700 mb-2">
             {report.message || 'Há renda não alocada no seu orçamento'}
           </p>
 
           {/* Details Grid */}
           <div className="bg-white rounded-md p-3 space-y-2">
             <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Renda Total ({getMonthName(month)} {year}):</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(report.totalIncome || '0')}</span>
+              <span className="text-stone-600">Renda Total ({getMonthName(month)} {year}):</span>
+              <span className="font-semibold text-stone-900">{formatCurrency(report.totalIncome || '0')}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Total Planejado:</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(report.totalPlanned || '0')}</span>
+              <span className="text-stone-600">Total Planejado:</span>
+              <span className="font-semibold text-stone-900">{formatCurrency(report.totalPlanned || '0')}</span>
             </div>
-            <div className="h-px bg-gray-200"></div>
+            <div className="h-px bg-stone-200"></div>
             <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Não Alocado:</span>
-              <span className="font-semibold text-yellow-700">
+              <span className="text-stone-600">Não Alocado:</span>
+              <span className="font-semibold text-terra-700">
                 {formatCurrency(report.unallocated || '0')} ({safeNumber(report.unallocatedPercent).toFixed(2)}%)
               </span>
             </div>
           </div>
 
           {/* Action hint */}
-          <p className="mt-3 text-xs text-yellow-600">
+          <p className="mt-3 text-xs text-terra-600">
             💡 Dica: Aloque pelo menos 99.75% da sua renda em categorias para manter um orçamento de base zero efetivo.
           </p>
         </div>

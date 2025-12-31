@@ -36,90 +36,72 @@ function AppContent() {
     return <Login />;
   }
 
+  const navButtonClass = (view: View) =>
+    `px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+      currentView === view
+        ? 'bg-wheat-100 text-wheat-700'
+        : 'text-stone-600 hover:bg-stone-100'
+    }`;
+
   return (
-    <div>
+    <div className="min-h-screen bg-stone-50">
       {/* Navigation Bar */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <nav className="bg-white shadow-warm-sm border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-8">
               <button
                 onClick={() => setCurrentView('dashboard')}
-                className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
+                className="text-xl font-bold text-stone-900 hover:text-wheat-600 transition-colors"
               >
                 Celeiro 🌾
               </button>
-              <div className="flex space-x-4">
+              <div className="flex space-x-2">
                 <button
                   onClick={() => setCurrentView('transactions')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'transactions'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
+                  className={navButtonClass('transactions')}
                 >
                   💳 Transações
                 </button>
                 <button
                   onClick={() => setCurrentView('budgets')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'budgets'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
+                  className={navButtonClass('budgets')}
                 >
                   📊 Orçamentos
                 </button>
                 <button
                   onClick={() => setCurrentView('patterns')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'patterns'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
+                  className={navButtonClass('patterns')}
                 >
                   🔄 Padrões
                 </button>
                 <button
                   onClick={() => setCurrentView('categories')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'categories'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
+                  className={navButtonClass('categories')}
                 >
                   📂 Categorias
                 </button>
                 <button
                   onClick={() => setCurrentView('tags')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'tags'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
+                  className={navButtonClass('tags')}
                 >
                   🏷️ Tags
                 </button>
                 <button
                   onClick={() => setCurrentView('goals')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'goals'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
+                  className={navButtonClass('goals')}
                 >
                   🎯 Metas
                 </button>
                 {currentView === 'budgets' && (
                   <button
                     onClick={() => {
-                      // Scroll to current month budget card
                       const currentMonthElement = document.getElementById('current-month-budget');
                       if (currentMonthElement) {
                         currentMonthElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     }}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-wheat-700 bg-wheat-100 border border-wheat-300 rounded-lg hover:bg-wheat-200 transition-colors"
                   >
                     📅 Este mês
                   </button>
@@ -128,7 +110,7 @@ function AppContent() {
             </div>
             <button
               onClick={logout}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+              className="btn-secondary"
             >
               Sair
             </button>

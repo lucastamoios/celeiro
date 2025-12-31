@@ -99,7 +99,7 @@ export default function BudgetItemForm({
       <div>
         <label
           htmlFor="category"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-stone-700 mb-1"
         >
           Category *
         </label>
@@ -108,8 +108,8 @@ export default function BudgetItemForm({
           value={categoryId}
           onChange={handleCategoryChange}
           disabled={isLoading}
-          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-            errors.categoryId ? 'border-red-500' : 'border-gray-300'
+          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+            errors.categoryId ? 'border-rust-500' : 'border-stone-300'
           }`}
         >
           <option value="">Select a category</option>
@@ -120,7 +120,7 @@ export default function BudgetItemForm({
           ))}
         </select>
         {errors.categoryId && (
-          <p className="mt-1 text-sm text-red-600">{errors.categoryId}</p>
+          <p className="mt-1 text-sm text-rust-600">{errors.categoryId}</p>
         )}
       </div>
 
@@ -128,12 +128,12 @@ export default function BudgetItemForm({
       <div>
         <label
           htmlFor="amount"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-stone-700 mb-1"
         >
           Planned Amount *
         </label>
         <div className="relative">
-          <span className="absolute left-3 top-2 text-gray-500">R$</span>
+          <span className="absolute left-3 top-2 text-stone-500">R$</span>
           <input
             id="amount"
             type="text"
@@ -141,18 +141,18 @@ export default function BudgetItemForm({
             onChange={handleAmountChange}
             disabled={isLoading}
             placeholder="0.00"
-            className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-              errors.amount ? 'border-red-500' : 'border-gray-300'
+            className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
+              errors.amount ? 'border-rust-500' : 'border-stone-300'
             }`}
           />
         </div>
         {amount && !errors.amount && (
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-stone-600">
             Preview: {formatCurrencyPreview(amount)}
           </p>
         )}
         {errors.amount && (
-          <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
+          <p className="mt-1 text-sm text-rust-600">{errors.amount}</p>
         )}
       </div>
 
@@ -162,14 +162,14 @@ export default function BudgetItemForm({
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isLoading}
-          className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           {isLoading ? 'Saving...' : initialItem ? 'Update Item' : 'Add Item'}
         </button>

@@ -94,13 +94,13 @@ export default function CategoryBudgetCard({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'critical':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'bg-rust-100 text-rust-700 border-rust-300';
       case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return 'bg-terra-100 text-terra-700 border-terra-300';
       case 'on_track':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-sage-100 text-sage-700 border-sage-300';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-stone-100 text-stone-700 border-stone-300';
     }
   };
 
@@ -118,10 +118,10 @@ export default function CategoryBudgetCard({
   };
 
   const getVarianceColor = () => {
-    if (variancePercent > VARIANCE_THRESHOLDS.MAJOR) return 'text-red-600 font-semibold';
-    if (variancePercent > VARIANCE_THRESHOLDS.MINOR) return 'text-yellow-600';
-    if (variancePercent < 0) return 'text-green-600';
-    return 'text-gray-600';
+    if (variancePercent > VARIANCE_THRESHOLDS.MAJOR) return 'text-rust-600 font-semibold';
+    if (variancePercent > VARIANCE_THRESHOLDS.MINOR) return 'text-terra-600';
+    if (variancePercent < 0) return 'text-sage-600';
+    return 'text-stone-600';
   };
 
   const getBudgetTypeLabel = (type: string) => {
@@ -201,32 +201,32 @@ export default function CategoryBudgetCard({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border overflow-hidden transition-shadow ${
-      entryStats.missed > 0 ? 'border-red-200' : 'border-gray-200'
-    } hover:shadow-md`}>
+    <div className={`bg-white rounded-lg shadow-warm-sm border overflow-hidden transition-shadow ${
+      entryStats.missed > 0 ? 'border-rust-200' : 'border-stone-200'
+    } hover:shadow-warm-md`}>
       {/* Main Card Content */}
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900">{categoryName}</h3>
+            <h3 className="text-lg font-semibold text-stone-900">{categoryName}</h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
+              <span className="text-xs px-2 py-1 rounded bg-wheat-100 text-wheat-700">
                 {getBudgetTypeLabel(budget.BudgetType)}
               </span>
               {budget.IsConsolidated && (
-                <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800">
-                  Consolidated
+                <span className="text-xs px-2 py-1 rounded bg-sage-100 text-sage-700">
+                  Consolidado
                 </span>
               )}
               {/* Entry status indicators */}
               {entryStats.total > 0 && (
-                <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
+                <span className="text-xs px-2 py-1 rounded bg-stone-100 text-stone-600">
                   {entryStats.total} {entryStats.total === 1 ? 'entrada' : 'entradas'}
                 </span>
               )}
               {entryStats.missed > 0 && (
-                <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-700">
+                <span className="text-xs px-2 py-1 rounded bg-rust-100 text-rust-700">
                   ⚠️ {entryStats.missed} atrasada{entryStats.missed > 1 ? 's' : ''}
                 </span>
               )}
@@ -238,12 +238,12 @@ export default function CategoryBudgetCard({
           <div className="relative">
             <button
               onClick={() => setShowActions(!showActions)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Actions"
+              className="p-2 hover:bg-stone-100 rounded-full transition-colors"
+              aria-label="Ações"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-gray-600"
+                className="h-5 w-5 text-stone-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -258,16 +258,16 @@ export default function CategoryBudgetCard({
             </button>
 
             {showActions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10">
                 {onEdit && (
                   <button
                     onClick={() => {
                       onEdit(budget);
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
+                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
                   >
-                    Edit Budget
+                    Editar orçamento
                   </button>
                 )}
                 {onConsolidate && canConsolidate && (
@@ -276,7 +276,7 @@ export default function CategoryBudgetCard({
                       onConsolidate(budget.CategoryBudgetID);
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
+                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
                   >
                     Consolidar
                   </button>
@@ -289,7 +289,7 @@ export default function CategoryBudgetCard({
                       }
                       setShowActions(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600"
+                    className="w-full text-left px-4 py-2 hover:bg-rust-50 text-rust-600"
                   >
                     Excluir
                   </button>
@@ -303,25 +303,25 @@ export default function CategoryBudgetCard({
       {/* Budget Details */}
       <div className="grid grid-cols-2 gap-4 mb-3">
         <div>
-          <div className="text-sm text-gray-600">Planned</div>
-          <div className="text-lg font-semibold text-gray-900">
+          <div className="text-sm text-stone-600">Planejado</div>
+          <div className="text-lg font-semibold text-stone-900 tabular-nums">
             {formatCurrency(budget.PlannedAmount)}
           </div>
         </div>
         <div>
-          <div className="text-sm text-gray-600">Actual</div>
-          <div className="text-lg font-semibold text-gray-900">
+          <div className="text-sm text-stone-600">Gasto</div>
+          <div className="text-lg font-semibold text-stone-900 tabular-nums">
             {formatCurrency(actualSpent)}
           </div>
         </div>
       </div>
 
       {/* Variance */}
-      <div className="border-t border-gray-200 pt-3">
+      <div className="border-t border-stone-200 pt-3">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm text-gray-600">Variance</div>
-            <div className={`text-lg font-medium ${getVarianceColor()}`}>
+            <div className="text-sm text-stone-600">Variação</div>
+            <div className={`text-lg font-medium tabular-nums ${getVarianceColor()}`}>
               {variance >= 0 ? '+' : ''}
               {formatCurrency(variance.toFixed(2))}
               <span className="text-sm ml-1">
@@ -339,21 +339,21 @@ export default function CategoryBudgetCard({
 
         {/* Variance Warning */}
         {varianceStatus === 'warning' && (
-          <div className="mt-2 text-xs text-yellow-700 bg-yellow-50 px-3 py-2 rounded border border-yellow-200">
-            <strong>⚠️ Minor variance:</strong> Spending is {variancePercent.toFixed(1)}% over budget
+          <div className="mt-2 text-xs text-terra-700 bg-terra-50 px-3 py-2 rounded border border-terra-200">
+            <strong>⚠️ Atenção:</strong> Gasto {variancePercent.toFixed(1)}% acima do planejado
           </div>
         )}
         {varianceStatus === 'critical' && (
-          <div className="mt-2 text-xs text-red-700 bg-red-50 px-3 py-2 rounded border border-red-200">
-            <strong>🚨 Critical variance:</strong> Spending is {variancePercent.toFixed(1)}% over budget
+          <div className="mt-2 text-xs text-rust-700 bg-rust-50 px-3 py-2 rounded border border-rust-200">
+            <strong>🚨 Crítico:</strong> Gasto {variancePercent.toFixed(1)}% acima do planejado
           </div>
         )}
       </div>
 
       {/* Consolidated Info */}
       {budget.IsConsolidated && budget.ConsolidatedAt && (
-        <div className="mt-3 text-xs text-gray-500 border-t border-gray-200 pt-3">
-          Consolidated on {new Date(budget.ConsolidatedAt).toLocaleDateString('pt-BR')}
+        <div className="mt-3 text-xs text-stone-500 border-t border-stone-200 pt-3">
+          Consolidado em {new Date(budget.ConsolidatedAt).toLocaleDateString('pt-BR')}
         </div>
       )}
       </div>
@@ -362,7 +362,7 @@ export default function CategoryBudgetCard({
       {entryStats.total > 0 && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full px-4 py-2 bg-gray-50 hover:bg-gray-100 border-t border-gray-200 flex items-center justify-center gap-2 text-sm text-gray-600 transition-colors"
+          className="w-full px-4 py-2 bg-stone-50 hover:bg-stone-100 border-t border-stone-200 flex items-center justify-center gap-2 text-sm text-stone-600 transition-colors"
         >
           <svg
             className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -375,51 +375,51 @@ export default function CategoryBudgetCard({
           {isExpanded ? 'Ocultar' : 'Ver'} {entryStats.total} {entryStats.total === 1 ? 'entrada planejada' : 'entradas planejadas'}
           {/* Mini status dots */}
           <div className="flex items-center gap-1 ml-2">
-            {entryStats.matched > 0 && <span className="w-2 h-2 rounded-full bg-green-500" title={`${entryStats.matched} recebidas`} />}
-            {entryStats.pending > 0 && <span className="w-2 h-2 rounded-full bg-yellow-500" title={`${entryStats.pending} pendentes`} />}
-            {entryStats.missed > 0 && <span className="w-2 h-2 rounded-full bg-red-500" title={`${entryStats.missed} atrasadas`} />}
-            {entryStats.dismissed > 0 && <span className="w-2 h-2 rounded-full bg-gray-400" title={`${entryStats.dismissed} dispensadas`} />}
+            {entryStats.matched > 0 && <span className="w-2 h-2 rounded-full bg-sage-500" title={`${entryStats.matched} recebidas`} />}
+            {entryStats.pending > 0 && <span className="w-2 h-2 rounded-full bg-terra-500" title={`${entryStats.pending} pendentes`} />}
+            {entryStats.missed > 0 && <span className="w-2 h-2 rounded-full bg-rust-500" title={`${entryStats.missed} atrasadas`} />}
+            {entryStats.dismissed > 0 && <span className="w-2 h-2 rounded-full bg-stone-400" title={`${entryStats.dismissed} dispensadas`} />}
           </div>
         </button>
       )}
 
       {/* Expanded Entries Section */}
       {isExpanded && entryStats.total > 0 && (
-        <div className="border-t border-gray-200 bg-gray-50 p-3 space-y-2">
+        <div className="border-t border-stone-200 bg-stone-50 p-3 space-y-2">
           {plannedEntries.map((entry) => (
             <div
               key={entry.PlannedEntryID}
-              className={`bg-white rounded-lg border-l-4 p-3 shadow-sm ${
-                entry.Status === 'matched' ? 'border-green-500' :
-                entry.Status === 'pending' ? 'border-yellow-500' :
-                entry.Status === 'missed' ? 'border-red-500' :
-                'border-gray-400'
+              className={`bg-white rounded-lg border-l-4 p-3 shadow-warm-sm ${
+                entry.Status === 'matched' ? 'border-sage-500' :
+                entry.Status === 'pending' ? 'border-terra-500' :
+                entry.Status === 'missed' ? 'border-rust-500' :
+                'border-stone-400'
               }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-gray-900 truncate">{entry.Description}</span>
+                    <span className="font-medium text-stone-900 truncate">{entry.Description}</span>
                     <span className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-1 ${getStatusBadgeClasses(entry.Status)}`}>
                       {getStatusIcon(entry.Status)}
                       {getStatusLabel(entry.Status)}
                     </span>
                     {entry.IsRecurrent && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">🔄</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-wheat-100 text-wheat-700">🔄</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
-                    <span>{getEntryAmountRange(entry)}</span>
+                  <div className="flex items-center gap-3 mt-1 text-sm text-stone-600">
+                    <span className="tabular-nums">{getEntryAmountRange(entry)}</span>
                     {getExpectedDayRange(entry) && (
                       <>
-                        <span className="text-gray-300">•</span>
+                        <span className="text-stone-300">•</span>
                         <span>{getExpectedDayRange(entry)}</span>
                       </>
                     )}
                     {entry.Status === 'matched' && entry.MatchedAmount && (
                       <>
-                        <span className="text-gray-300">•</span>
-                        <span className="text-green-600 font-medium">Recebido: {formatCurrency(entry.MatchedAmount)}</span>
+                        <span className="text-stone-300">•</span>
+                        <span className="text-sage-600 font-medium tabular-nums">Recebido: {formatCurrency(entry.MatchedAmount)}</span>
                       </>
                     )}
                   </div>
@@ -432,22 +432,22 @@ export default function CategoryBudgetCard({
                       e.stopPropagation();
                       setExpandedEntryActions(expandedEntryActions === entry.PlannedEntryID ? null : entry.PlannedEntryID);
                     }}
-                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                    className="p-1 hover:bg-stone-100 rounded-full transition-colors"
                   >
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                     </svg>
                   </button>
 
                   {expandedEntryActions === entry.PlannedEntryID && (
-                    <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                    <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-20">
                       {(entry.Status === 'pending' || entry.Status === 'missed') && onMatchEntry && (
                         <button
                           onClick={() => {
                             onMatchEntry(entry.PlannedEntryID);
                             setExpandedEntryActions(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-700"
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
                           Vincular
                         </button>
@@ -458,7 +458,7 @@ export default function CategoryBudgetCard({
                             onUnmatchEntry(entry.PlannedEntryID);
                             setExpandedEntryActions(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-700"
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
                           Desvincular
                         </button>
@@ -470,7 +470,7 @@ export default function CategoryBudgetCard({
                             setShowDismissModal(true);
                             setExpandedEntryActions(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-700"
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
                           Dispensar
                         </button>
@@ -481,7 +481,7 @@ export default function CategoryBudgetCard({
                             onUndismissEntry(entry.PlannedEntryID);
                             setExpandedEntryActions(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-700"
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
                           Reativar
                         </button>
@@ -492,7 +492,7 @@ export default function CategoryBudgetCard({
                             onEditEntry(entry);
                             setExpandedEntryActions(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-700"
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
                           Editar
                         </button>
@@ -505,7 +505,7 @@ export default function CategoryBudgetCard({
                             }
                             setExpandedEntryActions(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-red-50 text-red-600"
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-rust-50 text-rust-600"
                         >
                           Excluir
                         </button>
@@ -522,22 +522,22 @@ export default function CategoryBudgetCard({
       {/* Dismiss Modal */}
       {showDismissModal && month && year && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
           onClick={handleBackdropClick}
         >
-          <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-[90vw]">
-            <h3 className="text-lg font-semibold mb-4">Dispensar Entrada</h3>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="bg-white rounded-2xl shadow-warm-xl p-6 w-96 max-w-[90vw]">
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Dispensar Entrada</h3>
+            <p className="text-sm text-stone-600 mb-4">
               Dispensar esta entrada para {new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}?
             </p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-stone-700 mb-1">
                 Motivo (opcional)
               </label>
               <textarea
                 value={dismissReason}
                 onChange={(e) => setDismissReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input"
                 rows={3}
                 placeholder="Ex: Não houve cobrança este mês"
               />
@@ -549,13 +549,13 @@ export default function CategoryBudgetCard({
                   setDismissReason('');
                   setDismissingEntryId(null);
                 }}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                className="btn-secondary"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDismiss}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                className="btn-primary"
               >
                 Dispensar
               </button>

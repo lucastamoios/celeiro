@@ -120,21 +120,21 @@ export default function MonthlyBudgetCard({
   return (
     <div
       id={isCurrent ? 'current-month-budget' : undefined}
-      className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden ${
-        !hideHeader && isCurrent ? 'ring-2 ring-blue-500' : ''
+      className={`bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden ${
+        !hideHeader && isCurrent ? 'ring-2 ring-wheat-500' : ''
       }`}
     >
       {/* Header - Clickable to expand (hidden when hideHeader is true) */}
       {!hideHeader && (
         <div
-          className={`p-6 cursor-pointer hover:brightness-95 transition-all ${isCurrent ? 'bg-gradient-to-r from-blue-50 to-indigo-50' : 'bg-gray-50'}`}
+          className={`p-6 cursor-pointer hover:brightness-95 transition-all ${isCurrent ? 'bg-gradient-to-r from-wheat-50 to-wheat-100' : 'bg-stone-50'}`}
           onClick={onToggleExpand}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {/* Expand/Collapse Arrow */}
               <svg
-                className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                className={`w-5 h-5 text-stone-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -142,13 +142,13 @@ export default function MonthlyBudgetCard({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 capitalize">
+                <h2 className="text-2xl font-bold text-stone-900 capitalize">
                   {getMonthName(month, year)}
                 </h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-stone-600 mt-1">
                   {budgetArray.length} {budgetArray.length === 1 ? 'categoria' : 'categorias'}
                   {plannedEntries.length > 0 && (
-                    <span className="ml-2 text-blue-600">
+                    <span className="ml-2 text-wheat-600">
                       • {plannedEntries.length} {plannedEntries.length === 1 ? 'entrada planejada' : 'entradas planejadas'}
                     </span>
                   )}
@@ -157,23 +157,23 @@ export default function MonthlyBudgetCard({
             </div>
             <div className="flex items-center gap-3">
               {isCurrent && (
-                <span className="px-3 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full">
+                <span className="px-3 py-1 text-xs font-semibold text-wheat-700 bg-wheat-100 rounded-full">
                   📅 MÊS ATUAL
                 </span>
               )}
               {isConsolidated && (
-                <span className="px-3 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">
+                <span className="px-3 py-1 text-xs font-semibold text-sage-700 bg-sage-100 rounded-full">
                   ✓ Consolidado
                 </span>
               )}
               {!isConsolidated && !isCurrent && (
-                <span className="px-3 py-1 text-xs font-semibold text-gray-600 bg-gray-100 rounded-full">
+                <span className="px-3 py-1 text-xs font-semibold text-stone-600 bg-stone-100 rounded-full">
                   Em progresso
                 </span>
               )}
               {/* Planned entries status indicators */}
               {plannedEntries.some(e => e.Status === 'missed') && (
-                <span className="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full">
+                <span className="px-2 py-1 text-xs font-semibold text-rust-700 bg-rust-100 rounded-full">
                   ⚠️ Atrasado
                 </span>
               )}
@@ -184,7 +184,7 @@ export default function MonthlyBudgetCard({
                     e.stopPropagation();
                     setShowDeleteConfirm(true);
                   }}
-                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                  className="p-2 text-stone-400 hover:text-rust-500 hover:bg-rust-50 rounded-full transition-colors"
                   title="Excluir este mês"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,21 +197,21 @@ export default function MonthlyBudgetCard({
 
           {/* Summary Stats */}
           <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="bg-white rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-1">Planejado</p>
-              <p className="text-lg font-bold text-gray-900">
+            <div className="bg-white rounded-lg p-4 shadow-warm-sm">
+              <p className="text-xs text-stone-600 mb-1">Planejado</p>
+              <p className="text-lg font-bold text-stone-900 tabular-nums">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPlanned)}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-1">Gasto</p>
-              <p className="text-lg font-bold text-gray-900">
+            <div className="bg-white rounded-lg p-4 shadow-warm-sm">
+              <p className="text-xs text-stone-600 mb-1">Gasto</p>
+              <p className="text-lg font-bold text-stone-900 tabular-nums">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSpent)}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-1">Variação</p>
-              <p className={`text-lg font-bold ${totalVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="bg-white rounded-lg p-4 shadow-warm-sm">
+              <p className="text-xs text-stone-600 mb-1">Variação</p>
+              <p className={`text-lg font-bold tabular-nums ${totalVariance >= 0 ? 'text-sage-600' : 'text-rust-600'}`}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalVariance)}
               </p>
             </div>
@@ -229,7 +229,7 @@ export default function MonthlyBudgetCard({
       {/* Category Budget Cards */}
       <div className="p-6">
         {budgetArray.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-stone-500">
             <div className="text-4xl mb-3">📊</div>
             <p className="mb-4">Nenhum orçamento cadastrado para este mês</p>
             {hasPreviousMonthBudgets && onCopyFromPreviousMonth && (
@@ -238,7 +238,7 @@ export default function MonthlyBudgetCard({
                   e.stopPropagation();
                   onCopyFromPreviousMonth();
                 }}
-                className="px-4 py-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                className="px-4 py-2 text-sm text-wheat-700 bg-wheat-50 border border-wheat-200 rounded-lg hover:bg-wheat-100 transition-colors"
               >
                 📋 Copiar orçamentos do mês anterior
               </button>
@@ -284,18 +284,18 @@ export default function MonthlyBudgetCard({
 
       {/* Orphan Entries Section - Only show entries without a budget category */}
       {(hideHeader || isExpanded) && orphanEntries.length > 0 && (
-        <div className="border-t border-gray-200 p-6 bg-amber-50">
+        <div className="border-t border-stone-200 p-6 bg-terra-50">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="text-xl">📋</span>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-stone-900">
                 Entradas sem Orçamento
               </h3>
-              <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700">
+              <span className="text-xs px-2 py-1 rounded bg-terra-100 text-terra-700">
                 {orphanEntries.length} {orphanEntries.length === 1 ? 'entrada' : 'entradas'}
               </span>
             </div>
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-terra-700">
               Crie um orçamento para estas categorias para organizá-las melhor
             </p>
           </div>
@@ -303,10 +303,10 @@ export default function MonthlyBudgetCard({
           {plannedEntriesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-lg shadow p-4 animate-pulse">
-                  <div className="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                  <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+                <div key={i} className="bg-white rounded-lg shadow-warm-sm p-4 animate-pulse">
+                  <div className="h-5 bg-stone-200 rounded w-3/4 mb-3"></div>
+                  <div className="h-4 bg-stone-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-6 bg-stone-200 rounded w-1/3"></div>
                 </div>
               ))}
             </div>
@@ -338,24 +338,24 @@ export default function MonthlyBudgetCard({
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
           onClick={handleBackdropClick}
         >
-          <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-[90vw]">
+          <div className="bg-white rounded-2xl shadow-warm-xl p-6 w-96 max-w-[90vw]">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 rounded-full bg-rust-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-rust-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Excluir orçamentos</h3>
+              <h3 className="text-lg font-semibold text-stone-900">Excluir orçamentos</h3>
             </div>
-            <div className="text-sm text-gray-600 mb-6">
+            <div className="text-sm text-stone-600 mb-6">
               <p>Tem certeza que deseja excluir os dados de <strong>{getMonthName(month, year)}</strong>?</p>
               {(budgetArray.length > 0 || plannedEntries.length > 0) && (
                 <div className="mt-2">
                   <p>Serão removidos:</p>
-                  <ul className="list-disc list-inside mt-1 text-gray-500">
+                  <ul className="list-disc list-inside mt-1 text-stone-500">
                     {budgetArray.length > 0 && (
                       <li>{budgetArray.length} {budgetArray.length === 1 ? 'orçamento' : 'orçamentos'}</li>
                     )}
@@ -365,20 +365,20 @@ export default function MonthlyBudgetCard({
                   </ul>
                 </div>
               )}
-              <p className="text-red-600 mt-2">Esta ação não pode ser desfeita.</p>
+              <p className="text-rust-600 mt-2">Esta ação não pode ser desfeita.</p>
             </div>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-danger disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isDeleting ? 'Excluindo...' : 'Excluir'}
               </button>

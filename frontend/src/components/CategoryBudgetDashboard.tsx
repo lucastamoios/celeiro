@@ -1030,24 +1030,24 @@ export default function CategoryBudgetDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 animate-pulse">
+      <div className="p-8 animate-pulse">
         <div className="max-w-7xl mx-auto">
           {/* Header skeleton */}
           <div className="mb-8">
-            <div className="h-9 bg-gray-200 rounded w-1/3 mb-2"></div>
-            <div className="h-5 bg-gray-200 rounded w-2/3"></div>
+            <div className="h-9 bg-stone-200 rounded w-1/3 mb-2"></div>
+            <div className="h-5 bg-stone-200 rounded w-2/3"></div>
           </div>
 
           {/* Month/Year selector skeleton */}
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="card mb-6">
             <div className="flex items-center justify-between">
               <div className="flex gap-4">
-                <div className="h-10 bg-gray-200 rounded w-32"></div>
-                <div className="h-10 bg-gray-200 rounded w-24"></div>
+                <div className="h-10 bg-stone-200 rounded w-32"></div>
+                <div className="h-10 bg-stone-200 rounded w-24"></div>
               </div>
               <div className="flex gap-3">
-                <div className="h-10 bg-gray-200 rounded w-40"></div>
-                <div className="h-10 bg-gray-200 rounded w-40"></div>
+                <div className="h-10 bg-stone-200 rounded w-40"></div>
+                <div className="h-10 bg-stone-200 rounded w-40"></div>
               </div>
             </div>
           </div>
@@ -1055,13 +1055,13 @@ export default function CategoryBudgetDashboard() {
           {/* Category budget cards skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-white rounded-lg shadow p-6">
-                <div className="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
-                <div className="h-8 bg-gray-200 rounded w-1/2 mb-3"></div>
-                <div className="h-2 bg-gray-200 rounded w-full mb-2"></div>
+              <div key={i} className="card">
+                <div className="h-6 bg-stone-200 rounded w-3/4 mb-3"></div>
+                <div className="h-8 bg-stone-200 rounded w-1/2 mb-3"></div>
+                <div className="h-2 bg-stone-200 rounded w-full mb-2"></div>
                 <div className="flex justify-between">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-4 bg-stone-200 rounded w-1/4"></div>
+                  <div className="h-4 bg-stone-200 rounded w-1/4"></div>
                 </div>
               </div>
             ))}
@@ -1072,16 +1072,16 @@ export default function CategoryBudgetDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="p-8">
       <div className="max-w-7xl mx-auto">
         {/* Month Navigation Header */}
-        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="mb-6 card-compact">
           <div className="flex items-center justify-between">
             {/* Month Navigation */}
             <div className="flex items-center gap-4">
               <button
                 onClick={handlePreviousMonth}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
                 title="Mês anterior"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1090,17 +1090,17 @@ export default function CategoryBudgetDashboard() {
               </button>
 
               <div className="text-center min-w-[180px]">
-                <h1 className="text-xl font-bold text-gray-900">
+                <h1 className="text-xl font-bold text-stone-900">
                   {getMonthName(selectedMonth)} {selectedYear}
                 </h1>
                 {isCurrentMonth && (
-                  <span className="text-xs text-blue-600 font-medium">Mês atual</span>
+                  <span className="text-xs text-wheat-600 font-medium">Mês atual</span>
                 )}
               </div>
 
               <button
                 onClick={handleNextMonth}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
                 title="Próximo mês"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1111,7 +1111,7 @@ export default function CategoryBudgetDashboard() {
               {!isCurrentMonth && (
                 <button
                   onClick={handleGoToCurrentMonth}
-                  className="ml-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="ml-2 px-3 py-1 text-sm text-wheat-600 hover:text-wheat-800 hover:bg-wheat-50 rounded-lg transition-colors"
                 >
                   Hoje
                 </button>
@@ -1122,13 +1122,13 @@ export default function CategoryBudgetDashboard() {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowCreateEntryModal(true)}
-                className="px-3 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                className="btn-secondary text-sm"
               >
                 + Entrada
               </button>
               <button
                 onClick={() => setShowCreateBudgetModal(true)}
-                className="px-3 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                className="btn-primary text-sm"
               >
                 + Orçamento
               </button>
@@ -1137,37 +1137,37 @@ export default function CategoryBudgetDashboard() {
         </div>
 
         {/* Monthly Summary Card */}
-        <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-100 p-5">
+        <div className="mb-6 card border-wheat-200 border-2 bg-wheat-50/30">
           <div className="grid grid-cols-3 gap-6 mb-4">
             {/* Planned */}
             <div className="text-center">
-              <p className="text-sm text-gray-500 mb-1">Planejado</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm text-stone-500 mb-1">Planejado</p>
+              <p className="text-2xl font-bold text-stone-900 tabular-nums">
                 R$ {totalPlanned.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
 
             {/* Spent */}
             <div className="text-center">
-              <p className="text-sm text-gray-500 mb-1">Gasto</p>
-              <p className={`text-2xl font-bold ${spentPercentage > 100 ? 'text-red-600' : 'text-gray-900'}`}>
+              <p className="text-sm text-stone-500 mb-1">Gasto</p>
+              <p className={`text-2xl font-bold tabular-nums ${spentPercentage > 100 ? 'text-rust-600' : 'text-stone-900'}`}>
                 R$ {totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
 
             {/* Progress */}
             <div className="text-center">
-              <p className="text-sm text-gray-500 mb-1">Progresso</p>
+              <p className="text-sm text-stone-500 mb-1">Progresso</p>
               <div className="flex items-center justify-center gap-2">
-                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div className="w-24 progress-bar">
                   <div
-                    className={`h-full rounded-full transition-all ${
-                      spentPercentage > 100 ? 'bg-red-500' : spentPercentage > 80 ? 'bg-yellow-500' : 'bg-green-500'
+                    className={`h-2 rounded-full transition-all ${
+                      spentPercentage > 100 ? 'bg-rust-500' : spentPercentage > 80 ? 'bg-terra-500' : 'bg-sage-500'
                     }`}
                     style={{ width: `${Math.min(spentPercentage, 100)}%` }}
                   />
                 </div>
-                <span className={`text-lg font-bold ${spentPercentage > 100 ? 'text-red-600' : 'text-gray-900'}`}>
+                <span className={`text-lg font-bold ${spentPercentage > 100 ? 'text-rust-600' : 'text-stone-900'}`}>
                   {spentPercentage}%
                 </span>
               </div>
@@ -1175,17 +1175,17 @@ export default function CategoryBudgetDashboard() {
           </div>
 
           {/* Quick Stats */}
-          <div className="flex items-center justify-center gap-4 text-sm text-gray-600 pt-3 border-t border-blue-100">
+          <div className="flex items-center justify-center gap-4 text-sm text-stone-600 pt-3 border-t border-wheat-200">
             <span>{selectedMonthBudgets.length} {selectedMonthBudgets.length === 1 ? 'categoria' : 'categorias'}</span>
-            <span className="text-blue-300">•</span>
+            <span className="text-wheat-400">•</span>
             <span>{selectedMonthEntries.length} {selectedMonthEntries.length === 1 ? 'entrada' : 'entradas'} planejadas</span>
             {hasPreviousMonthBudgets && selectedMonthBudgets.length === 0 && (
               <>
-                <span className="text-blue-300">•</span>
+                <span className="text-wheat-400">•</span>
                 <button
                   onClick={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
                   disabled={isSubmitting}
-                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors disabled:opacity-50"
+                  className="text-wheat-600 hover:text-wheat-800 font-medium transition-colors disabled:opacity-50"
                 >
                   📋 Copiar do mês anterior
                 </button>
@@ -1196,24 +1196,24 @@ export default function CategoryBudgetDashboard() {
 
         {/* Success/Error Messages */}
         {successMessage && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <p className="text-green-800">{successMessage}</p>
+          <div className="bg-sage-50 border border-sage-200 rounded-lg p-4 mb-6">
+            <p className="text-sage-800">{successMessage}</p>
           </div>
         )}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">{error}</p>
+          <div className="bg-rust-50 border border-rust-200 rounded-lg p-4 mb-6">
+            <p className="text-rust-800">{error}</p>
           </div>
         )}
 
         {/* Single Month Budget View */}
         {selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-            <div className="text-gray-400 text-6xl mb-4">📊</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <div className="card p-12 text-center">
+            <div className="text-stone-300 text-6xl mb-4">📊</div>
+            <h3 className="text-lg font-medium text-stone-900 mb-2">
               Nenhum orçamento para {getMonthName(selectedMonth)} {selectedYear}
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-stone-600 mb-4">
               Crie um orçamento de categoria ou entrada planejada para começar
             </p>
             <div className="flex gap-3 justify-center">
@@ -1221,14 +1221,14 @@ export default function CategoryBudgetDashboard() {
                 <button
                   onClick={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+                  className="btn-secondary disabled:opacity-50"
                 >
                   📋 Copiar do mês anterior
                 </button>
               )}
               <button
                 onClick={() => setShowCreateBudgetModal(true)}
-                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                className="btn-primary"
               >
                 + Criar Orçamento
               </button>
@@ -1270,27 +1270,27 @@ export default function CategoryBudgetDashboard() {
         {/* Create/Edit Budget Modal */}
         {showCreateBudgetModal && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
             onClick={handleBudgetModalBackdropClick}
           >
-            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {editingBudget ? 'Edit Category Budget' : 'Create Category Budget'}
+            <div className="bg-white rounded-2xl shadow-warm-xl p-6 max-w-md w-full mx-4">
+              <h3 className="text-xl font-semibold text-stone-900 mb-4">
+                {editingBudget ? 'Editar Orçamento' : 'Criar Orçamento'}
               </h3>
 
               <div className="space-y-4">
                 {/* Category Dropdown */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category *
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Categoria *
                   </label>
                   <select
                     value={selectedCategoryId}
                     onChange={(e) => setSelectedCategoryId(e.target.value)}
                     disabled={!!editingBudget || isSubmitting}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                    className="input disabled:bg-stone-100"
                   >
-                    <option value="">Select a category</option>
+                    <option value="">Selecione uma categoria</option>
                     {categories?.map((category) => (
                       <option key={category.category_id} value={category.category_id}>
                         {category.name}
@@ -1301,33 +1301,33 @@ export default function CategoryBudgetDashboard() {
 
                 {/* Budget Type */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Budget Type *
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Tipo de Orçamento *
                   </label>
                   <select
                     value={budgetType}
                     onChange={(e) => setBudgetType(e.target.value as any)}
                     disabled={isSubmitting}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="input"
                   >
-                    <option value="fixed">Fixed</option>
-                    <option value="calculated">Calculated</option>
+                    <option value="fixed">Fixo</option>
+                    <option value="calculated">Calculado</option>
                     <option value="maior">Maior</option>
                   </select>
                 </div>
 
                 {/* Planned Amount */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Planned Amount {budgetType === 'fixed' ? '*' : '(Optional)'}
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Valor Planejado {budgetType === 'fixed' ? '*' : '(Opcional)'}
                   </label>
                   {budgetType !== 'fixed' && (
-                    <p className="text-xs text-gray-500 mb-2">
-                      💡 For calculated budgets, the amount will be automatically calculated from planned entries
+                    <p className="text-xs text-stone-500 mb-2">
+                      💡 Para orçamentos calculados, o valor será calculado automaticamente a partir das entradas planejadas
                     </p>
                   )}
                   <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500">R$</span>
+                    <span className="absolute left-3 top-2 text-stone-500">R$</span>
                     <input
                       type="text"
                       value={plannedAmount}
@@ -1338,8 +1338,8 @@ export default function CategoryBudgetDashboard() {
                         }
                       }}
                       disabled={isSubmitting}
-                      placeholder={budgetType === 'fixed' ? '0.00' : '0.00 (will be calculated)'}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder={budgetType === 'fixed' ? '0.00' : '0.00 (será calculado)'}
+                      className="input pl-10"
                     />
                   </div>
                 </div>
@@ -1350,16 +1350,16 @@ export default function CategoryBudgetDashboard() {
                 <button
                   onClick={handleCancelBudgetForm}
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  className="btn-secondary disabled:opacity-50"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   onClick={editingBudget ? handleUpdateBudget : handleCreateBudget}
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="btn-primary disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Saving...' : editingBudget ? 'Update' : 'Create'}
+                  {isSubmitting ? 'Salvando...' : editingBudget ? 'Atualizar' : 'Criar'}
                 </button>
               </div>
             </div>
@@ -1369,11 +1369,11 @@ export default function CategoryBudgetDashboard() {
         {/* Create/Edit Planned Entry Modal */}
         {showCreateEntryModal && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
             onClick={handleEntryModalBackdropClick}
           >
-            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+            <div className="bg-white rounded-2xl shadow-warm-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-semibold text-stone-900 mb-4">
                 {editingEntry ? 'Editar Entrada Planejada' : 'Criar Entrada Planejada'}
               </h3>
 
