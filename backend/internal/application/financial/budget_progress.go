@@ -226,8 +226,8 @@ func (s *service) calculateCalculatedBudgetProgress(
 		// Get category name
 		catName := ""
 		if cat, err := s.Repository.FetchCategoryByID(context.Background(), fetchCategoryByIDParams{
-			CategoryID: catID,
-			UserID:     budget.UserID,
+			CategoryID:     catID,
+			OrganizationID: budget.OrganizationID,
 		}); err == nil {
 			catName = cat.Name
 		}
@@ -249,8 +249,8 @@ func (s *service) calculateCalculatedBudgetProgress(
 
 			catName := ""
 			if cat, err := s.Repository.FetchCategoryByID(context.Background(), fetchCategoryByIDParams{
-				CategoryID: catID,
-				UserID:     budget.UserID,
+				CategoryID:     catID,
+				OrganizationID: budget.OrganizationID,
 			}); err == nil {
 				catName = cat.Name
 			}

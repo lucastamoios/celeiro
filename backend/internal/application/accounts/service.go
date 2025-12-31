@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/catrutech/celeiro/internal/config"
 	"github.com/catrutech/celeiro/internal/web/validators"
 	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	transientdb "github.com/catrutech/celeiro/pkg/database/transient"
@@ -31,6 +32,7 @@ type service struct {
 	system      *system.System
 	logger      logging.Logger
 	db          database.Database
+	frontendURL string
 }
 
 func New(
@@ -40,6 +42,7 @@ func New(
 	system *system.System,
 	logger logging.Logger,
 	db database.Database,
+	cfg *config.Config,
 ) Service {
 	return &service{
 		Repository:  repo,
@@ -48,6 +51,7 @@ func New(
 		system:      system,
 		db:          db,
 		logger:      logger,
+		frontendURL: cfg.FrontendURL,
 	}
 }
 

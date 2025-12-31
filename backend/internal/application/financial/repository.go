@@ -138,8 +138,8 @@ func NewWithSystem(db database.Database, sys *system.System) Repository {
 // ============================================================================
 
 type fetchCategoriesParams struct {
-	UserID *int  // NULL fetches system categories
-	IncludeSystem bool
+	OrganizationID *int // NULL fetches system categories only
+	IncludeSystem  bool
 }
 
 const fetchCategoriesQuery = `
@@ -153,15 +153,16 @@ const fetchCategoriesQuery = `
 		color,
 		is_system,
 		user_id,
+		organization_id,
 		category_type
 	FROM categories
-	WHERE (user_id = $1 OR (is_system = true AND $2 = true))
+	WHERE (organization_id = $1 OR (is_system = true AND $2 = true))
 	ORDER BY is_system DESC, name ASC;
 `
 
 func (r *repository) FetchCategories(ctx context.Context, params fetchCategoriesParams) ([]CategoryModel, error) {
 	var result []CategoryModel
-	err := r.db.Query(ctx, &result, fetchCategoriesQuery, params.UserID, params.IncludeSystem)
+	err := r.db.Query(ctx, &result, fetchCategoriesQuery, params.OrganizationID, params.IncludeSystem)
 	if err != nil {
 		return nil, err
 	}
@@ -169,8 +170,8 @@ func (r *repository) FetchCategories(ctx context.Context, params fetchCategories
 }
 
 type fetchCategoryByIDParams struct {
-	CategoryID int
-	UserID     int
+	CategoryID     int
+	OrganizationID int
 }
 
 const fetchCategoryByIDQuery = `
@@ -184,15 +185,16 @@ const fetchCategoryByIDQuery = `
 		color,
 		is_system,
 		user_id,
+		organization_id,
 		category_type
 	FROM categories
 	WHERE category_id = $1
-		AND (user_id = $2 OR is_system = true);
+		AND (organization_id = $2 OR is_system = true);
 `
 
 func (r *repository) FetchCategoryByID(ctx context.Context, params fetchCategoryByIDParams) (CategoryModel, error) {
 	var result CategoryModel
-	err := r.db.Query(ctx, &result, fetchCategoryByIDQuery, params.CategoryID, params.UserID)
+	err := r.db.Query(ctx, &result, fetchCategoryByIDQuery, params.CategoryID, params.OrganizationID)
 	if err != nil {
 		return CategoryModel{}, err
 	}
@@ -200,18 +202,19 @@ func (r *repository) FetchCategoryByID(ctx context.Context, params fetchCategory
 }
 
 type insertCategoryParams struct {
-	Name         string
-	Icon         string
-	Color        string
-	UserID       int
-	CategoryType string
+	Name           string
+	Icon           string
+	Color          string
+	UserID         int
+	OrganizationID int
+	CategoryType   string
 }
 
 const insertCategoryQuery = `
 	-- financial.insertCategoryQuery
-	INSERT INTO categories (name, icon, color, user_id, category_type)
-	VALUES ($1, $2, $3, $4, $5)
-	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id, category_type;
+	INSERT INTO categories (name, icon, color, user_id, organization_id, category_type)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id, organization_id, category_type;
 `
 
 func (r *repository) InsertCategory(ctx context.Context, params insertCategoryParams) (CategoryModel, error) {
@@ -220,7 +223,7 @@ func (r *repository) InsertCategory(ctx context.Context, params insertCategoryPa
 	if categoryType == "" {
 		categoryType = "expense"
 	}
-	err := r.db.Query(ctx, &result, insertCategoryQuery, params.Name, params.Icon, params.Color, params.UserID, categoryType)
+	err := r.db.Query(ctx, &result, insertCategoryQuery, params.Name, params.Icon, params.Color, params.UserID, params.OrganizationID, categoryType)
 	if err != nil {
 		return CategoryModel{}, err
 	}
@@ -228,12 +231,12 @@ func (r *repository) InsertCategory(ctx context.Context, params insertCategoryPa
 }
 
 type modifyCategoryParams struct {
-	CategoryID   int
-	UserID       int
-	Name         *string
-	Icon         *string
-	Color        *string
-	CategoryType *string
+	CategoryID     int
+	OrganizationID int
+	Name           *string
+	Icon           *string
+	Color          *string
+	CategoryType   *string
 }
 
 const modifyCategoryQuery = `
@@ -244,13 +247,13 @@ const modifyCategoryQuery = `
 		color = COALESCE($5, color),
 		category_type = COALESCE($6, category_type),
 		updated_at = NOW()
-	WHERE category_id = $1 AND user_id = $2 AND is_system = false
-	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id, category_type;
+	WHERE category_id = $1 AND organization_id = $2 AND is_system = false
+	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id, organization_id, category_type;
 `
 
 func (r *repository) ModifyCategory(ctx context.Context, params modifyCategoryParams) (CategoryModel, error) {
 	var result CategoryModel
-	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.UserID, params.Name, params.Icon, params.Color, params.CategoryType)
+	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.OrganizationID, params.Name, params.Icon, params.Color, params.CategoryType)
 	if err != nil {
 		return CategoryModel{}, err
 	}
@@ -258,8 +261,8 @@ func (r *repository) ModifyCategory(ctx context.Context, params modifyCategoryPa
 }
 
 type removeCategoryParams struct {
-	CategoryID int
-	UserID     int
+	CategoryID     int
+	OrganizationID int
 }
 
 const removeCategoryQuery = `
@@ -269,11 +272,11 @@ const removeCategoryQuery = `
 		UPDATE transactions SET category_id = NULL WHERE category_id = $1
 	)
 	DELETE FROM categories
-	WHERE category_id = $1 AND (user_id = $2 OR is_system = true);
+	WHERE category_id = $1 AND organization_id = $2 AND is_system = false;
 `
 
 func (r *repository) RemoveCategory(ctx context.Context, params removeCategoryParams) error {
-	err := r.db.Run(ctx, removeCategoryQuery, params.CategoryID, params.UserID)
+	err := r.db.Run(ctx, removeCategoryQuery, params.CategoryID, params.OrganizationID)
 	return err
 }
 
@@ -302,15 +305,14 @@ const fetchAccountsQuery = `
 		currency,
 		is_active
 	FROM accounts
-	WHERE user_id = $1
-		AND organization_id = $2
-		AND (is_active = $3 OR $3 IS NULL)
+	WHERE organization_id = $1
+		AND (is_active = $2 OR $2 IS NULL)
 	ORDER BY created_at DESC;
 `
 
 func (r *repository) FetchAccounts(ctx context.Context, params fetchAccountsParams) ([]AccountModel, error) {
 	var result []AccountModel
-	err := r.db.Query(ctx, &result, fetchAccountsQuery, params.UserID, params.OrganizationID, params.IsActive)
+	err := r.db.Query(ctx, &result, fetchAccountsQuery, params.OrganizationID, params.IsActive)
 	if err != nil {
 		return nil, err
 	}
@@ -339,13 +341,12 @@ const fetchAccountByIDQuery = `
 		is_active
 	FROM accounts
 	WHERE account_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) FetchAccountByID(ctx context.Context, params fetchAccountByIDParams) (AccountModel, error) {
 	var result AccountModel
-	err := r.db.Query(ctx, &result, fetchAccountByIDQuery, params.AccountID, params.UserID, params.OrganizationID)
+	err := r.db.Query(ctx, &result, fetchAccountByIDQuery, params.AccountID, params.OrganizationID)
 	if err != nil {
 		return AccountModel{}, err
 	}
@@ -394,12 +395,12 @@ type modifyAccountParams struct {
 const modifyAccountQuery = `
 	-- financial.modifyAccountQuery
 	UPDATE accounts
-	SET name = COALESCE($4, name),
-		bank_name = COALESCE($5, bank_name),
-		balance = COALESCE($6, balance),
-		is_active = COALESCE($7, is_active),
+	SET name = COALESCE($3, name),
+		bank_name = COALESCE($4, bank_name),
+		balance = COALESCE($5, balance),
+		is_active = COALESCE($6, is_active),
 		updated_at = NOW()
-	WHERE account_id = $1 AND user_id = $2 AND organization_id = $3
+	WHERE account_id = $1 AND organization_id = $2
 	RETURNING account_id, created_at, updated_at, user_id, organization_id, name, account_type,
 			  bank_name, balance, currency, is_active;
 `
@@ -407,7 +408,7 @@ const modifyAccountQuery = `
 func (r *repository) ModifyAccount(ctx context.Context, params modifyAccountParams) (AccountModel, error) {
 	var result AccountModel
 	err := r.db.Query(ctx, &result, modifyAccountQuery,
-		params.AccountID, params.UserID, params.OrganizationID,
+		params.AccountID, params.OrganizationID,
 		params.Name, params.BankName, params.Balance, params.IsActive)
 	if err != nil {
 		return AccountModel{}, err
@@ -424,11 +425,11 @@ type removeAccountParams struct {
 const removeAccountQuery = `
 	-- financial.removeAccountQuery
 	DELETE FROM accounts
-	WHERE account_id = $1 AND user_id = $2 AND organization_id = $3;
+	WHERE account_id = $1 AND organization_id = $2;
 `
 
 func (r *repository) RemoveAccount(ctx context.Context, params removeAccountParams) error {
-	err := r.db.Run(ctx, removeAccountQuery, params.AccountID, params.UserID, params.OrganizationID)
+	err := r.db.Run(ctx, removeAccountQuery, params.AccountID, params.OrganizationID)
 	return err
 }
 
@@ -835,17 +836,16 @@ const fetchBudgetsQuery = `
 		amount,
 		is_active
 	FROM budgets
-	WHERE user_id = $1
-		AND organization_id = $2
-		AND (year = $3 OR $3 IS NULL)
-		AND (month = $4 OR $4 IS NULL)
+	WHERE organization_id = $1
+		AND (year = $2 OR $2 IS NULL)
+		AND (month = $3 OR $3 IS NULL)
 	ORDER BY year DESC, month DESC;
 `
 
 func (r *repository) FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error) {
 	var result []BudgetModel
 	err := r.db.Query(ctx, &result, fetchBudgetsQuery,
-		params.UserID, params.OrganizationID, params.Year, params.Month)
+		params.OrganizationID, params.Year, params.Month)
 	if err != nil {
 		return nil, err
 	}
@@ -874,13 +874,12 @@ const fetchBudgetByIDQuery = `
 		is_active
 	FROM budgets
 	WHERE budget_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) FetchBudgetByID(ctx context.Context, params fetchBudgetByIDParams) (BudgetModel, error) {
 	var result BudgetModel
-	err := r.db.Query(ctx, &result, fetchBudgetByIDQuery, params.BudgetID, params.UserID, params.OrganizationID)
+	err := r.db.Query(ctx, &result, fetchBudgetByIDQuery, params.BudgetID, params.OrganizationID)
 	if err != nil {
 		return BudgetModel{}, err
 	}
@@ -929,12 +928,12 @@ type modifyBudgetParams struct {
 const modifyBudgetQuery = `
 	-- financial.modifyBudgetQuery
 	UPDATE budgets
-	SET name = COALESCE($4, name),
-		budget_type = COALESCE($5, budget_type),
-		amount = COALESCE($6, amount),
-		is_active = COALESCE($7, is_active),
+	SET name = COALESCE($3, name),
+		budget_type = COALESCE($4, budget_type),
+		amount = COALESCE($5, amount),
+		is_active = COALESCE($6, is_active),
 		updated_at = NOW()
-	WHERE budget_id = $1 AND user_id = $2 AND organization_id = $3
+	WHERE budget_id = $1 AND organization_id = $2
 	RETURNING budget_id, created_at, updated_at, user_id, organization_id, name, month, year,
 			  budget_type, amount, is_active;
 `
@@ -942,7 +941,7 @@ const modifyBudgetQuery = `
 func (r *repository) ModifyBudget(ctx context.Context, params modifyBudgetParams) (BudgetModel, error) {
 	var result BudgetModel
 	err := r.db.Query(ctx, &result, modifyBudgetQuery,
-		params.BudgetID, params.UserID, params.OrganizationID,
+		params.BudgetID, params.OrganizationID,
 		params.Name, params.BudgetType, params.Amount, params.IsActive)
 	if err != nil {
 		return BudgetModel{}, err
@@ -959,11 +958,11 @@ type removeBudgetParams struct {
 const removeBudgetQuery = `
 	-- financial.removeBudgetQuery
 	DELETE FROM budgets
-	WHERE budget_id = $1 AND user_id = $2 AND organization_id = $3;
+	WHERE budget_id = $1 AND organization_id = $2;
 `
 
 func (r *repository) RemoveBudget(ctx context.Context, params removeBudgetParams) error {
-	err := r.db.Run(ctx, removeBudgetQuery, params.BudgetID, params.UserID, params.OrganizationID)
+	err := r.db.Run(ctx, removeBudgetQuery, params.BudgetID, params.OrganizationID)
 	return err
 }
 
@@ -1312,18 +1311,17 @@ const fetchCategoryBudgetsQuery = `
 		is_consolidated,
 		consolidated_at
 	FROM category_budgets
-	WHERE user_id = $1
-		AND organization_id = $2
-		AND ($3::int IS NULL OR month = $3)
-		AND ($4::int IS NULL OR year = $4)
-		AND ($5::int IS NULL OR category_id = $5)
+	WHERE organization_id = $1
+		AND ($2::int IS NULL OR month = $2)
+		AND ($3::int IS NULL OR year = $3)
+		AND ($4::int IS NULL OR category_id = $4)
 	ORDER BY year DESC, month DESC, category_id ASC;
 `
 
 func (r *repository) FetchCategoryBudgets(ctx context.Context, params fetchCategoryBudgetsParams) ([]CategoryBudgetModel, error) {
 	var budgets []CategoryBudgetModel
 	err := r.db.Query(ctx, &budgets, fetchCategoryBudgetsQuery,
-		params.UserID, params.OrganizationID, params.Month, params.Year, params.CategoryID)
+		params.OrganizationID, params.Month, params.Year, params.CategoryID)
 	return budgets, err
 }
 
@@ -1350,14 +1348,13 @@ const fetchCategoryBudgetByIDQuery = `
 		consolidated_at
 	FROM category_budgets
 	WHERE category_budget_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) FetchCategoryBudgetByID(ctx context.Context, params fetchCategoryBudgetByIDParams) (CategoryBudgetModel, error) {
 	var budget CategoryBudgetModel
 	err := r.db.Query(ctx, &budget, fetchCategoryBudgetByIDQuery,
-		params.CategoryBudgetID, params.UserID, params.OrganizationID)
+		params.CategoryBudgetID, params.OrganizationID)
 	return budget, err
 }
 
@@ -1503,18 +1500,17 @@ const fetchPlannedEntriesQuery = `
 		parent_entry_id,
 		is_active
 	FROM planned_entries
-	WHERE user_id = $1
-		AND organization_id = $2
-		AND ($3::int IS NULL OR category_id = $3)
-		AND ($4::bool IS NULL OR is_recurrent = $4)
-		AND ($5::bool IS NULL OR is_active = $5)
+	WHERE organization_id = $1
+		AND ($2::int IS NULL OR category_id = $2)
+		AND ($3::bool IS NULL OR is_recurrent = $3)
+		AND ($4::bool IS NULL OR is_active = $4)
 	ORDER BY created_at DESC;
 `
 
 func (r *repository) FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error) {
 	var entries []PlannedEntryModel
 	err := r.db.Query(ctx, &entries, fetchPlannedEntriesQuery,
-		params.UserID, params.OrganizationID, params.CategoryID,
+		params.OrganizationID, params.CategoryID,
 		params.IsRecurrent, params.IsActive)
 	return entries, err
 }
@@ -1549,14 +1545,13 @@ const fetchPlannedEntryByIDQuery = `
 		is_active
 	FROM planned_entries
 	WHERE planned_entry_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error) {
 	var entry PlannedEntryModel
 	err := r.db.Query(ctx, &entry, fetchPlannedEntryByIDQuery,
-		params.PlannedEntryID, params.UserID, params.OrganizationID)
+		params.PlannedEntryID, params.OrganizationID)
 	return entry, err
 }
 
@@ -1789,18 +1784,17 @@ const fetchMonthlySnapshotsQuery = `
 		variance_percent,
 		budget_type
 	FROM monthly_snapshots
-	WHERE user_id = $1
-		AND organization_id = $2
-		AND ($3::int IS NULL OR category_id = $3)
-		AND ($4::int IS NULL OR month = $4)
-		AND ($5::int IS NULL OR year = $5)
+	WHERE organization_id = $1
+		AND ($2::int IS NULL OR category_id = $2)
+		AND ($3::int IS NULL OR month = $3)
+		AND ($4::int IS NULL OR year = $4)
 	ORDER BY year DESC, month DESC, category_id ASC;
 `
 
 func (r *repository) FetchMonthlySnapshots(ctx context.Context, params fetchMonthlySnapshotsParams) ([]MonthlySnapshotModel, error) {
 	var snapshots []MonthlySnapshotModel
 	err := r.db.Query(ctx, &snapshots, fetchMonthlySnapshotsQuery,
-		params.UserID, params.OrganizationID, params.CategoryID, params.Month, params.Year)
+		params.OrganizationID, params.CategoryID, params.Month, params.Year)
 	return snapshots, err
 }
 
@@ -1826,14 +1820,13 @@ const fetchMonthlySnapshotByIDQuery = `
 		budget_type
 	FROM monthly_snapshots
 	WHERE snapshot_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) FetchMonthlySnapshotByID(ctx context.Context, params fetchMonthlySnapshotByIDParams) (MonthlySnapshotModel, error) {
 	var snapshot MonthlySnapshotModel
 	err := r.db.Query(ctx, &snapshot, fetchMonthlySnapshotByIDQuery,
-		params.SnapshotID, params.UserID, params.OrganizationID)
+		params.SnapshotID, params.OrganizationID)
 	return snapshot, err
 }
 
@@ -1914,17 +1907,16 @@ const fetchAdvancedPatternsQuery = `
 		apply_retroactively,
 		is_active
 	FROM patterns
-	WHERE user_id = $1
-		AND organization_id = $2
-		AND ($3::boolean IS NULL OR is_active = $3)
-		AND ($4::integer IS NULL OR target_category_id = $4)
+	WHERE organization_id = $1
+		AND ($2::boolean IS NULL OR is_active = $2)
+		AND ($3::integer IS NULL OR target_category_id = $3)
 	ORDER BY created_at DESC;
 `
 
 func (r *repository) FetchAdvancedPatterns(ctx context.Context, params fetchAdvancedPatternsParams) ([]AdvancedPatternModel, error) {
 	var result []AdvancedPatternModel
 	err := r.db.Query(ctx, &result, fetchAdvancedPatternsQuery,
-		params.UserID, params.OrganizationID, params.IsActive, params.CategoryID)
+		params.OrganizationID, params.IsActive, params.CategoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -1956,14 +1948,13 @@ const fetchAdvancedPatternByIDQuery = `
 		is_active
 	FROM patterns
 	WHERE pattern_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) FetchAdvancedPatternByID(ctx context.Context, params fetchAdvancedPatternByIDParams) (AdvancedPatternModel, error) {
 	var pattern AdvancedPatternModel
 	err := r.db.Query(ctx, &pattern, fetchAdvancedPatternByIDQuery,
-		params.PatternID, params.UserID, params.OrganizationID)
+		params.PatternID, params.OrganizationID)
 	return pattern, err
 }
 
@@ -2038,18 +2029,17 @@ const modifyAdvancedPatternQuery = `
 	-- financial.modifyAdvancedPatternQuery
 	UPDATE patterns
 	SET
-		is_active = COALESCE($4, is_active),
-		description_pattern = COALESCE($5, description_pattern),
-		date_pattern = COALESCE($6, date_pattern),
-		weekday_pattern = COALESCE($7, weekday_pattern),
-		amount_min = COALESCE($8, amount_min),
-		amount_max = COALESCE($9, amount_max),
-		target_description = COALESCE($10, target_description),
-		target_category_id = COALESCE($11, target_category_id),
+		is_active = COALESCE($3, is_active),
+		description_pattern = COALESCE($4, description_pattern),
+		date_pattern = COALESCE($5, date_pattern),
+		weekday_pattern = COALESCE($6, weekday_pattern),
+		amount_min = COALESCE($7, amount_min),
+		amount_max = COALESCE($8, amount_max),
+		target_description = COALESCE($9, target_description),
+		target_category_id = COALESCE($10, target_category_id),
 		updated_at = CURRENT_TIMESTAMP
 	WHERE pattern_id = $1
-		AND user_id = $2
-		AND organization_id = $3
+		AND organization_id = $2
 	RETURNING
 		pattern_id,
 		created_at,
@@ -2070,9 +2060,8 @@ const modifyAdvancedPatternQuery = `
 func (r *repository) ModifyAdvancedPattern(ctx context.Context, params modifyAdvancedPatternParams) (AdvancedPatternModel, error) {
 	var pattern AdvancedPatternModel
 	err := r.db.Query(ctx, &pattern, modifyAdvancedPatternQuery,
-		params.PatternID, 
-		params.UserID, 
-		params.OrganizationID, 
+		params.PatternID,
+		params.OrganizationID,
 		params.IsActive,
 		params.DescriptionPattern,
 		params.DatePattern,
@@ -2095,14 +2084,13 @@ const removeAdvancedPatternQuery = `
 	-- financial.removeAdvancedPatternQuery
 	DELETE FROM patterns
 	WHERE pattern_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) RemoveAdvancedPattern(ctx context.Context, params removeAdvancedPatternParams) error {
 	var result struct{}
 	err := r.db.Query(ctx, &result, removeAdvancedPatternQuery,
-		params.PatternID, params.UserID, params.OrganizationID)
+		params.PatternID, params.OrganizationID)
 	return err
 }
 
@@ -2121,15 +2109,14 @@ const fetchPlannedEntriesByPatternIDsQuery = `
 		description
 	FROM planned_entries
 	WHERE pattern_id = ANY($1::int[])
-		AND user_id = $2
-		AND organization_id = $3
+		AND organization_id = $2
 	ORDER BY description;
 `
 
 func (r *repository) FetchPlannedEntriesByPatternIDs(ctx context.Context, params fetchPlannedEntriesByPatternIDsParams) ([]PlannedEntryByPatternModel, error) {
 	var result []PlannedEntryByPatternModel
 	err := r.db.Query(ctx, &result, fetchPlannedEntriesByPatternIDsQuery,
-		params.PatternIDs, params.UserID, params.OrganizationID)
+		params.PatternIDs, params.OrganizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -2169,17 +2156,16 @@ const fetchPlannedEntriesWithPatternQuery = `
 		parent_entry_id,
 		is_active
 	FROM planned_entries
-	WHERE user_id = $1
-		AND organization_id = $2
+	WHERE organization_id = $1
 		AND pattern_id IS NOT NULL
-		AND ($3::bool IS NULL OR is_active = $3)
+		AND ($2::bool IS NULL OR is_active = $2)
 	ORDER BY entry_type ASC, description ASC;
 `
 
 func (r *repository) FetchPlannedEntriesWithPattern(ctx context.Context, params fetchPlannedEntriesWithPatternParams) ([]PlannedEntryModel, error) {
 	var entries []PlannedEntryModel
 	err := r.db.Query(ctx, &entries, fetchPlannedEntriesWithPatternQuery,
-		params.UserID, params.OrganizationID, params.IsActive)
+		params.OrganizationID, params.IsActive)
 	return entries, err
 }
 
@@ -2427,18 +2413,17 @@ const fetchSavingsGoalsQuery = `
 		completed_at,
 		notes
 	FROM savings_goals
-	WHERE user_id = $1
-		AND organization_id = $2
-		AND ($3::boolean IS NULL OR is_active = $3)
-		AND ($4::boolean IS NULL OR is_completed = $4)
-		AND ($5::text IS NULL OR goal_type = $5)
+	WHERE organization_id = $1
+		AND ($2::boolean IS NULL OR is_active = $2)
+		AND ($3::boolean IS NULL OR is_completed = $3)
+		AND ($4::text IS NULL OR goal_type = $4)
 	ORDER BY is_completed ASC, created_at DESC;
 `
 
 func (r *repository) FetchSavingsGoals(ctx context.Context, params fetchSavingsGoalsParams) ([]SavingsGoalModel, error) {
 	var goals []SavingsGoalModel
 	err := r.db.Query(ctx, &goals, fetchSavingsGoalsQuery,
-		params.UserID, params.OrganizationID, params.IsActive, params.IsCompleted, params.GoalType)
+		params.OrganizationID, params.IsActive, params.IsCompleted, params.GoalType)
 	return goals, err
 }
 
@@ -2469,14 +2454,13 @@ const fetchSavingsGoalByIDQuery = `
 		notes
 	FROM savings_goals
 	WHERE savings_goal_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) FetchSavingsGoalByID(ctx context.Context, params fetchSavingsGoalByIDParams) (SavingsGoalModel, error) {
 	var goal SavingsGoalModel
 	err := r.db.Query(ctx, &goal, fetchSavingsGoalByIDQuery,
-		params.SavingsGoalID, params.UserID, params.OrganizationID)
+		params.SavingsGoalID, params.OrganizationID)
 	return goal, err
 }
 
@@ -2552,23 +2536,22 @@ const modifySavingsGoalQuery = `
 	-- financial.modifySavingsGoalQuery
 	UPDATE savings_goals
 	SET
-		name = COALESCE($4, name),
-		target_amount = COALESCE($5, target_amount),
-		due_date = CASE WHEN $6 = '' THEN NULL WHEN $6 IS NOT NULL THEN $6::date ELSE due_date END,
-		icon = COALESCE($7, icon),
-		color = COALESCE($8, color),
-		notes = COALESCE($9, notes),
-		is_active = COALESCE($10, is_active),
-		is_completed = COALESCE($11, is_completed),
+		name = COALESCE($3, name),
+		target_amount = COALESCE($4, target_amount),
+		due_date = CASE WHEN $5 = '' THEN NULL WHEN $5 IS NOT NULL THEN $5::date ELSE due_date END,
+		icon = COALESCE($6, icon),
+		color = COALESCE($7, color),
+		notes = COALESCE($8, notes),
+		is_active = COALESCE($9, is_active),
+		is_completed = COALESCE($10, is_completed),
 		completed_at = CASE
-			WHEN $11 = true AND is_completed = false THEN CURRENT_TIMESTAMP
-			WHEN $11 = false THEN NULL
+			WHEN $10 = true AND is_completed = false THEN CURRENT_TIMESTAMP
+			WHEN $10 = false THEN NULL
 			ELSE completed_at
 		END,
 		updated_at = CURRENT_TIMESTAMP
 	WHERE savings_goal_id = $1
-		AND user_id = $2
-		AND organization_id = $3
+		AND organization_id = $2
 	RETURNING
 		savings_goal_id,
 		created_at,
@@ -2591,7 +2574,7 @@ const modifySavingsGoalQuery = `
 func (r *repository) ModifySavingsGoal(ctx context.Context, params modifySavingsGoalParams) (SavingsGoalModel, error) {
 	var goal SavingsGoalModel
 	err := r.db.Query(ctx, &goal, modifySavingsGoalQuery,
-		params.SavingsGoalID, params.UserID, params.OrganizationID,
+		params.SavingsGoalID, params.OrganizationID,
 		params.Name, params.TargetAmount, params.DueDate,
 		params.Icon, params.Color, params.Notes, params.IsActive, params.IsCompleted)
 	return goal, err
@@ -2609,13 +2592,12 @@ const removeSavingsGoalQuery = `
 	UPDATE savings_goals
 	SET is_active = false, updated_at = CURRENT_TIMESTAMP
 	WHERE savings_goal_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) RemoveSavingsGoal(ctx context.Context, params removeSavingsGoalParams) error {
 	return r.db.Run(ctx, removeSavingsGoalQuery,
-		params.SavingsGoalID, params.UserID, params.OrganizationID)
+		params.SavingsGoalID, params.OrganizationID)
 }
 
 type addContributionParams struct {
@@ -2629,11 +2611,10 @@ const addContributionQuery = `
 	-- financial.addContributionQuery
 	UPDATE savings_goals
 	SET
-		initial_amount = initial_amount + $4,
+		initial_amount = initial_amount + $3,
 		updated_at = CURRENT_TIMESTAMP
 	WHERE savings_goal_id = $1
-		AND user_id = $2
-		AND organization_id = $3
+		AND organization_id = $2
 	RETURNING
 		savings_goal_id,
 		created_at,
@@ -2656,7 +2637,7 @@ const addContributionQuery = `
 func (r *repository) AddContribution(ctx context.Context, params addContributionParams) (SavingsGoalModel, error) {
 	var goal SavingsGoalModel
 	err := r.db.Query(ctx, &goal, addContributionQuery,
-		params.SavingsGoalID, params.UserID, params.OrganizationID, params.Amount)
+		params.SavingsGoalID, params.OrganizationID, params.Amount)
 	return goal, err
 }
 
@@ -2692,15 +2673,14 @@ const fetchGoalContributionsQuery = `
 	FROM transactions t
 	INNER JOIN accounts a ON a.account_id = t.account_id
 	WHERE t.savings_goal_id = $1
-		AND a.user_id = $2
-		AND a.organization_id = $3
+		AND a.organization_id = $2
 	ORDER BY t.transaction_date DESC;
 `
 
 func (r *repository) FetchGoalContributions(ctx context.Context, params fetchGoalContributionsParams) ([]TransactionModel, error) {
 	var transactions []TransactionModel
 	err := r.db.Query(ctx, &transactions, fetchGoalContributionsQuery,
-		params.SavingsGoalID, params.UserID, params.OrganizationID)
+		params.SavingsGoalID, params.OrganizationID)
 	return transactions, err
 }
 
@@ -2719,8 +2699,7 @@ const fetchGoalMonthlyContributionsQuery = `
 	FROM transactions t
 	INNER JOIN accounts a ON a.account_id = t.account_id
 	WHERE t.savings_goal_id = $1
-		AND a.user_id = $2
-		AND a.organization_id = $3
+		AND a.organization_id = $2
 	GROUP BY EXTRACT(MONTH FROM t.transaction_date), EXTRACT(YEAR FROM t.transaction_date)
 	ORDER BY year DESC, month DESC;
 `
@@ -2728,7 +2707,7 @@ const fetchGoalMonthlyContributionsQuery = `
 func (r *repository) FetchGoalMonthlyContributions(ctx context.Context, params fetchGoalMonthlyContributionsParams) ([]GoalMonthlyContributionModel, error) {
 	var contributions []GoalMonthlyContributionModel
 	err := r.db.Query(ctx, &contributions, fetchGoalMonthlyContributionsQuery,
-		params.SavingsGoalID, params.UserID, params.OrganizationID)
+		params.SavingsGoalID, params.OrganizationID)
 	return contributions, err
 }
 
@@ -2753,14 +2732,13 @@ const fetchTagsQuery = `
 		icon,
 		color
 	FROM tags
-	WHERE user_id = $1
-		AND organization_id = $2
+	WHERE organization_id = $1
 	ORDER BY name ASC;
 `
 
 func (r *repository) FetchTags(ctx context.Context, params fetchTagsParams) ([]TagModel, error) {
 	var tags []TagModel
-	err := r.db.Query(ctx, &tags, fetchTagsQuery, params.UserID, params.OrganizationID)
+	err := r.db.Query(ctx, &tags, fetchTagsQuery, params.OrganizationID)
 	return tags, err
 }
 
@@ -2783,14 +2761,13 @@ const fetchTagByIDQuery = `
 		color
 	FROM tags
 	WHERE tag_id = $1
-		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $2;
 `
 
 func (r *repository) FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error) {
 	var tag TagModel
 	err := r.db.Query(ctx, &tag, fetchTagByIDQuery,
-		params.TagID, params.UserID, params.OrganizationID)
+		params.TagID, params.OrganizationID)
 	return tag, err
 }
 
@@ -2828,18 +2805,18 @@ type modifyTagParams struct {
 const modifyTagQuery = `
 	-- financial.modifyTagQuery
 	UPDATE tags
-	SET name = COALESCE($4, name),
-		icon = COALESCE($5, icon),
-		color = COALESCE($6, color),
+	SET name = COALESCE($3, name),
+		icon = COALESCE($4, icon),
+		color = COALESCE($5, color),
 		updated_at = NOW()
-	WHERE tag_id = $1 AND user_id = $2 AND organization_id = $3
+	WHERE tag_id = $1 AND organization_id = $2
 	RETURNING tag_id, created_at, updated_at, user_id, organization_id, name, icon, color;
 `
 
 func (r *repository) ModifyTag(ctx context.Context, params modifyTagParams) (TagModel, error) {
 	var tag TagModel
 	err := r.db.Query(ctx, &tag, modifyTagQuery,
-		params.TagID, params.UserID, params.OrganizationID,
+		params.TagID, params.OrganizationID,
 		params.Name, params.Icon, params.Color)
 	return tag, err
 }
@@ -2853,12 +2830,12 @@ type removeTagParams struct {
 const removeTagQuery = `
 	-- financial.removeTagQuery
 	DELETE FROM tags
-	WHERE tag_id = $1 AND user_id = $2 AND organization_id = $3;
+	WHERE tag_id = $1 AND organization_id = $2;
 `
 
 func (r *repository) RemoveTag(ctx context.Context, params removeTagParams) error {
 	return r.db.Run(ctx, removeTagQuery,
-		params.TagID, params.UserID, params.OrganizationID)
+		params.TagID, params.OrganizationID)
 }
 
 // ============================================================================

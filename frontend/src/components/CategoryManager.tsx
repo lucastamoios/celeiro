@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import type { Category } from '../types/category';
-import type { CategoryBudget, CreateCategoryBudgetRequest } from '../types/budget';
 import type { ApiResponse } from '../types/transaction';
-import { getCategoryBudgets, createCategoryBudget, updateCategoryBudget } from '../api/budget';
 import { CATEGORY_COLORS, getCategoryColorStyle } from '../utils/colors';
 import { FolderOpen, Folder, Plus } from 'lucide-react';
 
@@ -40,14 +38,11 @@ function getCategoryColor(category: Category) {
   const styles = getCategoryColorStyle(hexColor);
 
   return {
-    // Use neutral card styling with colored left border accent
     cardStyle: {
       borderLeftColor: hexColor,
       borderLeftWidth: '4px',
     },
-    // Colored icon container (small accent)
     accentStyle: styles.accent,
-    // Color for small indicators
     dotColor: hexColor,
   };
 }
@@ -55,24 +50,16 @@ function getCategoryColor(category: Category) {
 export default function CategoryManager() {
   const { token } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [budgets, setBudgets] = useState<Map<number, CategoryBudget>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Create category modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('📁');
   const [newCategoryType, setNewCategoryType] = useState<'expense' | 'income'>('expense');
   const [creating, setCreating] = useState(false);
-  
-  // Edit budget state
-  const [editingBudget, setEditingBudget] = useState<number | null>(null);
-  const [budgetValue, setBudgetValue] = useState('');
-  const [budgetType, setBudgetType] = useState<'fixed' | 'calculated' | 'maior'>('fixed');
-  const [savingBudget, setSavingBudget] = useState(false);
-  const budgetInputRef = useRef<HTMLInputElement>(null);
 
   // Edit color state
   const [editingColor, setEditingColor] = useState<number | null>(null);
@@ -88,28 +75,9 @@ export default function CategoryManager() {
   // Delete category state
   const [deletingCategory, setDeletingCategory] = useState<number | null>(null);
 
-  // Budget type labels
-  const budgetTypeLabels: Record<string, string> = {
-    fixed: 'Fixo',
-    calculated: 'Calculado',
-    maior: 'Maior',
-  };
-  
-  // Current month info
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-
   useEffect(() => {
     fetchData();
   }, [token]);
-
-  useEffect(() => {
-    if (editingBudget !== null && budgetInputRef.current) {
-      budgetInputRef.current.focus();
-      budgetInputRef.current.select();
-    }
-  }, [editingBudget]);
 
   // Handle ESC key to close modals
   useEffect(() => {
@@ -136,7 +104,6 @@ export default function CategoryManager() {
     setError(null);
 
     try {
-      // Fetch categories
       const response = await fetch(financialUrl('categories'), {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -150,18 +117,6 @@ export default function CategoryManager() {
 
       const data: ApiResponse<Category[]> = await response.json();
       setCategories(data.data || []);
-
-      // Fetch budgets for current month
-      const categoryBudgets = await getCategoryBudgets(
-        { month: currentMonth, year: currentYear },
-        { token, organizationId: '1' }
-      );
-
-      const budgetMap = new Map<number, CategoryBudget>();
-      (categoryBudgets || []).forEach(budget => {
-        budgetMap.set(budget.CategoryID, budget);
-      });
-      setBudgets(budgetMap);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
     } finally {
@@ -176,7 +131,6 @@ export default function CategoryManager() {
     setError(null);
 
     try {
-      // Select a color from the palette based on current number of user categories
       const userCategoriesCount = categories.filter(c => !c.is_system).length;
       const selectedColor = CATEGORY_COLORS[userCategoriesCount % CATEGORY_COLORS.length];
 
@@ -206,82 +160,13 @@ export default function CategoryManager() {
       setNewCategoryIcon('📁');
       setNewCategoryType('expense');
       await fetchData();
-      
+
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar categoria');
     } finally {
       setCreating(false);
     }
-  };
-
-  const handleStartEditBudget = (categoryId: number) => {
-    const existingBudget = budgets.get(categoryId);
-    setBudgetValue(existingBudget ? parseFloat(existingBudget.PlannedAmount).toFixed(2) : '');
-    setBudgetType(existingBudget?.BudgetType || 'fixed');
-    setEditingBudget(categoryId);
-  };
-
-  const handleSaveBudget = async (categoryId: number) => {
-    if (!token) return;
-
-    // For fixed budgets, require a valid amount
-    // For calculated/maior budgets, allow empty/zero (will be computed)
-    let amount = 0;
-    if (budgetType === 'fixed') {
-      amount = parseFloat(budgetValue.replace(',', '.'));
-      if (isNaN(amount) || amount < 0) {
-        setError('Por favor, insira um valor válido');
-        return;
-      }
-    } else {
-      // For calculated/maior, use provided value or default to 0
-      const parsed = parseFloat(budgetValue.replace(',', '.'));
-      amount = isNaN(parsed) ? 0 : parsed;
-    }
-
-    setSavingBudget(true);
-    setError(null);
-
-    try {
-      const existingBudget = budgets.get(categoryId);
-
-      if (existingBudget) {
-        // Update existing budget
-        await updateCategoryBudget(
-          existingBudget.CategoryBudgetID,
-          { planned_amount: amount, budget_type: budgetType },
-          { token, organizationId: '1' }
-        );
-      } else {
-        // Create new budget
-        const data: CreateCategoryBudgetRequest = {
-          category_id: categoryId,
-          month: currentMonth,
-          year: currentYear,
-          budget_type: budgetType,
-          planned_amount: amount,
-        };
-        await createCategoryBudget(data, { token, organizationId: '1' });
-      }
-
-      setSuccess('Orçamento salvo com sucesso!');
-      setEditingBudget(null);
-      setBudgetValue('');
-      await fetchData();
-      
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar orçamento');
-    } finally {
-      setSavingBudget(false);
-    }
-  };
-
-  const handleCancelEditBudget = () => {
-    setEditingBudget(null);
-    setBudgetValue('');
-    setBudgetType('fixed');
   };
 
   const handleStartEditColor = (categoryId: number, currentColor: string) => {
@@ -309,7 +194,7 @@ export default function CategoryManager() {
 
       setSuccess('Cor atualizada com sucesso!');
       setTimeout(() => setSuccess(null), 3000);
-      
+
       await fetchData();
       setEditingColor(null);
     } catch (err) {
@@ -403,52 +288,25 @@ export default function CategoryManager() {
     setDeletingCategory(null);
   };
 
-  const formatCurrency = (amount: string | number) => {
-    const value = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
-
-  const getMonthName = (month: number) => {
-    const months = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ];
-    return months[month - 1];
-  };
-
   const userCategories = categories.filter(c => !c.is_system);
   const systemCategories = categories.filter(c => c.is_system);
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-stone-200 rounded w-48"></div>
-          <div className="h-4 bg-stone-200 rounded w-72"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="h-32 bg-stone-200 rounded-xl"></div>
-            ))}
-          </div>
+      <div className="animate-pulse space-y-6">
+        <div className="h-8 bg-stone-200 rounded w-48"></div>
+        <div className="h-4 bg-stone-200 rounded w-72"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-32 bg-stone-200 rounded-xl"></div>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
-    <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-stone-900 mb-2">Categorias</h1>
-        <p className="text-stone-600">
-          Gerencie suas categorias e orçamentos para {getMonthName(currentMonth)} de {currentYear}
-        </p>
-      </div>
-
+    <div>
       {/* Messages */}
       {error && (
         <div className="mb-6 p-4 bg-rust-50 border border-rust-200 text-rust-700 rounded-xl flex items-center gap-3">
@@ -508,8 +366,6 @@ export default function CategoryManager() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {userCategories.map((category) => {
               const colors = getCategoryColor(category);
-              const budget = budgets.get(category.category_id);
-              const isEditing = editingBudget === category.category_id;
               const isEditingColor = editingColor === category.category_id;
 
               return (
@@ -518,7 +374,7 @@ export default function CategoryManager() {
                   className="relative bg-white border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
                   style={colors.cardStyle}
                 >
-                  {/* Floating action buttons - overlay on top right */}
+                  {/* Floating action buttons */}
                   {!isEditingColor && deletingCategory !== category.category_id && (
                     <div className="absolute top-2 right-2 flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all z-10">
                       <button
@@ -567,6 +423,7 @@ export default function CategoryManager() {
                       </button>
                     </div>
                   )}
+
                   {/* Header with icon and name */}
                   <div className="flex items-start mb-4">
                     <div className="flex items-center gap-3">
@@ -591,7 +448,7 @@ export default function CategoryManager() {
 
                   {/* Color picker section */}
                   {isEditingColor && (
-                    <div className="mb-4 pb-4 border-b border-stone-200/50">
+                    <div className="mt-4 pt-4 border-t border-stone-200/50">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="relative">
@@ -602,11 +459,6 @@ export default function CategoryManager() {
                               className="w-16 h-16 rounded-xl border-2 border-stone-300 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
                               style={{ padding: '4px' }}
                             />
-                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-sm">
-                              <svg className="w-3 h-3 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                              </svg>
-                            </div>
                           </div>
                           <div className="flex-1">
                             <label className="block text-xs font-medium text-stone-600 mb-1">Código da cor</label>
@@ -640,97 +492,6 @@ export default function CategoryManager() {
                       </div>
                     </div>
                   )}
-
-                  {/* Budget section */}
-                  <div className="border-t border-stone-200/50 pt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-stone-600 font-medium">Orçamento mensal</span>
-                      {!isEditing && (
-                        <button
-                          onClick={() => handleStartEditBudget(category.category_id)}
-                          className="text-xs text-stone-500 hover:text-stone-700 flex items-center gap-1"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                          Editar
-                        </button>
-                      )}
-                    </div>
-
-                    {isEditing ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={budgetType}
-                            onChange={(e) => setBudgetType(e.target.value as 'fixed' | 'calculated' | 'maior')}
-                            className="px-2 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wheat-500 text-sm bg-white"
-                            disabled={savingBudget}
-                          >
-                            <option value="fixed">Fixo</option>
-                            <option value="calculated">Calculado</option>
-                            <option value="maior">Maior</option>
-                          </select>
-                          <div className="relative flex-1">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">R$</span>
-                            <input
-                              ref={budgetInputRef}
-                              type="text"
-                              value={budgetValue}
-                              onChange={(e) => setBudgetValue(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSaveBudget(category.category_id);
-                                if (e.key === 'Escape') handleCancelEditBudget();
-                              }}
-                              className={`w-full pl-9 pr-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wheat-500 text-sm ${budgetType !== 'fixed' ? 'bg-stone-50' : ''}`}
-                              placeholder={budgetType === 'fixed' ? '0,00' : '(opcional)'}
-                              disabled={savingBudget}
-                            />
-                          </div>
-                        </div>
-                        {budgetType !== 'fixed' && (
-                          <p className="text-xs text-stone-500">
-                            💡 Para orçamentos calculados, o valor será baseado nas entradas planejadas
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleSaveBudget(category.category_id)}
-                            disabled={savingBudget}
-                            className="flex-1 py-2 bg-sage-500 text-white rounded-lg hover:bg-sage-600 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Salvar
-                          </button>
-                          <button
-                            onClick={handleCancelEditBudget}
-                            disabled={savingBudget}
-                            className="flex-1 py-2 bg-stone-200 text-stone-600 rounded-lg hover:bg-stone-300 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Cancelar
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="text-xl font-bold text-stone-900">
-                          {budget ? formatCurrency(budget.PlannedAmount) : (
-                            <span className="text-stone-400 text-base font-normal">Não definido</span>
-                          )}
-                        </div>
-                        {budget && (
-                          <span className="text-xs px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full">
-                            {budgetTypeLabels[budget.BudgetType] || budget.BudgetType}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
                 </div>
               );
             })}
@@ -748,14 +509,12 @@ export default function CategoryManager() {
           </h2>
         </div>
         <p className="text-stone-500 text-sm mb-4">
-          Estas categorias são padrão do sistema. Você pode definir orçamentos ou excluí-las se não precisar.
+          Estas categorias são padrão do sistema. Você pode excluí-las se não precisar.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {systemCategories.map((category) => {
             const colors = getCategoryColor(category);
-            const budget = budgets.get(category.category_id);
-            const isEditing = editingBudget === category.category_id;
 
             return (
               <div
@@ -764,7 +523,7 @@ export default function CategoryManager() {
                 style={colors.cardStyle}
               >
                 {/* Header with icon and name */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-md" style={colors.accentStyle}>
                       {category.icon}
@@ -816,97 +575,6 @@ export default function CategoryManager() {
                     </div>
                   )}
                 </div>
-
-                {/* Budget section */}
-                <div className="border-t border-stone-200/50 pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-stone-600 font-medium">Orçamento mensal</span>
-                    {!isEditing && (
-                      <button
-                        onClick={() => handleStartEditBudget(category.category_id)}
-                        className="text-xs text-stone-500 hover:text-stone-700 flex items-center gap-1"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                        Editar
-                      </button>
-                    )}
-                  </div>
-
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={budgetType}
-                          onChange={(e) => setBudgetType(e.target.value as 'fixed' | 'calculated' | 'maior')}
-                          className="px-2 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wheat-500 text-sm bg-white"
-                          disabled={savingBudget}
-                        >
-                          <option value="fixed">Fixo</option>
-                          <option value="calculated">Calculado</option>
-                          <option value="maior">Maior</option>
-                        </select>
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm">R$</span>
-                          <input
-                            ref={budgetInputRef}
-                            type="text"
-                            value={budgetValue}
-                            onChange={(e) => setBudgetValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveBudget(category.category_id);
-                              if (e.key === 'Escape') handleCancelEditBudget();
-                            }}
-                            className={`w-full pl-9 pr-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wheat-500 text-sm ${budgetType !== 'fixed' ? 'bg-stone-50' : ''}`}
-                            placeholder={budgetType === 'fixed' ? '0,00' : '(opcional)'}
-                            disabled={savingBudget}
-                          />
-                        </div>
-                      </div>
-                      {budgetType !== 'fixed' && (
-                        <p className="text-xs text-stone-500">
-                          💡 Para orçamentos calculados, o valor será baseado nas entradas planejadas
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleSaveBudget(category.category_id)}
-                          disabled={savingBudget}
-                          className="flex-1 py-2 bg-sage-500 text-white rounded-lg hover:bg-sage-600 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Salvar
-                        </button>
-                        <button
-                          onClick={handleCancelEditBudget}
-                          disabled={savingBudget}
-                          className="flex-1 py-2 bg-stone-200 text-stone-600 rounded-lg hover:bg-stone-300 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="text-xl font-bold text-stone-900">
-                        {budget ? formatCurrency(budget.PlannedAmount) : (
-                          <span className="text-stone-400 text-base font-normal">Não definido</span>
-                        )}
-                      </div>
-                      {budget && (
-                        <span className="text-xs px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full">
-                          {budgetTypeLabels[budget.BudgetType] || budget.BudgetType}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
               </div>
             );
           })}
@@ -916,28 +584,24 @@ export default function CategoryManager() {
       {/* Create Category Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-stone-900/50 backdrop-blur-sm"
             onClick={() => setShowCreateModal(false)}
           />
 
-          {/* Modal */}
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            {/* Header */}
             <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
               <h3 className="text-xl font-bold text-white">Nova Categoria</h3>
               <p className="text-wheat-100 text-sm mt-1">Crie uma categoria personalizada</p>
             </div>
 
-            {/* Content */}
             <div className="p-6 space-y-5">
               {/* Icon Selection */}
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-3">
                   Escolha um ícone
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                   {AVAILABLE_ICONS.map(icon => (
                     <button
                       key={icon}
@@ -1014,7 +678,6 @@ export default function CategoryManager() {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 bg-stone-50 flex items-center justify-end gap-3">
               <button
                 onClick={() => {
@@ -1056,26 +719,17 @@ export default function CategoryManager() {
       {/* Edit Category Modal */}
       {showEditModal && editingCategory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-stone-900/50 backdrop-blur-sm"
             onClick={handleCloseEditModal}
           />
 
-          {/* Modal */}
-          <div
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') handleCloseEditModal();
-            }}
-          >
-            {/* Header */}
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
             <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
               <h3 className="text-xl font-bold text-white">Editar Categoria</h3>
               <p className="text-wheat-100 text-sm mt-1">Altere o nome e ícone da categoria</p>
             </div>
 
-            {/* Content */}
             <div className="p-6 space-y-5">
               {/* Icon Selection */}
               <div>
@@ -1129,7 +783,6 @@ export default function CategoryManager() {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 bg-stone-50 flex items-center justify-end gap-3">
               <button
                 onClick={handleCloseEditModal}
@@ -1165,7 +818,5 @@ export default function CategoryManager() {
         </div>
       )}
     </div>
-    </div>
   );
 }
-

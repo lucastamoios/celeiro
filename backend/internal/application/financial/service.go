@@ -166,14 +166,14 @@ func New(
 // ============================================================================
 
 type GetCategoriesInput struct {
-	UserID        int
-	IncludeSystem bool
+	OrganizationID int
+	IncludeSystem  bool
 }
 
 func (s *service) GetCategories(ctx context.Context, params GetCategoriesInput) ([]Category, error) {
 	models, err := s.Repository.FetchCategories(ctx, fetchCategoriesParams{
-		UserID:        &params.UserID,
-		IncludeSystem: params.IncludeSystem,
+		OrganizationID: &params.OrganizationID,
+		IncludeSystem:  params.IncludeSystem,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch categories")
@@ -183,14 +183,14 @@ func (s *service) GetCategories(ctx context.Context, params GetCategoriesInput) 
 }
 
 type GetCategoryByIDInput struct {
-	CategoryID int
-	UserID     int
+	CategoryID     int
+	OrganizationID int
 }
 
 func (s *service) GetCategoryByID(ctx context.Context, params GetCategoryByIDInput) (Category, error) {
 	model, err := s.Repository.FetchCategoryByID(ctx, fetchCategoryByIDParams{
-		CategoryID: params.CategoryID,
-		UserID:     params.UserID,
+		CategoryID:     params.CategoryID,
+		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
 		return Category{}, errors.Wrap(err, "failed to fetch category")
@@ -200,20 +200,22 @@ func (s *service) GetCategoryByID(ctx context.Context, params GetCategoryByIDInp
 }
 
 type CreateCategoryInput struct {
-	UserID       int
-	Name         string
-	Icon         string
-	Color        string
-	CategoryType string
+	UserID         int
+	OrganizationID int
+	Name           string
+	Icon           string
+	Color          string
+	CategoryType   string
 }
 
 func (s *service) CreateCategory(ctx context.Context, params CreateCategoryInput) (Category, error) {
 	model, err := s.Repository.InsertCategory(ctx, insertCategoryParams{
-		UserID:       params.UserID,
-		Name:         params.Name,
-		Icon:         params.Icon,
-		Color:        params.Color,
-		CategoryType: params.CategoryType,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Name:           params.Name,
+		Icon:           params.Icon,
+		Color:          params.Color,
+		CategoryType:   params.CategoryType,
 	})
 	if err != nil {
 		return Category{}, errors.Wrap(err, "failed to create category")
@@ -223,22 +225,22 @@ func (s *service) CreateCategory(ctx context.Context, params CreateCategoryInput
 }
 
 type UpdateCategoryInput struct {
-	CategoryID   int
-	UserID       int
-	Name         *string
-	Icon         *string
-	Color        *string
-	CategoryType *string
+	CategoryID     int
+	OrganizationID int
+	Name           *string
+	Icon           *string
+	Color          *string
+	CategoryType   *string
 }
 
 func (s *service) UpdateCategory(ctx context.Context, params UpdateCategoryInput) (Category, error) {
 	model, err := s.Repository.ModifyCategory(ctx, modifyCategoryParams{
-		CategoryID:   params.CategoryID,
-		UserID:       params.UserID,
-		Name:         params.Name,
-		Icon:         params.Icon,
-		Color:        params.Color,
-		CategoryType: params.CategoryType,
+		CategoryID:     params.CategoryID,
+		OrganizationID: params.OrganizationID,
+		Name:           params.Name,
+		Icon:           params.Icon,
+		Color:          params.Color,
+		CategoryType:   params.CategoryType,
 	})
 	if err != nil {
 		return Category{}, errors.Wrap(err, "failed to update category")
@@ -248,14 +250,14 @@ func (s *service) UpdateCategory(ctx context.Context, params UpdateCategoryInput
 }
 
 type DeleteCategoryInput struct {
-	CategoryID int
-	UserID     int
+	CategoryID     int
+	OrganizationID int
 }
 
 func (s *service) DeleteCategory(ctx context.Context, params DeleteCategoryInput) error {
 	err := s.Repository.RemoveCategory(ctx, removeCategoryParams{
-		CategoryID: params.CategoryID,
-		UserID:     params.UserID,
+		CategoryID:     params.CategoryID,
+		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete category")
@@ -480,10 +482,10 @@ type CreateTransactionInput struct {
 // validateCategoryTransactionType validates that the category type matches the transaction type.
 // Income categories can only be assigned to credit transactions (money in).
 // Expense categories can only be assigned to debit transactions (money out).
-func (s *service) validateCategoryTransactionType(ctx context.Context, categoryID int, transactionType string, userID int) error {
+func (s *service) validateCategoryTransactionType(ctx context.Context, categoryID int, transactionType string, organizationID int) error {
 	category, err := s.Repository.FetchCategoryByID(ctx, fetchCategoryByIDParams{
-		CategoryID: categoryID,
-		UserID:     userID,
+		CategoryID:     categoryID,
+		OrganizationID: organizationID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch category for validation")
@@ -505,7 +507,7 @@ func (s *service) validateCategoryTransactionType(ctx context.Context, categoryI
 func (s *service) CreateTransaction(ctx context.Context, params CreateTransactionInput) (Transaction, error) {
 	// Validate category type matches transaction type if category is provided
 	if params.CategoryID != nil {
-		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, params.TransactionType, params.UserID); err != nil {
+		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, params.TransactionType, params.OrganizationID); err != nil {
 			return Transaction{}, err
 		}
 	}
@@ -679,7 +681,7 @@ func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactio
 			return Transaction{}, errors.Wrap(err, "failed to fetch transaction for validation")
 		}
 
-		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, existingTx.TransactionType, params.UserID); err != nil {
+		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, existingTx.TransactionType, params.OrganizationID); err != nil {
 			return Transaction{}, err
 		}
 	}

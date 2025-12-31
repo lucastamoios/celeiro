@@ -46,15 +46,15 @@ func (h *Handler) getSessionInfo(r *http.Request) (userID, organizationID int, e
 // ============================================================================
 
 func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
-	userID, _, err := h.getSessionInfo(r)
+	_, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
 	}
 
 	categories, err := h.app.FinancialService.GetCategories(r.Context(), financialApp.GetCategoriesInput{
-		UserID:        userID,
-		IncludeSystem: true,
+		OrganizationID: organizationID,
+		IncludeSystem:  true,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -86,7 +86,7 @@ func getRandomCategoryColor() string {
 }
 
 func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-	userID, _, err := h.getSessionInfo(r)
+	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
@@ -117,11 +117,12 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	category, err := h.app.FinancialService.CreateCategory(r.Context(), financialApp.CreateCategoryInput{
-		Name:         req.Name,
-		Icon:         req.Icon,
-		Color:        color,
-		CategoryType: categoryType,
-		UserID:       userID,
+		Name:           req.Name,
+		Icon:           req.Icon,
+		Color:          color,
+		CategoryType:   categoryType,
+		UserID:         userID,
+		OrganizationID: organizationID,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -132,7 +133,7 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
-	userID, _, err := h.getSessionInfo(r)
+	_, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
@@ -157,12 +158,12 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	category, err := h.app.FinancialService.UpdateCategory(r.Context(), financialApp.UpdateCategoryInput{
-		CategoryID:   categoryID,
-		UserID:       userID,
-		Name:         req.Name,
-		Icon:         req.Icon,
-		Color:        req.Color,
-		CategoryType: req.CategoryType,
+		CategoryID:     categoryID,
+		OrganizationID: organizationID,
+		Name:           req.Name,
+		Icon:           req.Icon,
+		Color:          req.Color,
+		CategoryType:   req.CategoryType,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -173,7 +174,7 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
-	userID, _, err := h.getSessionInfo(r)
+	_, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
@@ -186,8 +187,8 @@ func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.app.FinancialService.DeleteCategory(r.Context(), financialApp.DeleteCategoryInput{
-		CategoryID: categoryID,
-		UserID:     userID,
+		CategoryID:     categoryID,
+		OrganizationID: organizationID,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -689,10 +690,10 @@ func (h *Handler) CreateBudgetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify category exists and user has access
+	// Verify category exists and organization has access
 	_, err = h.app.FinancialService.GetCategoryByID(r.Context(), financialApp.GetCategoryByIDInput{
-		CategoryID: req.CategoryID,
-		UserID:     userID,
+		CategoryID:     req.CategoryID,
+		OrganizationID: organizationID,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -2156,7 +2157,9 @@ func (h *Handler) ListSavingsGoals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse optional query parameters
-	var isActive *bool
+	// Default to is_active=true to hide soft-deleted goals unless explicitly requested
+	defaultActive := true
+	isActive := &defaultActive
 	if activeStr := r.URL.Query().Get("is_active"); activeStr != "" {
 		active := activeStr == "true"
 		isActive = &active

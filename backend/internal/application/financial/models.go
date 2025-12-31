@@ -13,12 +13,13 @@ type CategoryModel struct {
 	CreatedAt  time.Time `db:"created_at"`
 	UpdatedAt  time.Time `db:"updated_at"`
 
-	Name         string `db:"name"`
-	Icon         string `db:"icon"`
-	Color        string `db:"color"`
-	IsSystem     bool   `db:"is_system"`
-	UserID       *int   `db:"user_id"`       // NULL for system categories
-	CategoryType string `db:"category_type"` // 'expense' or 'income'
+	Name           string `db:"name"`
+	Icon           string `db:"icon"`
+	Color          string `db:"color"`
+	IsSystem       bool   `db:"is_system"`
+	UserID         *int   `db:"user_id"`         // NULL for system categories
+	OrganizationID *int   `db:"organization_id"` // NULL for system categories
+	CategoryType   string `db:"category_type"`   // 'expense' or 'income'
 }
 
 type CategoriesModel []CategoryModel

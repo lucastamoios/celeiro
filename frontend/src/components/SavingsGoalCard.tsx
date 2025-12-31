@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, AlertTriangle, Coins } from 'lucide-react';
+import { useDropdownClose } from '../hooks/useDropdownClose';
 import type { SavingsGoal, SavingsGoalProgress } from '../types/savingsGoals';
 import {
   getGoalTypeLabel,
@@ -31,6 +32,9 @@ export default function SavingsGoalCard({
   onClick,
 }: SavingsGoalCardProps) {
   const [showActions, setShowActions] = useState(false);
+
+  // Handle click outside and Escape key for dropdown menu
+  const actionsMenuRef = useDropdownClose(showActions, () => setShowActions(false));
 
   // Calculate progress from the progress prop or estimate from goal data
   const currentAmount = progress?.current_amount || '0';
@@ -117,7 +121,7 @@ export default function SavingsGoalCard({
             </button>
 
             {showActions && (
-              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10 min-w-[140px]">
+              <div ref={actionsMenuRef} className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10 min-w-[140px]">
                 {onEdit && (
                   <button
                     onClick={(e) => {

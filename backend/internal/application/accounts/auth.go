@@ -139,6 +139,9 @@ func (a *service) RequestMagicLinkViaEmail(ctx context.Context, input RequestMag
 		return RequestMagicLinkViaEmailOutput{}, err
 	}
 
+	// Log the magic code for easy development access
+	a.logger.Info(ctx, "🔑 MAGIC CODE", "email", input.Email, "code", code)
+
 	if err := a.sendMagicLinkEmail(ctx, sendMagicLinkEmailInput{
 		Email: input.Email,
 		Code:  code,
@@ -206,11 +209,17 @@ func (a *service) sendMagicLinkEmail(ctx context.Context, input sendMagicLinkEma
 		return nil
 	}
 
+	// Build the magic link URL with email and code as query params
+	loginURL := fmt.Sprintf("%s?email=%s&code=%s", a.frontendURL, input.Email, input.Code)
+
 	message := mailer.EmailTemplateMessage{
 		To:       []string{input.Email},
-		Subject:  "Your Login Code",
+		Subject:  "Seu Código de Acesso - Celeiro",
 		Template: mailer.TemplateAuthCode,
-		Data:     map[string]any{"code": input.Code},
+		Data: map[string]any{
+			"Code":     input.Code,
+			"LoginURL": loginURL,
+		},
 	}
 
 	return a.mailer.SendEmail(ctx, message)

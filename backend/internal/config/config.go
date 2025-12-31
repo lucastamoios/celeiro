@@ -27,6 +27,7 @@ type Config struct {
 	OTELEnabled       bool
 	MailerType        string
 	SMTP2GO           SMTP2GOConfig
+	FrontendURL       string // Base URL for frontend (used in email links)
 }
 
 type SMTP2GOConfig struct {
@@ -58,6 +59,7 @@ func New() *Config {
 	smtp2goSender := flag.String("smtp2go-sender", getEnvAsString("SMTP2GO_SENDER", ""), "SMTP2GO default sender")
 	smtp2goBaseURL := flag.String("smtp2go-base-url", getEnvAsString("SMTP2GO_BASE_URL", ""), "SMTP2GO base URL")
 	smtp2goTimeout := flag.Int("smtp2go-timeout", getEnvAsInt("SMTP2GO_TIMEOUT", 30), "SMTP2GO timeout in seconds")
+	frontendURL := flag.String("frontend-url", getEnvAsString("FRONTEND_URL", "http://localhost:51111"), "Frontend base URL for email links")
 
 	flag.Parse()
 
@@ -84,6 +86,7 @@ func New() *Config {
 			BaseURL:       *smtp2goBaseURL,
 			Timeout:       time.Duration(*smtp2goTimeout) * time.Second,
 		},
+		FrontendURL: *frontendURL,
 	}
 }
 
