@@ -4,29 +4,25 @@ import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import TransactionList from './components/TransactionList'
 import CategoryBudgetDashboard from './components/CategoryBudgetDashboard'
-import PatternManager from './components/PatternManager'
-import CategoryManager from './components/CategoryManager'
-import TagManager from './components/TagManager'
 import UncategorizedTransactions from './components/UncategorizedTransactions'
 import SavingsGoalsPage from './components/SavingsGoalsPage'
+import SettingsPage from './components/SettingsPage'
+import UserAvatarMenu from './components/UserAvatarMenu'
 import {
   LayoutDashboard,
   CreditCard,
   PieChart,
-  Workflow,
-  FolderOpen,
-  Tag,
   Target,
   Calendar,
-  LogOut,
   Menu,
   X,
   Wheat,
 } from 'lucide-react'
 
-type View = 'dashboard' | 'transactions' | 'budgets' | 'patterns' | 'categories' | 'tags' | 'uncategorized' | 'goals';
+type View = 'dashboard' | 'transactions' | 'budgets' | 'goals' | 'settings' | 'uncategorized';
+type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags';
 
-const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'patterns', 'categories', 'tags', 'uncategorized', 'goals'];
+const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'goals', 'settings', 'uncategorized'];
 const VIEW_STORAGE_KEY = 'celeiro_current_view';
 
 function getInitialView(): View {
@@ -38,15 +34,21 @@ function getInitialView(): View {
 }
 
 function AppContent() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [currentView, setCurrentViewState] = useState<View>(getInitialView);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('conta');
 
   const setCurrentView = useCallback((view: View) => {
     setCurrentViewState(view);
     localStorage.setItem(VIEW_STORAGE_KEY, view);
     setIsMobileMenuOpen(false); // Close mobile menu when navigating
   }, []);
+
+  const handleNavigateToSettings = useCallback((tab?: SettingsTab) => {
+    if (tab) setSettingsTab(tab);
+    setCurrentView('settings');
+  }, [setCurrentView]);
 
   // Close mobile menu when clicking outside or pressing Escape
   useEffect(() => {
@@ -107,27 +109,6 @@ function AppContent() {
                   <span>Orçamentos</span>
                 </button>
                 <button
-                  onClick={() => setCurrentView('patterns')}
-                  className={navButtonClass('patterns')}
-                >
-                  <Workflow className="w-4 h-4" />
-                  <span>Padrões</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('categories')}
-                  className={navButtonClass('categories')}
-                >
-                  <FolderOpen className="w-4 h-4" />
-                  <span>Categorias</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('tags')}
-                  className={navButtonClass('tags')}
-                >
-                  <Tag className="w-4 h-4" />
-                  <span>Tags</span>
-                </button>
-                <button
                   onClick={() => setCurrentView('goals')}
                   className={navButtonClass('goals')}
                 >
@@ -151,27 +132,24 @@ function AppContent() {
               </div>
             </div>
 
-            {/* Desktop Logout Button */}
-            <button
-              onClick={logout}
-              className="hidden lg:inline-flex items-center gap-2 btn-secondary"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sair</span>
-            </button>
+            {/* Right Side: Avatar + Mobile Hamburger */}
+            <div className="flex items-center gap-2">
+              {/* User Avatar Menu - always visible */}
+              <UserAvatarMenu onNavigateToSettings={handleNavigateToSettings} />
 
-            {/* Mobile/Tablet Hamburger Button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-stone-600 hover:bg-stone-100 transition-colors"
-              aria-label="Toggle menu"
-            >
-              {isMobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
+              {/* Mobile/Tablet Hamburger Button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg text-stone-600 hover:bg-stone-100 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -209,42 +187,12 @@ function AppContent() {
                 <span>Orçamentos</span>
               </button>
               <button
-                onClick={() => setCurrentView('patterns')}
-                className={mobileNavButtonClass('patterns')}
-              >
-                <Workflow className="w-5 h-5" />
-                <span>Padrões</span>
-              </button>
-              <button
-                onClick={() => setCurrentView('categories')}
-                className={mobileNavButtonClass('categories')}
-              >
-                <FolderOpen className="w-5 h-5" />
-                <span>Categorias</span>
-              </button>
-              <button
-                onClick={() => setCurrentView('tags')}
-                className={mobileNavButtonClass('tags')}
-              >
-                <Tag className="w-5 h-5" />
-                <span>Tags</span>
-              </button>
-              <button
                 onClick={() => setCurrentView('goals')}
                 className={mobileNavButtonClass('goals')}
               >
                 <Target className="w-5 h-5" />
                 <span>Metas</span>
               </button>
-              <div className="pt-3 border-t border-stone-200 mt-3">
-                <button
-                  onClick={logout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-base font-medium text-rust-600 hover:bg-rust-50 rounded-lg transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span>Sair</span>
-                </button>
-              </div>
             </div>
           </div>
         </>
@@ -254,11 +202,9 @@ function AppContent() {
       {currentView === 'dashboard' && <Dashboard onNavigateToUncategorized={() => setCurrentView('uncategorized')} />}
       {currentView === 'transactions' && <TransactionList />}
       {currentView === 'budgets' && <CategoryBudgetDashboard />}
-      {currentView === 'patterns' && <PatternManager />}
-      {currentView === 'categories' && <CategoryManager />}
-      {currentView === 'tags' && <TagManager />}
-      {currentView === 'uncategorized' && <UncategorizedTransactions />}
       {currentView === 'goals' && <SavingsGoalsPage />}
+      {currentView === 'settings' && <SettingsPage initialTab={settingsTab} />}
+      {currentView === 'uncategorized' && <UncategorizedTransactions />}
     </div>
   );
 }

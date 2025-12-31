@@ -2,14 +2,13 @@ import { useState, useCallback } from 'react';
 import { BarChart3, Copy, Check, AlertTriangle, Calendar } from 'lucide-react';
 import type { CategoryBudget, PlannedEntryWithStatus } from '../types/budget';
 import CategoryBudgetCard from './CategoryBudgetCard';
-import IncomePlanningAlert from './IncomePlanningAlert';
 import PlannedEntryCard from './PlannedEntryCard';
 
 interface MonthlyBudgetCardProps {
   month: number;
   year: number;
   budgets: CategoryBudget[];
-  categories: Array<{ category_id: number; name: string }>;
+  categories: Array<{ category_id: number; name: string; category_type?: 'expense' | 'income' }>;
   actualSpending: Record<number, string>;
   isCurrent: boolean;
   isConsolidated: boolean;
@@ -18,6 +17,9 @@ interface MonthlyBudgetCardProps {
   plannedEntriesLoading: boolean;
   hasPreviousMonthBudgets?: boolean;
   hideHeader?: boolean;
+  // Income data for health card
+  totalPlannedIncome?: number;
+  totalActualIncome?: number;
   onEditBudget: (budget: CategoryBudget) => void;
   onDeleteBudget: (budgetId: number) => void;
   onDeleteMonth?: () => Promise<void>;
@@ -45,6 +47,8 @@ export default function MonthlyBudgetCard({
   plannedEntriesLoading,
   hasPreviousMonthBudgets,
   hideHeader = false,
+  totalPlannedIncome = 0,
+  totalActualIncome = 0,
   onEditBudget,
   onDeleteBudget,
   onDeleteMonth,
@@ -90,13 +94,22 @@ export default function MonthlyBudgetCard({
     return category ? category.name : 'Unknown';
   };
 
-  // Calculate totals (with safety checks for NaN)
+  const isIncomeCategory = (categoryId: number): boolean => {
+    const category = categories.find((c) => c.category_id === categoryId);
+    return category?.category_type === 'income';
+  };
+
+  // Calculate totals (EXPENSES ONLY - exclude income categories)
   const budgetArray = Array.isArray(budgets) ? budgets : [];
-  const totalPlanned = budgetArray.reduce((sum, b) => {
+
+  // Filter to expense-only budgets for totals calculation
+  const expenseBudgets = budgetArray.filter(b => !isIncomeCategory(b.CategoryID));
+
+  const totalPlanned = expenseBudgets.reduce((sum, b) => {
     const val = parseFloat(b.PlannedAmount || '0');
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
-  const totalSpent = budgetArray.reduce((sum, b) => {
+  const totalSpent = expenseBudgets.reduce((sum, b) => {
     const val = parseFloat(actualSpending[b.CategoryID] || '0');
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
@@ -223,12 +236,109 @@ export default function MonthlyBudgetCard({
         </div>
       )}
 
-      {/* Income Planning Alert (only for current month) */}
-      {isCurrent && (
-        <div className="px-6 pt-6">
-          <IncomePlanningAlert month={month} year={year} />
-        </div>
-      )}
+      {/* Budget Health Card - shows income vs expense allocation */}
+      <div className="px-6 pt-6">
+        {(() => {
+          // Calculate unallocated amount (income - planned expenses)
+          const unallocated = totalPlannedIncome - totalPlanned;
+          const unallocatedPercent = totalPlannedIncome > 0
+            ? ((unallocated / totalPlannedIncome) * 100)
+            : 0;
+
+          // Status: OK if at least 96% of income is allocated (4% margin allowed)
+          const isWellAllocated = totalPlannedIncome > 0 && Math.abs(unallocatedPercent) < 4;
+          const hasNoIncome = totalPlannedIncome === 0;
+
+          const formatCurrency = (amount: number) =>
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
+
+          if (hasNoIncome) {
+            return (
+              <div className="bg-terra-50 border border-terra-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex-shrink-0">⚠️</span>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-terra-900 mb-1">
+                      No income for this month
+                    </h4>
+                    <p className="text-sm text-terra-700">
+                      Create an income budget to track your income allocation
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (isWellAllocated) {
+            return (
+              <div className="bg-sage-50 border border-sage-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex-shrink-0">✅</span>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-sage-900 mb-1">
+                      Orçamento bem alocado
+                    </h4>
+                    <p className="text-sm text-sage-700">
+                      Seu orçamento está bem distribuído
+                    </p>
+                    <div className="mt-2 grid grid-cols-3 gap-4 text-xs text-sage-600">
+                      <div>
+                        <span className="font-medium">Renda: </span>
+                        {formatCurrency(totalActualIncome || totalPlannedIncome)}
+                      </div>
+                      <div>
+                        <span className="font-medium">Planejado: </span>
+                        {formatCurrency(totalPlanned)}
+                      </div>
+                      <div>
+                        <span className="font-medium">Não alocado: </span>
+                        {formatCurrency(unallocated)} ({unallocatedPercent.toFixed(2)}%)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Warning state - budget not well allocated
+          return (
+            <div className="bg-terra-50 border border-terra-300 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0">⚠️</span>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-terra-900 mb-1">
+                    {unallocated > 0 ? 'Renda não totalmente alocada' : 'Gastos excedem renda'}
+                  </h4>
+                  <div className="bg-white rounded-md p-3 space-y-2 mt-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-stone-600">Renda (Atual/Planejada):</span>
+                      <span className="font-semibold text-stone-900">
+                        {formatCurrency(totalActualIncome)} / {formatCurrency(totalPlannedIncome)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-stone-600">Total Planejado (Despesas):</span>
+                      <span className="font-semibold text-stone-900">{formatCurrency(totalPlanned)}</span>
+                    </div>
+                    <div className="h-px bg-stone-200"></div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-stone-600">{unallocated >= 0 ? 'Não Alocado' : 'Déficit'}:</span>
+                      <span className={`font-semibold ${unallocated >= 0 ? 'text-terra-700' : 'text-rust-700'}`}>
+                        {formatCurrency(Math.abs(unallocated))} ({Math.abs(unallocatedPercent).toFixed(2)}%)
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-terra-600">
+                    💡 Dica: Aloque pelo menos 96% da sua renda em categorias para manter um orçamento de base zero efetivo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Category Budget Cards */}
       <div className="p-4 sm:p-6">
@@ -269,6 +379,7 @@ export default function MonthlyBudgetCard({
                   budget={budget}
                   categoryName={getCategoryName(budget.CategoryID)}
                   actualSpent={actualSpending[budget.CategoryID] || '0.00'}
+                  isIncome={isIncomeCategory(budget.CategoryID)}
                   canConsolidate={monthHasEnded}
                   plannedEntries={categoryEntries}
                   month={month}

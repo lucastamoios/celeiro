@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { CategoryBudget, PlannedEntryWithStatus, PlannedEntryStatusType } from '../types/budget';
 import { getVarianceStatus, VARIANCE_THRESHOLDS, getStatusBadgeClasses, getStatusLabel } from '../types/budget';
+import { useDropdownClose } from '../hooks/useDropdownClose';
 
 interface CategoryBudgetCardProps {
   budget: CategoryBudget;
   categoryName: string;
-  actualSpent: string; // Current spending for this category
+  actualSpent: string; // Current spending/income for this category
+  isIncome?: boolean; // Whether this is an income category
   canConsolidate?: boolean; // Only allow consolidation after month ends
   plannedEntries?: PlannedEntryWithStatus[];
   month?: number;
@@ -25,6 +27,7 @@ export default function CategoryBudgetCard({
   budget,
   categoryName,
   actualSpent,
+  isIncome = false,
   canConsolidate = false,
   plannedEntries = [],
   month,
@@ -45,6 +48,10 @@ export default function CategoryBudgetCard({
   const [dismissingEntryId, setDismissingEntryId] = useState<number | null>(null);
   const [dismissReason, setDismissReason] = useState('');
   const [expandedEntryActions, setExpandedEntryActions] = useState<number | null>(null);
+
+  // Handle click outside and Escape key for dropdown menus
+  const actionsMenuRef = useDropdownClose(showActions, () => setShowActions(false));
+  const entryActionsMenuRef = useDropdownClose(expandedEntryActions !== null, () => setExpandedEntryActions(null));
 
   // Handle ESC key to close modals
   useEffect(() => {
@@ -89,7 +96,11 @@ export default function CategoryBudgetCard({
   const actualNum = parseFloat(actualSpent || '0') || 0;
   const variance = actualNum - plannedNum;
   const variancePercent = plannedNum > 0 ? (variance / plannedNum) * 100 : 0;
-  const varianceStatus = getVarianceStatus(variancePercent);
+
+  // For income, positive variance (earned more) is GOOD; for expenses, positive variance (spent more) is BAD
+  // We invert the variance percent for income so the status thresholds work correctly
+  const effectiveVariancePercent = isIncome ? -variancePercent : variancePercent;
+  const varianceStatus = getVarianceStatus(effectiveVariancePercent);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -118,10 +129,19 @@ export default function CategoryBudgetCard({
   };
 
   const getVarianceColor = () => {
-    if (variancePercent > VARIANCE_THRESHOLDS.MAJOR) return 'text-rust-600 font-semibold';
-    if (variancePercent > VARIANCE_THRESHOLDS.MINOR) return 'text-terra-600';
-    if (variancePercent < 0) return 'text-sage-600';
-    return 'text-stone-600';
+    // For income: positive variance = good (green), negative = bad (red/orange)
+    // For expenses: positive variance = bad (red/orange), negative = good (green)
+    if (isIncome) {
+      if (variancePercent < -VARIANCE_THRESHOLDS.MAJOR) return 'text-rust-600 font-semibold';
+      if (variancePercent < -VARIANCE_THRESHOLDS.MINOR) return 'text-terra-600';
+      if (variancePercent > 0) return 'text-sage-600';
+      return 'text-stone-600';
+    } else {
+      if (variancePercent > VARIANCE_THRESHOLDS.MAJOR) return 'text-rust-600 font-semibold';
+      if (variancePercent > VARIANCE_THRESHOLDS.MINOR) return 'text-terra-600';
+      if (variancePercent < 0) return 'text-sage-600';
+      return 'text-stone-600';
+    }
   };
 
   const getBudgetTypeLabel = (type: string) => {
@@ -258,7 +278,7 @@ export default function CategoryBudgetCard({
             </button>
 
             {showActions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10">
+              <div ref={actionsMenuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10">
                 {onEdit && (
                   <button
                     onClick={() => {
@@ -309,7 +329,7 @@ export default function CategoryBudgetCard({
           </div>
         </div>
         <div>
-          <div className="text-sm text-stone-600">Gasto</div>
+          <div className="text-sm text-stone-600">{isIncome ? 'Ganho' : 'Gasto'}</div>
           <div className="text-lg font-semibold text-stone-900 tabular-nums">
             {formatCurrency(actualSpent)}
           </div>
@@ -338,14 +358,20 @@ export default function CategoryBudgetCard({
         </div>
 
         {/* Variance Warning */}
-        {varianceStatus === 'warning' && (
+        {varianceStatus === 'warning' && !isIncome && (
           <div className="mt-2 text-xs text-terra-700 bg-terra-50 px-3 py-2 rounded border border-terra-200">
             <strong>⚠️ Atenção:</strong> Gasto {variancePercent.toFixed(1)}% acima do planejado
           </div>
         )}
-        {varianceStatus === 'critical' && (
+        {varianceStatus === 'critical' && !isIncome && (
           <div className="mt-2 text-xs text-rust-700 bg-rust-50 px-3 py-2 rounded border border-rust-200">
             <strong>🚨 Crítico:</strong> Gasto {variancePercent.toFixed(1)}% acima do planejado
+          </div>
+        )}
+        {/* Income below target warning */}
+        {isIncome && variance < 0 && Math.abs(variancePercent) >= VARIANCE_THRESHOLDS.MINOR && (
+          <div className="mt-2 text-xs text-terra-700 bg-terra-50 px-3 py-2 rounded border border-terra-200">
+            <strong>⚠️ Atenção:</strong> Ganho {Math.abs(variancePercent).toFixed(1)}% abaixo do planejado
           </div>
         )}
       </div>
@@ -440,7 +466,7 @@ export default function CategoryBudgetCard({
                   </button>
 
                   {expandedEntryActions === entry.PlannedEntryID && (
-                    <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-20">
+                    <div ref={entryActionsMenuRef} className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-20">
                       {(entry.Status === 'pending' || entry.Status === 'missed') && onMatchEntry && (
                         <button
                           onClick={() => {

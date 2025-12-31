@@ -56,7 +56,10 @@ func (test *AuthTestSuite) SetupSuite() {
 	redis := testsetup.GetRedis(test.logger)
 	test.db = db
 	test.redis = redis
-	test.config = config.Config{EmailFrom: "test@example.com"}
+	test.config = config.Config{
+		EmailFrom:   "test@example.com",
+		FrontendURL: "http://localhost:51111",
+	}
 
 	test.mailer = mailer.NewLocalMailer(&test.config, test.logger)
 	test.mailer.(*mailer.LocalMailer).ClearSentEmails()
@@ -70,7 +73,7 @@ func (test *AuthTestSuite) SetupSuite() {
 		String:       system.NewStringGenerator(),
 	}
 	test.system = sys
-	accountsService := accounts.New(repo, test.redis, test.mailer, sys, test.logger, test.db)
+	accountsService := accounts.New(repo, test.redis, test.mailer, sys, test.logger, test.db, &test.config)
 	test.app = &application.Application{
 		AccountsService: accountsService,
 	}

@@ -47,7 +47,10 @@ func (base *BaseTestSuite) SetupBaseSuite() {
 	base.Logger = &logging.TestLogger{}
 	base.DB = testsetup.GetDB(base.Logger)
 	base.Redis = testsetup.GetRedis(base.Logger)
-	base.Config = config.Config{EmailFrom: "test@example.com"}
+	base.Config = config.Config{
+		EmailFrom:   "test@example.com",
+		FrontendURL: "http://localhost:51111",
+	}
 
 	base.Mailer = mailer.NewLocalMailer(&base.Config, base.Logger)
 	base.Mailer.(*mailer.LocalMailer).ClearSentEmails()
@@ -63,7 +66,7 @@ func (base *BaseTestSuite) SetupBaseSuite() {
 
 	// Initialize all repositories and services
 	accountsRepo := accounts.NewRepository(base.DB)
-	accountsService := accounts.New(accountsRepo, base.Redis, base.Mailer, base.System, base.Logger, base.DB)
+	accountsService := accounts.New(accountsRepo, base.Redis, base.Mailer, base.System, base.Logger, base.DB, &base.Config)
 
 	base.App = &application.Application{
 		AccountsService: accountsService,

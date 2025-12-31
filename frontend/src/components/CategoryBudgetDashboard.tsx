@@ -353,6 +353,28 @@ export default function CategoryBudgetDashboard() {
         spending[key][tx.category_id] = (currentAmount + txAmount).toFixed(2);
       });
 
+      // Step 4: Calculate actual income for income categories (from credit transactions)
+      transactions.forEach(tx => {
+        // Only include credit transactions in income categories
+        if (tx.is_ignored || !tx.category_id || tx.transaction_type !== 'credit' || !incomeCategoryIds.has(tx.category_id)) {
+          return;
+        }
+
+        const txDate = new Date(tx.transaction_date);
+        const month = txDate.getMonth() + 1;
+        const year = txDate.getFullYear();
+        const key = `${month}-${year}`;
+
+        if (!spending[key]) {
+          spending[key] = {};
+        }
+
+        const currentAmount = parseFloat(spending[key][tx.category_id] || '0');
+        // Use absolute value since credit amounts are stored as positive
+        const txAmount = Math.abs(parseFloat(tx.amount));
+        spending[key][tx.category_id] = (currentAmount + txAmount).toFixed(2);
+      });
+
       setActualSpending(spending);
     } catch (err) {
       console.error('Failed to calculate actual spending:', err);
@@ -1014,14 +1036,32 @@ export default function CategoryBudgetDashboard() {
   const selectedMonthEntries = expandedMonthEntries[selectedMonthKey] || [];
   const selectedMonthEntriesLoading = expandedMonthLoading[selectedMonthKey] || false;
 
-  // Calculate totals for summary
-  const totalPlanned = selectedMonthBudgets.reduce(
+  // Build a set of income category IDs for filtering
+  const incomeCategoryIds = new Set(
+    categories
+      .filter(c => c.category_type === 'income')
+      .map(c => c.category_id)
+  );
+
+  // Calculate totals for summary (EXPENSES ONLY - exclude income categories)
+  const expenseBudgets = selectedMonthBudgets.filter(b => !incomeCategoryIds.has(b.CategoryID));
+  const totalPlanned = expenseBudgets.reduce(
     (sum, b) => sum + parseFloat(b.PlannedAmount || '0'), 0
   );
-  const totalSpent = Object.values(selectedMonthSpending).reduce(
-    (sum, amount) => sum + parseFloat(amount || '0'), 0
+  // Sum spending only for expense categories
+  const totalSpent = expenseBudgets.reduce(
+    (sum, b) => sum + parseFloat(selectedMonthSpending[b.CategoryID] || '0'), 0
   );
   const spentPercentage = totalPlanned > 0 ? Math.round((totalSpent / totalPlanned) * 100) : 0;
+
+  // Calculate income totals separately
+  const incomeBudgets = selectedMonthBudgets.filter(b => incomeCategoryIds.has(b.CategoryID));
+  const totalPlannedIncome = incomeBudgets.reduce(
+    (sum, b) => sum + parseFloat(b.PlannedAmount || '0'), 0
+  );
+  const totalActualIncome = incomeBudgets.reduce(
+    (sum, b) => sum + parseFloat(selectedMonthSpending[b.CategoryID] || '0'), 0
+  );
 
   // Check if previous month has budgets (for copy button)
   const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
@@ -1252,6 +1292,8 @@ export default function CategoryBudgetDashboard() {
             plannedEntries={selectedMonthEntries}
             plannedEntriesLoading={selectedMonthEntriesLoading}
             hasPreviousMonthBudgets={hasPreviousMonthBudgets}
+            totalPlannedIncome={totalPlannedIncome}
+            totalActualIncome={totalActualIncome}
             onEditBudget={handleEditBudget}
             onDeleteBudget={handleDeleteBudget}
             onDeleteMonth={async () => {

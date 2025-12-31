@@ -1,27 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Login Code</title>
+    <title>Seu Código de Acesso - Celeiro</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f5f5;
+            background-color: #faf8f5;
             color: #333;
         }
         .email-container {
             max-width: 600px;
             margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
             color: white;
             padding: 30px 20px;
             text-align: center;
@@ -36,45 +36,76 @@
             text-align: center;
         }
         .code-container {
-            background-color: #f8f9fa;
-            border: 2px dashed #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
+            background-color: #faf8f5;
+            border: 2px dashed #d4c5a9;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
             display: inline-block;
         }
         .auth-code {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: bold;
-            color: #495057;
-            letter-spacing: 8px;
+            color: #44403c;
+            letter-spacing: 12px;
             font-family: 'Courier New', monospace;
         }
         .message {
             font-size: 16px;
             line-height: 1.6;
-            color: #6c757d;
+            color: #78716c;
             margin: 20px 0;
         }
-        .expiry-notice {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 4px;
-            padding: 15px;
+        .login-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
+            color: white;
+            text-decoration: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
             margin: 20px 0;
-            color: #856404;
+            box-shadow: 0 4px 12px rgba(184, 134, 11, 0.3);
+        }
+        .login-button:hover {
+            opacity: 0.9;
+        }
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: #a8a29e;
+            font-size: 14px;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #e7e5e4;
+        }
+        .divider span {
+            padding: 0 16px;
+        }
+        .expiry-notice {
+            background-color: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 20px 0;
+            color: #92400e;
             font-size: 14px;
         }
         .footer {
-            background-color: #f8f9fa;
+            background-color: #faf8f5;
             padding: 20px;
             text-align: center;
-            border-top: 1px solid #dee2e6;
+            border-top: 1px solid #e7e5e4;
         }
         .footer p {
-            margin: 0;
+            margin: 4px 0;
             font-size: 12px;
-            color: #6c757d;
+            color: #a8a29e;
         }
         @media (max-width: 600px) {
             .email-container {
@@ -86,7 +117,7 @@
             }
             .auth-code {
                 font-size: 28px;
-                letter-spacing: 6px;
+                letter-spacing: 8px;
             }
         }
     </style>
@@ -94,26 +125,38 @@
 <body>
     <div class="email-container">
         <div class="header">
-            <h1>🔐 Authentication Code</h1>
+            <h1>🌾 Celeiro - Código de Acesso</h1>
         </div>
 
         <div class="content">
             <p class="message">
-                Hello! Here's your secure login code:
+                Olá! Clique no botão abaixo para entrar na sua conta:
             </p>
+
+            <a href="{{.LoginURL}}" class="login-button">
+                Entrar no Celeiro
+            </a>
+
+            <div class="divider">
+                <span>ou use o código</span>
+            </div>
 
             <div class="code-container">
                 <div class="auth-code">{{.Code}}</div>
             </div>
 
             <p class="message">
-                Enter this code in your application to complete the login process.
+                Digite este código no aplicativo para completar o login.
             </p>
+
+            <div class="expiry-notice">
+                ⏱️ Este código expira em 10 minutos.
+            </div>
         </div>
-        
+
         <div class="footer">
-            <p>If you didn't request this code, please ignore this email.</p>
-            <p>This is an automated message, please do not reply.</p>
+            <p>Se você não solicitou este código, ignore este email.</p>
+            <p>Esta é uma mensagem automática, por favor não responda.</p>
         </div>
     </div>
 </body>

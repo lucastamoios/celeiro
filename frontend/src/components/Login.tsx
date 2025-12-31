@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import type { ApiResponse } from '../types/transaction';
 import { apiUrl, API_CONFIG } from '../config/api';
@@ -10,14 +10,64 @@ interface AuthResponse {
   is_new_user: boolean;
 }
 
+// Helper to get URL params
+function getUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    email: params.get('email') || '',
+    code: params.get('code') || '',
+  };
+}
+
+// Clear URL params without page reload
+function clearUrlParams() {
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const urlParams = getUrlParams();
+  const [email, setEmail] = useState(urlParams.email);
+  const [code, setCode] = useState(urlParams.code);
+  const [step, setStep] = useState<'email' | 'code'>(urlParams.email && urlParams.code ? 'code' : 'email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [codeInfo, setCodeInfo] = useState<string | null>(null);
   const { login } = useAuth();
+  const autoLoginAttempted = useRef(false);
+
+  // Auto-login when both email and code are provided via URL params (magic link)
+  useEffect(() => {
+    if (urlParams.email && urlParams.code && !autoLoginAttempted.current) {
+      autoLoginAttempted.current = true;
+      clearUrlParams(); // Clean URL immediately
+      performLogin(urlParams.email, urlParams.code);
+    }
+  }, []); // Only run once on mount
+
+  const performLogin = async (loginEmail: string, loginCode: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(apiUrl(API_CONFIG.endpoints.auth.validate), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, code: loginCode })
+      });
+
+      if (!response.ok) {
+        throw new Error('Código inválido ou expirado');
+      }
+
+      const data: ApiResponse<AuthResponse> = await response.json();
+      login(data.data.session_token, loginEmail);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Código inválido');
+      setStep('code'); // Show code form so user can retry
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,27 +96,7 @@ export default function Login() {
 
   const validateCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(apiUrl(API_CONFIG.endpoints.auth.validate), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code })
-      });
-
-      if (!response.ok) {
-        throw new Error('Invalid code');
-      }
-
-      const data: ApiResponse<AuthResponse> = await response.json();
-      login(data.data.session_token);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid code');
-    } finally {
-      setLoading(false);
-    }
+    performLogin(email, code);
   };
 
   return (

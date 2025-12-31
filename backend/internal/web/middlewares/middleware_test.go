@@ -47,16 +47,18 @@ func (test *MiddlewareTestSuite) createTestConfig() *config.Config {
 		ServiceInstanceID: "test-instance",
 		ServiceVersion:    "test-version",
 		OTELEndpoint:      "localhost:4317",
+		FrontendURL:       "http://localhost:51111",
 	}
 }
 
 func (test *MiddlewareTestSuite) createTestApplication() *application.Application {
 	persistentDB := database.NewMemoryDatabase()
 	transientDB := transientdb.NewMemoryTransientDB()
+	cfg := test.createTestConfig()
 
 	repo := accounts.NewRepository(persistentDB)
 	system := system.NewSystem()
-	accountsService := accounts.New(repo, transientDB, nil, system, test.logger, persistentDB)
+	accountsService := accounts.New(repo, transientDB, nil, system, test.logger, persistentDB, cfg)
 
 	return &application.Application{
 		AccountsService: accountsService,

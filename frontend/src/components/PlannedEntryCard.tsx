@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { PlannedEntryWithStatus, PlannedEntryStatusType } from '../types/budget';
 import { getStatusBadgeClasses, getStatusLabel } from '../types/budget';
+import { useDropdownClose } from '../hooks/useDropdownClose';
 
 interface PlannedEntryCardProps {
   entry: PlannedEntryWithStatus;
@@ -30,6 +31,9 @@ export default function PlannedEntryCard({
   const [showActions, setShowActions] = useState(false);
   const [showDismissModal, setShowDismissModal] = useState(false);
   const [dismissReason, setDismissReason] = useState('');
+
+  // Handle click outside and Escape key for dropdown menu
+  const actionsMenuRef = useDropdownClose(showActions, () => setShowActions(false));
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -191,7 +195,7 @@ export default function PlannedEntryCard({
             </button>
 
             {showActions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
+              <div ref={actionsMenuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
                 {(entry.Status === 'pending' || entry.Status === 'missed') && onMatch && (
                   <button
                     onClick={() => {
