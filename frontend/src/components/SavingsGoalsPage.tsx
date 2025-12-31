@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Target } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type {
   SavingsGoal,
@@ -327,9 +328,12 @@ export default function SavingsGoalsPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 p-8">
+      <div className="min-h-screen bg-stone-50 p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold text-stone-900 mb-4">🎯 Metas de Poupança</h1>
+          <h1 className="text-2xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+            <Target className="w-6 h-6 text-wheat-600" />
+            Metas de Poupança
+          </h1>
           <p className="text-stone-600">Carregando...</p>
         </div>
       </div>
@@ -337,12 +341,15 @@ export default function SavingsGoalsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 p-8">
+    <div className="min-h-screen bg-stone-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-stone-900">🎯 Metas de Poupança</h1>
+            <h1 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
+              <Target className="w-6 h-6 text-wheat-600" />
+              Metas de Poupança
+            </h1>
             <p className="text-stone-600 mt-1">
               Acompanhe suas metas de economia e investimento
             </p>
@@ -423,7 +430,9 @@ export default function SavingsGoalsPage() {
         {/* Goals Grid */}
         {goals.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">🎯</div>
+            <div className="flex justify-center mb-4">
+              <Target className="w-16 h-16 text-stone-300" />
+            </div>
             <h3 className="text-lg font-medium text-stone-900 mb-2">
               Nenhuma meta encontrada
             </h3>

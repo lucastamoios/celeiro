@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Tag } from '../types/tag';
 import { getTags, createTag, updateTag, deleteTag } from '../api/tags';
 import { CATEGORY_COLORS, getCategoryColorStyle } from '../utils/colors';
+import { Tag as TagIcon, Plus } from 'lucide-react';
 
 const AVAILABLE_ICONS = [
   // Tags & Labels
@@ -204,7 +205,7 @@ export default function TagManager() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-stone-200 rounded w-32"></div>
           <div className="h-4 bg-stone-200 rounded w-64"></div>
@@ -220,7 +221,7 @@ export default function TagManager() {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-stone-900 mb-2">Tags</h1>
@@ -261,16 +262,16 @@ export default function TagManager() {
           }}
           className="btn-primary mb-8"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <Plus className="w-5 h-5" />
           Nova Tag
         </button>
 
         {/* Tags Grid */}
         {tags.length === 0 ? (
           <div className="bg-gradient-to-br from-stone-50 to-stone-100 border-2 border-dashed border-stone-300 rounded-2xl p-12 text-center">
-            <div className="text-5xl mb-4">🏷️</div>
+            <div className="flex justify-center mb-4">
+              <TagIcon className="w-14 h-14 text-stone-300" />
+            </div>
             <p className="text-stone-600 font-medium mb-2">
               Voce ainda nao criou nenhuma tag.
             </p>
@@ -307,7 +308,7 @@ export default function TagManager() {
                     </div>
 
                     {!isDeleting && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all">
                         <button
                           onClick={() => handleStartEdit(tag)}
                           className="p-2 hover:bg-white/80 rounded-lg shadow-sm hover:shadow"

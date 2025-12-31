@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { BarChart3, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { CategoryBudget, CreateCategoryBudgetRequest, CreatePlannedEntryRequest, PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
@@ -1072,13 +1073,13 @@ export default function CategoryBudgetDashboard() {
   }
 
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Month Navigation Header */}
         <div className="mb-6 card-compact">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             {/* Month Navigation */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-4">
               <button
                 onClick={handlePreviousMonth}
                 className="p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
@@ -1089,8 +1090,8 @@ export default function CategoryBudgetDashboard() {
                 </svg>
               </button>
 
-              <div className="text-center min-w-[180px]">
-                <h1 className="text-xl font-bold text-stone-900">
+              <div className="text-center min-w-[140px] sm:min-w-[180px]">
+                <h1 className="text-lg sm:text-xl font-bold text-stone-900">
                   {getMonthName(selectedMonth)} {selectedYear}
                 </h1>
                 {isCurrentMonth && (
@@ -1111,7 +1112,7 @@ export default function CategoryBudgetDashboard() {
               {!isCurrentMonth && (
                 <button
                   onClick={handleGoToCurrentMonth}
-                  className="ml-2 px-3 py-1 text-sm text-wheat-600 hover:text-wheat-800 hover:bg-wheat-50 rounded-lg transition-colors"
+                  className="ml-1 sm:ml-2 px-2 sm:px-3 py-1 text-sm text-wheat-600 hover:text-wheat-800 hover:bg-wheat-50 rounded-lg transition-colors"
                 >
                   Hoje
                 </button>
@@ -1119,7 +1120,7 @@ export default function CategoryBudgetDashboard() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-center sm:justify-end">
               <button
                 onClick={() => setShowCreateEntryModal(true)}
                 className="btn-secondary text-sm"
@@ -1138,11 +1139,11 @@ export default function CategoryBudgetDashboard() {
 
         {/* Monthly Summary Card */}
         <div className="mb-6 card border-wheat-200 border-2 bg-wheat-50/30">
-          <div className="grid grid-cols-3 gap-6 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-4">
             {/* Planned */}
             <div className="text-center">
               <p className="text-sm text-stone-500 mb-1">Planejado</p>
-              <p className="text-2xl font-bold text-stone-900 tabular-nums">
+              <p className="text-xl sm:text-2xl font-bold text-stone-900 tabular-nums">
                 R$ {totalPlanned.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
@@ -1150,7 +1151,7 @@ export default function CategoryBudgetDashboard() {
             {/* Spent */}
             <div className="text-center">
               <p className="text-sm text-stone-500 mb-1">Gasto</p>
-              <p className={`text-2xl font-bold tabular-nums ${spentPercentage > 100 ? 'text-rust-600' : 'text-stone-900'}`}>
+              <p className={`text-xl sm:text-2xl font-bold tabular-nums ${spentPercentage > 100 ? 'text-rust-600' : 'text-stone-900'}`}>
                 R$ {totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
@@ -1175,19 +1176,20 @@ export default function CategoryBudgetDashboard() {
           </div>
 
           {/* Quick Stats */}
-          <div className="flex items-center justify-center gap-4 text-sm text-stone-600 pt-3 border-t border-wheat-200">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm text-stone-600 pt-3 border-t border-wheat-200">
             <span>{selectedMonthBudgets.length} {selectedMonthBudgets.length === 1 ? 'categoria' : 'categorias'}</span>
-            <span className="text-wheat-400">•</span>
+            <span className="text-wheat-400 hidden sm:inline">•</span>
             <span>{selectedMonthEntries.length} {selectedMonthEntries.length === 1 ? 'entrada' : 'entradas'} planejadas</span>
             {hasPreviousMonthBudgets && selectedMonthBudgets.length === 0 && (
               <>
-                <span className="text-wheat-400">•</span>
+                <span className="text-wheat-400 hidden sm:inline">•</span>
                 <button
                   onClick={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
                   disabled={isSubmitting}
-                  className="text-wheat-600 hover:text-wheat-800 font-medium transition-colors disabled:opacity-50"
+                  className="text-wheat-600 hover:text-wheat-800 font-medium transition-colors disabled:opacity-50 inline-flex items-center gap-1"
                 >
-                  📋 Copiar do mês anterior
+                  <Copy className="w-4 h-4" />
+                  Copiar do mês anterior
                 </button>
               </>
             )}
@@ -1209,7 +1211,9 @@ export default function CategoryBudgetDashboard() {
         {/* Single Month Budget View */}
         {selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
           <div className="card p-12 text-center">
-            <div className="text-stone-300 text-6xl mb-4">📊</div>
+            <div className="flex justify-center mb-4">
+              <BarChart3 className="w-16 h-16 text-stone-300" />
+            </div>
             <h3 className="text-lg font-medium text-stone-900 mb-2">
               Nenhum orçamento para {getMonthName(selectedMonth)} {selectedYear}
             </h3>
@@ -1221,9 +1225,10 @@ export default function CategoryBudgetDashboard() {
                 <button
                   onClick={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
                   disabled={isSubmitting}
-                  className="btn-secondary disabled:opacity-50"
+                  className="btn-secondary disabled:opacity-50 inline-flex items-center gap-1"
                 >
-                  📋 Copiar do mês anterior
+                  <Copy className="w-4 h-4" />
+                  Copiar do mês anterior
                 </button>
               )}
               <button

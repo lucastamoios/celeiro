@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Coins, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
@@ -367,7 +368,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     });
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8">
       {/* Header */}
       <div className="mb-6">
         <p className="text-stone-500 text-sm">
@@ -377,18 +378,18 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
       {/* Hero Status Card */}
       <div className={`card mb-8 ${budgetStatus.borderClass} border-2`}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 ${budgetStatus.bgClass} rounded-xl flex items-center justify-center text-2xl`}>
+            <div className={`w-12 h-12 sm:w-14 sm:h-14 ${budgetStatus.bgClass} rounded-xl flex items-center justify-center text-xl sm:text-2xl flex-shrink-0`}>
               {budgetStatus.icon}
             </div>
             <div>
               <p className={`text-sm font-medium ${budgetStatus.textClass}`}>
                 {budgetStatus.message}
               </p>
-              <p className="text-stone-900 currency-hero">
+              <p className="text-stone-900 text-2xl sm:text-3xl font-bold tabular-nums">
                 {formatCurrency(Math.abs(available))}
-                <span className="text-stone-500 text-lg font-normal ml-2">
+                <span className="text-stone-500 text-sm sm:text-lg font-normal ml-2">
                   {available >= 0 ? 'disponível' : 'acima do limite'}
                 </span>
               </p>
@@ -396,7 +397,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           </div>
 
           {stats.budgetSummary && (
-            <div className="text-right">
+            <div className="text-left sm:text-right pl-16 sm:pl-0">
               <p className="text-stone-500 text-sm">
                 {formatCurrency(stats.budgetSummary.totalActual)} de {formatCurrency(stats.budgetSummary.totalPlanned)}
               </p>
@@ -494,7 +495,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         <div className="card-compact">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-sage-100 rounded-lg flex items-center justify-center">
-              <span className="text-lg">💰</span>
+              <Coins className="w-5 h-5 text-sage-600" />
             </div>
             <div>
               <p className="text-xs text-stone-500 uppercase tracking-wide">Receitas</p>
@@ -509,7 +510,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         <div className="card-compact">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-rust-100 rounded-lg flex items-center justify-center">
-              <span className="text-lg">💸</span>
+              <CreditCard className="w-5 h-5 text-rust-600" />
             </div>
             <div>
               <p className="text-xs text-stone-500 uppercase tracking-wide">Despesas</p>
@@ -526,7 +527,11 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
               stats.balance >= 0 ? 'bg-sage-100' : 'bg-rust-100'
             }`}>
-              <span className="text-lg">{stats.balance >= 0 ? '📈' : '📉'}</span>
+              {stats.balance >= 0 ? (
+                <TrendingUp className="w-5 h-5 text-sage-600" />
+              ) : (
+                <TrendingDown className="w-5 h-5 text-rust-600" />
+              )}
             </div>
             <div>
               <p className="text-xs text-stone-500 uppercase tracking-wide">Saldo</p>

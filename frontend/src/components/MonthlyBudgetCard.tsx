@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { BarChart3, Copy, Check, AlertTriangle, Calendar } from 'lucide-react';
 import type { CategoryBudget, PlannedEntryWithStatus } from '../types/budget';
 import CategoryBudgetCard from './CategoryBudgetCard';
 import IncomePlanningAlert from './IncomePlanningAlert';
@@ -127,10 +128,10 @@ export default function MonthlyBudgetCard({
       {/* Header - Clickable to expand (hidden when hideHeader is true) */}
       {!hideHeader && (
         <div
-          className={`p-6 cursor-pointer hover:brightness-95 transition-all ${isCurrent ? 'bg-gradient-to-r from-wheat-50 to-wheat-100' : 'bg-stone-50'}`}
+          className={`p-4 sm:p-6 cursor-pointer hover:brightness-95 transition-all ${isCurrent ? 'bg-gradient-to-r from-wheat-50 to-wheat-100' : 'bg-stone-50'}`}
           onClick={onToggleExpand}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
             <div className="flex items-center gap-3">
               {/* Expand/Collapse Arrow */}
               <svg
@@ -155,26 +156,29 @@ export default function MonthlyBudgetCard({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {isCurrent && (
-                <span className="px-3 py-1 text-xs font-semibold text-wheat-700 bg-wheat-100 rounded-full">
-                  📅 MÊS ATUAL
+                <span className="px-2 sm:px-3 py-1 text-xs font-semibold text-wheat-700 bg-wheat-100 rounded-full inline-flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  MÊS ATUAL
                 </span>
               )}
               {isConsolidated && (
-                <span className="px-3 py-1 text-xs font-semibold text-sage-700 bg-sage-100 rounded-full">
-                  ✓ Consolidado
+                <span className="px-2 sm:px-3 py-1 text-xs font-semibold text-sage-700 bg-sage-100 rounded-full inline-flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  Consolidado
                 </span>
               )}
               {!isConsolidated && !isCurrent && (
-                <span className="px-3 py-1 text-xs font-semibold text-stone-600 bg-stone-100 rounded-full">
+                <span className="px-2 sm:px-3 py-1 text-xs font-semibold text-stone-600 bg-stone-100 rounded-full">
                   Em progresso
                 </span>
               )}
               {/* Planned entries status indicators */}
               {plannedEntries.some(e => e.Status === 'missed') && (
-                <span className="px-2 py-1 text-xs font-semibold text-rust-700 bg-rust-100 rounded-full">
-                  ⚠️ Atrasado
+                <span className="px-2 py-1 text-xs font-semibold text-rust-700 bg-rust-100 rounded-full inline-flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Atrasado
                 </span>
               )}
               {/* Delete month button */}
@@ -196,22 +200,22 @@ export default function MonthlyBudgetCard({
           </div>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="bg-white rounded-lg p-4 shadow-warm-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6">
+            <div className="bg-white rounded-lg p-3 sm:p-4 shadow-warm-sm">
               <p className="text-xs text-stone-600 mb-1">Planejado</p>
-              <p className="text-lg font-bold text-stone-900 tabular-nums">
+              <p className="text-base sm:text-lg font-bold text-stone-900 tabular-nums">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPlanned)}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-warm-sm">
+            <div className="bg-white rounded-lg p-3 sm:p-4 shadow-warm-sm">
               <p className="text-xs text-stone-600 mb-1">Gasto</p>
-              <p className="text-lg font-bold text-stone-900 tabular-nums">
+              <p className="text-base sm:text-lg font-bold text-stone-900 tabular-nums">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSpent)}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-warm-sm">
+            <div className="bg-white rounded-lg p-3 sm:p-4 shadow-warm-sm">
               <p className="text-xs text-stone-600 mb-1">Variação</p>
-              <p className={`text-lg font-bold tabular-nums ${totalVariance >= 0 ? 'text-sage-600' : 'text-rust-600'}`}>
+              <p className={`text-base sm:text-lg font-bold tabular-nums ${totalVariance >= 0 ? 'text-sage-600' : 'text-rust-600'}`}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalVariance)}
               </p>
             </div>
@@ -227,10 +231,12 @@ export default function MonthlyBudgetCard({
       )}
 
       {/* Category Budget Cards */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {budgetArray.length === 0 ? (
           <div className="text-center py-12 text-stone-500">
-            <div className="text-4xl mb-3">📊</div>
+            <div className="flex justify-center mb-3">
+              <BarChart3 className="w-12 h-12 text-stone-300" />
+            </div>
             <p className="mb-4">Nenhum orçamento cadastrado para este mês</p>
             {hasPreviousMonthBudgets && onCopyFromPreviousMonth && (
               <button
@@ -240,7 +246,8 @@ export default function MonthlyBudgetCard({
                 }}
                 className="px-4 py-2 text-sm text-wheat-700 bg-wheat-50 border border-wheat-200 rounded-lg hover:bg-wheat-100 transition-colors"
               >
-                📋 Copiar orçamentos do mês anterior
+                <Copy className="w-4 h-4 inline mr-1" />
+                Copiar orçamentos do mês anterior
               </button>
             )}
           </div>
@@ -284,11 +291,11 @@ export default function MonthlyBudgetCard({
 
       {/* Orphan Entries Section - Only show entries without a budget category */}
       {(hideHeader || isExpanded) && orphanEntries.length > 0 && (
-        <div className="border-t border-stone-200 p-6 bg-terra-50">
-          <div className="flex items-center justify-between mb-4">
+        <div className="border-t border-stone-200 p-4 sm:p-6 bg-terra-50">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-xl">📋</span>
-              <h3 className="text-lg font-semibold text-stone-900">
+              <h3 className="text-base sm:text-lg font-semibold text-stone-900">
                 Entradas sem Orçamento
               </h3>
               <span className="text-xs px-2 py-1 rounded bg-terra-100 text-terra-700">

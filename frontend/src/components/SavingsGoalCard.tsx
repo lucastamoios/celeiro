@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check, AlertTriangle, Coins } from 'lucide-react';
 import type { SavingsGoal, SavingsGoalProgress } from '../types/savingsGoals';
 import {
   getGoalTypeLabel,
@@ -79,8 +80,9 @@ export default function SavingsGoalCard({
                 {getGoalTypeLabel(goal.goal_type)}
               </span>
               {goal.is_completed && (
-                <span className="text-xs px-2 py-1 rounded bg-sage-100 text-sage-800">
-                  ✓ Concluído
+                <span className="text-xs px-2 py-1 rounded bg-sage-100 text-sage-800 inline-flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  Concluído
                 </span>
               )}
             </div>
@@ -135,9 +137,10 @@ export default function SavingsGoalCard({
                       onAddContribution(goal.savings_goal_id);
                       setShowActions(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-wheat-700 hover:bg-wheat-50"
+                    className="w-full px-4 py-2 text-left text-sm text-wheat-700 hover:bg-wheat-50 flex items-center gap-2"
                   >
-                    💰 Adicionar
+                    <Coins className="w-4 h-4" />
+                    Adicionar
                   </button>
                 )}
                 {onComplete && (
@@ -147,9 +150,10 @@ export default function SavingsGoalCard({
                       onComplete(goal.savings_goal_id);
                       setShowActions(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-sage-700 hover:bg-sage-50"
+                    className="w-full px-4 py-2 text-left text-sm text-sage-700 hover:bg-sage-50 flex items-center gap-2"
                   >
-                    ✓ Concluir
+                    <Check className="w-4 h-4" />
+                    Concluir
                   </button>
                 )}
                 {onDelete && (
@@ -261,7 +265,13 @@ export default function SavingsGoalCard({
                   progress.is_on_track
                 )}`}
               >
-                {progress.is_on_track ? '✓ No ritmo' : '⚠️ Atrasado'}
+                <span className="inline-flex items-center gap-1">
+                  {progress.is_on_track ? (
+                    <><Check className="w-3 h-3" /> No ritmo</>
+                  ) : (
+                    <><AlertTriangle className="w-3 h-3" /> Atrasado</>
+                  )}
+                </span>
               </span>
             </div>
           )}

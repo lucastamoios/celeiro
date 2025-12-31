@@ -6,6 +6,7 @@ import type { CategoryBudget, CreateCategoryBudgetRequest } from '../types/budge
 import type { ApiResponse } from '../types/transaction';
 import { getCategoryBudgets, createCategoryBudget, updateCategoryBudget } from '../api/budget';
 import { CATEGORY_COLORS, getCategoryColorStyle } from '../utils/colors';
+import { FolderOpen, Folder, Plus } from 'lucide-react';
 
 const AVAILABLE_ICONS = [
   // Food & Drinks
@@ -423,7 +424,7 @@ export default function CategoryManager() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-stone-200 rounded w-48"></div>
           <div className="h-4 bg-stone-200 rounded w-72"></div>
@@ -439,7 +440,7 @@ export default function CategoryManager() {
 
   return (
     <div className="min-h-screen bg-stone-50">
-    <div className="max-w-5xl mx-auto px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-stone-900 mb-2">Categorias</h1>
@@ -477,16 +478,14 @@ export default function CategoryManager() {
         onClick={() => setShowCreateModal(true)}
         className="btn-primary mb-8"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
+        <Plus className="w-5 h-5" />
         Nova Categoria
       </button>
 
       {/* User Categories Section */}
       <section className="mb-10">
         <div className="flex items-center gap-3 mb-4">
-          <span className="text-2xl">📂</span>
+          <FolderOpen className="w-6 h-6 text-wheat-600" />
           <h2 className="text-xl font-semibold text-stone-900">
             Minhas Categorias
             <span className="ml-2 text-sm font-normal text-stone-500">({userCategories.length})</span>
@@ -495,7 +494,9 @@ export default function CategoryManager() {
 
         {userCategories.length === 0 ? (
           <div className="bg-gradient-to-br from-stone-50 to-stone-100 border-2 border-dashed border-stone-300 rounded-2xl p-12 text-center">
-            <div className="text-5xl mb-4">📁</div>
+            <div className="flex justify-center mb-4">
+              <Folder className="w-14 h-14 text-stone-300" />
+            </div>
             <p className="text-stone-600 font-medium mb-2">
               Você ainda não criou nenhuma categoria personalizada.
             </p>
@@ -519,7 +520,7 @@ export default function CategoryManager() {
                 >
                   {/* Floating action buttons - overlay on top right */}
                   {!isEditingColor && deletingCategory !== category.category_id && (
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                    <div className="absolute top-2 right-2 flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all z-10">
                       <button
                         onClick={() => handleStartEditDetails(category)}
                         className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-sm hover:shadow"
@@ -790,7 +791,7 @@ export default function CategoryManager() {
                   {deletingCategory !== category.category_id ? (
                     <button
                       onClick={() => handleStartDelete(category.category_id)}
-                      className="opacity-0 group-hover:opacity-100 transition-all p-2 hover:bg-rust-100 rounded-lg shadow-sm hover:shadow"
+                      className="md:opacity-0 md:group-hover:opacity-100 transition-all p-2 hover:bg-rust-100 rounded-lg shadow-sm hover:shadow"
                       title="Excluir categoria"
                     >
                       <svg className="w-4 h-4 text-stone-600 hover:text-rust-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
