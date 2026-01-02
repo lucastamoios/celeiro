@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart3, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSelectedMonth } from '../hooks/useSelectedMonth';
 import type { CategoryBudget, CreateCategoryBudgetRequest, CreatePlannedEntryRequest, PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import type { ApiResponse, Transaction } from '../types/transaction';
@@ -24,6 +25,8 @@ import { financialUrl } from '../config/api';
 import PlannedEntryForm from './PlannedEntryForm';
 import MonthlyBudgetCard from './MonthlyBudgetCard';
 import TransactionMatcherModal from './TransactionMatcherModal';
+import CategoryTransactionsModal from './CategoryTransactionsModal';
+import TransactionEditModal from './TransactionEditModal';
 
 interface MonthlyBudgetData {
   month: number;
@@ -34,12 +37,18 @@ interface MonthlyBudgetData {
 
 export default function CategoryBudgetDashboard() {
   const { token } = useAuth();
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
 
-  // Selected month for navigation (defaults to current month)
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  // Shared month selection (synced across pages)
+  const {
+    selectedMonth,
+    selectedYear,
+    goToPreviousMonth: handlePreviousMonth,
+    goToNextMonth: handleNextMonth,
+    goToCurrentMonth: handleGoToCurrentMonth,
+    isCurrentMonth,
+    currentMonth,
+    currentYear,
+  } = useSelectedMonth();
 
   const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudgetData[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -61,11 +70,15 @@ export default function CategoryBudgetDashboard() {
   const [showCreateBudgetModal, setShowCreateBudgetModal] = useState(false);
   const [showCreateEntryModal, setShowCreateEntryModal] = useState(false);
   const [showMatchModal, setShowMatchModal] = useState(false);
+  const [showCategoryTransactionsModal, setShowCategoryTransactionsModal] = useState(false);
+  const [selectedCategoryForTransactions, setSelectedCategoryForTransactions] = useState<number | null>(null);
   const [editingBudget, setEditingBudget] = useState<CategoryBudget | null>(null);
   const [editingEntry, setEditingEntry] = useState<PlannedEntryWithStatus | null>(null);
   const [selectedEntryMonth, setSelectedEntryMonth] = useState<{ month: number; year: number } | null>(null);
   const [matchingEntry, setMatchingEntry] = useState<PlannedEntryWithStatus | null>(null);
   const [matchingMonthYear, setMatchingMonthYear] = useState<{ month: number; year: number } | null>(null);
+  const [editingTransactionFromBudget, setEditingTransactionFromBudget] = useState<Transaction | null>(null);
+  const [editingPlannedEntryFromBudget, setEditingPlannedEntryFromBudget] = useState<PlannedEntryWithStatus | null>(null);
 
   // Form states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,11 +86,19 @@ export default function CategoryBudgetDashboard() {
   const [budgetType, setBudgetType] = useState<'fixed' | 'calculated' | 'maior'>('fixed');
   const [plannedAmount, setPlannedAmount] = useState<string>('');
 
-  // Handle ESC key to close modals
+  // Handle ESC key to close modals (innermost first)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showCreateBudgetModal) {
+        // Close innermost modal first
+        if (editingPlannedEntryFromBudget) {
+          setEditingPlannedEntryFromBudget(null);
+        } else if (editingTransactionFromBudget) {
+          setEditingTransactionFromBudget(null);
+        } else if (showCategoryTransactionsModal) {
+          setShowCategoryTransactionsModal(false);
+          setSelectedCategoryForTransactions(null);
+        } else if (showCreateBudgetModal) {
           setShowCreateBudgetModal(false);
           setEditingBudget(null);
         } else if (showCreateEntryModal) {
@@ -91,7 +112,7 @@ export default function CategoryBudgetDashboard() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showCreateBudgetModal, showCreateEntryModal, showMatchModal]);
+  }, [showCreateBudgetModal, showCreateEntryModal, showMatchModal, showCategoryTransactionsModal, editingTransactionFromBudget, editingPlannedEntryFromBudget]);
 
   // Handle backdrop click for modals
   const handleBudgetModalBackdropClick = useCallback((e: React.MouseEvent) => {
@@ -112,6 +133,58 @@ export default function CategoryBudgetDashboard() {
     if (!token) return;
     fetchAllData();
   }, [token]);
+
+  // Fetch data for the selected month if not already loaded
+  useEffect(() => {
+    if (!token || loading) return;
+
+    const monthKey = `${selectedMonth}-${selectedYear}`;
+    const isMonthLoaded = monthlyBudgets.some(
+      m => m.month === selectedMonth && m.year === selectedYear
+    );
+
+    if (!isMonthLoaded) {
+      // Fetch budget data for the selected month on-demand
+      const fetchSelectedMonthData = async () => {
+        try {
+          // Fetch budgets for the selected month
+          const budgets = await getCategoryBudgets(
+            { month: selectedMonth, year: selectedYear },
+            { token, organizationId: '1' }
+          );
+
+          const budgetArray = Array.isArray(budgets) ? budgets : [];
+          const isConsolidated = budgetArray.length > 0 && budgetArray.every(b => b.IsConsolidated);
+
+          // Add to monthly budgets
+          setMonthlyBudgets(prev => [
+            ...prev,
+            {
+              month: selectedMonth,
+              year: selectedYear,
+              budgets: budgetArray,
+              isConsolidated,
+            }
+          ]);
+
+          // Fetch planned entries for the selected month
+          const entries = await getPlannedEntriesForMonth(selectedMonth, selectedYear, {
+            token,
+            organizationId: '1',
+          });
+          setExpandedMonthEntries(prev => ({
+            ...prev,
+            [monthKey]: entries || [],
+          }));
+
+        } catch (err) {
+          console.error(`Failed to fetch data for ${selectedMonth}/${selectedYear}:`, err);
+        }
+      };
+
+      fetchSelectedMonthData();
+    }
+  }, [token, selectedMonth, selectedYear, loading, monthlyBudgets]);
 
   const fetchAllData = async () => {
     console.log('📊 [fetchAllData] Starting data fetch...');
@@ -472,8 +545,8 @@ export default function CategoryBudgetDashboard() {
     try {
       const data: CreateCategoryBudgetRequest = {
         category_id: parseInt(selectedCategoryId),
-        month: currentMonth,
-        year: currentYear,
+        month: selectedMonth,
+        year: selectedYear,
         budget_type: budgetType,
         planned_amount: parsedAmount,
       };
@@ -669,6 +742,39 @@ export default function CategoryBudgetDashboard() {
     }
   };
 
+  const handleConsolidateAllBudgets = async () => {
+    if (!token) return;
+
+    const unconsolidatedBudgets = selectedMonthBudgets.filter(b => !b.IsConsolidated);
+    if (unconsolidatedBudgets.length === 0) {
+      setSuccessMessage('Todos os orçamentos já estão consolidados!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Consolidate all unconsolidated budgets in parallel
+      await Promise.all(
+        unconsolidatedBudgets.map(budget =>
+          consolidateCategoryBudget(budget.CategoryBudgetID, { token, organizationId: '1' })
+        )
+      );
+
+      const monthName = new Date(selectedYear, selectedMonth - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+      setSuccessMessage(`✅ ${unconsolidatedBudgets.length} orçamento${unconsolidatedBudgets.length === 1 ? '' : 's'} de ${monthName} consolidado${unconsolidatedBudgets.length === 1 ? '' : 's'} com sucesso!`);
+      await fetchAllData();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao consolidar orçamentos');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleCopyFromPreviousMonth = async (targetMonth: number, targetYear: number) => {
     if (!token) return;
 
@@ -684,7 +790,7 @@ export default function CategoryBudgetDashboard() {
     setError(null);
 
     try {
-      await copyCategoryBudgetsFromMonth(
+      const copiedBudgets = await copyCategoryBudgetsFromMonth(
         {
           source_month: sourceMonth,
           source_year: sourceYear,
@@ -694,7 +800,12 @@ export default function CategoryBudgetDashboard() {
         { token, organizationId: '1' }
       );
 
-      setSuccessMessage('Orçamentos copiados com sucesso!');
+      if (copiedBudgets.length === 0) {
+        // Nothing was copied - either source is empty or target already has all budgets
+        setSuccessMessage('Nenhum orçamento novo para copiar - todos já existem no mês de destino');
+      } else {
+        setSuccessMessage(`${copiedBudgets.length} orçamento${copiedBudgets.length === 1 ? '' : 's'} copiado${copiedBudgets.length === 1 ? '' : 's'} com sucesso!`);
+      }
       await fetchAllData();
 
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -910,6 +1021,68 @@ export default function CategoryBudgetDashboard() {
     setMatchingMonthYear(null);
   };
 
+  // Handler for opening category transactions modal
+  const handleCategoryCardClick = (categoryId: number) => {
+    setSelectedCategoryForTransactions(categoryId);
+    setShowCategoryTransactionsModal(true);
+  };
+
+  const handleCloseCategoryTransactionsModal = () => {
+    setShowCategoryTransactionsModal(false);
+    setSelectedCategoryForTransactions(null);
+  };
+
+  // Handler for clicking a transaction in the category modal
+  const handleTransactionClickInBudget = (transaction: Transaction) => {
+    setEditingTransactionFromBudget(transaction);
+  };
+
+  // Handler for closing the transaction edit modal
+  const handleCloseTransactionEditModal = () => {
+    setEditingTransactionFromBudget(null);
+  };
+
+  // Handler for saving the transaction (refresh data)
+  const handleSaveTransactionFromBudget = async () => {
+    setEditingTransactionFromBudget(null);
+    await fetchAllData();
+  };
+
+  // Handler for clicking a planned entry in the category modal
+  const handlePlannedEntryClickInBudget = (entry: PlannedEntryWithStatus) => {
+    setEditingPlannedEntryFromBudget(entry);
+  };
+
+  // Handler for closing the planned entry edit modal (from budget view)
+  const handleClosePlannedEntryEditModal = () => {
+    setEditingPlannedEntryFromBudget(null);
+  };
+
+  // Handler for saving the planned entry (from budget view)
+  const handleSavePlannedEntryFromBudget = async (data: CreatePlannedEntryRequest) => {
+    if (!token || !editingPlannedEntryFromBudget) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await updatePlannedEntry(editingPlannedEntryFromBudget.PlannedEntryID, data, {
+        token,
+        organizationId: '1',
+      });
+
+      setSuccessMessage('Entrada planejada atualizada com sucesso!');
+      setEditingPlannedEntryFromBudget(null);
+      await fetchAllData();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao atualizar entrada planejada');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Edit handler for planned entries
   const handleEditPlannedEntry = (entry: PlannedEntryWithStatus, month: number, year: number) => {
     setEditingEntry(entry);
@@ -1000,31 +1173,6 @@ export default function CategoryBudgetDashboard() {
   ];
 
   const getMonthName = (month: number) => monthNames[month - 1];
-
-  const handlePreviousMonth = () => {
-    if (selectedMonth === 1) {
-      setSelectedMonth(12);
-      setSelectedYear(selectedYear - 1);
-    } else {
-      setSelectedMonth(selectedMonth - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (selectedMonth === 12) {
-      setSelectedMonth(1);
-      setSelectedYear(selectedYear + 1);
-    } else {
-      setSelectedMonth(selectedMonth + 1);
-    }
-  };
-
-  const handleGoToCurrentMonth = () => {
-    setSelectedMonth(currentMonth);
-    setSelectedYear(currentYear);
-  };
-
-  const isCurrentMonth = selectedMonth === currentMonth && selectedYear === currentYear;
 
   // Get data for the selected month
   const selectedMonthKey = `${selectedMonth}-${selectedYear}`;
@@ -1302,6 +1450,7 @@ export default function CategoryBudgetDashboard() {
               await handleDeleteMonth(selectedMonth, selectedYear, budgetIds, plannedEntryIds);
             }}
             onConsolidate={handleConsolidateBudget}
+            onConsolidateAll={handleConsolidateAllBudgets}
             onToggleExpand={() => handleToggleMonthExpand(selectedMonth, selectedYear)}
             onCopyFromPreviousMonth={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
             onMatchEntry={(entryId) => handleMatchExpandedEntry(entryId, selectedMonth, selectedYear)}
@@ -1310,6 +1459,7 @@ export default function CategoryBudgetDashboard() {
             onUndismissEntry={(entryId) => handleUndismissExpandedEntry(entryId, selectedMonth, selectedYear)}
             onEditEntry={(entry) => handleEditPlannedEntry(entry, selectedMonth, selectedYear)}
             onDeleteEntry={(entryId) => handleDeletePlannedEntry(entryId, selectedMonth, selectedYear)}
+            onCategoryCardClick={handleCategoryCardClick}
             hideHeader={true}
           />
         )}
@@ -1321,9 +1471,15 @@ export default function CategoryBudgetDashboard() {
             onClick={handleBudgetModalBackdropClick}
           >
             <div className="bg-white rounded-2xl shadow-warm-xl p-6 max-w-md w-full mx-4">
-              <h3 className="text-xl font-semibold text-stone-900 mb-4">
+              <h3 className="text-xl font-semibold text-stone-900 mb-1">
                 {editingBudget ? 'Editar Orçamento' : 'Criar Orçamento'}
               </h3>
+              {!editingBudget && (
+                <p className="text-sm text-stone-500 mb-4">
+                  Para {getMonthName(selectedMonth)} {selectedYear}
+                </p>
+              )}
+              {editingBudget && <div className="mb-4" />}
 
               <div className="space-y-4">
                 {/* Category Dropdown */}
@@ -1474,6 +1630,90 @@ export default function CategoryBudgetDashboard() {
             year={matchingMonthYear.year}
             isLoading={isSubmitting || transactionsLoading}
           />
+        )}
+
+        {/* Category Transactions Modal */}
+        {showCategoryTransactionsModal && selectedCategoryForTransactions && (() => {
+          const selectedBudget = selectedMonthBudgets.find(b => b.CategoryID === selectedCategoryForTransactions);
+          const category = categories.find(c => c.category_id === selectedCategoryForTransactions);
+          const categoryEntries = selectedMonthEntries.filter(e => e.CategoryID === selectedCategoryForTransactions);
+          const categoriesMap = new Map(categories.map(c => [c.category_id, c]));
+
+          return (
+            <CategoryTransactionsModal
+              categoryId={selectedCategoryForTransactions}
+              categoryName={category?.name || 'Categoria'}
+              month={selectedMonth}
+              year={selectedYear}
+              transactions={allTransactions}
+              plannedEntries={categoryEntries}
+              categories={categoriesMap}
+              actualSpent={selectedMonthSpending[selectedCategoryForTransactions] || '0'}
+              plannedAmount={selectedBudget?.PlannedAmount || '0'}
+              isIncome={category?.category_type === 'income'}
+              onClose={handleCloseCategoryTransactionsModal}
+              onTransactionClick={handleTransactionClickInBudget}
+              onPlannedEntryClick={handlePlannedEntryClickInBudget}
+            />
+          );
+        })()}
+
+        {/* Transaction Edit Modal (nested from Category Transactions Modal) */}
+        {editingTransactionFromBudget && (
+          <TransactionEditModal
+            transaction={editingTransactionFromBudget}
+            categories={new Map(categories.map(c => [c.category_id, c]))}
+            onClose={handleCloseTransactionEditModal}
+            onSave={handleSaveTransactionFromBudget}
+          />
+        )}
+
+        {/* Planned Entry Edit Modal (nested from Category Transactions Modal) */}
+        {editingPlannedEntryFromBudget && (
+          <div
+            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-[60]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                handleClosePlannedEntryEditModal();
+              }
+            }}
+          >
+            <div className="bg-white rounded-2xl shadow-warm-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-semibold text-stone-900 mb-4">
+                Editar Entrada Planejada
+              </h3>
+
+              <PlannedEntryForm
+                categories={categories}
+                transactions={allTransactions}
+                transactionsLoading={transactionsLoading}
+                onSubmit={handleSavePlannedEntryFromBudget}
+                onCancel={handleClosePlannedEntryEditModal}
+                initialEntry={{
+                  PlannedEntryID: editingPlannedEntryFromBudget.PlannedEntryID,
+                  UserID: 0,
+                  OrganizationID: 0,
+                  CategoryID: editingPlannedEntryFromBudget.CategoryID,
+                  Description: editingPlannedEntryFromBudget.Description,
+                  Amount: editingPlannedEntryFromBudget.Amount,
+                  AmountMin: editingPlannedEntryFromBudget.AmountMin,
+                  AmountMax: editingPlannedEntryFromBudget.AmountMax,
+                  ExpectedDay: editingPlannedEntryFromBudget.ExpectedDay,
+                  ExpectedDayStart: editingPlannedEntryFromBudget.ExpectedDayStart,
+                  ExpectedDayEnd: editingPlannedEntryFromBudget.ExpectedDayEnd,
+                  EntryType: editingPlannedEntryFromBudget.EntryType,
+                  IsRecurrent: editingPlannedEntryFromBudget.IsRecurrent,
+                  IsSavedPattern: false,
+                  IsActive: true,
+                  ParentEntryID: editingPlannedEntryFromBudget.ParentEntryID,
+                  PatternID: editingPlannedEntryFromBudget.PatternID,
+                  CreatedAt: '',
+                  UpdatedAt: '',
+                }}
+                isLoading={isSubmitting}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

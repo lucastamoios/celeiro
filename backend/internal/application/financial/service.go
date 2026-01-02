@@ -1303,8 +1303,9 @@ func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyC
 		return nil, errors.Wrap(err, "failed to fetch source month budgets")
 	}
 
+	// If no budgets in source month, return empty array (not an error)
 	if len(sourceBudgets) == 0 {
-		return nil, errors.New("no budgets found in source month to copy")
+		return []CategoryBudget{}, nil
 	}
 
 	// Check if target month already has budgets
@@ -1325,7 +1326,8 @@ func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyC
 	}
 
 	// Create new budgets for the target month (skip categories that already exist)
-	var createdBudgets []CategoryBudget
+	// Initialize as empty slice (not nil) to ensure JSON returns [] instead of omitting the field
+	createdBudgets := make([]CategoryBudget, 0)
 	for _, src := range sourceBudgets {
 		// Skip if category already has a budget in target month
 		if existingCategoryIDs[src.CategoryID] {
@@ -1348,10 +1350,8 @@ func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyC
 		createdBudgets = append(createdBudgets, CategoryBudget{}.FromModel(&model))
 	}
 
-	if len(createdBudgets) == 0 {
-		return nil, errors.New("all categories from source month already have budgets in target month")
-	}
-
+	// Return empty array if nothing was copied (all categories already exist)
+	// This is not an error condition - just nothing new to copy
 	return createdBudgets, nil
 }
 

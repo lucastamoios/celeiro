@@ -1,10 +1,8 @@
-# Pattern Management
+# pattern-management Specification
 
-## Summary
-Save categorized transactions as reusable patterns for automatic matching.
-
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change add-transaction-matching-system. Update Purpose after archive.
+## Requirements
 ### Requirement: Save transaction as pattern
 Users MUST be able to save categorized transactions as patterns.
 
@@ -70,8 +68,6 @@ THEN the response MUST be 200 OK
 AND the transaction category MUST be updated to pattern.category_id
 AND the transaction SHOULD be linked to the pattern (foreign key or metadata)
 
-## MODIFIED Requirements
-
 ### Requirement: Planned entries table schema
 The system MUST extend planned_entries to support saved patterns.
 
@@ -85,6 +81,3 @@ ADD COLUMN is_saved_pattern BOOLEAN NOT NULL DEFAULT FALSE;
 ```
 AND existing rows MUST have is_saved_pattern=FALSE
 
-## Related Capabilities
-- Depends on: add-category-centric-budgeting (uses `planned_entries` table)
-- Depends on: match-scoring-algorithm (calculates match scores for suggestions)

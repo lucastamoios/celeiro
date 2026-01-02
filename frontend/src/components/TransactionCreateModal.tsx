@@ -29,7 +29,7 @@ export default function TransactionCreateModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { handleBackdropClick } = useModalDismiss(onClose);
+  const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
   const handleSave = async () => {
     if (!token) return;
@@ -93,6 +93,7 @@ export default function TransactionCreateModal({
   return (
     <div
       className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50 p-4"
+      onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-2xl shadow-warm-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
