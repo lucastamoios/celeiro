@@ -1,12 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Coins, XCircle } from 'lucide-react';
+import { Coins, XCircle, Filter } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
 import { apiUrl, financialUrl } from '../config/api';
+import { usePersistedFilters } from '../hooks/usePersistedState';
+import { useSelectedMonth } from '../hooks/useSelectedMonth';
 import TransactionEditModal from './TransactionEditModal';
 import TransactionCreateModal from './TransactionCreateModal';
 // Simple patterns have been removed - unified pattern system now in PatternManager
+
+// Default filter values (month is now handled by useSelectedMonth hook)
+const DEFAULT_TRANSACTION_FILTERS = {
+  hideIgnored: false,
+  onlyUncategorized: false,
+  onlyOriginalDescription: false,
+};
+
+// Month names for display
+const monthNames = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
 
 interface Account {
   // Backend returns PascalCase for accounts (no json tags)
@@ -35,6 +50,25 @@ export default function TransactionList() {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Filters (persisted to localStorage) - month is handled separately by useSelectedMonth
+  const { filters, setFilter } = usePersistedFilters(
+    'celeiro:transaction-filters',
+    DEFAULT_TRANSACTION_FILTERS
+  );
+  const { hideIgnored, onlyUncategorized, onlyOriginalDescription } = filters;
+
+  // Shared month selection (synced across pages)
+  const {
+    selectedMonth,
+    selectedYear,
+    goToPreviousMonth: handlePreviousMonth,
+    goToNextMonth: handleNextMonth,
+    goToCurrentMonth: handleGoToCurrentMonth,
+    isCurrentMonth,
+  } = useSelectedMonth();
+
+  const getMonthName = (month: number) => monthNames[month - 1];
 
   useEffect(() => {
     fetchData();
@@ -261,62 +295,150 @@ export default function TransactionList() {
     );
   }
 
-  // Filter transactions by current month
-  const now = new Date();
-  const currentMonth = now.getMonth(); // 0-11
-  const currentYear = now.getFullYear();
-  
-  const currentMonthTransactions = transactions.filter(t => {
+  // Filter transactions by selected month
+  const selectedMonthTransactions = transactions.filter(t => {
     const txDate = new Date(t.transaction_date);
-    return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+    // selectedMonth is 1-12, getMonth() is 0-11
+    return txDate.getMonth() + 1 === selectedMonth && txDate.getFullYear() === selectedYear;
   });
 
-  // Calculate totals for current month
-  const totalIncome = currentMonthTransactions
+  // Apply visual filters for display
+  const filteredTransactions = selectedMonthTransactions.filter(t => {
+    // Filter: hide ignored transactions
+    if (hideIgnored && t.is_ignored) return false;
+    // Filter: only uncategorized transactions (category_id can be null, undefined, or 0)
+    if (onlyUncategorized && t.category_id) return false;
+    // Filter: only transactions with original description (not renamed)
+    if (onlyOriginalDescription && t.description !== t.original_description) return false;
+    return true;
+  });
+
+  // Calculate totals for selected month (always based on full list, not filtered)
+  const totalIncome = selectedMonthTransactions
     .filter(t => !t.is_ignored && t.transaction_type === 'credit')
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-  
-  const totalExpense = currentMonthTransactions
+
+  const totalExpense = selectedMonthTransactions
     .filter(t => !t.is_ignored && t.transaction_type === 'debit')
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-  
+
   const balance = totalIncome - totalExpense;
 
   return (
     <div className="min-h-screen bg-stone-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">Transações</h1>
-          <p className="text-stone-600 mt-1">
-            {(currentMonthTransactions?.length ?? 0)} transação{(currentMonthTransactions?.length ?? 0) !== 1 ? 'ões' : ''} em {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-          </p>
+        {/* Header with Month Navigation */}
+        <div className="mb-6 card-compact">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Month Navigation */}
+            <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-4">
+              <button
+                onClick={handlePreviousMonth}
+                className="p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
+                title="Mês anterior"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <div className="text-center min-w-[140px] sm:min-w-[180px]">
+                <h1 className="text-lg sm:text-xl font-bold text-stone-900">
+                  {getMonthName(selectedMonth)} {selectedYear}
+                </h1>
+                <p className="text-xs text-stone-500">
+                  {filteredTransactions.length === selectedMonthTransactions.length ? (
+                    <>{selectedMonthTransactions.length} {selectedMonthTransactions.length === 1 ? 'transação' : 'transações'}</>
+                  ) : (
+                    <>{filteredTransactions.length} de {selectedMonthTransactions.length}</>
+                  )}
+                  {isCurrentMonth && <span className="ml-1 text-wheat-600 font-medium">• Mês atual</span>}
+                </p>
+              </div>
+
+              <button
+                onClick={handleNextMonth}
+                className="p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
+                title="Próximo mês"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              {!isCurrentMonth && (
+                <button
+                  onClick={handleGoToCurrentMonth}
+                  className="ml-1 sm:ml-2 px-2 sm:px-3 py-1 text-sm text-wheat-600 hover:text-wheat-800 hover:bg-wheat-50 rounded-lg transition-colors"
+                >
+                  Hoje
+                </button>
+              )}
+            </div>
+
+            {/* Action Buttons - moved here for better layout */}
+            <div className="flex gap-2 justify-center sm:justify-end">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn-primary text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nova Transação
+              </button>
+              <label className="btn-secondary text-sm cursor-pointer">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                {uploading ? 'Importando...' : 'Importar OFX'}
+                <input
+                  type="file"
+                  accept=".ofx"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary justify-center"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Nova Transação
-          </button>
-          <label className="btn-secondary justify-center cursor-pointer">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            {uploading ? 'Importando...' : 'Importar OFX'}
-            <input
-              type="file"
-              accept=".ofx"
-              onChange={handleFileUpload}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
+        {/* Filters */}
+        <div className="mb-6 bg-white border border-stone-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="w-4 h-4 text-stone-500" />
+            <span className="text-sm font-medium text-stone-700">Filtros</span>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={onlyUncategorized}
+                onChange={(e) => setFilter('onlyUncategorized', e.target.checked)}
+                className="w-4 h-4 rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
+              />
+              <span className="text-sm text-stone-600 group-hover:text-stone-900">Sem categoria</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={hideIgnored}
+                onChange={(e) => setFilter('hideIgnored', e.target.checked)}
+                className="w-4 h-4 rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
+              />
+              <span className="text-sm text-stone-600 group-hover:text-stone-900">Ocultar ignoradas</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={onlyOriginalDescription}
+                onChange={(e) => setFilter('onlyOriginalDescription', e.target.checked)}
+                className="w-4 h-4 rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
+              />
+              <span className="text-sm text-stone-600 group-hover:text-stone-900">Com descrição original</span>
+            </label>
+          </div>
         </div>
 
         {/* Success/Error Messages */}
@@ -367,7 +489,7 @@ export default function TransactionList() {
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-3">
-          {currentMonthTransactions.map((transaction) => (
+          {filteredTransactions.map((transaction) => (
             <div
               key={transaction.transaction_id}
               onClick={() => handleOpenEditModal(transaction)}
@@ -436,7 +558,7 @@ export default function TransactionList() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-stone-200">
-                {currentMonthTransactions.map((transaction) => (
+                {filteredTransactions.map((transaction) => (
                     <tr
                       key={transaction.transaction_id}
                       className={`hover:bg-wheat-50 cursor-pointer transition-colors ${transaction.is_ignored ? 'opacity-40 bg-stone-50' : ''}`}

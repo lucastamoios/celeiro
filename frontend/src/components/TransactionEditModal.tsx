@@ -5,11 +5,12 @@ import type { PlannedEntryWithStatus } from '../types/budget';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { CATEGORY_COLORS } from '../utils/colors';
-import { getPlannedEntryForTransaction } from '../api/budget';
+import { getPlannedEntryForTransaction, unmatchPlannedEntry, updatePlannedEntry } from '../api/budget';
 import { getTransactionTags, setTransactionTags } from '../api/tags';
 import { useModalDismiss } from '../hooks/useModalDismiss';
 import AdvancedPatternCreator, { type AdvancedPattern } from './AdvancedPatternCreator';
 import TagSelector from './TagSelector';
+import TransactionPlannedEntryLinkModal from './TransactionPlannedEntryLinkModal';
 
 const AVAILABLE_ICONS = ['🍔', '🚗', '🏠', '💡', '🎮', '👕', '💊', '📚', '✈️', '🎁', '💰', '📱', '🏥', '🎬', '🛒', '☕', '🍕', '🎵', '🏋️', '🐕'];
 
@@ -40,6 +41,8 @@ export default function TransactionEditModal({
   // Linked planned entry
   const [linkedPlannedEntry, setLinkedPlannedEntry] = useState<PlannedEntryWithStatus | null>(null);
   const [loadingPlannedEntry, setLoadingPlannedEntry] = useState(true);
+  const [showPlannedEntryLinkModal, setShowPlannedEntryLinkModal] = useState(false);
+  const [unlinkingEntry, setUnlinkingEntry] = useState(false);
 
   // Tags
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
@@ -52,7 +55,7 @@ export default function TransactionEditModal({
   const [creatingCategory, setCreatingCategory] = useState(false);
 
   // Handle ESC key and click outside to close modal
-  const { handleBackdropClick } = useModalDismiss(onClose);
+  const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
   // Fetch linked planned entry when modal opens
   useEffect(() => {
@@ -104,6 +107,53 @@ export default function TransactionEditModal({
     fetchTransactionTags();
   }, [token, transaction.transaction_id]);
 
+  // Handle unlinking a planned entry
+  const handleUnlinkPlannedEntry = async () => {
+    if (!token || !linkedPlannedEntry) return;
+
+    const txDate = new Date(transaction.transaction_date);
+    const month = txDate.getMonth() + 1;
+    const year = txDate.getFullYear();
+
+    setUnlinkingEntry(true);
+    try {
+      await unmatchPlannedEntry(
+        linkedPlannedEntry.PlannedEntryID,
+        month,
+        year,
+        { token, organizationId: '1' }
+      );
+      setLinkedPlannedEntry(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao desvincular');
+    } finally {
+      setUnlinkingEntry(false);
+    }
+  };
+
+  // Handle successful link from modal
+  const handlePlannedEntryLinked = async () => {
+    setShowPlannedEntryLinkModal(false);
+    // Refetch the linked entry
+    if (token) {
+      try {
+        const entry = await getPlannedEntryForTransaction(
+          transaction.transaction_id,
+          { token, organizationId: '1' }
+        );
+        setLinkedPlannedEntry(entry);
+
+        // Apply the planned entry's description and category to the transaction
+        if (entry) {
+          setDescription(entry.Description);
+          setCategoryId(entry.CategoryID);
+        }
+      } catch (err) {
+        console.error('Failed to fetch linked planned entry:', err);
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!token) return;
 
@@ -154,6 +204,9 @@ export default function TransactionEditModal({
     if (!token) return;
 
     try {
+      // Extract planned_entry_id if present (for linking after creation)
+      const { planned_entry_id, ...patternData } = pattern;
+
       // Create the pattern with apply_retroactively: true to automatically apply to existing transactions
       const response = await fetch(financialUrl('patterns'), {
         method: 'POST',
@@ -162,11 +215,23 @@ export default function TransactionEditModal({
           'X-Active-Organization': '1',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...pattern, apply_retroactively: true }),
+        body: JSON.stringify({ ...patternData, apply_retroactively: true }),
       });
 
       if (!response.ok) {
         throw new Error('Falha ao criar padrão');
+      }
+
+      const result = await response.json();
+      const createdPattern = result.data;
+
+      // If a planned entry was selected, link the pattern to it
+      if (planned_entry_id && createdPattern?.pattern_id) {
+        await updatePlannedEntry(
+          planned_entry_id,
+          { pattern_id: createdPattern.pattern_id },
+          { token, organizationId: '1' }
+        );
       }
 
       // Close modal and notify parent to refresh data
@@ -237,13 +302,19 @@ export default function TransactionEditModal({
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
+  // Check if any sub-modal is open (for stack behavior)
+  const hasSubModalOpen = showAdvancedPatternCreator || showPlannedEntryLinkModal;
 
   return (
-    <div
-      className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50 p-4"
-      onClick={handleBackdropClick}
-    >
-      <div className="bg-white rounded-2xl shadow-warm-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <>
+      {/* Main modal - hidden when sub-modal is open */}
+      {!hasSubModalOpen && (
+        <div
+          className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50 p-4"
+          onMouseDown={handleBackdropMouseDown}
+          onClick={handleBackdropClick}
+        >
+          <div className="bg-white rounded-2xl shadow-warm-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <h2 className="text-xl font-bold text-stone-900">Editar Transação</h2>
@@ -291,7 +362,7 @@ export default function TransactionEditModal({
           {!loadingPlannedEntry && linkedPlannedEntry && (
             <div className="bg-gradient-to-r from-wheat-50 to-wheat-100 rounded-xl p-4 border border-wheat-200">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">📋</span>
                     <span className="text-sm font-medium text-wheat-700">Entrada Planejada Vinculada</span>
@@ -308,22 +379,53 @@ export default function TransactionEditModal({
                     )}
                   </div>
                 </div>
-                <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                  linkedPlannedEntry.Status === 'matched'
-                    ? 'bg-sage-100 text-sage-700'
-                    : linkedPlannedEntry.Status === 'pending'
-                    ? 'bg-terra-100 text-terra-700'
-                    : linkedPlannedEntry.Status === 'missed'
-                    ? 'bg-rust-100 text-rust-700'
-                    : 'bg-stone-100 text-stone-700'
-                }`}>
-                  {linkedPlannedEntry.Status === 'matched' ? '✓ Vinculado'
-                    : linkedPlannedEntry.Status === 'pending' ? '⏳ Pendente'
-                    : linkedPlannedEntry.Status === 'missed' ? '⚠️ Atrasado'
-                    : linkedPlannedEntry.Status}
-                </span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                    linkedPlannedEntry.Status === 'matched'
+                      ? 'bg-sage-100 text-sage-700'
+                      : linkedPlannedEntry.Status === 'pending'
+                      ? 'bg-terra-100 text-terra-700'
+                      : linkedPlannedEntry.Status === 'missed'
+                      ? 'bg-rust-100 text-rust-700'
+                      : 'bg-stone-100 text-stone-700'
+                  }`}>
+                    {linkedPlannedEntry.Status === 'matched' ? '✓ Vinculado'
+                      : linkedPlannedEntry.Status === 'pending' ? '⏳ Pendente'
+                      : linkedPlannedEntry.Status === 'missed' ? '⚠️ Atrasado'
+                      : linkedPlannedEntry.Status}
+                  </span>
+                  <button
+                    onClick={handleUnlinkPlannedEntry}
+                    disabled={unlinkingEntry}
+                    className="px-2 py-1 text-xs font-medium text-rust-600 hover:text-rust-700 hover:bg-rust-50 rounded transition-colors disabled:opacity-50"
+                    title="Desvincular entrada planejada"
+                  >
+                    {unlinkingEntry ? (
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
+          )}
+          {/* Link to Planned Entry Button (when no link exists) */}
+          {!loadingPlannedEntry && !linkedPlannedEntry && (
+            <button
+              onClick={() => setShowPlannedEntryLinkModal(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-wheat-300 text-wheat-700 rounded-xl hover:border-wheat-400 hover:bg-wheat-50 transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              <span className="font-medium">Vincular a Entrada Planejada</span>
+            </button>
           )}
           {loadingPlannedEntry && (
             <div className="bg-stone-50 rounded-xl p-4 animate-pulse">
@@ -592,38 +694,40 @@ export default function TransactionEditModal({
           <div className="border-t border-stone-200 pt-6">
             <button
               onClick={() => setShowAdvancedPatternCreator(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all font-medium shadow-warm-lg"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-stone-300 text-stone-600 rounded-lg hover:border-stone-400 hover:text-stone-700 hover:bg-stone-50 transition-all text-sm"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              🎯 Criar Padrão Avançado
+              Criar Padrão Avançado
             </button>
-            <p className="text-xs text-stone-500 mt-2 text-center">
+            <p className="text-xs text-stone-400 mt-2 text-center">
               Crie regras inteligentes com regex, dias da semana, valores e mais
             </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-stone-50 border-t border-stone-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
-          <button
-            onClick={onClose}
-            className="btn-secondary"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !description}
-            className="btn-primary"
-          >
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-stone-50 border-t border-stone-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+              <button
+                onClick={onClose}
+                className="btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !description}
+                className="btn-primary"
+              >
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Advanced Pattern Creator Modal */}
+      {/* Sub-modals - rendered outside parent for stack behavior */}
       {showAdvancedPatternCreator && (
         <AdvancedPatternCreator
           categories={categories}
@@ -637,7 +741,16 @@ export default function TransactionEditModal({
           }}
         />
       )}
-    </div>
+
+      {showPlannedEntryLinkModal && (
+        <TransactionPlannedEntryLinkModal
+          transaction={transaction}
+          categories={categories}
+          onClose={() => setShowPlannedEntryLinkModal(false)}
+          onLink={handlePlannedEntryLinked}
+        />
+      )}
+    </>
   );
 }
 

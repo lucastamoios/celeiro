@@ -270,17 +270,21 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           let totalActual = 0;
 
           for (const budget of categoryBudgets) {
-            const planned = parseFloat(budget.PlannedAmount) || 0;
-            totalPlanned += planned;
+            const category = categories.find(c => c.category_id === budget.CategoryID);
+            if (!category) continue;
 
+            const planned = parseFloat(budget.PlannedAmount) || 0;
             const categoryData = categoryMap.get(budget.CategoryID);
             const actual = categoryData ? categoryData.amount : 0;
-            totalActual += actual;
 
-            const category = categories.find(c => c.category_id === budget.CategoryID);
-            if (category) {
-              budgetsByCategory.push({ category, planned, actual });
+            // Only count expense categories for the budget progress bar
+            // Income categories should not be mixed with expense budgets
+            if (category.category_type === 'expense') {
+              totalPlanned += planned;
+              totalActual += actual;
             }
+
+            budgetsByCategory.push({ category, planned, actual });
           }
 
           budgetsByCategory.sort((a, b) => b.planned - a.planned);

@@ -59,6 +59,28 @@ GIVEN October 2025 is consolidated
 WHEN attempting to update a consolidated budget
 THEN the update must be rejected with error "Cannot modify consolidated budget"
 
+#### Scenario: Manual batch consolidation via UI
+GIVEN it is November 5, 2025
+AND category budgets exist for October 2025
+AND some October budgets are NOT consolidated
+WHEN user clicks "Consolidar Mês" button on the Orçamentos page
+THEN all unconsolidated October budgets must be consolidated in parallel:
+- is_consolidated=TRUE
+- consolidated_at=<current timestamp>
+AND monthly_snapshots must be created for each budget
+AND user must see success message with count of consolidated budgets
+AND the "Consolidar Mês" button must disappear (all budgets now consolidated)
+
+#### Scenario: Consolidate button only appears for ended months
+GIVEN it is November 5, 2025
+AND viewing October 2025 budgets (past month)
+AND at least one budget is NOT consolidated
+THEN the "Consolidar Mês" button must be visible
+
+GIVEN it is November 5, 2025
+AND viewing November 2025 budgets (current month)
+THEN the "Consolidar Mês" button must NOT be visible
+
 ### Requirement: Generate planned entry instances during initialization
 The system MUST create instances from recurrent templates.
 

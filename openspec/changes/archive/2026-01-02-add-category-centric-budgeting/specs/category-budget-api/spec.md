@@ -151,20 +151,6 @@ AND response body must contain:
 }
 ```
 
-## REMOVED Requirements
-
-### Requirement: Monthly budgets endpoints
-Old budget endpoints are replaced by category-centric endpoints.
-
-#### Scenario: Old endpoints return 404
-WHEN sending GET /financial/budgets
-THEN the response must be 404 Not Found
-AND error message must be "Endpoint removed. Use /financial/category-budgets"
-
-#### Scenario: Budget items endpoints removed
-WHEN sending POST /financial/budgets/1/items
-THEN the response must be 404 Not Found
-
 ## Related Capabilities
 - Depends on: category-budgets-data (database schema)
 - Depends on: lazy-consolidation (GET triggers lazy init)

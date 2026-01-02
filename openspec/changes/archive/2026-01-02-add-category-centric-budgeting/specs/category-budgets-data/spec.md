@@ -113,18 +113,6 @@ THEN a monthly_snapshot must be created with:
 - `budget_type` = <current budget type>
 AND the snapshot must never be modified after creation
 
-## REMOVED Requirements
-
-### Requirement: Monthly budgets table
-The old monthly-centric budgets table is no longer needed.
-
-#### Scenario: Drop budgets table
-GIVEN the database has successfully migrated to category_budgets
-WHEN applying migration 00011_drop_old_budgets.sql
-THEN the `budgets` table must be dropped
-AND the `budget_items` table must be dropped
-AND all foreign key constraints referencing these tables must be removed
-
 ## Migration Requirements
 
 ### Requirement: Data migration from old to new schema

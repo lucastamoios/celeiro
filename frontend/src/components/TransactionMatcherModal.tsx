@@ -31,7 +31,7 @@ export default function TransactionMatcherModal({
   const [showAllCategories, setShowAllCategories] = useState(false);
 
   // Handle ESC key and click outside to close modal
-  const { handleBackdropClick } = useModalDismiss(onClose);
+  const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
   const formatCurrency = (amount: string | number) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -148,6 +148,7 @@ export default function TransactionMatcherModal({
   return (
     <div
       className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
+      onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">

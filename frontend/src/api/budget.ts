@@ -345,7 +345,8 @@ export async function copyCategoryBudgetsFromMonth(
   }
 
   const result: ApiResponse<CategoryBudget[]> = await response.json();
-  return result.data;
+  // Ensure we always return an array (backend may return null/undefined for empty results)
+  return result.data ?? [];
 }
 
 // ============================================================================

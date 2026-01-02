@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { BarChart3, Copy, Check, AlertTriangle, Calendar } from 'lucide-react';
+import { BarChart3, Copy, Check, AlertTriangle, Calendar, Archive } from 'lucide-react';
 import type { CategoryBudget, PlannedEntryWithStatus } from '../types/budget';
 import CategoryBudgetCard from './CategoryBudgetCard';
 import PlannedEntryCard from './PlannedEntryCard';
@@ -24,6 +24,7 @@ interface MonthlyBudgetCardProps {
   onDeleteBudget: (budgetId: number) => void;
   onDeleteMonth?: () => Promise<void>;
   onConsolidate: (budgetId: number) => void;
+  onConsolidateAll?: () => Promise<void>;
   onToggleExpand: () => void;
   onCopyFromPreviousMonth?: () => void;
   onMatchEntry?: (entryId: number) => void;
@@ -32,6 +33,7 @@ interface MonthlyBudgetCardProps {
   onUndismissEntry?: (entryId: number) => void;
   onEditEntry?: (entry: PlannedEntryWithStatus) => void;
   onDeleteEntry?: (entryId: number) => void;
+  onCategoryCardClick?: (categoryId: number) => void; // Click handler to open transactions modal
 }
 
 export default function MonthlyBudgetCard({
@@ -53,6 +55,7 @@ export default function MonthlyBudgetCard({
   onDeleteBudget,
   onDeleteMonth,
   onConsolidate,
+  onConsolidateAll,
   onToggleExpand,
   onCopyFromPreviousMonth,
   onMatchEntry,
@@ -61,9 +64,11 @@ export default function MonthlyBudgetCard({
   onUndismissEntry,
   onEditEntry,
   onDeleteEntry,
+  onCategoryCardClick,
 }: MonthlyBudgetCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConsolidating, setIsConsolidating] = useState(false);
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget && !isDeleting) {
@@ -82,6 +87,18 @@ export default function MonthlyBudgetCard({
       }
     }
   };
+
+  const handleConsolidateAll = async () => {
+    if (onConsolidateAll && !isConsolidating) {
+      setIsConsolidating(true);
+      try {
+        await onConsolidateAll();
+      } finally {
+        setIsConsolidating(false);
+      }
+    }
+  };
+
   const getMonthName = (monthNum: number, yearNum: number) => {
     const date = new Date(yearNum, monthNum - 1, 1);
     const monthName = date.toLocaleDateString('pt-BR', { month: 'long' });
@@ -104,6 +121,16 @@ export default function MonthlyBudgetCard({
 
   // Filter to expense-only budgets for totals calculation
   const expenseBudgets = budgetArray.filter(b => !isIncomeCategory(b.CategoryID));
+
+  // Check if month has ended (for consolidation button)
+  const now = new Date();
+  const currentMonthNum = now.getMonth() + 1;
+  const currentYearNum = now.getFullYear();
+  const monthHasEnded = year < currentYearNum || (year === currentYearNum && month < currentMonthNum);
+
+  // Check if there are unconsolidated budgets
+  const hasUnconsolidatedBudgets = budgetArray.some(b => !b.IsConsolidated);
+  const canConsolidateMonth = monthHasEnded && hasUnconsolidatedBudgets && budgetArray.length > 0;
 
   const totalPlanned = expenseBudgets.reduce((sum, b) => {
     const val = parseFloat(b.PlannedAmount || '0');
@@ -340,6 +367,47 @@ export default function MonthlyBudgetCard({
         })()}
       </div>
 
+      {/* Consolidate Month Button - shows when month has ended and has unconsolidated budgets */}
+      {canConsolidateMonth && onConsolidateAll && (
+        <div className="px-6 pt-4">
+          <div className="bg-wheat-50 border border-wheat-200 rounded-lg p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <Archive className="w-5 h-5 text-wheat-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-semibold text-wheat-900">
+                    Consolidar orçamentos do mês
+                  </h4>
+                  <p className="text-xs text-wheat-700 mt-1">
+                    Este mês já terminou. Consolide os orçamentos para criar um snapshot dos valores finais.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleConsolidateAll}
+                disabled={isConsolidating}
+                className="btn-primary text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isConsolidating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Consolidando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 inline mr-1" />
+                    Consolidar Mês
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Category Budget Cards */}
       <div className="p-4 sm:p-6">
         {budgetArray.length === 0 ? (
@@ -362,7 +430,7 @@ export default function MonthlyBudgetCard({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
             {budgetArray.map((budget) => {
               // Only allow consolidation after the month has ended
               const now = new Date();
@@ -374,26 +442,28 @@ export default function MonthlyBudgetCard({
               const categoryEntries = entriesByCategoryId[budget.CategoryID] || [];
 
               return (
-                <CategoryBudgetCard
-                  key={budget.CategoryBudgetID}
-                  budget={budget}
-                  categoryName={getCategoryName(budget.CategoryID)}
-                  actualSpent={actualSpending[budget.CategoryID] || '0.00'}
-                  isIncome={isIncomeCategory(budget.CategoryID)}
-                  canConsolidate={monthHasEnded}
-                  plannedEntries={categoryEntries}
-                  month={month}
-                  year={year}
-                  onEdit={onEditBudget}
-                  onDelete={onDeleteBudget}
-                  onConsolidate={onConsolidate}
-                  onMatchEntry={onMatchEntry}
-                  onUnmatchEntry={onUnmatchEntry}
-                  onDismissEntry={onDismissEntry}
-                  onUndismissEntry={onUndismissEntry}
-                  onEditEntry={onEditEntry}
-                  onDeleteEntry={onDeleteEntry}
-                />
+                <div key={budget.CategoryBudgetID} className="break-inside-avoid mb-6">
+                  <CategoryBudgetCard
+                    budget={budget}
+                    categoryName={getCategoryName(budget.CategoryID)}
+                    actualSpent={actualSpending[budget.CategoryID] || '0.00'}
+                    isIncome={isIncomeCategory(budget.CategoryID)}
+                    canConsolidate={monthHasEnded}
+                    plannedEntries={categoryEntries}
+                    month={month}
+                    year={year}
+                    onEdit={onEditBudget}
+                    onDelete={onDeleteBudget}
+                    onConsolidate={onConsolidate}
+                    onMatchEntry={onMatchEntry}
+                    onUnmatchEntry={onUnmatchEntry}
+                    onDismissEntry={onDismissEntry}
+                    onUndismissEntry={onUndismissEntry}
+                    onEditEntry={onEditEntry}
+                    onDeleteEntry={onDeleteEntry}
+                    onCardClick={onCategoryCardClick ? () => onCategoryCardClick(budget.CategoryID) : undefined}
+                  />
+                </div>
               );
             })}
           </div>
@@ -419,9 +489,9 @@ export default function MonthlyBudgetCard({
           </div>
 
           {plannedEntriesLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-lg shadow-warm-sm p-4 animate-pulse">
+                <div key={i} className="break-inside-avoid mb-4 bg-white rounded-lg shadow-warm-sm p-4 animate-pulse">
                   <div className="h-5 bg-stone-200 rounded w-3/4 mb-3"></div>
                   <div className="h-4 bg-stone-200 rounded w-1/2 mb-2"></div>
                   <div className="h-6 bg-stone-200 rounded w-1/3"></div>
@@ -429,23 +499,24 @@ export default function MonthlyBudgetCard({
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
               {orphanEntries.map((entry) => {
                 const category = categories.find(c => c.category_id === entry.CategoryID);
                 return (
-                  <PlannedEntryCard
-                    key={entry.PlannedEntryID}
-                    entry={entry}
-                    categoryName={category?.name || 'Categoria desconhecida'}
-                    month={month}
-                    year={year}
-                    onMatch={onMatchEntry}
-                    onUnmatch={onUnmatchEntry}
-                    onDismiss={onDismissEntry}
-                    onUndismiss={onUndismissEntry}
-                    onEdit={onEditEntry}
-                    onDelete={onDeleteEntry}
-                  />
+                  <div key={entry.PlannedEntryID} className="break-inside-avoid mb-4">
+                    <PlannedEntryCard
+                      entry={entry}
+                      categoryName={category?.name || 'Categoria desconhecida'}
+                      month={month}
+                      year={year}
+                      onMatch={onMatchEntry}
+                      onUnmatch={onUnmatchEntry}
+                      onDismiss={onDismissEntry}
+                      onUndismiss={onUndismissEntry}
+                      onEdit={onEditEntry}
+                      onDelete={onDeleteEntry}
+                    />
+                  </div>
                 );
               })}
             </div>

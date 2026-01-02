@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	Environment       string // "development" or "production"
 	PGConnStr         string
 	PGMaxIdle         int
 	PGMaxConn         int
@@ -27,7 +28,12 @@ type Config struct {
 	OTELEnabled       bool
 	MailerType        string
 	SMTP2GO           SMTP2GOConfig
+	Resend            ResendConfig
 	FrontendURL       string // Base URL for frontend (used in email links)
+}
+
+func (c *Config) IsProduction() bool {
+	return c.Environment == "production"
 }
 
 type SMTP2GOConfig struct {
@@ -37,7 +43,12 @@ type SMTP2GOConfig struct {
 	Timeout       time.Duration
 }
 
+type ResendConfig struct {
+	APIKey string
+}
+
 func New() *Config {
+	environment := flag.String("environment", getEnvAsString("ENVIRONMENT", "development"), "Environment (development or production)")
 	port := flag.Int("port", getEnvAsInt("PORT", 8080), "Port to run the server on")
 	pgMaxIdle := flag.Int("pg-max-idle", getEnvAsInt("PG_MAX_IDLE", 10), "Maximum idle PostgreSQL connections")
 	pgMaxConn := flag.Int("pg-max-conn", getEnvAsInt("PG_MAX_CONN", 100), "Maximum PostgreSQL connections")
@@ -59,11 +70,13 @@ func New() *Config {
 	smtp2goSender := flag.String("smtp2go-sender", getEnvAsString("SMTP2GO_SENDER", ""), "SMTP2GO default sender")
 	smtp2goBaseURL := flag.String("smtp2go-base-url", getEnvAsString("SMTP2GO_BASE_URL", ""), "SMTP2GO base URL")
 	smtp2goTimeout := flag.Int("smtp2go-timeout", getEnvAsInt("SMTP2GO_TIMEOUT", 30), "SMTP2GO timeout in seconds")
+	resendAPIKey := flag.String("resend-api-key", getEnvAsString("RESEND_API_KEY", ""), "Resend API key")
 	frontendURL := flag.String("frontend-url", getEnvAsString("FRONTEND_URL", "http://localhost:51111"), "Frontend base URL for email links")
 
 	flag.Parse()
 
 	return &Config{
+		Environment:       *environment,
 		Port:              *port,
 		PGConnStr:         *pgConnStr,
 		PGMaxIdle:         *pgMaxIdle,
@@ -85,6 +98,9 @@ func New() *Config {
 			DefaultSender: *smtp2goSender,
 			BaseURL:       *smtp2goBaseURL,
 			Timeout:       time.Duration(*smtp2goTimeout) * time.Second,
+		},
+		Resend: ResendConfig{
+			APIKey: *resendAPIKey,
 		},
 		FrontendURL: *frontendURL,
 	}

@@ -21,6 +21,7 @@ interface CategoryBudgetCardProps {
   onUndismissEntry?: (entryId: number) => void;
   onEditEntry?: (entry: PlannedEntryWithStatus) => void;
   onDeleteEntry?: (entryId: number) => void;
+  onCardClick?: () => void; // Click handler to open transactions modal
 }
 
 export default function CategoryBudgetCard({
@@ -41,6 +42,7 @@ export default function CategoryBudgetCard({
   onUndismissEntry,
   onEditEntry,
   onDeleteEntry,
+  onCardClick,
 }: CategoryBudgetCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -224,8 +226,16 @@ export default function CategoryBudgetCard({
     <div className={`bg-white rounded-lg shadow-warm-sm border overflow-hidden transition-shadow ${
       entryStats.missed > 0 ? 'border-rust-200' : 'border-stone-200'
     } hover:shadow-warm-md`}>
-      {/* Main Card Content */}
-      <div className="p-4">
+      {/* Main Card Content - Clickable area */}
+      <div
+        className={`p-4 ${onCardClick ? 'cursor-pointer hover:bg-stone-50 transition-colors' : ''}`}
+        onClick={() => {
+          // Only trigger card click if not clicking on interactive elements
+          if (onCardClick && !showActions) {
+            onCardClick();
+          }
+        }}
+      >
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
@@ -257,7 +267,10 @@ export default function CategoryBudgetCard({
         {!budget.IsConsolidated && (
           <div className="relative">
             <button
-              onClick={() => setShowActions(!showActions)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowActions(!showActions);
+              }}
               className="p-2 hover:bg-stone-100 rounded-full transition-colors"
               aria-label="Ações"
             >
@@ -387,7 +400,10 @@ export default function CategoryBudgetCard({
       {/* Expand/Collapse Button for Entries */}
       {entryStats.total > 0 && (
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
           className="w-full px-4 py-2 bg-stone-50 hover:bg-stone-100 border-t border-stone-200 flex items-center justify-center gap-2 text-sm text-stone-600 transition-colors"
         >
           <svg
