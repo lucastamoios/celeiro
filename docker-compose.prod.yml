@@ -16,12 +16,9 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - PORT=8080
-      - MAILER_TYPE=${MAILER_TYPE:-console}
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_FROM=${SMTP_FROM:-noreply@celeiro.app}
+      - MAILER_TYPE=${MAILER_TYPE:-resend}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - EMAIL_FROM=${EMAIL_FROM:-Celeiro <noreply@celeiro.app>}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
     depends_on:
       postgres:
