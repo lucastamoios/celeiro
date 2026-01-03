@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
+	"net/http"
 	"strings"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 type AccountsAuth interface {
 	AuthenticateWithMagicCode(ctx context.Context, input AuthenticateWithMagicCodeInput) (Authentication, error)
 	RequestMagicLinkViaEmail(ctx context.Context, input RequestMagicLinkViaEmailInput) (RequestMagicLinkViaEmailOutput, error)
+	AuthenticateWithGoogle(ctx context.Context, input AuthenticateWithGoogleInput) (Authentication, error)
 
 	generateMagicLinkCode(ctx context.Context, input generateMagicLinkCodeInput) (string, error)
 	sendMagicLinkEmail(ctx context.Context, input sendMagicLinkEmailInput) error
@@ -329,4 +332,148 @@ func (a *service) getMagicCodeKey(email string) string {
 
 func (a *service) generateCode() string {
 	return fmt.Sprintf("%04d", rand.Intn(10000))
+}
+
+// AuthenticateWithGoogle
+
+type AuthenticateWithGoogleInput struct {
+	AccessToken string
+}
+
+type GoogleTokenInfo struct {
+	Email         string `json:"email"`
+	EmailVerified string `json:"email_verified"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+	Error         string `json:"error"`
+	ErrorDesc     string `json:"error_description"`
+}
+
+func (s *service) AuthenticateWithGoogle(ctx context.Context, params AuthenticateWithGoogleInput) (Authentication, error) {
+	if params.AccessToken == "" {
+		return Authentication{}, errors.New("access token is required")
+	}
+
+	// Validate the access token with Google
+	tokenInfo, err := s.validateGoogleToken(ctx, params.AccessToken)
+	if err != nil {
+		return Authentication{}, errors.Wrap(err, "failed to validate Google token")
+	}
+
+	if tokenInfo.Email == "" {
+		return Authentication{}, errors.New("could not get email from Google token")
+	}
+
+	// Check if user exists
+	var user User
+	var organizations []OrganizationWithPermissions
+	var userModel UserModel
+	isNewUser := false
+
+	fetchedUserModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
+		Email: tokenInfo.Email,
+	})
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return Authentication{}, err
+		}
+
+		// User does not exist, create new user
+		name := tokenInfo.Name
+		if name == "" {
+			// Extract name from email
+			if atIndex := strings.Index(tokenInfo.Email, "@"); atIndex > 0 {
+				name = tokenInfo.Email[:atIndex]
+			} else {
+				name = tokenInfo.Email
+			}
+		}
+
+		registerOutput, createErr := s.RegisterUser(ctx, RegisterUserInput{
+			Name:             name,
+			Email:            tokenInfo.Email,
+			OrganizationName: tokenInfo.Email,
+			Role:             RoleRegularManager,
+		})
+		if createErr != nil {
+			return Authentication{}, createErr
+		}
+
+		isNewUser = true
+		user = registerOutput.User
+		organizations = []OrganizationWithPermissions{registerOutput.Organization}
+		userModel = UserModel{
+			UserID:    user.UserID,
+			Name:      user.Name,
+			Email:     user.Email,
+			Phone:     user.Phone,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Address:   user.Address,
+			City:      user.City,
+			State:     user.State,
+			Zip:       user.Zip,
+			Country:   user.Country,
+			Latitude:  user.Latitude,
+			Longitude: user.Longitude,
+		}
+	} else {
+		// User exists
+		userModel = fetchedUserModel
+		user = User{}.FromModel(&userModel)
+
+		userOrganizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{
+			UserID: user.UserID,
+		})
+		if err != nil {
+			return Authentication{}, err
+		}
+		organizations = userOrganizations
+	}
+
+	userSession := SessionInfo{}.FromUserAndOrganizations(userModel, organizations)
+
+	session, err := s.CreateSession(ctx, CreateSessionInput{
+		Info: userSession,
+	})
+	if err != nil {
+		return Authentication{}, err
+	}
+
+	return Authentication{
+		Session:   session,
+		IsNewUser: isNewUser,
+	}, nil
+}
+
+func (s *service) validateGoogleToken(ctx context.Context, accessToken string) (GoogleTokenInfo, error) {
+	// Use Google's userinfo endpoint to validate the token and get user info
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.googleapis.com/oauth2/v3/userinfo", nil)
+	if err != nil {
+		return GoogleTokenInfo{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return GoogleTokenInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return GoogleTokenInfo{}, err
+	}
+
+	var tokenInfo GoogleTokenInfo
+	if err := json.Unmarshal(body, &tokenInfo); err != nil {
+		return GoogleTokenInfo{}, err
+	}
+
+	if tokenInfo.Error != "" {
+		return GoogleTokenInfo{}, fmt.Errorf("google auth error: %s - %s", tokenInfo.Error, tokenInfo.ErrorDesc)
+	}
+
+	return tokenInfo, nil
 }

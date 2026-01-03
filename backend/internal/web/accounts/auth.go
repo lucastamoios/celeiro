@@ -17,6 +17,7 @@ type AccountsAuthHandler interface {
 	RequestMagicLink(w http.ResponseWriter, r *http.Request)
 	RequestMagicLinkForExistingUser(w http.ResponseWriter, r *http.Request)
 	Authenticate(w http.ResponseWriter, r *http.Request)
+	AuthenticateWithGoogle(w http.ResponseWriter, r *http.Request)
 }
 
 // RequestMagicLink
@@ -176,6 +177,59 @@ func (h *handler) Authenticate(w http.ResponseWriter, r *http.Request) {
 			Currency:       "BRL",
 		})
 		// Best-effort: don't fail auth if account creation fails (user can create manually)
+	}
+
+	response := AuthenticateResponse{}.FromDTO(authResult)
+	responses.NewSuccess(response, w)
+}
+
+// AuthenticateWithGoogle
+
+type GoogleAuthRequest struct {
+	AccessToken string `json:"access_token"`
+}
+
+func (r *GoogleAuthRequest) Validate() error {
+	if strings.TrimSpace(r.AccessToken) == "" {
+		return errors.ErrMissingRequiredFields
+	}
+	return nil
+}
+
+func (h *handler) AuthenticateWithGoogle(w http.ResponseWriter, r *http.Request) {
+	var req GoogleAuthRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	authResult, err := h.accountsService.AuthenticateWithGoogle(r.Context(), accounts.AuthenticateWithGoogleInput{
+		AccessToken: req.AccessToken,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	// Create a default account for new users so they can start using the app immediately
+	if authResult.IsNewUser && len(authResult.Session.Info.Organizations) > 0 {
+		userID := authResult.Session.Info.User.ID
+		orgID := authResult.Session.Info.Organizations[0].OrganizationID
+
+		_, _ = h.financialService.CreateAccount(r.Context(), financial.CreateAccountInput{
+			UserID:         userID,
+			OrganizationID: orgID,
+			Name:           "Conta Principal",
+			AccountType:    "checking",
+			BankName:       "Meu Banco",
+			Balance:        decimal.Zero,
+			Currency:       "BRL",
+		})
 	}
 
 	response := AuthenticateResponse{}.FromDTO(authResult)

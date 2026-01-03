@@ -30,6 +30,11 @@ type Config struct {
 	SMTP2GO           SMTP2GOConfig
 	Resend            ResendConfig
 	FrontendURL       string // Base URL for frontend (used in email links)
+	GoogleOAuth       GoogleOAuthConfig
+}
+
+type GoogleOAuthConfig struct {
+	ClientID string
 }
 
 func (c *Config) IsProduction() bool {
@@ -72,6 +77,7 @@ func New() *Config {
 	smtp2goTimeout := flag.Int("smtp2go-timeout", getEnvAsInt("SMTP2GO_TIMEOUT", 30), "SMTP2GO timeout in seconds")
 	resendAPIKey := flag.String("resend-api-key", getEnvAsString("RESEND_API_KEY", ""), "Resend API key")
 	frontendURL := flag.String("frontend-url", getEnvAsString("FRONTEND_URL", "http://localhost:51111"), "Frontend base URL for email links")
+	googleClientID := flag.String("google-client-id", getEnvAsString("GOOGLE_CLIENT_ID", ""), "Google OAuth Client ID")
 
 	flag.Parse()
 
@@ -103,6 +109,9 @@ func New() *Config {
 			APIKey: *resendAPIKey,
 		},
 		FrontendURL: *frontendURL,
+		GoogleOAuth: GoogleOAuthConfig{
+			ClientID: *googleClientID,
+		},
 	}
 }
 
