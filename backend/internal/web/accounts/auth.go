@@ -317,14 +317,14 @@ func (h *handler) SetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user ID from session context
-	sessionInfo, ok := r.Context().Value("session_info").(*accounts.SessionInfo)
-	if !ok || sessionInfo == nil {
+	session, err := h.accountsService.GetSessionFromContext(r.Context())
+	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
 	}
 
-	err := h.accountsService.SetPassword(r.Context(), accounts.SetPasswordInput{
-		UserID:      sessionInfo.User.ID,
+	err = h.accountsService.SetPassword(r.Context(), accounts.SetPasswordInput{
+		UserID:      session.Info.User.ID,
 		OldPassword: req.OldPassword,
 		NewPassword: req.NewPassword,
 	})
