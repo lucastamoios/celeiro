@@ -3,13 +3,15 @@ package accounts
 import (
 	"context"
 	"database/sql"
+	stderrors "errors"
 	"time"
 
 	"github.com/catrutech/celeiro/internal/config"
+	"github.com/catrutech/celeiro/internal/errors"
 	"github.com/catrutech/celeiro/internal/web/validators"
 	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	transientdb "github.com/catrutech/celeiro/pkg/database/transient"
-	"github.com/catrutech/celeiro/pkg/errors"
+	pkgerrors "github.com/catrutech/celeiro/pkg/errors"
 	"github.com/catrutech/celeiro/pkg/logging"
 	"github.com/catrutech/celeiro/pkg/mailer"
 	"github.com/catrutech/celeiro/pkg/system"
@@ -33,6 +35,12 @@ type Service interface {
 	AcceptOrganizationInvite(ctx context.Context, params AcceptOrganizationInviteInput) (Authentication, error)
 	GetPendingInvites(ctx context.Context, params GetPendingInvitesInput) ([]OrganizationInvite, error)
 	CancelOrganizationInvite(ctx context.Context, params CancelOrganizationInviteInput) error
+
+	// Backoffice (System-wide)
+	GetAllUsers(ctx context.Context) ([]SystemUser, error)
+	CreateSystemInvite(ctx context.Context, params CreateSystemInviteInput) (SystemInvite, error)
+	AcceptSystemInvite(ctx context.Context, params AcceptSystemInviteInput) (Authentication, error)
+	GetPendingSystemInvites(ctx context.Context) ([]SystemInvite, error)
 
 	AccountsSession
 	AccountsAuth
@@ -81,7 +89,7 @@ func (s *service) GetUser(ctx context.Context, params GetUserInput) (User, error
 		UserID:         params.UserID,
 	})
 	if err != nil {
-		return User{}, errors.Wrap(err, "failed to get user")
+		return User{}, pkgerrors.Wrap(err, "failed to get user")
 	}
 
 	return User{}.FromModel(&user), nil
@@ -121,19 +129,19 @@ type RegisterUserInput struct {
 
 func (r *RegisterUserInput) Validate() error {
 	if r.Name == "" {
-		return errors.New("name is required")
+		return pkgerrors.New("name is required")
 	}
 	if r.Email == "" {
-		return errors.New("email is required")
+		return pkgerrors.New("email is required")
 	}
 	if r.OrganizationName == "" {
-		return errors.New("organization name is required")
+		return pkgerrors.New("organization name is required")
 	}
 	if !validators.IsValidEmail(r.Email) {
-		return errors.New("invalid email")
+		return pkgerrors.New("invalid email")
 	}
 	if !r.Role.IsValid() {
-		return errors.New("invalid role")
+		return pkgerrors.New("invalid role")
 	}
 	return nil
 }
@@ -235,7 +243,7 @@ func (s *service) GetOrganizationsByUser(ctx context.Context, params GetOrganiza
 	userOrganizations, err := s.Repository.FetchOrganizationsByUser(ctx, getOrganizationByUsersParams{
 		UserID: params.UserID,
 	})
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !stderrors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
 
@@ -278,8 +286,8 @@ func (s *service) SetDefaultOrganization(ctx context.Context, params SetDefaultO
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errors.New("user does not belong to this organization")
+		if stderrors.Is(err, sql.ErrNoRows) {
+			return pkgerrors.New("user does not belong to this organization")
 		}
 		return err
 	}
@@ -302,7 +310,7 @@ type CreateOrganizationInviteInput struct {
 func (s *service) CreateOrganizationInvite(ctx context.Context, params CreateOrganizationInviteInput) (OrganizationInvite, error) {
 	// Validate role
 	if !params.Role.IsValid() {
-		return OrganizationInvite{}, errors.New("invalid role")
+		return OrganizationInvite{}, pkgerrors.New("invalid role")
 	}
 
 	// Check if user is already a member
@@ -316,12 +324,12 @@ func (s *service) CreateOrganizationInvite(ctx context.Context, params CreateOrg
 			OrganizationID: params.OrganizationID,
 		})
 		if err == nil {
-			return OrganizationInvite{}, errors.New("user is already a member of this organization")
+			return OrganizationInvite{}, pkgerrors.New("user is already a member of this organization")
 		}
-		if !errors.Is(err, sql.ErrNoRows) {
+		if !stderrors.Is(err, sql.ErrNoRows) {
 			return OrganizationInvite{}, err
 		}
-	} else if !errors.Is(err, sql.ErrNoRows) {
+	} else if !stderrors.Is(err, sql.ErrNoRows) {
 		return OrganizationInvite{}, err
 	}
 
@@ -340,7 +348,7 @@ func (s *service) CreateOrganizationInvite(ctx context.Context, params CreateOrg
 		ExpiresAt:       expiresAt,
 	})
 	if err != nil {
-		return OrganizationInvite{}, errors.Wrap(err, "failed to create invite")
+		return OrganizationInvite{}, pkgerrors.Wrap(err, "failed to create invite")
 	}
 
 	// Get organization name for email
@@ -398,20 +406,20 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 		Token: params.Token,
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Authentication{}, errors.New("invalid or expired invite")
+		if stderrors.Is(err, sql.ErrNoRows) {
+			return Authentication{}, pkgerrors.New("invalid or expired invite")
 		}
 		return Authentication{}, err
 	}
 
 	// Check if expired
 	if s.system.Time.Now().After(invite.ExpiresAt) {
-		return Authentication{}, errors.New("invite has expired")
+		return Authentication{}, pkgerrors.New("invite has expired")
 	}
 
 	// Check if already accepted
 	if invite.AcceptedAt.Valid {
-		return Authentication{}, errors.New("invite has already been accepted")
+		return Authentication{}, pkgerrors.New("invite has already been accepted")
 	}
 
 	var auth Authentication
@@ -423,7 +431,7 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 		})
 
 		isNewUser := false
-		if errors.Is(err, sql.ErrNoRows) {
+		if stderrors.Is(err, sql.ErrNoRows) {
 			// Create new user
 			isNewUser = true
 			// Extract name from email (before @)
@@ -443,7 +451,7 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 				OrganizationID: invite.OrganizationID,
 			})
 			if err != nil {
-				return errors.Wrap(err, "failed to create user")
+				return pkgerrors.Wrap(err, "failed to create user")
 			}
 		} else if err != nil {
 			return err
@@ -455,9 +463,9 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 			OrganizationID: invite.OrganizationID,
 		})
 		if err == nil {
-			return errors.New("user is already a member of this organization")
+			return pkgerrors.New("user is already a member of this organization")
 		}
-		if !errors.Is(err, sql.ErrNoRows) {
+		if !stderrors.Is(err, sql.ErrNoRows) {
 			return err
 		}
 
@@ -468,7 +476,7 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 			Role:           invite.Role,
 		})
 		if err != nil {
-			return errors.Wrap(err, "failed to add user to organization")
+			return pkgerrors.Wrap(err, "failed to add user to organization")
 		}
 
 		// Mark invite as accepted
@@ -476,7 +484,7 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 			InviteID: invite.InviteID,
 		})
 		if err != nil {
-			return errors.Wrap(err, "failed to mark invite as accepted")
+			return pkgerrors.Wrap(err, "failed to mark invite as accepted")
 		}
 
 		// Get all user organizations for session
@@ -484,7 +492,7 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 			UserID: user.UserID,
 		})
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch user organizations")
+			return pkgerrors.Wrap(err, "failed to fetch user organizations")
 		}
 
 		var orgsWithPermissions []OrganizationWithPermissions
@@ -498,7 +506,7 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 			Info: userSession,
 		})
 		if err != nil {
-			return errors.Wrap(err, "failed to create session")
+			return pkgerrors.Wrap(err, "failed to create session")
 		}
 
 		auth = Authentication{
@@ -544,4 +552,198 @@ func (s *service) CancelOrganizationInvite(ctx context.Context, params CancelOrg
 	return s.Repository.DeleteOrganizationInvite(ctx, deleteOrganizationInviteParams{
 		InviteID: params.InviteID,
 	})
+}
+
+// =====================
+// Backoffice (System-wide)
+// =====================
+
+// GetAllUsers returns all users in the system with their organizations
+func (s *service) GetAllUsers(ctx context.Context) ([]SystemUser, error) {
+	users, err := s.Repository.FetchAllUsers(ctx)
+	if err != nil {
+		return nil, pkgerrors.Wrap(err, "failed to get all users")
+	}
+
+	return SystemUsers{}.FromModel(users), nil
+}
+
+// CreateSystemInvite
+
+type CreateSystemInviteInput struct {
+	Email            string
+	OrganizationName string
+	InvitedByUserID  int
+}
+
+func (s *service) CreateSystemInvite(ctx context.Context, params CreateSystemInviteInput) (SystemInvite, error) {
+	// Check if user already exists
+	_, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{Email: params.Email})
+	if err == nil {
+		return SystemInvite{}, errors.ErrUserAlreadyExists
+	}
+	if !stderrors.Is(err, sql.ErrNoRows) {
+		return SystemInvite{}, pkgerrors.Wrap(err, "failed to check existing user")
+	}
+
+	// Generate invite token
+	token := s.system.SessionToken.Generate(64)
+
+	// Set expiration (7 days)
+	expiresAt := s.system.Time.Now().Add(7 * 24 * time.Hour)
+
+	invite, err := s.Repository.InsertSystemInvite(ctx, insertSystemInviteParams{
+		Email:            params.Email,
+		OrganizationName: params.OrganizationName,
+		Token:            token,
+		InvitedByUserID:  params.InvitedByUserID,
+		ExpiresAt:        expiresAt,
+	})
+	if err != nil {
+		return SystemInvite{}, pkgerrors.Wrap(err, "failed to create system invite")
+	}
+
+	// Send invite email using organization invite template (same format)
+	err = s.sendOrganizationInviteEmail(ctx, sendOrganizationInviteEmailInput{
+		Email:            params.Email,
+		Token:            invite.Token,
+		OrganizationName: params.OrganizationName,
+	})
+	if err != nil {
+		s.logger.Error(ctx, "Failed to send system invite email", "email", params.Email, "error", err)
+		// Don't fail the request, invite is created
+	}
+
+	return SystemInvite{}.FromModel(invite), nil
+}
+
+// AcceptSystemInvite
+
+type AcceptSystemInviteInput struct {
+	Token string
+}
+
+func (s *service) AcceptSystemInvite(ctx context.Context, params AcceptSystemInviteInput) (Authentication, error) {
+	var auth Authentication
+
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		// Get invite
+		invite, err := s.Repository.FetchSystemInviteByToken(ctx, fetchSystemInviteByTokenParams{
+			Token: params.Token,
+		})
+		if err != nil {
+			if stderrors.Is(err, sql.ErrNoRows) {
+				return errors.ErrInviteNotFound
+			}
+			return pkgerrors.Wrap(err, "failed to get system invite")
+		}
+
+		// Check if expired
+		if s.system.Time.Now().After(invite.ExpiresAt) {
+			return errors.ErrInviteExpired
+		}
+
+		// Check if already accepted
+		if invite.AcceptedAt.Valid {
+			return errors.ErrInviteAlreadyAccepted
+		}
+
+		// Extract name from email (before @)
+		nameFromEmail := invite.Email
+		for i, c := range invite.Email {
+			if c == '@' {
+				nameFromEmail = invite.Email[:i]
+				break
+			}
+		}
+
+		user, err := s.Repository.InsertUser(ctx, createUserParams{
+			Email: invite.Email,
+			Name:  nameFromEmail,
+		})
+		if err != nil {
+			return pkgerrors.Wrap(err, "failed to create user")
+		}
+
+		// Create the organization
+		org, err := s.Repository.InsertOrganization(ctx, insertOrganizationParams{
+			Name: invite.OrganizationName,
+		})
+		if err != nil {
+			return pkgerrors.Wrap(err, "failed to create organization")
+		}
+
+		// Add user to organization as admin
+		_, err = s.Repository.InsertUserOrganization(ctx, createUserOrganizationParams{
+			UserID:         user.UserID,
+			OrganizationID: org.OrganizationID,
+			Role:           RoleAdmin,
+		})
+		if err != nil {
+			return pkgerrors.Wrap(err, "failed to add user to organization")
+		}
+
+		// Set as default organization
+		err = s.Repository.ModifyDefaultOrganization(ctx, modifyDefaultOrganizationParams{
+			UserID:         user.UserID,
+			OrganizationID: org.OrganizationID,
+		})
+		if err != nil {
+			return pkgerrors.Wrap(err, "failed to set default organization")
+		}
+
+		// Mark invite as accepted
+		err = s.Repository.ModifySystemInviteAccepted(ctx, modifySystemInviteAcceptedParams{
+			InviteID: invite.InviteID,
+		})
+		if err != nil {
+			return pkgerrors.Wrap(err, "failed to mark invite as accepted")
+		}
+
+		// Get organizations with permissions
+		orgsWithPermissions, err := s.Repository.FetchOrganizationsByUser(ctx, getOrganizationByUsersParams{
+			UserID: user.UserID,
+		})
+		if err != nil {
+			return pkgerrors.Wrap(err, "failed to get user organizations")
+		}
+
+		// Create session
+		userSession := SessionInfo{}.FromUserAndOrganizations(user, OrganizationsWithPermission{}.FromModel(orgsWithPermissions))
+		session, err := s.CreateSession(ctx, CreateSessionInput{
+			Info: userSession,
+		})
+		if err != nil {
+			return pkgerrors.Wrap(err, "failed to create session")
+		}
+
+		auth = Authentication{
+			Session:   session,
+			IsNewUser: true,
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return Authentication{}, err
+	}
+
+	return auth, nil
+}
+
+// GetPendingSystemInvites
+
+func (s *service) GetPendingSystemInvites(ctx context.Context) ([]SystemInvite, error) {
+	invites, err := s.Repository.FetchPendingSystemInvites(ctx)
+	if err != nil {
+		return nil, pkgerrors.Wrap(err, "failed to get pending system invites")
+	}
+
+	result := make([]SystemInvite, len(invites))
+	for i, invite := range invites {
+		result[i] = SystemInvite{}.FromModel(invite)
+	}
+
+	return result, nil
 }

@@ -74,3 +74,31 @@ type OrganizationMemberModel struct {
 	IsDefault bool      `db:"is_default"`
 	JoinedAt  time.Time `db:"created_at"`
 }
+
+// SystemUserModel represents a user for backoffice display
+type SystemUserModel struct {
+	UserID        int       `db:"user_id"`
+	Name          string    `db:"name"`
+	Email         string    `db:"email"`
+	CreatedAt     time.Time `db:"created_at"`
+	HasPassword   bool      `db:"has_password"`
+	Organizations []SystemUserOrganizationModel
+}
+
+type SystemUserOrganizationModel struct {
+	OrganizationID   int    `db:"organization_id"`
+	OrganizationName string `db:"organization_name"`
+	UserRole         Role   `db:"user_role"`
+}
+
+// SystemInviteModel represents an invite to create user + organization
+type SystemInviteModel struct {
+	InviteID         int          `db:"invite_id"`
+	Email            string       `db:"email"`
+	OrganizationName string       `db:"organization_name"`
+	Token            string       `db:"token"`
+	InvitedByUserID  int          `db:"invited_by_user_id"`
+	CreatedAt        time.Time    `db:"created_at"`
+	ExpiresAt        time.Time    `db:"expires_at"`
+	AcceptedAt       sql.NullTime `db:"accepted_at"`
+}

@@ -18,6 +18,10 @@ var (
 	ErrInvalidCode           = pkgerrors.New("invalid code")
 	ErrInvalidRequestBody    = pkgerrors.New("invalid request body")
 	ErrInvalidCredentials    = pkgerrors.New("invalid credentials")
+	ErrUserAlreadyExists     = pkgerrors.New("user already exists")
+	ErrInviteNotFound        = pkgerrors.New("invite not found")
+	ErrInviteExpired         = pkgerrors.New("invite has expired")
+	ErrInviteAlreadyAccepted = pkgerrors.New("invite has already been accepted")
 )
 
 func NewInvalidTimeFormatError(field string) error {

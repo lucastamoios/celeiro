@@ -1,12 +1,14 @@
-.PHONY: help env up down restart full-restart logs dbshell migrate migrate.rollback migrate.reset test gentypes dev build
+.PHONY: help env up down restart full-restart logs dbshell migrate migrate.rollback migrate.reset test gentypes dev build backoffice
 
 BACKEND_DIR := backend
 BACKEND_ENV := $(BACKEND_DIR)/.env.dev
 BACKEND_ENV_TEMPLATE := $(BACKEND_DIR)/.envrc
+BACKOFFICE_DIR := backoffice
 
 help:
 	@echo "Celeiro (repo root) commands:"
 	@echo "  make dev            Start dev environment with hot reload (recommended)"
+	@echo "  make backoffice     Start backoffice frontend (port 5174)"
 	@echo "  make build          Build backend binary (fast, no docker)"
 	@echo "  make up             Start all services (docker compose)"
 	@echo "  make down           Stop all services"
@@ -17,6 +19,7 @@ help:
 	@echo ""
 	@echo "Notes:"
 	@echo "  - 'make dev' runs backend (Air) + frontend (Vite) locally with hot reload"
+	@echo "  - 'make backoffice' runs the admin backoffice on port 5174 (super_admin only)"
 	@echo "  - This Makefile proxies to 'backend/Makefile'."
 	@echo "  - It auto-creates backend/.env.dev from backend/.envrc when missing."
 
@@ -70,3 +73,7 @@ build: env
 dev: env
 	@./scripts/dev.sh
 
+backoffice:
+	@echo "Starting backoffice frontend on port 5174..."
+	@echo "Note: Make sure 'make dev' is running in another terminal"
+	@cd $(BACKOFFICE_DIR) && npm run dev

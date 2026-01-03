@@ -40,6 +40,17 @@ services:
       - celeiro_network
     restart: unless-stopped
 
+  backoffice:
+    image: ghcr.io/lucastamoios/celeiro-backoffice:latest
+    container_name: celeiro_backoffice
+    ports:
+      - "${BACKOFFICE_PORT:-9082}:80"
+    depends_on:
+      - backend
+    networks:
+      - celeiro_network
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: celeiro_postgres

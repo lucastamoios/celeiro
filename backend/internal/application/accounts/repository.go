@@ -34,6 +34,13 @@ type Repository interface {
 	FetchOrganizationInvitesByOrg(ctx context.Context, params fetchOrganizationInvitesByOrgParams) ([]OrganizationInviteModel, error)
 	ModifyOrganizationInviteAccepted(ctx context.Context, params modifyOrganizationInviteAcceptedParams) error
 	DeleteOrganizationInvite(ctx context.Context, params deleteOrganizationInviteParams) error
+
+	// Backoffice (System-wide)
+	FetchAllUsers(ctx context.Context) ([]SystemUserModel, error)
+	InsertSystemInvite(ctx context.Context, params insertSystemInviteParams) (SystemInviteModel, error)
+	FetchSystemInviteByToken(ctx context.Context, params fetchSystemInviteByTokenParams) (SystemInviteModel, error)
+	FetchPendingSystemInvites(ctx context.Context) ([]SystemInviteModel, error)
+	ModifySystemInviteAccepted(ctx context.Context, params modifySystemInviteAcceptedParams) error
 }
 
 type repository struct {
@@ -609,4 +616,193 @@ const deleteOrganizationInviteQuery = `
 
 func (r *repository) DeleteOrganizationInvite(ctx context.Context, params deleteOrganizationInviteParams) error {
 	return r.db.Run(ctx, deleteOrganizationInviteQuery, params.InviteID)
+}
+
+// =====================
+// Backoffice (System-wide)
+// =====================
+
+// FetchAllUsers retrieves all users with their organizations
+const fetchAllUsersQuery = `
+	-- accounts.fetchAllUsersQuery
+	SELECT
+		u.user_id,
+		u.name,
+		u.email,
+		u.created_at,
+		CASE WHEN u.password_hash IS NOT NULL AND u.password_hash != '' THEN TRUE ELSE FALSE END as has_password
+	FROM users u
+	ORDER BY u.created_at DESC;
+	`
+
+const fetchUserOrganizationsQuery = `
+	-- accounts.fetchUserOrganizationsQuery
+	SELECT
+		uo.organization_id,
+		o.name as organization_name,
+		uo.user_role
+	FROM user_organizations uo
+	JOIN organizations o ON o.organization_id = uo.organization_id
+	WHERE uo.user_id = $1;
+	`
+
+func (r *repository) FetchAllUsers(ctx context.Context) ([]SystemUserModel, error) {
+	// First, get all users
+	type userRow struct {
+		UserID      int       `db:"user_id"`
+		Name        string    `db:"name"`
+		Email       string    `db:"email"`
+		CreatedAt   time.Time `db:"created_at"`
+		HasPassword bool      `db:"has_password"`
+	}
+
+	var users []userRow
+	err := r.db.Query(ctx, &users, fetchAllUsersQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	// Then, for each user, get their organizations
+	result := make([]SystemUserModel, len(users))
+	for i, u := range users {
+		var orgs []SystemUserOrganizationModel
+		err := r.db.Query(ctx, &orgs, fetchUserOrganizationsQuery, u.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		result[i] = SystemUserModel{
+			UserID:        u.UserID,
+			Name:          u.Name,
+			Email:         u.Email,
+			CreatedAt:     u.CreatedAt,
+			HasPassword:   u.HasPassword,
+			Organizations: orgs,
+		}
+	}
+
+	return result, nil
+}
+
+// InsertSystemInvite
+
+type insertSystemInviteParams struct {
+	Email            string
+	OrganizationName string
+	Token            string
+	InvitedByUserID  int
+	ExpiresAt        time.Time
+}
+
+const insertSystemInviteQuery = `
+	-- accounts.insertSystemInviteQuery
+	INSERT INTO system_invites
+	(email, organization_name, token, invited_by_user_id, expires_at)
+	VALUES ($1, $2, $3, $4, $5)
+	ON CONFLICT (email) DO UPDATE SET
+		organization_name = EXCLUDED.organization_name,
+		token = EXCLUDED.token,
+		invited_by_user_id = EXCLUDED.invited_by_user_id,
+		expires_at = EXCLUDED.expires_at,
+		accepted_at = NULL,
+		created_at = CURRENT_TIMESTAMP
+	RETURNING
+		invite_id,
+		email,
+		organization_name,
+		token,
+		invited_by_user_id,
+		created_at,
+		expires_at,
+		accepted_at;
+	`
+
+func (r *repository) InsertSystemInvite(ctx context.Context, params insertSystemInviteParams) (SystemInviteModel, error) {
+	var result SystemInviteModel
+	err := r.db.Query(ctx, &result, insertSystemInviteQuery,
+		params.Email,
+		params.OrganizationName,
+		params.Token,
+		params.InvitedByUserID,
+		params.ExpiresAt,
+	)
+	if err != nil {
+		return SystemInviteModel{}, err
+	}
+	return result, nil
+}
+
+// FetchSystemInviteByToken
+
+type fetchSystemInviteByTokenParams struct {
+	Token string
+}
+
+const fetchSystemInviteByTokenQuery = `
+	-- accounts.fetchSystemInviteByTokenQuery
+	SELECT
+		invite_id,
+		email,
+		organization_name,
+		token,
+		invited_by_user_id,
+		created_at,
+		expires_at,
+		accepted_at
+	FROM system_invites
+	WHERE token = $1;
+	`
+
+func (r *repository) FetchSystemInviteByToken(ctx context.Context, params fetchSystemInviteByTokenParams) (SystemInviteModel, error) {
+	var result SystemInviteModel
+	err := r.db.Query(ctx, &result, fetchSystemInviteByTokenQuery, params.Token)
+	if err != nil {
+		return SystemInviteModel{}, err
+	}
+	return result, nil
+}
+
+// FetchPendingSystemInvites
+
+const fetchPendingSystemInvitesQuery = `
+	-- accounts.fetchPendingSystemInvitesQuery
+	SELECT
+		invite_id,
+		email,
+		organization_name,
+		token,
+		invited_by_user_id,
+		created_at,
+		expires_at,
+		accepted_at
+	FROM system_invites
+	WHERE accepted_at IS NULL
+	  AND expires_at > CURRENT_TIMESTAMP
+	ORDER BY created_at DESC;
+	`
+
+func (r *repository) FetchPendingSystemInvites(ctx context.Context) ([]SystemInviteModel, error) {
+	var result []SystemInviteModel
+	err := r.db.Query(ctx, &result, fetchPendingSystemInvitesQuery)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// ModifySystemInviteAccepted
+
+type modifySystemInviteAcceptedParams struct {
+	InviteID int
+}
+
+const modifySystemInviteAcceptedQuery = `
+	-- accounts.modifySystemInviteAcceptedQuery
+	UPDATE system_invites
+	SET accepted_at = CURRENT_TIMESTAMP
+	WHERE invite_id = $1;
+	`
+
+func (r *repository) ModifySystemInviteAccepted(ctx context.Context, params modifySystemInviteAcceptedParams) error {
+	return r.db.Run(ctx, modifySystemInviteAcceptedQuery, params.InviteID)
 }
