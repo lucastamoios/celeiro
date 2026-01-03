@@ -11,6 +11,7 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
   FRONTEND_IMAGE_NAME: ${{ github.repository }}-frontend
+  BACKOFFICE_IMAGE_NAME: ${{ github.repository }}-backoffice
 
 jobs:
   build-backend:
@@ -95,9 +96,50 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-backoffice:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKOFFICE_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Backoffice Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backoffice
+          file: ./backoffice/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
     runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend]
+    needs: [build-backend, build-frontend, build-backoffice]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -142,6 +184,7 @@ jobs:
             DB_NAME=${DB_NAME}
             BACKEND_PORT=9080
             FRONTEND_PORT=9081
+            BACKOFFICE_PORT=9082
             MAILER_TYPE=resend
             RESEND_API_KEY=${RESEND_API_KEY}
             EMAIL_FROM=Celeiro <noreply@mail.celeiro.catru.tech>

@@ -49,6 +49,16 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 	// Public invite acceptance (token-based auth)
 	r.Post("/invites/accept", ah.AcceptOrganizationInvite)
 
+	// Backoffice (requires super_admin permissions)
+	r.Route("/backoffice", func(r chi.Router) {
+		r.Get("/users", mw.RequireSession(ah.GetAllUsers, []accounts.Permission{accounts.PermissionViewAllUsers}))
+		r.Get("/invites", mw.RequireSession(ah.GetPendingSystemInvites, []accounts.Permission{accounts.PermissionCreateSystemInvites}))
+		r.Post("/invites", mw.RequireSession(ah.CreateSystemInvite, []accounts.Permission{accounts.PermissionCreateSystemInvites}))
+	})
+
+	// Public system invite acceptance (token-based auth)
+	r.Post("/system-invites/accept", ah.AcceptSystemInvite)
+
 	// Financial endpoints (all require authentication)
 	r.Route("/financial", func(r chi.Router) {
 		// Categories

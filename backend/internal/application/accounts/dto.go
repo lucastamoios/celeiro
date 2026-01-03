@@ -247,3 +247,79 @@ func (o OrganizationMembers) FromModel(models []OrganizationMemberModel) Organiz
 	}
 	return members
 }
+
+// SystemUser represents a user in the backoffice system view
+type SystemUser struct {
+	UserID        int
+	Name          string
+	Email         string
+	CreatedAt     time.Time
+	HasPassword   bool
+	Organizations []SystemUserOrganization
+}
+
+type SystemUserOrganization struct {
+	OrganizationID   int
+	OrganizationName string
+	UserRole         Role
+}
+
+func (s SystemUser) FromModel(model SystemUserModel) SystemUser {
+	orgs := make([]SystemUserOrganization, len(model.Organizations))
+	for i, org := range model.Organizations {
+		orgs[i] = SystemUserOrganization{
+			OrganizationID:   org.OrganizationID,
+			OrganizationName: org.OrganizationName,
+			UserRole:         org.UserRole,
+		}
+	}
+
+	return SystemUser{
+		UserID:        model.UserID,
+		Name:          model.Name,
+		Email:         model.Email,
+		CreatedAt:     model.CreatedAt,
+		HasPassword:   model.HasPassword,
+		Organizations: orgs,
+	}
+}
+
+type SystemUsers []SystemUser
+
+func (s SystemUsers) FromModel(models []SystemUserModel) SystemUsers {
+	users := make(SystemUsers, len(models))
+	for i, model := range models {
+		users[i] = SystemUser{}.FromModel(model)
+	}
+	return users
+}
+
+// SystemInvite represents an invite to create a new user and organization
+type SystemInvite struct {
+	InviteID         int
+	Email            string
+	OrganizationName string
+	Token            string
+	InvitedByUserID  int
+	CreatedAt        time.Time
+	ExpiresAt        time.Time
+	AcceptedAt       *time.Time
+}
+
+func (s SystemInvite) FromModel(model SystemInviteModel) SystemInvite {
+	var acceptedAt *time.Time
+	if model.AcceptedAt.Valid {
+		acceptedAt = &model.AcceptedAt.Time
+	}
+
+	return SystemInvite{
+		InviteID:         model.InviteID,
+		Email:            model.Email,
+		OrganizationName: model.OrganizationName,
+		Token:            model.Token,
+		InvitedByUserID:  model.InvitedByUserID,
+		CreatedAt:        model.CreatedAt,
+		ExpiresAt:        model.ExpiresAt,
+		AcceptedAt:       acceptedAt,
+	}
+}

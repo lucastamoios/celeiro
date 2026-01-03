@@ -3,15 +3,21 @@ package accounts
 type Role string
 
 const (
+	RoleSuperAdmin     Role = "super_admin"
 	RoleAdmin          Role = "admin"
 	RoleRegularManager Role = "regular_manager"
 	RoleRegularUser    Role = "regular_user"
 )
 
 func (r Role) IsValid() bool {
-	return r == RoleAdmin ||
+	return r == RoleSuperAdmin ||
+		r == RoleAdmin ||
 		r == RoleRegularManager ||
 		r == RoleRegularUser
+}
+
+func (r Role) IsSuperAdmin() bool {
+	return r == RoleSuperAdmin
 }
 
 type Permission string
@@ -25,6 +31,10 @@ const (
 	PermissionEditRegularUsers    Permission = "edit_regular_users"
 	PermissionCreateRegularUsers  Permission = "create_regular_users"
 	PermissionDeleteRegularUsers  Permission = "delete_regular_users"
+	// Super admin permissions (system-wide)
+	PermissionViewAllUsers         Permission = "view_all_users"
+	PermissionCreateSystemInvites  Permission = "create_system_invites"
+	PermissionViewAllOrganizations Permission = "view_all_organizations"
 )
 
 func (p Permission) IsValid() bool {
@@ -35,5 +45,8 @@ func (p Permission) IsValid() bool {
 		p == PermissionViewRegularUsers ||
 		p == PermissionEditRegularUsers ||
 		p == PermissionCreateRegularUsers ||
-		p == PermissionDeleteRegularUsers
+		p == PermissionDeleteRegularUsers ||
+		p == PermissionViewAllUsers ||
+		p == PermissionCreateSystemInvites ||
+		p == PermissionViewAllOrganizations
 }
