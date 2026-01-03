@@ -18,7 +18,7 @@ services:
       - PORT=8080
       - MAILER_TYPE=${MAILER_TYPE:-resend}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
-      - EMAIL_FROM=${EMAIL_FROM:-Celeiro <noreply@celeiro.app>}
+      - EMAIL_FROM=${EMAIL_FROM:-Celeiro <noreply@celeiro.catru.tech>}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
     depends_on:
       postgres:
