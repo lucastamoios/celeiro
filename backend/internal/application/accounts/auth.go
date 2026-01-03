@@ -8,7 +8,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"strings"
 	"time"
 
 	internalerrors "github.com/catrutech/celeiro/internal/errors"
@@ -49,65 +48,23 @@ func (s *service) AuthenticateWithMagicCode(ctx context.Context, params Authenti
 		return Authentication{}, err
 	}
 
-	var user User
-	var organizations []OrganizationWithPermissions
-	var userModel UserModel
-	isNewUser := false
-	fetchedUserModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
+	// Fetch user - auto-registration is disabled, user must exist
+	userModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
 		Email: params.Email,
 	})
 	if err != nil {
-		// User does not exist, create new user
-		if !errors.Is(err, sql.ErrNoRows) {
-			return Authentication{}, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return Authentication{}, internalerrors.ErrInvalidCredentials
 		}
+		return Authentication{}, err
+	}
 
-		name := params.Email
-		if atIndex := strings.Index(params.Email, "@"); atIndex > 0 {
-			name = params.Email[:atIndex]
-		}
-
-		registerOutput, createErr := s.RegisterUser(ctx, RegisterUserInput{
-			Name:             name,
-			Email:            params.Email,
-			OrganizationName: params.Email,
-			Role:             RoleRegularManager,
-		})
-		if createErr != nil {
-			return Authentication{}, createErr
-		}
-
-		isNewUser = true
-		user = registerOutput.User
-		organizations = []OrganizationWithPermissions{registerOutput.Organization}
-		// Convert User to UserModel for session creation
-		userModel = UserModel{
-			UserID:    user.UserID,
-			Name:      user.Name,
-			Email:     user.Email,
-			Phone:     user.Phone,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-			Address:   user.Address,
-			City:      user.City,
-			State:     user.State,
-			Zip:       user.Zip,
-			Country:   user.Country,
-			Latitude:  user.Latitude,
-			Longitude: user.Longitude,
-		}
-	} else {
-		// User exists, load user
-		userModel = fetchedUserModel
-		user = User{}.FromModel(&userModel)
-
-		userOrganizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{
-			UserID: user.UserID,
-		})
-		if err != nil {
-			return Authentication{}, err
-		}
-		organizations = userOrganizations
+	user := User{}.FromModel(&userModel)
+	organizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{
+		UserID: user.UserID,
+	})
+	if err != nil {
+		return Authentication{}, err
 	}
 
 	userSession := SessionInfo{}.FromUserAndOrganizations(userModel, organizations)
@@ -121,9 +78,12 @@ func (s *service) AuthenticateWithMagicCode(ctx context.Context, params Authenti
 
 	return Authentication{
 		Session:   session,
-		IsNewUser: isNewUser,
+		IsNewUser: false, // Auto-registration disabled
 	}, nil
 }
+
+// TODO: To re-enable auto-registration for magic link, restore the original
+// AuthenticateWithMagicCode that creates new users when they don't exist.
 
 // RequestMagicLinkViaEmail
 
@@ -367,71 +327,23 @@ func (s *service) AuthenticateWithGoogle(ctx context.Context, params Authenticat
 		return Authentication{}, errors.New("could not get email from Google token")
 	}
 
-	// Check if user exists
-	var user User
-	var organizations []OrganizationWithPermissions
-	var userModel UserModel
-	isNewUser := false
-
-	fetchedUserModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
+	// Fetch user - auto-registration is disabled, user must exist
+	userModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
 		Email: tokenInfo.Email,
 	})
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return Authentication{}, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return Authentication{}, internalerrors.ErrInvalidCredentials
 		}
+		return Authentication{}, err
+	}
 
-		// User does not exist, create new user
-		name := tokenInfo.Name
-		if name == "" {
-			// Extract name from email
-			if atIndex := strings.Index(tokenInfo.Email, "@"); atIndex > 0 {
-				name = tokenInfo.Email[:atIndex]
-			} else {
-				name = tokenInfo.Email
-			}
-		}
-
-		registerOutput, createErr := s.RegisterUser(ctx, RegisterUserInput{
-			Name:             name,
-			Email:            tokenInfo.Email,
-			OrganizationName: tokenInfo.Email,
-			Role:             RoleRegularManager,
-		})
-		if createErr != nil {
-			return Authentication{}, createErr
-		}
-
-		isNewUser = true
-		user = registerOutput.User
-		organizations = []OrganizationWithPermissions{registerOutput.Organization}
-		userModel = UserModel{
-			UserID:    user.UserID,
-			Name:      user.Name,
-			Email:     user.Email,
-			Phone:     user.Phone,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-			Address:   user.Address,
-			City:      user.City,
-			State:     user.State,
-			Zip:       user.Zip,
-			Country:   user.Country,
-			Latitude:  user.Latitude,
-			Longitude: user.Longitude,
-		}
-	} else {
-		// User exists
-		userModel = fetchedUserModel
-		user = User{}.FromModel(&userModel)
-
-		userOrganizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{
-			UserID: user.UserID,
-		})
-		if err != nil {
-			return Authentication{}, err
-		}
-		organizations = userOrganizations
+	user := User{}.FromModel(&userModel)
+	organizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{
+		UserID: user.UserID,
+	})
+	if err != nil {
+		return Authentication{}, err
 	}
 
 	userSession := SessionInfo{}.FromUserAndOrganizations(userModel, organizations)
@@ -445,9 +357,12 @@ func (s *service) AuthenticateWithGoogle(ctx context.Context, params Authenticat
 
 	return Authentication{
 		Session:   session,
-		IsNewUser: isNewUser,
+		IsNewUser: false, // Auto-registration disabled
 	}, nil
 }
+
+// TODO: To re-enable auto-registration for Google, restore the original
+// AuthenticateWithGoogle that creates new users when they don't exist.
 
 func (s *service) validateGoogleToken(ctx context.Context, accessToken string) (GoogleTokenInfo, error) {
 	// Use Google's userinfo endpoint to validate the token and get user info
