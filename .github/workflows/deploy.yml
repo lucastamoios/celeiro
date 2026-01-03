@@ -114,11 +114,6 @@ jobs:
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.2.2
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          envs: DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,GOOGLE_CLIENT_ID,GITHUB_TOKEN,GITHUB_ACTOR
         env:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -127,7 +122,12 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
-        script: |
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,GOOGLE_CLIENT_ID,GITHUB_TOKEN,GITHUB_ACTOR
+          script: |
             # Create directories
             mkdir -p /var/celeiro/postgres_data
             mkdir -p /var/celeiro/redis_data
