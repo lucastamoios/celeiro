@@ -51,4 +51,26 @@ type OrganizationWithPermissionsModel struct {
 	OrganizationModel
 	UserRole        Role           `db:"user_role"`
 	UserPermissions pq.StringArray `db:"user_permissions"`
+	IsDefault       bool           `db:"is_default"`
+}
+
+type OrganizationInviteModel struct {
+	InviteID        int          `db:"invite_id"`
+	OrganizationID  int          `db:"organization_id"`
+	Email           string       `db:"email"`
+	Role            Role         `db:"role"`
+	Token           string       `db:"token"`
+	InvitedByUserID int          `db:"invited_by_user_id"`
+	CreatedAt       time.Time    `db:"created_at"`
+	ExpiresAt       time.Time    `db:"expires_at"`
+	AcceptedAt      sql.NullTime `db:"accepted_at"`
+}
+
+type OrganizationMemberModel struct {
+	UserID    int       `db:"user_id"`
+	Name      string    `db:"name"`
+	Email     string    `db:"email"`
+	UserRole  Role      `db:"user_role"`
+	IsDefault bool      `db:"is_default"`
+	JoinedAt  time.Time `db:"created_at"`
 }

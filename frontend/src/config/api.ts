@@ -16,6 +16,15 @@ export const API_CONFIG = {
       me: '/accounts/me/',
       password: '/accounts/password/',
     },
+    organizations: {
+      default: '/organizations/default',
+      members: (orgId: number) => `/organizations/${orgId}/members`,
+      invites: (orgId: number) => `/organizations/${orgId}/invites`,
+      cancelInvite: (orgId: number, inviteId: number) => `/organizations/${orgId}/invites/${inviteId}`,
+    },
+    invites: {
+      accept: '/invites/accept',
+    },
     financial: {
       categories: '/financial/categories',
       accounts: '/financial/accounts',

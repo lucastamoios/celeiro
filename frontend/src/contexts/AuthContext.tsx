@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserEmail(null);
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_email');
+    localStorage.removeItem('active_organization_id');
   };
 
   return (

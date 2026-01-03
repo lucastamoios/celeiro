@@ -1,4 +1,4 @@
-.PHONY: help env up down restart full-restart logs dbshell migrate migrate.rollback migrate.reset test gentypes dev
+.PHONY: help env up down restart full-restart logs dbshell migrate migrate.rollback migrate.reset test gentypes dev build
 
 BACKEND_DIR := backend
 BACKEND_ENV := $(BACKEND_DIR)/.env.dev
@@ -7,6 +7,7 @@ BACKEND_ENV_TEMPLATE := $(BACKEND_DIR)/.envrc
 help:
 	@echo "Celeiro (repo root) commands:"
 	@echo "  make dev            Start dev environment with hot reload (recommended)"
+	@echo "  make build          Build backend binary (fast, no docker)"
 	@echo "  make up             Start all services (docker compose)"
 	@echo "  make down           Stop all services"
 	@echo "  make restart        Restart all services (rebuild)"
@@ -62,6 +63,9 @@ test: env
 
 gentypes: env
 	@$(MAKE) -C $(BACKEND_DIR) gentypes
+
+build: env
+	@$(MAKE) -C $(BACKEND_DIR) build
 
 dev: env
 	@./scripts/dev.sh
