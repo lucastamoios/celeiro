@@ -118,29 +118,38 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          script: |
+          envs: DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,GOOGLE_CLIENT_ID,GITHUB_TOKEN,GITHUB_ACTOR
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        script: |
             # Create directories
             mkdir -p /var/celeiro/postgres_data
             mkdir -p /var/celeiro/redis_data
 
-            # Rename docker-compose file
-            mv /var/celeiro/docker-compose.prod.yml /var/celeiro/docker-compose.yml
+            # Rename docker-compose file if it exists
+            [ -f /var/celeiro/docker-compose.prod.yml ] && mv /var/celeiro/docker-compose.prod.yml /var/celeiro/docker-compose.yml
 
             # Create .env file with secrets
-            cat > /var/celeiro/.env << 'ENVEOF'
-            DB_USER=${{ secrets.DB_USER }}
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            DB_NAME=${{ secrets.DB_NAME }}
+            cat > /var/celeiro/.env << ENVEOF
+            DB_USER=${DB_USER}
+            DB_PASSWORD=${DB_PASSWORD}
+            DB_NAME=${DB_NAME}
             BACKEND_PORT=9080
             FRONTEND_PORT=9081
             MAILER_TYPE=resend
-            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            RESEND_API_KEY=${RESEND_API_KEY}
             EMAIL_FROM=Celeiro <noreply@celeiro.app>
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
             ENVEOF
 
             # Login to GHCR and deploy
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo ${GITHUB_TOKEN} | docker login ghcr.io -u ${GITHUB_ACTOR} --password-stdin
             cd /var/celeiro
             docker compose pull
             docker compose up -d
