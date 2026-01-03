@@ -1,0 +1,78 @@
+name: celeiro
+
+services:
+  backend:
+    image: ghcr.io/lucastamoios/celeiro-backend:latest
+    container_name: celeiro_backend
+    ports:
+      - "${BACKEND_PORT:-9080}:8080"
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable
+      - DATABASE_NAME=${DB_NAME}
+      - PG_CONN_STR=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable
+      - PG_MAX_IDLE=10
+      - PG_MAX_CONN=100
+      - PG_DB_NAME=${DB_NAME}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=8080
+      - MAILER_TYPE=${MAILER_TYPE:-console}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@celeiro.app}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - celeiro_network
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/lucastamoios/celeiro-frontend:latest
+    container_name: celeiro_frontend
+    ports:
+      - "${FRONTEND_PORT:-9081}:80"
+    depends_on:
+      - backend
+    networks:
+      - celeiro_network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: celeiro_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - /var/celeiro/postgres_data:/var/lib/postgresql/data
+    networks:
+      - celeiro_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: celeiro_redis
+    volumes:
+      - /var/celeiro/redis_data:/data
+    networks:
+      - celeiro_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+networks:
+  celeiro_network:
+    name: celeiro_network
+    driver: bridge
