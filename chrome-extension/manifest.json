@@ -6,8 +6,17 @@
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "identity"
   ],
+  "oauth2": {
+    "client_id": "737562838048-34v2dl6sbu0of1n3d486glb0g3eaeonu.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
+  },
   "host_permissions": [
     "https://www.amazon.com.br/*",
     "https://www.amazon.com/*",

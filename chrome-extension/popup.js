@@ -2,10 +2,20 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Load saved settings
-  const settings = await chrome.storage.local.get(['apiUrl', 'token', 'month', 'year']);
+  const settings = await chrome.storage.local.get(['apiUrl', 'token', 'userEmail', 'month', 'year']);
 
+  // DOM Elements - Auth
+  const loginSection = document.getElementById('loginSection');
+  const userInfoSection = document.getElementById('userInfoSection');
+  const configSection = document.getElementById('configSection');
+  const syncSection = document.getElementById('syncSection');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const userEmailSpan = document.getElementById('userEmail');
+  const userAvatar = document.getElementById('userAvatar');
+
+  // DOM Elements - Config & Sync
   const apiUrlInput = document.getElementById('apiUrl');
-  const tokenInput = document.getElementById('token');
   const monthSelect = document.getElementById('month');
   const yearInput = document.getElementById('year');
   const syncBtn = document.getElementById('syncBtn');
@@ -21,22 +31,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set default values
   const currentDate = new Date();
   apiUrlInput.value = settings.apiUrl || 'http://localhost:8080';
-  tokenInput.value = settings.token || '';
   monthSelect.value = settings.month || currentDate.getMonth() + 1;
   yearInput.value = settings.year || currentDate.getFullYear();
+
+  // Check if user is authenticated
+  const updateAuthUI = () => {
+    const isAuthenticated = settings.token && settings.userEmail;
+
+    if (isAuthenticated) {
+      loginSection.classList.add('hidden');
+      userInfoSection.classList.remove('hidden');
+      configSection.classList.remove('hidden');
+      syncSection.classList.remove('hidden');
+      openAmazonBtn.classList.remove('hidden');
+
+      userEmailSpan.textContent = settings.userEmail;
+      userAvatar.textContent = settings.userEmail.charAt(0).toUpperCase();
+    } else {
+      loginSection.classList.remove('hidden');
+      userInfoSection.classList.add('hidden');
+      configSection.classList.add('hidden');
+      syncSection.classList.add('hidden');
+      openAmazonBtn.classList.add('hidden');
+    }
+  };
+
+  updateAuthUI();
 
   // Save settings on change
   const saveSettings = () => {
     chrome.storage.local.set({
       apiUrl: apiUrlInput.value,
-      token: tokenInput.value,
       month: monthSelect.value,
       year: yearInput.value
     });
   };
 
   apiUrlInput.addEventListener('change', saveSettings);
-  tokenInput.addEventListener('change', saveSettings);
   monthSelect.addEventListener('change', saveSettings);
   yearInput.addEventListener('change', saveSettings);
 
@@ -61,6 +92,108 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressContainer.classList.remove('show');
   };
 
+  // Google OAuth Login using Chrome's native identity API
+  googleLoginBtn.addEventListener('click', async () => {
+    try {
+      googleLoginBtn.disabled = true;
+      showStatus('Conectando com Google...', 'info');
+
+      // Use Chrome's native getAuthToken for Google OAuth
+      // This is the recommended approach for Google OAuth in Chrome extensions
+      const accessToken = await new Promise((resolve, reject) => {
+        chrome.identity.getAuthToken({ interactive: true }, (token) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(token);
+          }
+        });
+      });
+
+      console.log('[Celeiro] Got access token via getAuthToken');
+
+      if (!accessToken) {
+        throw new Error('No access token received from Google');
+      }
+
+      console.log('[Celeiro] Got access token, authenticating with backend...');
+      showStatus('Autenticando...', 'info');
+
+      // Send access token to our backend
+      const apiUrl = apiUrlInput.value.trim();
+      const response = await fetch(`${apiUrl}/auth/google/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ access_token: accessToken })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend auth failed: ${response.status} - ${errorText}`);
+      }
+
+      const authData = await response.json();
+      console.log('[Celeiro] Backend auth response:', authData);
+
+      // Save the session token and user info
+      const sessionToken = authData.data.session_token;
+      const userEmail = authData.data.session_info.user.email;
+
+      settings.token = sessionToken;
+      settings.userEmail = userEmail;
+
+      await chrome.storage.local.set({
+        token: sessionToken,
+        userEmail: userEmail
+      });
+
+      showStatus('Login realizado com sucesso!', 'success');
+      updateAuthUI();
+
+      setTimeout(hideStatus, 2000);
+
+    } catch (error) {
+      console.error('[Celeiro] OAuth error:', error);
+      showStatus(`Erro: ${error.message}`, 'error');
+    } finally {
+      googleLoginBtn.disabled = false;
+    }
+  });
+
+  // Logout
+  logoutBtn.addEventListener('click', async () => {
+    // First, revoke the Google token if we have one cached
+    try {
+      const token = await new Promise((resolve) => {
+        chrome.identity.getAuthToken({ interactive: false }, (token) => {
+          resolve(token);
+        });
+      });
+
+      if (token) {
+        // Remove the cached token from Chrome
+        await new Promise((resolve) => {
+          chrome.identity.removeCachedAuthToken({ token }, resolve);
+        });
+        console.log('[Celeiro] Removed cached Google auth token');
+      }
+    } catch (e) {
+      console.log('[Celeiro] No cached token to remove');
+    }
+
+    settings.token = null;
+    settings.userEmail = null;
+
+    await chrome.storage.local.remove(['token', 'userEmail']);
+
+    showStatus('Logout realizado', 'info');
+    updateAuthUI();
+
+    setTimeout(hideStatus, 2000);
+  });
+
   // Open Amazon orders page
   openAmazonBtn.addEventListener('click', async () => {
     const month = parseInt(monthSelect.value);
@@ -82,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Sync orders
   syncBtn.addEventListener('click', async () => {
     const apiUrl = apiUrlInput.value.trim();
-    const token = tokenInput.value.trim();
+    const token = settings.token;
     const month = parseInt(monthSelect.value);
     const year = parseInt(yearInput.value);
 
@@ -92,7 +225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (!token) {
-      showStatus('Por favor, configure o token de autenticação', 'error');
+      showStatus('Por favor, faça login primeiro', 'error');
       return;
     }
 
