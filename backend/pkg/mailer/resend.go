@@ -36,7 +36,7 @@ func (r *ResendProvider) SendEmail(ctx context.Context, message EmailTemplateMes
 
 	sender := r.config.DefaultSender
 	if sender == "" {
-		sender = "Celeiro <noreply@celeiro.catru.tech>"
+		sender = "Celeiro <noreply@mail.celeiro.catru.tech>"
 	}
 
 	params := &resend.SendEmailRequest{
