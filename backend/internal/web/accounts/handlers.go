@@ -13,6 +13,7 @@ import (
 type AccountsHandler interface {
 	Me(w http.ResponseWriter, r *http.Request)
 	AccountsAuthHandler
+	OrganizationHandler
 }
 
 type handler struct {

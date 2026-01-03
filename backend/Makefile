@@ -15,7 +15,7 @@
 #   make test         - Run tests
 #   make cli          - Show available CLI commands
 
-.PHONY: up down restart full-restart setup test dev
+.PHONY: up down restart full-restart setup test dev build
 
 # Check if .env.dev exists, fail with helpful message if not
 ifeq (,$(wildcard .env.dev))
@@ -97,3 +97,8 @@ dev:
 	@echo "Run 'make dev' from the repository root instead."
 	@echo "This starts backend (Air) + frontend (Vite) with hot reload."
 	@exit 1
+
+build:
+	@echo "🔨 Building backend..."
+	go build -o ./tmp/main ./cmd/web
+	@echo "✅ Backend built to ./tmp/main"

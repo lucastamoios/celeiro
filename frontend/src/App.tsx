@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { OrganizationProvider } from './contexts/OrganizationContext'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import TransactionList from './components/TransactionList'
@@ -8,6 +9,7 @@ import UncategorizedTransactions from './components/UncategorizedTransactions'
 import SavingsGoalsPage from './components/SavingsGoalsPage'
 import SettingsPage from './components/SettingsPage'
 import UserAvatarMenu from './components/UserAvatarMenu'
+import AcceptInvite from './components/AcceptInvite'
 import {
   LayoutDashboard,
   CreditCard,
@@ -20,7 +22,13 @@ import {
 } from 'lucide-react'
 
 type View = 'dashboard' | 'transactions' | 'budgets' | 'goals' | 'settings' | 'uncategorized';
-type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags';
+type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
+
+// Helper to get invite token from URL
+function getInviteToken(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('token');
+}
 
 const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'goals', 'settings', 'uncategorized'];
 const VIEW_STORAGE_KEY = 'celeiro_current_view';
@@ -38,6 +46,7 @@ function AppContent() {
   const [currentView, setCurrentViewState] = useState<View>(getInitialView);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('conta');
+  const [inviteToken, setInviteToken] = useState<string | null>(getInviteToken);
 
   const setCurrentView = useCallback((view: View) => {
     setCurrentViewState(view);
@@ -58,6 +67,16 @@ function AppContent() {
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
+
+  // Handle invite acceptance flow
+  if (inviteToken) {
+    return (
+      <AcceptInvite
+        token={inviteToken}
+        onComplete={() => setInviteToken(null)}
+      />
+    );
+  }
 
   if (!isAuthenticated) {
     return <Login />;
@@ -212,7 +231,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <OrganizationProvider>
+        <AppContent />
+      </OrganizationProvider>
     </AuthProvider>
   )
 }

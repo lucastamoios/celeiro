@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Settings, FolderOpen, Workflow, Tag, User } from 'lucide-react';
+import { Settings, FolderOpen, Workflow, Tag, User, Building2 } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import PatternManager from './PatternManager';
 import TagManager from './TagManager';
 import AccountSettings from './AccountSettings';
+import OrganizationSettings from './OrganizationSettings';
 
-type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags';
+type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
 
 interface TabConfig {
   id: SettingsTab;
@@ -18,6 +19,7 @@ const TABS: TabConfig[] = [
   { id: 'categorias', label: 'Categorias', icon: FolderOpen },
   { id: 'padroes', label: 'Padrões', icon: Workflow },
   { id: 'tags', label: 'Tags', icon: Tag },
+  { id: 'organizacao', label: 'Organização', icon: Building2 },
 ];
 
 interface SettingsPageProps {
@@ -42,6 +44,8 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
         return <TagManager />;
       case 'conta':
         return <AccountSettings />;
+      case 'organizacao':
+        return <OrganizationSettings />;
       default:
         return null;
     }

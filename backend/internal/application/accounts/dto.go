@@ -88,6 +88,7 @@ type OrganizationWithPermissions struct {
 	Organization
 	UserRole        Role
 	UserPermissions []Permission
+	IsDefault       bool
 }
 
 func (o OrganizationWithPermissions) FromModel(model OrganizationWithPermissionsModel) OrganizationWithPermissions {
@@ -100,6 +101,7 @@ func (o OrganizationWithPermissions) FromModel(model OrganizationWithPermissions
 		Organization:    Organization{}.FromModel(model.OrganizationModel),
 		UserRole:        model.UserRole,
 		UserPermissions: permissions,
+		IsDefault:       model.IsDefault,
 	}
 }
 
@@ -173,4 +175,75 @@ type MagicCode struct {
 	Code      string    `json:"code"`
 	Email     string    `json:"email"`
 	ExpiresAt time.Time `json:"expires_at"`
+}
+
+type OrganizationInvite struct {
+	InviteID        int
+	OrganizationID  int
+	Email           string
+	Role            Role
+	Token           string
+	InvitedByUserID int
+	CreatedAt       time.Time
+	ExpiresAt       time.Time
+	AcceptedAt      *time.Time
+}
+
+func (o OrganizationInvite) FromModel(model OrganizationInviteModel) OrganizationInvite {
+	var acceptedAt *time.Time
+	if model.AcceptedAt.Valid {
+		acceptedAt = &model.AcceptedAt.Time
+	}
+
+	return OrganizationInvite{
+		InviteID:        model.InviteID,
+		OrganizationID:  model.OrganizationID,
+		Email:           model.Email,
+		Role:            model.Role,
+		Token:           model.Token,
+		InvitedByUserID: model.InvitedByUserID,
+		CreatedAt:       model.CreatedAt,
+		ExpiresAt:       model.ExpiresAt,
+		AcceptedAt:      acceptedAt,
+	}
+}
+
+type OrganizationInvites []OrganizationInvite
+
+func (o OrganizationInvites) FromModel(models []OrganizationInviteModel) OrganizationInvites {
+	invites := make(OrganizationInvites, len(models))
+	for i, model := range models {
+		invites[i] = OrganizationInvite{}.FromModel(model)
+	}
+	return invites
+}
+
+type OrganizationMember struct {
+	UserID    int
+	Name      string
+	Email     string
+	UserRole  Role
+	IsDefault bool
+	JoinedAt  time.Time
+}
+
+func (o OrganizationMember) FromModel(model OrganizationMemberModel) OrganizationMember {
+	return OrganizationMember{
+		UserID:    model.UserID,
+		Name:      model.Name,
+		Email:     model.Email,
+		UserRole:  model.UserRole,
+		IsDefault: model.IsDefault,
+		JoinedAt:  model.JoinedAt,
+	}
+}
+
+type OrganizationMembers []OrganizationMember
+
+func (o OrganizationMembers) FromModel(models []OrganizationMemberModel) OrganizationMembers {
+	members := make(OrganizationMembers, len(models))
+	for i, model := range models {
+		members[i] = OrganizationMember{}.FromModel(model)
+	}
+	return members
 }

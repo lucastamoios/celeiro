@@ -39,6 +39,16 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 	r.Get("/accounts/me/", mw.RequireSession(ah.Me, []accounts.Permission{}))
 	r.Post("/accounts/password/", mw.RequireSession(ah.SetPassword, []accounts.Permission{}))
 
+	// Organization management
+	r.Post("/organizations/default", mw.RequireSession(ah.SetDefaultOrganization, []accounts.Permission{}))
+	r.Get("/organizations/{orgId}/members", mw.RequireSession(ah.GetOrganizationMembers, []accounts.Permission{}))
+	r.Get("/organizations/{orgId}/invites", mw.RequireSession(ah.GetPendingInvites, []accounts.Permission{}))
+	r.Post("/organizations/{orgId}/invites", mw.RequireSession(ah.CreateOrganizationInvite, []accounts.Permission{accounts.PermissionCreateRegularUsers}))
+	r.Delete("/organizations/{orgId}/invites/{inviteId}", mw.RequireSession(ah.CancelOrganizationInvite, []accounts.Permission{}))
+
+	// Public invite acceptance (token-based auth)
+	r.Post("/invites/accept", ah.AcceptOrganizationInvite)
+
 	// Financial endpoints (all require authentication)
 	r.Route("/financial", func(r chi.Router) {
 		// Categories

@@ -14,6 +14,7 @@ type OrganizationForSessionInfoResponse struct {
 	Longitude       float64               `json:"longitude"`
 	UserRole        accounts.Role         `json:"user_role"`
 	UserPermissions []accounts.Permission `json:"user_permissions"`
+	IsDefault       bool                  `json:"is_default"`
 }
 
 func (o OrganizationForSessionInfoResponse) FromDTO(organization *accounts.OrganizationWithPermissions) OrganizationForSessionInfoResponse {
@@ -29,6 +30,7 @@ func (o OrganizationForSessionInfoResponse) FromDTO(organization *accounts.Organ
 		Longitude:       organization.Longitude,
 		UserRole:        organization.UserRole,
 		UserPermissions: organization.UserPermissions,
+		IsDefault:       organization.IsDefault,
 	}
 }
 
@@ -80,5 +82,55 @@ func (s SessionInfoResponse) FromDTO(session *accounts.SessionInfo, isNewUser bo
 		User:          UserForSessionInfoResponse{}.FromDTO(&session.User),
 		Organizations: organizations,
 		IsNewUser:     isNewUser,
+	}
+}
+
+// Organization Members
+
+type OrganizationMemberResponse struct {
+	UserID    int           `json:"user_id"`
+	Name      string        `json:"name"`
+	Email     string        `json:"email"`
+	UserRole  accounts.Role `json:"user_role"`
+	IsDefault bool          `json:"is_default"`
+	JoinedAt  string        `json:"joined_at"`
+}
+
+func (m OrganizationMemberResponse) FromDTO(member *accounts.OrganizationMember) OrganizationMemberResponse {
+	return OrganizationMemberResponse{
+		UserID:    member.UserID,
+		Name:      member.Name,
+		Email:     member.Email,
+		UserRole:  member.UserRole,
+		IsDefault: member.IsDefault,
+		JoinedAt:  member.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
+
+// Organization Invites
+
+type OrganizationInviteResponse struct {
+	InviteID   int           `json:"invite_id"`
+	Email      string        `json:"email"`
+	Role       accounts.Role `json:"role"`
+	CreatedAt  string        `json:"created_at"`
+	ExpiresAt  string        `json:"expires_at"`
+	AcceptedAt *string       `json:"accepted_at"`
+}
+
+func (i OrganizationInviteResponse) FromDTO(invite *accounts.OrganizationInvite) OrganizationInviteResponse {
+	var acceptedAt *string
+	if invite.AcceptedAt != nil {
+		formatted := invite.AcceptedAt.Format("2006-01-02T15:04:05Z07:00")
+		acceptedAt = &formatted
+	}
+
+	return OrganizationInviteResponse{
+		InviteID:   invite.InviteID,
+		Email:      invite.Email,
+		Role:       invite.Role,
+		CreatedAt:  invite.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ExpiresAt:  invite.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
+		AcceptedAt: acceptedAt,
 	}
 }

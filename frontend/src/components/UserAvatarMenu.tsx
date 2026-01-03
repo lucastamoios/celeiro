@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { User, FolderOpen, Workflow, Tag, LogOut, ChevronDown } from 'lucide-react';
+import { useOrganization } from '../contexts/OrganizationContext';
+import OrganizationSwitcher from './OrganizationSwitcher';
+import { User, FolderOpen, Workflow, Tag, LogOut, ChevronDown, Building2 } from 'lucide-react';
 
-type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags';
+type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
 
 interface UserAvatarMenuProps {
   onNavigateToSettings: (tab?: SettingsTab) => void;
@@ -19,13 +21,15 @@ function getInitials(email: string): string {
 
 export default function UserAvatarMenu({ onNavigateToSettings }: UserAvatarMenuProps) {
   const { userEmail, logout } = useAuth();
+  const { activeOrganization, organizations, userInfo } = useOrganization();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Use email from auth context
-  const displayEmail = userEmail || 'usuario@email.com';
+  // Use email from auth context or organization context
+  const displayEmail = userEmail || userInfo?.email || 'usuario@email.com';
   const initials = getInitials(displayEmail);
+  const hasMultipleOrgs = organizations.length > 1;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -107,10 +111,19 @@ export default function UserAvatarMenu({ onNavigateToSettings }: UserAvatarMenuP
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-stone-900 truncate">{displayEmail}</p>
-                <p className="text-xs text-stone-500">Conta pessoal</p>
+                <p className="text-xs text-stone-500 truncate">
+                  {activeOrganization?.name || 'Sem organização'}
+                </p>
               </div>
             </div>
           </div>
+
+          {/* Organization Switcher (only if multiple orgs) */}
+          {hasMultipleOrgs && (
+            <div className="px-3 py-2 border-b border-stone-100">
+              <OrganizationSwitcher onClose={() => setIsOpen(false)} />
+            </div>
+          )}
 
           {/* Menu Items */}
           <div className="py-2">
@@ -148,6 +161,15 @@ export default function UserAvatarMenu({ onNavigateToSettings }: UserAvatarMenuP
             >
               <Tag className="w-4 h-4 text-stone-500" />
               <span>Tags</span>
+            </button>
+
+            <button
+              role="menuitem"
+              onClick={() => handleMenuItemClick('organizacao')}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
+            >
+              <Building2 className="w-4 h-4 text-stone-500" />
+              <span>Organização</span>
             </button>
           </div>
 

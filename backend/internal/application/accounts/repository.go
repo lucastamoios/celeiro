@@ -20,6 +20,20 @@ type Repository interface {
 	InsertUserOrganization(ctx context.Context, params createUserOrganizationParams) (UserOrganizationModel, error)
 	FetchUserByEmail(ctx context.Context, params getUserByEmailParams) (UserModel, error)
 	FetchOrganization(ctx context.Context, params getOrganizationParams) (OrganizationModel, error)
+
+	// Organization Members
+	FetchOrganizationMembers(ctx context.Context, params fetchOrganizationMembersParams) ([]OrganizationMemberModel, error)
+	FetchUserOrganization(ctx context.Context, params fetchUserOrganizationParams) (UserOrganizationModel, error)
+
+	// Default Organization
+	ModifyDefaultOrganization(ctx context.Context, params modifyDefaultOrganizationParams) error
+
+	// Organization Invites
+	InsertOrganizationInvite(ctx context.Context, params insertOrganizationInviteParams) (OrganizationInviteModel, error)
+	FetchOrganizationInviteByToken(ctx context.Context, params fetchOrganizationInviteByTokenParams) (OrganizationInviteModel, error)
+	FetchOrganizationInvitesByOrg(ctx context.Context, params fetchOrganizationInvitesByOrgParams) ([]OrganizationInviteModel, error)
+	ModifyOrganizationInviteAccepted(ctx context.Context, params modifyOrganizationInviteAcceptedParams) error
+	DeleteOrganizationInvite(ctx context.Context, params deleteOrganizationInviteParams) error
 }
 
 type repository struct {
@@ -232,15 +246,16 @@ type getOrganizationByUsersParams struct {
 
 const FetchOrganizationsByUserQuery = `
 	-- accounts.fetchOrganizationsByUserQuery
-	SELECT 
-	    uo.organization_id, 
+	SELECT
+	    uo.organization_id,
 		uo.user_role as user_role,
-		o.name, 
-		o.city, 
-		o.state, 
-		o.zip, 
-		o.country, 
-		o.latitude, 
+		uo.is_default,
+		o.name,
+		o.city,
+		o.state,
+		o.zip,
+		o.country,
+		o.latitude,
 		o.longitude,
 		COALESCE(rp.permissions, ARRAY[]::text[]) as user_permissions
 	FROM user_organizations uo
@@ -366,4 +381,232 @@ const modifyUserPasswordQuery = `
 
 func (r *repository) ModifyUserPassword(ctx context.Context, params modifyUserPasswordParams) error {
 	return r.db.Run(ctx, modifyUserPasswordQuery, params.UserID, params.PasswordHash, time.Now())
+}
+
+// FetchOrganizationMembers
+
+type fetchOrganizationMembersParams struct {
+	OrganizationID int
+}
+
+const fetchOrganizationMembersQuery = `
+	-- accounts.fetchOrganizationMembersQuery
+	SELECT
+		u.user_id,
+		u.name,
+		u.email,
+		uo.user_role,
+		uo.is_default,
+		uo.created_at
+	FROM user_organizations uo
+	JOIN users u ON u.user_id = uo.user_id
+	WHERE uo.organization_id = $1
+	ORDER BY uo.created_at ASC;
+	`
+
+func (r *repository) FetchOrganizationMembers(ctx context.Context, params fetchOrganizationMembersParams) ([]OrganizationMemberModel, error) {
+	var result []OrganizationMemberModel
+	err := r.db.Query(ctx, &result, fetchOrganizationMembersQuery, params.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// FetchUserOrganization
+
+type fetchUserOrganizationParams struct {
+	UserID         int
+	OrganizationID int
+}
+
+const fetchUserOrganizationQuery = `
+	-- accounts.fetchUserOrganizationQuery
+	SELECT
+		user_id,
+		organization_id,
+		user_role
+	FROM user_organizations
+	WHERE user_id = $1 AND organization_id = $2;
+	`
+
+func (r *repository) FetchUserOrganization(ctx context.Context, params fetchUserOrganizationParams) (UserOrganizationModel, error) {
+	var result UserOrganizationModel
+	err := r.db.Query(ctx, &result, fetchUserOrganizationQuery, params.UserID, params.OrganizationID)
+	if err != nil {
+		return UserOrganizationModel{}, err
+	}
+	return result, nil
+}
+
+// ModifyDefaultOrganization
+
+type modifyDefaultOrganizationParams struct {
+	UserID         int
+	OrganizationID int
+}
+
+const modifyDefaultOrganizationQuery = `
+	-- accounts.modifyDefaultOrganizationQuery
+	WITH reset AS (
+		UPDATE user_organizations
+		SET is_default = FALSE
+		WHERE user_id = $1 AND is_default = TRUE
+	)
+	UPDATE user_organizations
+	SET is_default = TRUE
+	WHERE user_id = $1 AND organization_id = $2;
+	`
+
+func (r *repository) ModifyDefaultOrganization(ctx context.Context, params modifyDefaultOrganizationParams) error {
+	return r.db.Run(ctx, modifyDefaultOrganizationQuery, params.UserID, params.OrganizationID)
+}
+
+// InsertOrganizationInvite
+
+type insertOrganizationInviteParams struct {
+	OrganizationID  int
+	Email           string
+	Role            Role
+	Token           string
+	InvitedByUserID int
+	ExpiresAt       time.Time
+}
+
+const insertOrganizationInviteQuery = `
+	-- accounts.insertOrganizationInviteQuery
+	INSERT INTO organization_invites
+	(organization_id, email, role, token, invited_by_user_id, expires_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	ON CONFLICT (organization_id, email) DO UPDATE SET
+		role = EXCLUDED.role,
+		token = EXCLUDED.token,
+		invited_by_user_id = EXCLUDED.invited_by_user_id,
+		expires_at = EXCLUDED.expires_at,
+		accepted_at = NULL,
+		created_at = CURRENT_TIMESTAMP
+	RETURNING
+		invite_id,
+		organization_id,
+		email,
+		role,
+		token,
+		invited_by_user_id,
+		created_at,
+		expires_at,
+		accepted_at;
+	`
+
+func (r *repository) InsertOrganizationInvite(ctx context.Context, params insertOrganizationInviteParams) (OrganizationInviteModel, error) {
+	var result OrganizationInviteModel
+	err := r.db.Query(ctx, &result, insertOrganizationInviteQuery,
+		params.OrganizationID,
+		params.Email,
+		params.Role,
+		params.Token,
+		params.InvitedByUserID,
+		params.ExpiresAt,
+	)
+	if err != nil {
+		return OrganizationInviteModel{}, err
+	}
+	return result, nil
+}
+
+// FetchOrganizationInviteByToken
+
+type fetchOrganizationInviteByTokenParams struct {
+	Token string
+}
+
+const fetchOrganizationInviteByTokenQuery = `
+	-- accounts.fetchOrganizationInviteByTokenQuery
+	SELECT
+		invite_id,
+		organization_id,
+		email,
+		role,
+		token,
+		invited_by_user_id,
+		created_at,
+		expires_at,
+		accepted_at
+	FROM organization_invites
+	WHERE token = $1;
+	`
+
+func (r *repository) FetchOrganizationInviteByToken(ctx context.Context, params fetchOrganizationInviteByTokenParams) (OrganizationInviteModel, error) {
+	var result OrganizationInviteModel
+	err := r.db.Query(ctx, &result, fetchOrganizationInviteByTokenQuery, params.Token)
+	if err != nil {
+		return OrganizationInviteModel{}, err
+	}
+	return result, nil
+}
+
+// FetchOrganizationInvitesByOrg
+
+type fetchOrganizationInvitesByOrgParams struct {
+	OrganizationID int
+}
+
+const fetchOrganizationInvitesByOrgQuery = `
+	-- accounts.fetchOrganizationInvitesByOrgQuery
+	SELECT
+		invite_id,
+		organization_id,
+		email,
+		role,
+		token,
+		invited_by_user_id,
+		created_at,
+		expires_at,
+		accepted_at
+	FROM organization_invites
+	WHERE organization_id = $1
+	  AND accepted_at IS NULL
+	  AND expires_at > CURRENT_TIMESTAMP
+	ORDER BY created_at DESC;
+	`
+
+func (r *repository) FetchOrganizationInvitesByOrg(ctx context.Context, params fetchOrganizationInvitesByOrgParams) ([]OrganizationInviteModel, error) {
+	var result []OrganizationInviteModel
+	err := r.db.Query(ctx, &result, fetchOrganizationInvitesByOrgQuery, params.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// ModifyOrganizationInviteAccepted
+
+type modifyOrganizationInviteAcceptedParams struct {
+	InviteID int
+}
+
+const modifyOrganizationInviteAcceptedQuery = `
+	-- accounts.modifyOrganizationInviteAcceptedQuery
+	UPDATE organization_invites
+	SET accepted_at = CURRENT_TIMESTAMP
+	WHERE invite_id = $1;
+	`
+
+func (r *repository) ModifyOrganizationInviteAccepted(ctx context.Context, params modifyOrganizationInviteAcceptedParams) error {
+	return r.db.Run(ctx, modifyOrganizationInviteAcceptedQuery, params.InviteID)
+}
+
+// DeleteOrganizationInvite
+
+type deleteOrganizationInviteParams struct {
+	InviteID int
+}
+
+const deleteOrganizationInviteQuery = `
+	-- accounts.deleteOrganizationInviteQuery
+	DELETE FROM organization_invites
+	WHERE invite_id = $1;
+	`
+
+func (r *repository) DeleteOrganizationInvite(ctx context.Context, params deleteOrganizationInviteParams) error {
+	return r.db.Run(ctx, deleteOrganizationInviteQuery, params.InviteID)
 }
