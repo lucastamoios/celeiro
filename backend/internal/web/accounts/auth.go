@@ -18,6 +18,8 @@ type AccountsAuthHandler interface {
 	RequestMagicLinkForExistingUser(w http.ResponseWriter, r *http.Request)
 	Authenticate(w http.ResponseWriter, r *http.Request)
 	AuthenticateWithGoogle(w http.ResponseWriter, r *http.Request)
+	AuthenticateWithPassword(w http.ResponseWriter, r *http.Request)
+	SetPassword(w http.ResponseWriter, r *http.Request)
 }
 
 // RequestMagicLink
@@ -233,5 +235,106 @@ func (h *handler) AuthenticateWithGoogle(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := AuthenticateResponse{}.FromDTO(authResult)
+	responses.NewSuccess(response, w)
+}
+
+// AuthenticateWithPassword
+
+type PasswordAuthRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (r *PasswordAuthRequest) Validate() error {
+	if strings.TrimSpace(r.Email) == "" {
+		return errors.ErrEmailRequired
+	}
+	if !validators.IsValidEmail(r.Email) {
+		return errors.ErrEmailFormatInvalid
+	}
+	if strings.TrimSpace(r.Password) == "" {
+		return errors.ErrMissingRequiredFields
+	}
+	return nil
+}
+
+func (h *handler) AuthenticateWithPassword(w http.ResponseWriter, r *http.Request) {
+	var req PasswordAuthRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	authResult, err := h.accountsService.AuthenticateWithPassword(r.Context(), accounts.AuthenticateWithPasswordInput{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	response := AuthenticateResponse{}.FromDTO(authResult)
+	responses.NewSuccess(response, w)
+}
+
+// SetPassword
+
+type SetPasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+func (r *SetPasswordRequest) Validate() error {
+	if strings.TrimSpace(r.NewPassword) == "" {
+		return errors.ErrMissingRequiredFields
+	}
+	if len(r.NewPassword) < accounts.MinPasswordLength {
+		return errors.ErrInvalidFormat
+	}
+	return nil
+}
+
+type SetPasswordResponse struct {
+	Message string `json:"message"`
+}
+
+func (h *handler) SetPassword(w http.ResponseWriter, r *http.Request) {
+	var req SetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	// Get user ID from session context
+	sessionInfo, ok := r.Context().Value("session_info").(*accounts.SessionInfo)
+	if !ok || sessionInfo == nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	err := h.accountsService.SetPassword(r.Context(), accounts.SetPasswordInput{
+		UserID:      sessionInfo.User.ID,
+		OldPassword: req.OldPassword,
+		NewPassword: req.NewPassword,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	response := SetPasswordResponse{
+		Message: "Password updated successfully",
+	}
 	responses.NewSuccess(response, w)
 }

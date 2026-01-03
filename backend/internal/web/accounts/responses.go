@@ -33,32 +33,34 @@ func (o OrganizationForSessionInfoResponse) FromDTO(organization *accounts.Organ
 }
 
 type UserForSessionInfoResponse struct {
-	ID        int     `json:"id"`
-	Name      string  `json:"name"`
-	Email     string  `json:"email"`
-	Phone     int     `json:"phone"`
-	Address   string  `json:"address"`
-	City      string  `json:"city"`
-	State     string  `json:"state"`
-	Zip       string  `json:"zip"`
-	Country   string  `json:"country"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
+	ID          int     `json:"id"`
+	Name        string  `json:"name"`
+	Email       string  `json:"email"`
+	Phone       int     `json:"phone"`
+	Address     string  `json:"address"`
+	City        string  `json:"city"`
+	State       string  `json:"state"`
+	Zip         string  `json:"zip"`
+	Country     string  `json:"country"`
+	Latitude    float64 `json:"latitude"`
+	Longitude   float64 `json:"longitude"`
+	HasPassword bool    `json:"has_password"`
 }
 
 func (u UserForSessionInfoResponse) FromDTO(user *accounts.UserForSessionInfo) UserForSessionInfoResponse {
 	return UserForSessionInfoResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Phone:     user.Phone,
-		Address:   user.Address,
-		City:      user.City,
-		State:     user.State,
-		Zip:       user.Zip,
-		Country:   user.Country,
-		Latitude:  user.Latitude,
-		Longitude: user.Longitude,
+		ID:          user.ID,
+		Name:        user.Name,
+		Email:       user.Email,
+		Phone:       user.Phone,
+		Address:     user.Address,
+		City:        user.City,
+		State:       user.State,
+		Zip:         user.Zip,
+		Country:     user.Country,
+		Latitude:    user.Latitude,
+		Longitude:   user.Longitude,
+		HasPassword: user.HasPassword,
 	}
 }
 

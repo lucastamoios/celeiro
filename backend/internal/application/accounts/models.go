@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/lib/pq"
@@ -11,9 +12,10 @@ type UserModel struct {
 	UpdatedAt time.Time `db:"updated_at"`
 	UserID    int       `db:"user_id"`
 
-	Name  string `db:"name"`
-	Email string `db:"email"`
-	Phone int    `db:"phone"`
+	Name         string         `db:"name"`
+	Email        string         `db:"email"`
+	Phone        int            `db:"phone"`
+	PasswordHash sql.NullString `db:"password_hash"`
 
 	Address   string  `db:"address"`
 	City      string  `db:"city"`

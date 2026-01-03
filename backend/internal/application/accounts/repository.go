@@ -10,9 +10,11 @@ import (
 
 type Repository interface {
 	FetchUser(ctx context.Context, params getUserParams) (UserModel, error)
+	FetchUserByID(ctx context.Context, params getUserByIDParams) (UserModel, error)
 	FetchUsers(ctx context.Context, params getUsersParams) ([]UserModel, error)
 	InsertUser(ctx context.Context, user createUserParams) (UserModel, error)
 	ModifyUser(ctx context.Context, params updateUserParams) (UserModel, error)
+	ModifyUserPassword(ctx context.Context, params modifyUserPasswordParams) error
 	FetchOrganizationsByUser(ctx context.Context, params getOrganizationByUsersParams) ([]OrganizationWithPermissionsModel, error)
 	InsertOrganization(ctx context.Context, params insertOrganizationParams) (OrganizationModel, error)
 	InsertUserOrganization(ctx context.Context, params createUserOrganizationParams) (UserOrganizationModel, error)
@@ -165,6 +167,34 @@ func (r *repository) FetchUser(ctx context.Context, params getUserParams) (UserM
 	return result, nil
 }
 
+// GetUserByID
+
+type getUserByIDParams struct {
+	UserID int
+}
+
+const fetchUserByIDQuery = `
+	-- accounts.fetchUserByIDQuery
+	SELECT
+		user_id,
+		name,
+		email,
+		password_hash,
+		created_at,
+		updated_at
+	FROM users
+	WHERE user_id = $1;
+	`
+
+func (r *repository) FetchUserByID(ctx context.Context, params getUserByIDParams) (UserModel, error) {
+	var result UserModel
+	err := r.db.Query(ctx, &result, fetchUserByIDQuery, params.UserID)
+	if err != nil {
+		return UserModel{}, err
+	}
+	return result, nil
+}
+
 // GetUserByEmail
 
 type getUserByEmailParams struct {
@@ -173,13 +203,14 @@ type getUserByEmailParams struct {
 
 const FetchUserByEmailQuery = `
 	-- accounts.fetchUserByEmailQuery
-	SELECT 
-		user_id, 
-		name, 
-		email, 
-		created_at, 
-		updated_at 
-	FROM users 
+	SELECT
+		user_id,
+		name,
+		email,
+		password_hash,
+		created_at,
+		updated_at
+	FROM users
 	WHERE email = $1;
 	`
 
@@ -316,4 +347,23 @@ func (r *repository) FetchOrganization(ctx context.Context, params getOrganizati
 		return OrganizationModel{}, err
 	}
 	return result, nil
+}
+
+// ModifyUserPassword
+
+type modifyUserPasswordParams struct {
+	UserID       int
+	PasswordHash string
+}
+
+const modifyUserPasswordQuery = `
+	-- accounts.modifyUserPasswordQuery
+	UPDATE users
+	SET password_hash = $2,
+		updated_at = $3
+	WHERE user_id = $1;
+	`
+
+func (r *repository) ModifyUserPassword(ctx context.Context, params modifyUserPasswordParams) error {
+	return r.db.Run(ctx, modifyUserPasswordQuery, params.UserID, params.PasswordHash, time.Now())
 }

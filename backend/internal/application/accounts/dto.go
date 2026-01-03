@@ -114,32 +114,34 @@ func (o OrganizationsWithPermission) FromModel(model []OrganizationWithPermissio
 }
 
 type UserForSessionInfo struct {
-	ID        int
-	Name      string
-	Email     string
-	Phone     int
-	Address   string
-	City      string
-	State     string
-	Zip       string
-	Country   string
-	Latitude  float64
-	Longitude float64
+	ID          int
+	Name        string
+	Email       string
+	Phone       int
+	Address     string
+	City        string
+	State       string
+	Zip         string
+	Country     string
+	Latitude    float64
+	Longitude   float64
+	HasPassword bool
 }
 
 func (u UserForSessionInfo) FromUser(user UserModel) UserForSessionInfo {
 	return UserForSessionInfo{
-		ID:        user.UserID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Phone:     user.Phone,
-		Address:   user.Address,
-		City:      user.City,
-		State:     user.State,
-		Zip:       user.Zip,
-		Country:   user.Country,
-		Latitude:  user.Latitude,
-		Longitude: user.Longitude,
+		ID:          user.UserID,
+		Name:        user.Name,
+		Email:       user.Email,
+		Phone:       user.Phone,
+		Address:     user.Address,
+		City:        user.City,
+		State:       user.State,
+		Zip:         user.Zip,
+		Country:     user.Country,
+		Latitude:    user.Latitude,
+		Longitude:   user.Longitude,
+		HasPassword: user.PasswordHash.Valid && user.PasswordHash.String != "",
 	}
 }
 

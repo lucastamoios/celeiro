@@ -34,8 +34,10 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 	r.Post("/auth/request/", ah.RequestMagicLink)
 	r.Post("/auth/validate/", ah.Authenticate)
 	r.Post("/auth/google/", ah.AuthenticateWithGoogle)
+	r.Post("/auth/password/", ah.AuthenticateWithPassword)
 
 	r.Get("/accounts/me/", mw.RequireSession(ah.Me, []accounts.Permission{}))
+	r.Post("/accounts/password/", mw.RequireSession(ah.SetPassword, []accounts.Permission{}))
 
 	// Financial endpoints (all require authentication)
 	r.Route("/financial", func(r chi.Router) {
