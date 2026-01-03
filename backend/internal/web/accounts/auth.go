@@ -56,7 +56,7 @@ func (h *handler) RequestMagicLink(w http.ResponseWriter, r *http.Request) {
 
 	_, err := h.accountsService.RequestMagicLinkViaEmail(r.Context(), accounts.RequestMagicLinkViaEmailInput{
 		Email:           req.Email,
-		CheckUserExists: false,
+		CheckUserExists: true, // Only allow registered users
 	})
 	if err != nil {
 		responses.NewError(w, err)
