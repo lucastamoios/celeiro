@@ -10,6 +10,11 @@ export const API_CONFIG = {
     auth: {
       request: '/auth/request/',
       validate: '/auth/validate/',
+      password: '/auth/password/',
+    },
+    accounts: {
+      me: '/accounts/me/',
+      password: '/accounts/password/',
     },
     financial: {
       categories: '/financial/categories',

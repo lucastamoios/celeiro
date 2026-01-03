@@ -17,6 +17,7 @@ var (
 	ErrActivationFailed      = pkgerrors.New("activation failed")
 	ErrInvalidCode           = pkgerrors.New("invalid code")
 	ErrInvalidRequestBody    = pkgerrors.New("invalid request body")
+	ErrInvalidCredentials    = pkgerrors.New("invalid credentials")
 )
 
 func NewInvalidTimeFormatError(field string) error {

@@ -15,12 +15,15 @@ import (
 	"github.com/catrutech/celeiro/internal/web/validators"
 	"github.com/catrutech/celeiro/pkg/errors"
 	"github.com/catrutech/celeiro/pkg/mailer"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AccountsAuth interface {
 	AuthenticateWithMagicCode(ctx context.Context, input AuthenticateWithMagicCodeInput) (Authentication, error)
 	RequestMagicLinkViaEmail(ctx context.Context, input RequestMagicLinkViaEmailInput) (RequestMagicLinkViaEmailOutput, error)
 	AuthenticateWithGoogle(ctx context.Context, input AuthenticateWithGoogleInput) (Authentication, error)
+	AuthenticateWithPassword(ctx context.Context, input AuthenticateWithPasswordInput) (Authentication, error)
+	SetPassword(ctx context.Context, input SetPasswordInput) error
 
 	generateMagicLinkCode(ctx context.Context, input generateMagicLinkCodeInput) (string, error)
 	sendMagicLinkEmail(ctx context.Context, input sendMagicLinkEmailInput) error
@@ -476,4 +479,129 @@ func (s *service) validateGoogleToken(ctx context.Context, accessToken string) (
 	}
 
 	return tokenInfo, nil
+}
+
+// AuthenticateWithPassword
+
+type AuthenticateWithPasswordInput struct {
+	Email    string
+	Password string
+}
+
+const MinPasswordLength = 8
+
+func (s *service) AuthenticateWithPassword(ctx context.Context, params AuthenticateWithPasswordInput) (Authentication, error) {
+	if params.Email == "" {
+		return Authentication{}, errors.New("email is required")
+	}
+	if params.Password == "" {
+		return Authentication{}, errors.New("password is required")
+	}
+
+	// Fetch user by email
+	userModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
+		Email: params.Email,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Authentication{}, internalerrors.ErrInvalidCredentials
+		}
+		return Authentication{}, err
+	}
+
+	// Check if user has a password set
+	if !userModel.PasswordHash.Valid || userModel.PasswordHash.String == "" {
+		return Authentication{}, internalerrors.ErrInvalidCredentials
+	}
+
+	// Verify password
+	if !checkPassword(params.Password, userModel.PasswordHash.String) {
+		return Authentication{}, internalerrors.ErrInvalidCredentials
+	}
+
+	// Get user organizations
+	user := User{}.FromModel(&userModel)
+	organizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{
+		UserID: user.UserID,
+	})
+	if err != nil {
+		return Authentication{}, err
+	}
+
+	// Create session
+	userSession := SessionInfo{}.FromUserAndOrganizations(userModel, organizations)
+	session, err := s.CreateSession(ctx, CreateSessionInput{
+		Info: userSession,
+	})
+	if err != nil {
+		return Authentication{}, err
+	}
+
+	return Authentication{
+		Session:   session,
+		IsNewUser: false,
+	}, nil
+}
+
+// SetPassword
+
+type SetPasswordInput struct {
+	UserID      int
+	OldPassword string // Empty if setting for first time
+	NewPassword string
+}
+
+func (s *service) SetPassword(ctx context.Context, params SetPasswordInput) error {
+	if params.NewPassword == "" {
+		return errors.New("new password is required")
+	}
+	if len(params.NewPassword) < MinPasswordLength {
+		return fmt.Errorf("password must be at least %d characters", MinPasswordLength)
+	}
+
+	// Fetch user to check current password state
+	userModel, err := s.Repository.FetchUserByID(ctx, getUserByIDParams{
+		UserID: params.UserID,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch user")
+	}
+
+	// If user already has a password, verify the old password
+	if userModel.PasswordHash.Valid && userModel.PasswordHash.String != "" {
+		if params.OldPassword == "" {
+			return errors.New("current password is required")
+		}
+		if !checkPassword(params.OldPassword, userModel.PasswordHash.String) {
+			return internalerrors.ErrInvalidCredentials
+		}
+	}
+
+	// Hash the new password
+	hashedPassword, err := hashPassword(params.NewPassword)
+	if err != nil {
+		return errors.Wrap(err, "failed to hash password")
+	}
+
+	// Update the password
+	if err := s.Repository.ModifyUserPassword(ctx, modifyUserPasswordParams{
+		UserID:       params.UserID,
+		PasswordHash: hashedPassword,
+	}); err != nil {
+		return errors.Wrap(err, "failed to update password")
+	}
+
+	return nil
+}
+
+// Password hashing helpers
+
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	return string(bytes), err
+}
+
+func checkPassword(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
