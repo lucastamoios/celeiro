@@ -1,4 +1,4 @@
-name: PROD - Database Backup
+name: Database Backup
 
 on:
   schedule:
