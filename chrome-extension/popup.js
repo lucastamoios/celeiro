@@ -9,7 +9,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const userInfoSection = document.getElementById('userInfoSection');
   const configSection = document.getElementById('configSection');
   const syncSection = document.getElementById('syncSection');
-  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const loginForm = document.getElementById('loginForm');
+  const loginBtn = document.getElementById('loginBtn');
+  const emailInput = document.getElementById('emailInput');
+  const passwordInput = document.getElementById('passwordInput');
   const logoutBtn = document.getElementById('logoutBtn');
   const userEmailSpan = document.getElementById('userEmail');
   const userAvatar = document.getElementById('userAvatar');
@@ -30,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Set default values
   const currentDate = new Date();
-  apiUrlInput.value = settings.apiUrl || 'http://localhost:8080';
+  apiUrlInput.value = settings.apiUrl || 'https://celeiro.catru.tech';
   monthSelect.value = settings.month || currentDate.getMonth() + 1;
   yearInput.value = settings.year || currentDate.getFullYear();
 
@@ -92,46 +95,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressContainer.classList.remove('show');
   };
 
-  // Google OAuth Login using Chrome's native identity API
-  googleLoginBtn.addEventListener('click', async () => {
+  // Password Login
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+      showStatus('Preencha email e senha', 'error');
+      return;
+    }
+
     try {
-      googleLoginBtn.disabled = true;
-      showStatus('Conectando com Google...', 'info');
-
-      // Use Chrome's native getAuthToken for Google OAuth
-      // This is the recommended approach for Google OAuth in Chrome extensions
-      const accessToken = await new Promise((resolve, reject) => {
-        chrome.identity.getAuthToken({ interactive: true }, (token) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else {
-            resolve(token);
-          }
-        });
-      });
-
-      console.log('[Celeiro] Got access token via getAuthToken');
-
-      if (!accessToken) {
-        throw new Error('No access token received from Google');
-      }
-
-      console.log('[Celeiro] Got access token, authenticating with backend...');
+      loginBtn.disabled = true;
       showStatus('Autenticando...', 'info');
 
-      // Send access token to our backend
       const apiUrl = apiUrlInput.value.trim();
-      const response = await fetch(`${apiUrl}/auth/google/`, {
+      const response = await fetch(`${apiUrl}/auth/password/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ access_token: accessToken })
+        body: JSON.stringify({ email, password })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Backend auth failed: ${response.status} - ${errorText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro de autenticação: ${response.status}`);
       }
 
       const authData = await response.json();
@@ -149,40 +140,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         userEmail: userEmail
       });
 
+      // Clear password field
+      passwordInput.value = '';
+
       showStatus('Login realizado com sucesso!', 'success');
       updateAuthUI();
 
       setTimeout(hideStatus, 2000);
 
     } catch (error) {
-      console.error('[Celeiro] OAuth error:', error);
+      console.error('[Celeiro] Login error:', error);
       showStatus(`Erro: ${error.message}`, 'error');
     } finally {
-      googleLoginBtn.disabled = false;
+      loginBtn.disabled = false;
     }
   });
 
   // Logout
   logoutBtn.addEventListener('click', async () => {
-    // First, revoke the Google token if we have one cached
-    try {
-      const token = await new Promise((resolve) => {
-        chrome.identity.getAuthToken({ interactive: false }, (token) => {
-          resolve(token);
-        });
-      });
-
-      if (token) {
-        // Remove the cached token from Chrome
-        await new Promise((resolve) => {
-          chrome.identity.removeCachedAuthToken({ token }, resolve);
-        });
-        console.log('[Celeiro] Removed cached Google auth token');
-      }
-    } catch (e) {
-      console.log('[Celeiro] No cached token to remove');
-    }
-
     settings.token = null;
     settings.userEmail = null;
 
