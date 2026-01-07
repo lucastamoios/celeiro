@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { BarChart3, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -28,6 +28,7 @@ import MonthlyBudgetCard from './MonthlyBudgetCard';
 import TransactionMatcherModal from './TransactionMatcherModal';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
 import TransactionEditModal from './TransactionEditModal';
+import Modal from './ui/Modal';
 
 interface MonthlyBudgetData {
   month: number;
@@ -116,21 +117,6 @@ export default function CategoryBudgetDashboard() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showCreateBudgetModal, showCreateEntryModal, showMatchModal, showCategoryTransactionsModal, editingTransactionFromBudget, editingPlannedEntryFromBudget]);
-
-  // Handle backdrop click for modals
-  const handleBudgetModalBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      setShowCreateBudgetModal(false);
-      setEditingBudget(null);
-    }
-  }, []);
-
-  const handleEntryModalBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      setShowCreateEntryModal(false);
-      setEditingEntry(null);
-    }
-  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -1468,157 +1454,145 @@ export default function CategoryBudgetDashboard() {
         )}
 
         {/* Create/Edit Budget Modal */}
-        {showCreateBudgetModal && (
-          <div
-            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
-            onClick={handleBudgetModalBackdropClick}
-          >
-            <div className="bg-white rounded-2xl shadow-warm-xl p-6 max-w-md w-full mx-4">
-              <h3 className="text-xl font-semibold text-stone-900 mb-1">
-                {editingBudget ? 'Editar Orçamento' : 'Criar Orçamento'}
-              </h3>
-              {!editingBudget && (
-                <p className="text-sm text-stone-500 mb-4">
-                  Para {getMonthName(selectedMonth)} {selectedYear}
+        <Modal
+          isOpen={showCreateBudgetModal}
+          onClose={handleCancelBudgetForm}
+          title={editingBudget ? 'Editar Orçamento' : 'Criar Orçamento'}
+          subtitle={!editingBudget ? `Para ${getMonthName(selectedMonth)} ${selectedYear}` : undefined}
+          headerGradient="sage"
+          footer={
+            <>
+              <Modal.CancelButton onClick={handleCancelBudgetForm} disabled={isSubmitting}>
+                Cancelar
+              </Modal.CancelButton>
+              <Modal.SubmitButton
+                onClick={editingBudget ? handleUpdateBudget : handleCreateBudget}
+                disabled={isSubmitting}
+                loading={isSubmitting}
+                loadingText="Salvando..."
+                variant="sage"
+              >
+                {editingBudget ? 'Atualizar' : 'Criar'}
+              </Modal.SubmitButton>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            {/* Category Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">
+                Categoria *
+              </label>
+              <select
+                value={selectedCategoryId}
+                onChange={(e) => setSelectedCategoryId(e.target.value)}
+                disabled={!!editingBudget || isSubmitting}
+                className="input disabled:bg-stone-100"
+              >
+                <option value="">Selecione uma categoria</option>
+                {categories?.map((category) => (
+                  <option key={category.category_id} value={category.category_id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Budget Type */}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">
+                Tipo de Orçamento *
+              </label>
+              <select
+                value={budgetType}
+                onChange={(e) => setBudgetType(e.target.value as any)}
+                disabled={isSubmitting}
+                className="input"
+              >
+                <option value="fixed">Fixo</option>
+                <option value="calculated">Calculado</option>
+                <option value="maior">Maior</option>
+              </select>
+            </div>
+
+            {/* Planned Amount */}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">
+                Valor Planejado {budgetType === 'fixed' ? '*' : '(Opcional)'}
+              </label>
+              {budgetType !== 'fixed' && (
+                <p className="text-xs text-stone-500 mb-2">
+                  💡 Para orçamentos calculados, o valor será calculado automaticamente a partir das entradas planejadas
                 </p>
               )}
-              {editingBudget && <div className="mb-4" />}
-
-              <div className="space-y-4">
-                {/* Category Dropdown */}
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">
-                    Categoria *
-                  </label>
-                  <select
-                    value={selectedCategoryId}
-                    onChange={(e) => setSelectedCategoryId(e.target.value)}
-                    disabled={!!editingBudget || isSubmitting}
-                    className="input disabled:bg-stone-100"
-                  >
-                    <option value="">Selecione uma categoria</option>
-                    {categories?.map((category) => (
-                      <option key={category.category_id} value={category.category_id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Budget Type */}
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">
-                    Tipo de Orçamento *
-                  </label>
-                  <select
-                    value={budgetType}
-                    onChange={(e) => setBudgetType(e.target.value as any)}
-                    disabled={isSubmitting}
-                    className="input"
-                  >
-                    <option value="fixed">Fixo</option>
-                    <option value="calculated">Calculado</option>
-                    <option value="maior">Maior</option>
-                  </select>
-                </div>
-
-                {/* Planned Amount */}
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">
-                    Valor Planejado {budgetType === 'fixed' ? '*' : '(Opcional)'}
-                  </label>
-                  {budgetType !== 'fixed' && (
-                    <p className="text-xs text-stone-500 mb-2">
-                      💡 Para orçamentos calculados, o valor será calculado automaticamente a partir das entradas planejadas
-                    </p>
-                  )}
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-stone-500">R$</span>
-                    <input
-                      type="text"
-                      value={plannedAmount}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                          setPlannedAmount(value);
-                        }
-                      }}
-                      disabled={isSubmitting}
-                      placeholder={budgetType === 'fixed' ? '0.00' : '0.00 (será calculado)'}
-                      className="input pl-10"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={handleCancelBudgetForm}
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-stone-500">R$</span>
+                <input
+                  type="text"
+                  value={plannedAmount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      setPlannedAmount(value);
+                    }
+                  }}
                   disabled={isSubmitting}
-                  className="btn-secondary disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={editingBudget ? handleUpdateBudget : handleCreateBudget}
-                  disabled={isSubmitting}
-                  className="btn-primary disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Salvando...' : editingBudget ? 'Atualizar' : 'Criar'}
-                </button>
+                  placeholder={budgetType === 'fixed' ? '0.00' : '0.00 (será calculado)'}
+                  className="input pl-10"
+                />
               </div>
             </div>
           </div>
-        )}
+        </Modal>
 
         {/* Create/Edit Planned Entry Modal */}
-        {showCreateEntryModal && (
-          <div
-            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
-            onClick={handleEntryModalBackdropClick}
-          >
-            <div className="bg-white rounded-2xl shadow-warm-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-xl font-semibold text-stone-900 mb-4">
-                {editingEntry ? 'Editar Entrada Planejada' : 'Criar Entrada Planejada'}
-              </h3>
-
-              <PlannedEntryForm
-                categories={categories}
-                transactions={allTransactions}
-                transactionsLoading={transactionsLoading}
-                onSubmit={editingEntry ? handleUpdatePlannedEntry : handleCreatePlannedEntry}
-                onCancel={() => {
-                  setShowCreateEntryModal(false);
-                  setEditingEntry(null);
-                  setSelectedEntryMonth(null);
-                }}
-                initialEntry={editingEntry ? {
-                  PlannedEntryID: editingEntry.PlannedEntryID,
-                  UserID: 0,
-                  OrganizationID: 0,
-                  CategoryID: editingEntry.CategoryID,
-                  Description: editingEntry.Description,
-                  Amount: editingEntry.Amount,
-                  AmountMin: editingEntry.AmountMin,
-                  AmountMax: editingEntry.AmountMax,
-                  ExpectedDay: editingEntry.ExpectedDay,
-                  ExpectedDayStart: editingEntry.ExpectedDayStart,
-                  ExpectedDayEnd: editingEntry.ExpectedDayEnd,
-                  EntryType: editingEntry.EntryType,
-                  IsRecurrent: editingEntry.IsRecurrent,
-                  IsSavedPattern: false,
-                  IsActive: true,
-                  ParentEntryID: editingEntry.ParentEntryID,
-                  PatternID: editingEntry.PatternID,
-                  CreatedAt: '',
-                  UpdatedAt: '',
-                } : undefined}
-                isLoading={isSubmitting}
-              />
-            </div>
-          </div>
-        )}
+        <Modal
+          isOpen={showCreateEntryModal}
+          onClose={() => {
+            setShowCreateEntryModal(false);
+            setEditingEntry(null);
+            setSelectedEntryMonth(null);
+          }}
+          title={editingEntry ? 'Editar Entrada Planejada' : 'Criar Entrada Planejada'}
+          subtitle={!editingEntry ? `Para ${getMonthName(selectedMonth)} ${selectedYear}` : undefined}
+          headerGradient="wheat"
+          size="lg"
+        >
+          <PlannedEntryForm
+            categories={categories}
+            transactions={allTransactions}
+            transactionsLoading={transactionsLoading}
+            onSubmit={editingEntry ? handleUpdatePlannedEntry : handleCreatePlannedEntry}
+            onCancel={() => {
+              setShowCreateEntryModal(false);
+              setEditingEntry(null);
+              setSelectedEntryMonth(null);
+            }}
+            initialEntry={editingEntry ? {
+              PlannedEntryID: editingEntry.PlannedEntryID,
+              UserID: 0,
+              OrganizationID: 0,
+              CategoryID: editingEntry.CategoryID,
+              Description: editingEntry.Description,
+              Amount: editingEntry.Amount,
+              AmountMin: editingEntry.AmountMin,
+              AmountMax: editingEntry.AmountMax,
+              ExpectedDay: editingEntry.ExpectedDay,
+              ExpectedDayStart: editingEntry.ExpectedDayStart,
+              ExpectedDayEnd: editingEntry.ExpectedDayEnd,
+              EntryType: editingEntry.EntryType,
+              IsRecurrent: editingEntry.IsRecurrent,
+              IsSavedPattern: false,
+              IsActive: true,
+              ParentEntryID: editingEntry.ParentEntryID,
+              PatternID: editingEntry.PatternID,
+              CreatedAt: '',
+              UpdatedAt: '',
+            } : undefined}
+            isLoading={isSubmitting}
+            isEditMode={!!editingEntry}
+          />
+        </Modal>
 
         {/* Transaction Matcher Modal */}
         {matchingEntry && matchingMonthYear && (
@@ -1672,52 +1646,46 @@ export default function CategoryBudgetDashboard() {
         )}
 
         {/* Planned Entry Edit Modal (nested from Category Transactions Modal) */}
-        {editingPlannedEntryFromBudget && (
-          <div
-            className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-[60]"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                handleClosePlannedEntryEditModal();
-              }
-            }}
-          >
-            <div className="bg-white rounded-2xl shadow-warm-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-xl font-semibold text-stone-900 mb-4">
-                Editar Entrada Planejada
-              </h3>
-
-              <PlannedEntryForm
-                categories={categories}
-                transactions={allTransactions}
-                transactionsLoading={transactionsLoading}
-                onSubmit={handleSavePlannedEntryFromBudget}
-                onCancel={handleClosePlannedEntryEditModal}
-                initialEntry={{
-                  PlannedEntryID: editingPlannedEntryFromBudget.PlannedEntryID,
-                  UserID: 0,
-                  OrganizationID: 0,
-                  CategoryID: editingPlannedEntryFromBudget.CategoryID,
-                  Description: editingPlannedEntryFromBudget.Description,
-                  Amount: editingPlannedEntryFromBudget.Amount,
-                  AmountMin: editingPlannedEntryFromBudget.AmountMin,
-                  AmountMax: editingPlannedEntryFromBudget.AmountMax,
-                  ExpectedDay: editingPlannedEntryFromBudget.ExpectedDay,
-                  ExpectedDayStart: editingPlannedEntryFromBudget.ExpectedDayStart,
-                  ExpectedDayEnd: editingPlannedEntryFromBudget.ExpectedDayEnd,
-                  EntryType: editingPlannedEntryFromBudget.EntryType,
-                  IsRecurrent: editingPlannedEntryFromBudget.IsRecurrent,
-                  IsSavedPattern: false,
-                  IsActive: true,
-                  ParentEntryID: editingPlannedEntryFromBudget.ParentEntryID,
-                  PatternID: editingPlannedEntryFromBudget.PatternID,
-                  CreatedAt: '',
-                  UpdatedAt: '',
-                }}
-                isLoading={isSubmitting}
-              />
-            </div>
-          </div>
-        )}
+        <Modal
+          isOpen={!!editingPlannedEntryFromBudget}
+          onClose={handleClosePlannedEntryEditModal}
+          title="Editar Entrada Planejada"
+          headerGradient="wheat"
+          size="lg"
+        >
+          {editingPlannedEntryFromBudget && (
+            <PlannedEntryForm
+              categories={categories}
+              transactions={allTransactions}
+              transactionsLoading={transactionsLoading}
+              onSubmit={handleSavePlannedEntryFromBudget}
+              onCancel={handleClosePlannedEntryEditModal}
+              initialEntry={{
+                PlannedEntryID: editingPlannedEntryFromBudget.PlannedEntryID,
+                UserID: 0,
+                OrganizationID: 0,
+                CategoryID: editingPlannedEntryFromBudget.CategoryID,
+                Description: editingPlannedEntryFromBudget.Description,
+                Amount: editingPlannedEntryFromBudget.Amount,
+                AmountMin: editingPlannedEntryFromBudget.AmountMin,
+                AmountMax: editingPlannedEntryFromBudget.AmountMax,
+                ExpectedDay: editingPlannedEntryFromBudget.ExpectedDay,
+                ExpectedDayStart: editingPlannedEntryFromBudget.ExpectedDayStart,
+                ExpectedDayEnd: editingPlannedEntryFromBudget.ExpectedDayEnd,
+                EntryType: editingPlannedEntryFromBudget.EntryType,
+                IsRecurrent: editingPlannedEntryFromBudget.IsRecurrent,
+                IsSavedPattern: false,
+                IsActive: true,
+                ParentEntryID: editingPlannedEntryFromBudget.ParentEntryID,
+                PatternID: editingPlannedEntryFromBudget.PatternID,
+                CreatedAt: '',
+                UpdatedAt: '',
+              }}
+              isLoading={isSubmitting}
+              isEditMode={true}
+            />
+          )}
+        </Modal>
       </div>
     </div>
   );
