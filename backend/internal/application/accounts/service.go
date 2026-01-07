@@ -22,6 +22,7 @@ type Service interface {
 	GetUser(ctx context.Context, params GetUserInput) (User, error)
 	GetUsers(ctx context.Context, params GetUsersInput) ([]User, error)
 	GetOrganization(ctx context.Context, params GetOrganizationInput) (Organization, error)
+	UpdateOrganization(ctx context.Context, params UpdateOrganizationInput) (Organization, error)
 	GetOrganizationsByUser(ctx context.Context, params GetOrganizationsByUserInput) ([]OrganizationWithPermissions, error)
 
 	// Organization Members
@@ -233,6 +234,24 @@ func (s *service) GetOrganization(ctx context.Context, params GetOrganizationInp
 	return organization, nil
 }
 
+// UpdateOrganization
+
+type UpdateOrganizationInput struct {
+	OrganizationID int
+	Name           *string
+}
+
+func (s *service) UpdateOrganization(ctx context.Context, params UpdateOrganizationInput) (Organization, error) {
+	organizationModel, err := s.Repository.ModifyOrganization(ctx, modifyOrganizationParams{
+		OrganizationID: params.OrganizationID,
+		Name:           params.Name,
+	})
+	if err != nil {
+		return Organization{}, pkgerrors.Wrap(err, "failed to update organization")
+	}
+	return Organization{}.FromModel(organizationModel), nil
+}
+
 // GetUserOrganization
 
 type GetOrganizationsByUserInput struct {
@@ -336,8 +355,8 @@ func (s *service) CreateOrganizationInvite(ctx context.Context, params CreateOrg
 	// Generate secure token
 	token := s.system.SessionToken.Generate(32)
 
-	// Insert invite with 7-day expiration
-	expiresAt := s.system.Time.Now().Add(7 * 24 * time.Hour)
+	// Insert invite with 7-day expiration (use UTC for consistent timezone handling)
+	expiresAt := s.system.Time.Now().UTC().Add(7 * 24 * time.Hour)
 
 	invite, err := s.Repository.InsertOrganizationInvite(ctx, insertOrganizationInviteParams{
 		OrganizationID:  params.OrganizationID,
@@ -412,8 +431,8 @@ func (s *service) AcceptOrganizationInvite(ctx context.Context, params AcceptOrg
 		return Authentication{}, err
 	}
 
-	// Check if expired
-	if s.system.Time.Now().After(invite.ExpiresAt) {
+	// Check if expired (use UTC for consistent timezone handling)
+	if s.system.Time.Now().UTC().After(invite.ExpiresAt) {
 		return Authentication{}, pkgerrors.New("invite has expired")
 	}
 
@@ -589,8 +608,8 @@ func (s *service) CreateSystemInvite(ctx context.Context, params CreateSystemInv
 	// Generate invite token
 	token := s.system.SessionToken.Generate(64)
 
-	// Set expiration (7 days)
-	expiresAt := s.system.Time.Now().Add(7 * 24 * time.Hour)
+	// Set expiration (7 days) - use UTC for consistent timezone handling
+	expiresAt := s.system.Time.Now().UTC().Add(7 * 24 * time.Hour)
 
 	invite, err := s.Repository.InsertSystemInvite(ctx, insertSystemInviteParams{
 		Email:            params.Email,
@@ -638,8 +657,8 @@ func (s *service) AcceptSystemInvite(ctx context.Context, params AcceptSystemInv
 			return pkgerrors.Wrap(err, "failed to get system invite")
 		}
 
-		// Check if expired
-		if s.system.Time.Now().After(invite.ExpiresAt) {
+		// Check if expired (use UTC for consistent timezone handling)
+		if s.system.Time.Now().UTC().After(invite.ExpiresAt) {
 			return errors.ErrInviteExpired
 		}
 

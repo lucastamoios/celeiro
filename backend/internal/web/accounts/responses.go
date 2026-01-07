@@ -85,6 +85,32 @@ func (s SessionInfoResponse) FromDTO(session *accounts.SessionInfo, isNewUser bo
 	}
 }
 
+// Organization
+
+type OrganizationResponse struct {
+	OrganizationID int     `json:"organization_id"`
+	Name           string  `json:"name"`
+	City           string  `json:"city"`
+	State          string  `json:"state"`
+	Zip            string  `json:"zip"`
+	Country        string  `json:"country"`
+	Latitude       float64 `json:"latitude"`
+	Longitude      float64 `json:"longitude"`
+}
+
+func (o OrganizationResponse) FromDTO(org *accounts.Organization) OrganizationResponse {
+	return OrganizationResponse{
+		OrganizationID: org.OrganizationID,
+		Name:           org.Name,
+		City:           org.City,
+		State:          org.State,
+		Zip:            org.Zip,
+		Country:        org.Country,
+		Latitude:       org.Latitude,
+		Longitude:      org.Longitude,
+	}
+}
+
 // Organization Members
 
 type OrganizationMemberResponse struct {

@@ -41,6 +41,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 
 	// Organization management
 	r.Post("/organizations/default", mw.RequireSession(ah.SetDefaultOrganization, []accounts.Permission{}))
+	r.Patch("/organizations/{orgId}", mw.RequireSession(ah.UpdateOrganization, []accounts.Permission{}))
 	r.Get("/organizations/{orgId}/members", mw.RequireSession(ah.GetOrganizationMembers, []accounts.Permission{}))
 	r.Get("/organizations/{orgId}/invites", mw.RequireSession(ah.GetPendingInvites, []accounts.Permission{}))
 	r.Post("/organizations/{orgId}/invites", mw.RequireSession(ah.CreateOrganizationInvite, []accounts.Permission{accounts.PermissionCreateRegularUsers}))

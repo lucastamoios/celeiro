@@ -20,6 +20,7 @@ type Repository interface {
 	InsertUserOrganization(ctx context.Context, params createUserOrganizationParams) (UserOrganizationModel, error)
 	FetchUserByEmail(ctx context.Context, params getUserByEmailParams) (UserModel, error)
 	FetchOrganization(ctx context.Context, params getOrganizationParams) (OrganizationModel, error)
+	ModifyOrganization(ctx context.Context, params modifyOrganizationParams) (OrganizationModel, error)
 
 	// Organization Members
 	FetchOrganizationMembers(ctx context.Context, params fetchOrganizationMembersParams) ([]OrganizationMemberModel, error)
@@ -365,6 +366,37 @@ const fetchOrganizationQuery = `
 func (r *repository) FetchOrganization(ctx context.Context, params getOrganizationParams) (OrganizationModel, error) {
 	var result OrganizationModel
 	err := r.db.Query(ctx, &result, fetchOrganizationQuery, params.OrganizationID)
+	if err != nil {
+		return OrganizationModel{}, err
+	}
+	return result, nil
+}
+
+// ModifyOrganization
+
+type modifyOrganizationParams struct {
+	OrganizationID int
+	Name           *string
+}
+
+const modifyOrganizationQuery = `
+	-- accounts.modifyOrganizationQuery
+	UPDATE organizations
+	SET name = COALESCE($2, name)
+	WHERE organization_id = $1
+	RETURNING organization_id,
+			  name,
+			  city,
+			  state,
+			  zip,
+			  country,
+			  latitude,
+			  longitude;
+	`
+
+func (r *repository) ModifyOrganization(ctx context.Context, params modifyOrganizationParams) (OrganizationModel, error) {
+	var result OrganizationModel
+	err := r.db.Query(ctx, &result, modifyOrganizationQuery, params.OrganizationID, params.Name)
 	if err != nil {
 		return OrganizationModel{}, err
 	}
