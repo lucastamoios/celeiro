@@ -122,6 +122,7 @@ func TestBulkImportPerformance_1000Transactions(t *testing.T) {
 		CategoryID:    nil, // No category = no matching needed
 	}, nil).Maybe()
 	mockRepo.On("FetchSavedPatterns", ctx, mock.Anything).Return([]PlannedEntryModel{}, nil).Maybe()
+	mockRepo.On("FetchAdvancedPatterns", ctx, mock.Anything).Return([]AdvancedPatternModel{}, nil).Maybe()
 
 	importStart := time.Now()
 	output, err := svc.ImportTransactionsFromOFX(ctx, ImportOFXInput{
@@ -195,6 +196,7 @@ func TestBulkImportPerformance_5000Transactions(t *testing.T) {
 		CategoryID:    nil,
 	}, nil).Maybe()
 	mockRepo.On("FetchSavedPatterns", ctx, mock.Anything).Return([]PlannedEntryModel{}, nil).Maybe()
+	mockRepo.On("FetchAdvancedPatterns", ctx, mock.Anything).Return([]AdvancedPatternModel{}, nil).Maybe()
 
 	importStart := time.Now()
 	output, err := svc.ImportTransactionsFromOFX(ctx, ImportOFXInput{
@@ -267,6 +269,7 @@ func TestBulkImportPerformance_10000Transactions(t *testing.T) {
 		CategoryID:    nil,
 	}, nil).Maybe()
 	mockRepo.On("FetchSavedPatterns", ctx, mock.Anything).Return([]PlannedEntryModel{}, nil).Maybe()
+	mockRepo.On("FetchAdvancedPatterns", ctx, mock.Anything).Return([]AdvancedPatternModel{}, nil).Maybe()
 
 	importStart := time.Now()
 	output, err := svc.ImportTransactionsFromOFX(ctx, ImportOFXInput{
