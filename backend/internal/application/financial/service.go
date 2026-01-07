@@ -1735,23 +1735,31 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 }
 
 // computePlannedEntryStatus calculates the status based on current date and expected period
+// Returns "scheduled" if still on time, "pending" if overdue
 func (s *service) computePlannedEntryStatus(entry PlannedEntryModel, currentDay, currentMonth, currentYear, targetMonth, targetYear int) string {
-	// If target month is in the past
+	// If target month is in the past - overdue
 	if targetYear < currentYear || (targetYear == currentYear && targetMonth < currentMonth) {
-		return PlannedEntryStatusMissed
-	}
-
-	// If target month is in the future
-	if targetYear > currentYear || (targetYear == currentYear && targetMonth > currentMonth) {
 		return PlannedEntryStatusPending
 	}
 
-	// Same month - check expected day
-	if entry.ExpectedDayEnd != nil && currentDay > *entry.ExpectedDayEnd {
-		return PlannedEntryStatusMissed
+	// If target month is in the future - on time
+	if targetYear > currentYear || (targetYear == currentYear && targetMonth > currentMonth) {
+		return PlannedEntryStatusScheduled
 	}
 
-	return PlannedEntryStatusPending
+	// Same month - check expected day
+	// If no expected day set, consider it scheduled (on time for the whole month)
+	if entry.ExpectedDayEnd == nil {
+		return PlannedEntryStatusScheduled
+	}
+
+	// If current day is after the expected end day - overdue
+	if currentDay > *entry.ExpectedDayEnd {
+		return PlannedEntryStatusPending
+	}
+
+	// Still within the expected period - on time
+	return PlannedEntryStatusScheduled
 }
 
 type MatchPlannedEntryInput struct {

@@ -466,10 +466,10 @@ func GetStatusColor(status string) string {
 	switch status {
 	case PlannedEntryStatusMatched:
 		return "green"
-	case PlannedEntryStatusPending:
-		return "yellow"
-	case PlannedEntryStatusMissed:
-		return "red"
+	case PlannedEntryStatusScheduled:
+		return "yellow" // On time, neutral warning
+	case PlannedEntryStatusPending, PlannedEntryStatusMissed:
+		return "red" // Overdue
 	case PlannedEntryStatusDismissed:
 		return "gray"
 	default:

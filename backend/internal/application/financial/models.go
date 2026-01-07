@@ -222,9 +222,10 @@ type PlannedEntriesModel []PlannedEntryModel
 
 // PlannedEntryStatus constants
 const (
-	PlannedEntryStatusPending   = "pending"   // Waiting for match
+	PlannedEntryStatusScheduled = "scheduled" // On time, waiting for match (before due date)
+	PlannedEntryStatusPending   = "pending"   // Overdue, waiting for match (after due date)
 	PlannedEntryStatusMatched   = "matched"   // Transaction matched
-	PlannedEntryStatusMissed    = "missed"    // Expected period passed, no match
+	PlannedEntryStatusMissed    = "missed"    // Expected period passed, no match (legacy, same as pending)
 	PlannedEntryStatusDismissed = "dismissed" // User dismissed for this month
 )
 
