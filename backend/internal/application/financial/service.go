@@ -382,7 +382,6 @@ func (s *service) DeleteAccount(ctx context.Context, params DeleteAccountInput) 
 
 type GetTransactionsInput struct {
 	AccountID      int
-	UserID         int
 	OrganizationID int
 	Limit          int
 	Offset         int
@@ -396,7 +395,6 @@ func (s *service) GetTransactions(ctx context.Context, params GetTransactionsInp
 
 	models, err := s.Repository.FetchTransactions(ctx, fetchTransactionsParams{
 		AccountID:      params.AccountID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 		Limit:          params.Limit,
 		Offset:         params.Offset,
@@ -409,7 +407,6 @@ func (s *service) GetTransactions(ctx context.Context, params GetTransactionsInp
 }
 
 type GetUncategorizedTransactionsInput struct {
-	UserID         int
 	OrganizationID int
 	Limit          int
 	Offset         int
@@ -417,7 +414,6 @@ type GetUncategorizedTransactionsInput struct {
 
 func (s *service) GetUncategorizedTransactions(ctx context.Context, params GetUncategorizedTransactionsInput) ([]Transaction, error) {
 	models, err := s.Repository.FetchUncategorizedTransactions(ctx, fetchUncategorizedTransactionsParams{
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
@@ -427,15 +423,15 @@ func (s *service) GetUncategorizedTransactions(ctx context.Context, params GetUn
 	// Apply limit and offset in memory if needed
 	start := params.Offset
 	end := params.Offset + params.Limit
-	
+
 	if start >= len(models) {
 		return []Transaction{}, nil
 	}
-	
+
 	if end > len(models) {
 		end = len(models)
 	}
-	
+
 	if params.Limit > 0 {
 		models = models[start:end]
 	}
@@ -443,16 +439,14 @@ func (s *service) GetUncategorizedTransactions(ctx context.Context, params GetUn
 	return Transactions{}.FromModel(models), nil
 }
 
-type GetTransactionByIDInput struct{
+type GetTransactionByIDInput struct {
 	TransactionID  int
-	UserID         int
 	OrganizationID int
 }
 
 func (s *service) GetTransactionByID(ctx context.Context, params GetTransactionByIDInput) (Transaction, error) {
 	model, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
 		TransactionID:  params.TransactionID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
@@ -668,7 +662,6 @@ func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactio
 		// Fetch the existing transaction to get its transaction_type
 		existingTx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
 			TransactionID:  params.TransactionID,
-			UserID:         params.UserID,
 			OrganizationID: params.OrganizationID,
 		})
 		if err != nil {
@@ -750,7 +743,6 @@ type GetBudgetByIDInput struct {
 func (s *service) GetBudgetByID(ctx context.Context, params GetBudgetByIDInput) (BudgetWithItems, error) {
 	budgetModel, err := s.Repository.FetchBudgetByID(ctx, fetchBudgetByIDParams{
 		BudgetID:       params.BudgetID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
@@ -759,7 +751,6 @@ func (s *service) GetBudgetByID(ctx context.Context, params GetBudgetByIDInput) 
 
 	itemsModels, err := s.Repository.FetchBudgetItems(ctx, fetchBudgetItemsParams{
 		BudgetID:       params.BudgetID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
@@ -906,7 +897,6 @@ func (s *service) DeleteBudgetItem(ctx context.Context, params DeleteBudgetItemI
 
 type GetBudgetSpendingInput struct {
 	BudgetID       int
-	UserID         int
 	OrganizationID int
 }
 
@@ -918,7 +908,6 @@ func (s *service) GetBudgetSpending(ctx context.Context, params GetBudgetSpendin
 	// First, get the budget to extract month/year
 	budget, err := s.Repository.FetchBudgetByID(ctx, fetchBudgetByIDParams{
 		BudgetID:       params.BudgetID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
@@ -928,7 +917,6 @@ func (s *service) GetBudgetSpending(ctx context.Context, params GetBudgetSpendin
 	// Fetch spending aggregated by category
 	spendingMap, err := s.Repository.FetchBudgetSpending(ctx, fetchBudgetSpendingParams{
 		BudgetID:       params.BudgetID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 		Month:          budget.Month,
 		Year:           budget.Year,
@@ -1223,7 +1211,6 @@ func (s *service) ConsolidateCategoryBudget(ctx context.Context, params Consolid
 
 	// Fetch actual spending for the category/month/year
 	spending, err := s.Repository.FetchBudgetSpending(ctx, fetchBudgetSpendingParams{
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 		Month:          budget.Month,
 		Year:           budget.Year,
@@ -1783,10 +1770,9 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 		return PlannedEntryStatus{}, errors.Wrap(err, "failed to fetch planned entry")
 	}
 
-	// 2. Verify the transaction exists and belongs to the user
+	// 2. Verify the transaction exists and belongs to the organization
 	tx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
 		TransactionID:  params.TransactionID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
@@ -2017,7 +2003,6 @@ func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersI
 
 	// Fetch all transactions for the organization in the given month/year
 	transactions, err := s.Repository.FetchTransactionsByMonth(ctx, fetchTransactionsByMonthParams{
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 		Month:          params.Month,
 		Year:           params.Year,

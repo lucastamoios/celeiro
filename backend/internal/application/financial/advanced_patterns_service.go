@@ -266,7 +266,6 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 
 	// 2. Fetch all transactions (including already categorized ones)
 	transactions, err := s.Repository.FetchTransactionsForPatternMatching(ctx, fetchTransactionsForPatternMatchingParams{
-		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
 	})
 	if err != nil {
@@ -317,9 +316,8 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 func (s *service) applyPatternRetroactively(ctx context.Context, pattern AdvancedPattern, userID, organizationID int) {
 	s.logger.Info(ctx, fmt.Sprintf("Starting retroactive application of pattern %d", pattern.PatternID))
 
-	// 1. Fetch all transactions for user/organization (including already categorized ones)
+	// 1. Fetch all transactions for organization (including already categorized ones)
 	transactions, err := s.Repository.FetchTransactionsForPatternMatching(ctx, fetchTransactionsForPatternMatchingParams{
-		UserID:         userID,
 		OrganizationID: organizationID,
 	})
 	if err != nil {
@@ -547,7 +545,6 @@ func (s *service) ApplyAdvancedPatternsToTransaction(ctx context.Context, input 
 	// 1. Fetch the transaction
 	tx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
 		TransactionID:  input.TransactionID,
-		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
 	})
 	if err != nil {
