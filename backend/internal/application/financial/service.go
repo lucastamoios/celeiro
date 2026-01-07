@@ -1325,7 +1325,7 @@ func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyC
 			PlannedAmount:  src.PlannedAmount,
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("failed to create budget for category %d", src.CategoryID))
+			return nil, fmt.Errorf("failed to create budget for category %d: %w", src.CategoryID, err)
 		}
 
 		createdBudgets = append(createdBudgets, CategoryBudget{}.FromModel(&model))

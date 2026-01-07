@@ -518,13 +518,11 @@ func TestBudgetWorkflow_CreateWithItems(t *testing.T) {
 	// Step 3: Fetch budget with items
 	mockRepo.On("FetchBudgetByID", ctx, fetchBudgetByIDParams{
 		BudgetID:       1,
-		UserID:         1,
 		OrganizationID: 1,
 	}).Return(budgetModel, nil)
 
 	mockRepo.On("FetchBudgetItems", ctx, fetchBudgetItemsParams{
 		BudgetID:       1,
-		UserID:         1,
 		OrganizationID: 1,
 	}).Return([]BudgetItemModel{item1, item2}, nil)
 
