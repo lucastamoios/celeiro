@@ -3,7 +3,8 @@ import { Coins, XCircle, Filter } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
-import { apiUrl, financialUrl } from '../config/api';
+import { useOrganization } from '../contexts/OrganizationContext';
+import { financialUrl } from '../config/api';
 import { usePersistedFilters } from '../hooks/usePersistedState';
 import { useSelectedMonth } from '../hooks/useSelectedMonth';
 import TransactionEditModal from './TransactionEditModal';
@@ -33,17 +34,14 @@ interface Account {
   IsActive: boolean;
 }
 
-interface SessionMeResponse {
-  user: { id: number; email: string; name: string };
-  organizations: { organization_id: number; name: string }[];
-}
-
 export default function TransactionList() {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Map<number, Category>>(new Map());
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-  const [activeOrganizationId, setActiveOrganizationId] = useState<string>('1');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -72,26 +70,15 @@ export default function TransactionList() {
 
   useEffect(() => {
     fetchData();
-  }, [token, selectedAccountId]);
+  }, [token, selectedAccountId, activeOrganizationId]);
 
   const fetchData = async () => {
     if (!token) return;
 
     try {
-      // Determine active org from session (avoids hardcoding org=1)
-      const meRes = await fetch(apiUrl('/accounts/me/'), {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (!meRes.ok) {
-        throw new Error('Failed to fetch session info');
-      }
-      const meJson: ApiResponse<SessionMeResponse> = await meRes.json();
-      const orgId = meJson.data?.organizations?.[0]?.organization_id?.toString() || '1';
-      setActiveOrganizationId(orgId);
-
       const headers = {
         'Authorization': `Bearer ${token}`,
-        'X-Active-Organization': orgId,
+        'X-Active-Organization': activeOrganizationId,
       };
 
       // Fetch categories + accounts (need accountId before fetching transactions)
