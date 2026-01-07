@@ -118,10 +118,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 		r.Get("/snapshots", mw.RequireSession(fh.ListMonthlySnapshots, []accounts.Permission{}))
 		r.Get("/snapshots/{id}", mw.RequireSession(fh.GetMonthlySnapshot, []accounts.Permission{}))
 
-		// Pattern Matching
-		r.Get("/match-suggestions", mw.RequireSession(fh.GetMatchSuggestions, []accounts.Permission{}))
-		r.Post("/transactions/{id}/apply-pattern", mw.RequireSession(fh.ApplyPatternToTransaction, []accounts.Permission{}))
-		r.Post("/transactions/{id}/save-as-pattern", mw.RequireSession(fh.SaveTransactionAsPattern, []accounts.Permission{}))
+		// Transaction Planned Entry
 		r.Get("/transactions/{id}/planned-entry", mw.RequireSession(fh.GetTransactionPlannedEntry, []accounts.Permission{}))
 
 		// Income Planning

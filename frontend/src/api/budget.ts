@@ -710,57 +710,8 @@ export async function getMonthlySnapshot(
 }
 
 // ============================================================================
-// Pattern Matching
+// Transaction Planned Entry
 // ============================================================================
-
-/**
- * Save a transaction as a reusable pattern
- */
-export async function saveTransactionAsPattern(
-  transactionId: number,
-  data: { is_recurrent?: boolean; expected_day?: number },
-  options: RequestOptions
-): Promise<PlannedEntry> {
-  const response = await fetch(
-    `${API_CONFIG.baseURL}/financial/transactions/${transactionId}/save-as-pattern`,
-    {
-      method: 'POST',
-      headers: createHeaders(options),
-      body: JSON.stringify(data),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to save transaction as pattern: ${error}`);
-  }
-
-  const result: ApiResponse<PlannedEntry> = await response.json();
-  return result.data;
-}
-
-/**
- * Apply a saved pattern to a transaction
- */
-export async function applyPatternToTransaction(
-  transactionId: number,
-  patternId: number,
-  options: RequestOptions
-): Promise<void> {
-  const response = await fetch(
-    `${API_CONFIG.baseURL}/financial/transactions/${transactionId}/apply-pattern`,
-    {
-      method: 'POST',
-      headers: createHeaders(options),
-      body: JSON.stringify({ pattern_id: patternId }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to apply pattern to transaction: ${error}`);
-  }
-}
 
 /**
  * Get the planned entry linked to a transaction (if any)
@@ -790,34 +741,6 @@ export async function getPlannedEntryForTransaction(
   }
 
   return result.data as PlannedEntryWithStatus;
-}
-
-/**
- * Get match suggestions for a transaction
- */
-export async function getMatchSuggestions(
-  transactionId: number,
-  categoryId: number | undefined,
-  options: RequestOptions
-): Promise<any[]> {
-  const params = new URLSearchParams();
-  params.append('transaction_id', transactionId.toString());
-  if (categoryId !== undefined) params.append('category_id', categoryId.toString());
-
-  const url = `${API_CONFIG.baseURL}/financial/match-suggestions?${params.toString()}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: createHeaders(options),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to get match suggestions: ${error}`);
-  }
-
-  const result: ApiResponse<any[]> = await response.json();
-  return result.data;
 }
 
 // ============================================================================
