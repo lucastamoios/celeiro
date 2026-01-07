@@ -1,0 +1,64 @@
+name: PROD - Database Backup
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # Every day at 3 AM UTC
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Backup Database to Cloudflare R2
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+
+            # Get current weekday for rotating backups (keeps 7 days)
+            WEEKDAY=$(date +%A | tr '[:upper:]' '[:lower:]')
+            BACKUP_DIR="/var/celeiro/backups"
+            BACKUP_FILE="${BACKUP_DIR}/celeiro-${WEEKDAY}.sql"
+
+            # Ensure backup directory exists
+            mkdir -p ${BACKUP_DIR}
+
+            # Get database credentials from container environment
+            DB_USER=$(docker exec celeiro_postgres printenv POSTGRES_USER)
+            DB_NAME=$(docker exec celeiro_postgres printenv POSTGRES_DB)
+
+            # Create database backup using pg_dump inside the container
+            echo "Creating backup for database ${DB_NAME}..."
+            docker exec celeiro_postgres pg_dump -U ${DB_USER} -d ${DB_NAME} > ${BACKUP_FILE}
+
+            # Verify backup was created and has content
+            if [ ! -s "${BACKUP_FILE}" ]; then
+              echo "ERROR: Backup file is empty or does not exist!"
+              exit 1
+            fi
+
+            BACKUP_SIZE=$(du -h ${BACKUP_FILE} | cut -f1)
+            echo "Backup created: ${BACKUP_FILE} (${BACKUP_SIZE})"
+
+            # Sync backups to Cloudflare R2
+            if [ -n "$(ls -A ${BACKUP_DIR}/ 2>/dev/null)" ]; then
+              echo "Syncing backups to Cloudflare R2..."
+              RCLONE_CONFIG_R2_TYPE=s3 \
+              RCLONE_CONFIG_R2_PROVIDER=Cloudflare \
+              RCLONE_CONFIG_R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }} \
+              RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }} \
+              RCLONE_CONFIG_R2_ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+              rclone sync ${BACKUP_DIR}/ r2:celeiro/db/
+
+              echo "Backup synced to Cloudflare R2 successfully!"
+            else
+              echo "WARNING: No backup files found to sync"
+              exit 1
+            fi
