@@ -342,7 +342,7 @@ func (s *OFXParserTestSuite) TestToInsertParams_WithNameAndMemo() {
 	params := tx.ToInsertParams(42)
 
 	s.Equal(42, params.AccountID)
-	s.Equal("Supermercado - Compra no cartão", params.Description)
+	s.Equal("Supermercado Compra no cartão", params.Description) // dash removed by cleanDescription
 	s.True(params.Amount.Equal(decimal.NewFromFloat(50.75))) // Should be absolute value
 	s.Equal(TransactionTypeDebit, params.TransactionType)
 	s.Equal("tx-123", *params.OFXFitID)
@@ -465,7 +465,7 @@ func (s *OFXParserTestSuite) TestCleanDescription_RemoveDots() {
 
 func (s *OFXParserTestSuite) TestCleanDescription_RemoveAllSpecialCharacters() {
 	result := cleanDescription(`Joe's "Pizza" - N.Y.C.`)
-	s.Equal("Joes Pizza  NYC", result)
+	s.Equal("Joes Pizza NYC", result)
 }
 
 func (s *OFXParserTestSuite) TestCleanDescription_NormalizeMultipleSpaces() {
@@ -480,7 +480,7 @@ func (s *OFXParserTestSuite) TestCleanDescription_TrimSpaces() {
 
 func (s *OFXParserTestSuite) TestCleanDescription_ComplexRealWorld() {
 	result := cleanDescription(`  McDonald's "Big Mac" - Purchase 12.99  `)
-	s.Equal("McDonalds Big Mac  Purchase 1299", result)
+	s.Equal("McDonalds Big Mac Purchase 1299", result)
 }
 
 func (s *OFXParserTestSuite) TestCleanDescription_EmptyString() {
@@ -506,5 +506,5 @@ func (s *OFXParserTestSuite) TestToInsertParams_WithCleanedDescription() {
 	params := tx.ToInsertParams(42)
 
 	// Description should be cleaned: stripped of quotes, dashes, dots and normalized spaces
-	s.Equal("Joes Pizza  NYC  Lunch special", params.Description)
+	s.Equal("Joes Pizza NYC Lunch special", params.Description)
 }
