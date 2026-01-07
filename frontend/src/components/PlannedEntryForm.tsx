@@ -766,9 +766,9 @@ export default function PlannedEntryForm({
           </div>
         )}
 
-        {/* Linked Advanced Pattern indicator - shown when we have a linked pattern */}
-        {!isEditMode && linkedPatternId && (
-          <div className="ml-6 mt-3 p-3 bg-terra-50 rounded-lg border border-terra-200">
+        {/* Linked Advanced Pattern indicator - shown when we have a linked pattern (both create and edit mode) */}
+        {linkedPatternId && (
+          <div className="p-3 bg-terra-50 rounded-lg border border-terra-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-terra-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -794,8 +794,8 @@ export default function PlannedEntryForm({
           </div>
         )}
 
-        {/* Advanced Pattern Creation - only in create mode when no pattern options are selected */}
-        {!isEditMode && !isSavedPattern && !linkedPatternId && (
+        {/* Advanced Pattern Creation - available in both create and edit mode when no pattern is linked */}
+        {!isSavedPattern && !linkedPatternId && (
           <div className="p-3 bg-terra-50 rounded-lg border border-terra-200">
             <div className="flex items-center justify-between">
               <div>
