@@ -643,8 +643,8 @@ export default function PlannedEntryForm({
           </label>
         )}
 
-        {/* Description Pattern Field - shown when isSavedPattern is checked (only in create mode) */}
-        {!isEditMode && isSavedPattern && (
+        {/* Description Pattern Field - shown when isSavedPattern is checked and no linked pattern (only in create mode) */}
+        {!isEditMode && isSavedPattern && !linkedPatternId && (
           <div className="ml-6 mt-3 p-3 bg-wheat-50 rounded-lg border border-wheat-200">
             <label
               htmlFor="descriptionPattern"
@@ -747,60 +747,70 @@ export default function PlannedEntryForm({
               )}
             </div>
 
-            <p className="mt-2 text-xs text-stone-600">
-              Selecione uma transação acima ou digite um padrão manualmente.
-              Ex: "NETFLIX" irá corresponder a "NETFLIX.COM" ou "PAGAMENTO NETFLIX".
-            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <p className="text-xs text-stone-600">
+                Selecione uma transação ou digite um padrão manualmente.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedPatternModal(true)}
+                disabled={isLoading || !categoryId || !description}
+                className="text-xs text-terra-600 hover:text-terra-800 font-medium underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Usar padrão avançado
+              </button>
+            </div>
             {errors.descriptionPattern && (
               <p className="mt-1 text-sm text-rust-600">{errors.descriptionPattern}</p>
             )}
           </div>
         )}
 
-        {/* Advanced Pattern Creation - only in create mode and when no simple pattern */}
-        {!isEditMode && !isSavedPattern && (
-          <div className="p-3 bg-terra-50 rounded-lg border border-terra-200">
-            {linkedPatternId ? (
-              // Show linked pattern indicator
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-terra-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  <div>
-                    <span className="text-sm font-medium text-terra-800">
-                      Padrão Avançado Vinculado
-                    </span>
-                    {linkedPatternName && (
-                      <p className="text-xs text-terra-600">{linkedPatternName}</p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleClearLinkedPattern}
-                  className="text-xs text-terra-600 hover:text-terra-800 underline"
-                >
-                  Remover
-                </button>
-              </div>
-            ) : (
-              // Show button to create advanced pattern
-              <div className="flex items-center justify-between">
+        {/* Linked Advanced Pattern indicator - shown when we have a linked pattern */}
+        {!isEditMode && linkedPatternId && (
+          <div className="ml-6 mt-3 p-3 bg-terra-50 rounded-lg border border-terra-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-terra-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
                 <div>
-                  <span className="text-sm font-medium text-terra-800">Padrão Avançado</span>
-                  <p className="text-xs text-terra-600">Regex, filtros de data, dia da semana e mais</p>
+                  <span className="text-sm font-medium text-terra-800">
+                    Padrão Avançado Vinculado
+                  </span>
+                  {linkedPatternName && (
+                    <p className="text-xs text-terra-600">{linkedPatternName}</p>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAdvancedPatternModal(true)}
-                  disabled={isLoading || !categoryId || !description}
-                  className="px-3 py-1.5 text-xs font-medium text-white bg-terra-500 rounded-lg hover:bg-terra-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Criar Padrão
-                </button>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={handleClearLinkedPattern}
+                className="text-xs text-terra-600 hover:text-terra-800 underline"
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Advanced Pattern Creation - only in create mode when no pattern options are selected */}
+        {!isEditMode && !isSavedPattern && !linkedPatternId && (
+          <div className="p-3 bg-terra-50 rounded-lg border border-terra-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-terra-800">Padrão Avançado</span>
+                <p className="text-xs text-terra-600">Regex, filtros de data, dia da semana e mais</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedPatternModal(true)}
+                disabled={isLoading || !categoryId || !description}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-terra-500 rounded-lg hover:bg-terra-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Criar Padrão
+              </button>
+            </div>
           </div>
         )}
       </div>
