@@ -134,7 +134,7 @@ export interface PlannedEntry {
 }
 
 // Planned Entry Status (monthly status tracking)
-export type PlannedEntryStatusType = 'pending' | 'matched' | 'missed' | 'dismissed';
+export type PlannedEntryStatusType = 'scheduled' | 'pending' | 'matched' | 'missed' | 'dismissed';
 
 export interface PlannedEntryStatus {
   StatusID: number;
@@ -234,10 +234,11 @@ export function getStatusColor(status: PlannedEntryStatusType): string {
   switch (status) {
     case 'matched':
       return 'sage';
+    case 'scheduled':
+      return 'wheat'; // On time, neutral
     case 'pending':
-      return 'terra';
     case 'missed':
-      return 'rust';
+      return 'rust'; // Overdue
     case 'dismissed':
       return 'stone';
     default:
@@ -249,10 +250,11 @@ export function getStatusBadgeClasses(status: PlannedEntryStatusType): string {
   switch (status) {
     case 'matched':
       return 'bg-sage-100 text-sage-700 border-sage-200';
+    case 'scheduled':
+      return 'bg-wheat-100 text-wheat-700 border-wheat-200'; // On time, neutral
     case 'pending':
-      return 'bg-terra-100 text-terra-700 border-terra-200';
     case 'missed':
-      return 'bg-rust-100 text-rust-700 border-rust-200';
+      return 'bg-rust-100 text-rust-700 border-rust-200'; // Overdue
     case 'dismissed':
       return 'bg-stone-100 text-stone-500 border-stone-200';
     default:
@@ -264,10 +266,11 @@ export function getStatusLabel(status: PlannedEntryStatusType): string {
   switch (status) {
     case 'matched':
       return 'Recebido';
+    case 'scheduled':
+      return 'Agendado'; // On time
     case 'pending':
-      return 'Pendente';
     case 'missed':
-      return 'Atrasado';
+      return 'Atrasado'; // Overdue
     case 'dismissed':
       return 'Dispensado';
     default:

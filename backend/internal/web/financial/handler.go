@@ -1261,11 +1261,17 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Description   *string  `json:"description,omitempty"`
-		Amount        *float64 `json:"amount,omitempty"`
-		ExpectedDay   *int     `json:"expected_day,omitempty"`
-		IsActive      *bool    `json:"is_active,omitempty"`
-		SavingsGoalID *int     `json:"savings_goal_id,omitempty"`
+		Description      *string  `json:"description,omitempty"`
+		Amount           *float64 `json:"amount,omitempty"`
+		AmountMin        *float64 `json:"amount_min,omitempty"`
+		AmountMax        *float64 `json:"amount_max,omitempty"`
+		ExpectedDayStart *int     `json:"expected_day_start,omitempty"`
+		ExpectedDayEnd   *int     `json:"expected_day_end,omitempty"`
+		ExpectedDay      *int     `json:"expected_day,omitempty"`
+		EntryType        *string  `json:"entry_type,omitempty"`
+		IsActive         *bool    `json:"is_active,omitempty"`
+		PatternID        *int     `json:"pattern_id,omitempty"`
+		SavingsGoalID    *int     `json:"savings_goal_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1279,15 +1285,33 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		amount = &amt
 	}
 
+	var amountMin *decimal.Decimal
+	if req.AmountMin != nil {
+		amt := decimal.NewFromFloat(*req.AmountMin)
+		amountMin = &amt
+	}
+
+	var amountMax *decimal.Decimal
+	if req.AmountMax != nil {
+		amt := decimal.NewFromFloat(*req.AmountMax)
+		amountMax = &amt
+	}
+
 	entry, err := h.app.FinancialService.UpdatePlannedEntry(r.Context(), financialApp.UpdatePlannedEntryInput{
-		PlannedEntryID: entryID,
-		UserID:         userID,
-		OrganizationID: organizationID,
-		Description:    req.Description,
-		Amount:         amount,
-		ExpectedDay:    req.ExpectedDay,
-		IsActive:       req.IsActive,
-		SavingsGoalID:  req.SavingsGoalID,
+		PlannedEntryID:   entryID,
+		UserID:           userID,
+		OrganizationID:   organizationID,
+		Description:      req.Description,
+		Amount:           amount,
+		AmountMin:        amountMin,
+		AmountMax:        amountMax,
+		ExpectedDayStart: req.ExpectedDayStart,
+		ExpectedDayEnd:   req.ExpectedDayEnd,
+		ExpectedDay:      req.ExpectedDay,
+		EntryType:        req.EntryType,
+		IsActive:         req.IsActive,
+		PatternID:        req.PatternID,
+		SavingsGoalID:    req.SavingsGoalID,
 	})
 	if err != nil {
 		responses.NewError(w, err)

@@ -100,13 +100,16 @@ export default function PlannedEntryCard({
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         );
-      case 'pending':
+      case 'scheduled':
+        // Clock icon - on time, waiting
         return (
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
           </svg>
         );
+      case 'pending':
       case 'missed':
+        // Warning icon - overdue
         return (
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -133,8 +136,8 @@ export default function PlannedEntryCard({
     <>
       <div className={`bg-white rounded-lg shadow-sm border-l-4 p-4 hover:shadow-md transition-shadow ${
         entry.Status === 'matched' ? 'border-sage-500' :
-        entry.Status === 'pending' ? 'border-terra-500' :
-        entry.Status === 'missed' ? 'border-rust-500' :
+        entry.Status === 'scheduled' ? 'border-wheat-500' :
+        entry.Status === 'pending' || entry.Status === 'missed' ? 'border-rust-500' :
         'border-stone-400'
       }`}>
         {/* Header */}
@@ -206,7 +209,7 @@ export default function PlannedEntryCard({
 
             {showActions && (
               <div ref={actionsMenuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
-                {(entry.Status === 'pending' || entry.Status === 'missed') && onMatch && (
+                {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onMatch && (
                   <button
                     onClick={() => {
                       onMatch(entry.PlannedEntryID);
@@ -228,7 +231,7 @@ export default function PlannedEntryCard({
                     Desvincular
                   </button>
                 )}
-                {(entry.Status === 'pending' || entry.Status === 'missed') && onDismiss && (
+                {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onDismiss && (
                   <button
                     onClick={() => {
                       setShowDismissModal(true);
@@ -316,8 +319,8 @@ export default function PlannedEntryCard({
           </div>
         )}
 
-        {/* Missed Warning */}
-        {entry.Status === 'missed' && (
+        {/* Overdue Warning */}
+        {(entry.Status === 'pending' || entry.Status === 'missed') && (
           <div className="mt-3 text-xs text-rust-700 bg-rust-50 px-3 py-2 rounded border border-rust-200">
             <strong>⚠️ Atrasado:</strong> O período esperado já passou e nenhuma transação foi vinculada.
           </div>
