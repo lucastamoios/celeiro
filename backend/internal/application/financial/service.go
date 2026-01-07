@@ -93,12 +93,6 @@ type Service interface {
 	GetMonthlySnapshots(ctx context.Context, params GetMonthlySnapshotsInput) ([]MonthlySnapshot, error)
 	GetMonthlySnapshotByID(ctx context.Context, params GetMonthlySnapshotByIDInput) (MonthlySnapshot, error)
 
-	// Pattern Matching
-	SaveTransactionAsPattern(ctx context.Context, input SaveTransactionAsPatternInput) (PlannedEntry, error)
-	GetMatchSuggestionsForTransaction(ctx context.Context, input GetMatchSuggestionsInput) ([]MatchSuggestion, error)
-	ApplyPatternToTransaction(ctx context.Context, input ApplyPatternToTransactionInput) (Transaction, error)
-	AutoMatchTransaction(ctx context.Context, input AutoMatchTransactionInput) (bool, error)
-
 	// Income Planning
 	GetIncomePlanning(ctx context.Context, input GetIncomePlanningInput) (*IncomePlanningReport, error)
 
@@ -109,6 +103,7 @@ type Service interface {
 	UpdateAdvancedPattern(ctx context.Context, input UpdateAdvancedPatternInput) (AdvancedPattern, error)
 	DeleteAdvancedPattern(ctx context.Context, input DeleteAdvancedPatternInput) error
 	ApplyPatternRetroactivelySync(ctx context.Context, input ApplyPatternRetroactivelyInput) (ApplyPatternRetroactivelyOutput, error)
+	ApplyAdvancedPatternsToTransaction(ctx context.Context, input ApplyAdvancedPatternsToTransactionInput) (bool, error)
 
 	// Savings Goals
 	GetSavingsGoals(ctx context.Context, input GetSavingsGoalsInput) ([]SavingsGoal, error)
@@ -608,17 +603,16 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 	importedCount := len(inserted)
 	duplicateCount := len(ofxTransactions) - importedCount
 
-	// Auto-match imported transactions
+	// Auto-match imported transactions using advanced patterns (regex-based)
 	matchedCount := 0
 	for _, tx := range inserted {
-		matched, err := s.AutoMatchTransaction(ctx, AutoMatchTransactionInput{
+		matched, err := s.ApplyAdvancedPatternsToTransaction(ctx, ApplyAdvancedPatternsToTransactionInput{
+			TransactionID:  tx.TransactionID,
 			UserID:         params.UserID,
 			OrganizationID: params.OrganizationID,
-			TransactionID:  tx.TransactionID,
 		})
 		if err != nil {
-			// Log error but don't fail the import
-			s.logger.Warn(ctx, "Failed to auto-match transaction",
+			s.logger.Warn(ctx, "Failed to apply advanced patterns to transaction",
 				"transaction_id", tx.TransactionID,
 				"error", err.Error(),
 			)
@@ -645,7 +639,7 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 		"total_parsed", len(ofxTransactions),
 		"imported", importedCount,
 		"duplicates", duplicateCount,
-		"auto_matched", matchedCount,
+		"pattern_matched", matchedCount,
 		"duration_seconds", importDuration,
 	)
 

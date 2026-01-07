@@ -384,56 +384,6 @@ type GoalMonthlyContributionModel struct {
 	Amount decimal.Decimal `db:"amount"`
 }
 
-// Transaction Matching Constants
-const (
-	// Matching weights (must sum to 1.0)
-	MatchWeightCategory    = 0.40 // 40% weight for category match
-	MatchWeightAmount      = 0.30 // 30% weight for amount match
-	MatchWeightDescription = 0.20 // 20% weight for description match
-	MatchWeightDate        = 0.10 // 10% weight for date match
-
-	// Confidence thresholds
-	MatchConfidenceHigh   = 0.70 // Auto-apply matches above this
-	MatchConfidenceMedium = 0.50 // Suggest matches above this
-	MatchConfidenceLow    = 0.50 // Ignore matches below this
-
-	// Matching tolerances
-	MatchAmountTolerance = 0.05  // ±5% amount tolerance
-	MatchDateProximity   = 3     // Days within for full date score
-	MatchMinScore        = 0.50  // Minimum score to return
-)
-
-// MatchScore represents the calculated match between a transaction and a pattern
-type MatchScore struct {
-	// Pattern being matched against
-	PatternID   int
-	Description string
-	Amount      decimal.Decimal
-	CategoryID  int
-
-	// Component scores (0.0 - 1.0)
-	CategoryScore    float64
-	AmountScore      float64
-	DescriptionScore float64
-	DateScore        float64
-
-	// Overall weighted score (0.0 - 1.0)
-	TotalScore float64
-
-	// Confidence level based on total score
-	Confidence string // "HIGH", "MEDIUM", "LOW"
-}
-
-// MatchConfidence returns the confidence level based on score
-func (m *MatchScore) MatchConfidence() string {
-	if m.TotalScore >= MatchConfidenceHigh {
-		return "HIGH"
-	} else if m.TotalScore >= MatchConfidenceMedium {
-		return "MEDIUM"
-	}
-	return "LOW"
-}
-
 // =============================================================================
 // Amazon Sync Types
 // =============================================================================

@@ -36,12 +36,6 @@ type Metrics struct {
 	ClassificationRuleExecutions metric.Int64Counter
 	ClassificationRuleMatches    metric.Int64Counter
 	ClassificationRuleDuration   metric.Float64Histogram
-
-	// Transaction Matching Metrics
-	AutoMatchAttempts  metric.Int64Counter
-	AutoMatchSuccesses metric.Int64Counter
-	AutoMatchDuration  metric.Float64Histogram
-	MatchScore         metric.Float64Histogram
 }
 
 // NewMetrics creates a new metrics instance with OpenTelemetry
@@ -204,43 +198,6 @@ func NewMetrics(cfg *config.Config) (*Metrics, error) {
 		"financial.classification.rule.duration",
 		metric.WithDescription("Duration of classification rule execution in seconds"),
 		metric.WithUnit("s"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Transaction Matching Metrics
-	m.AutoMatchAttempts, err = meter.Int64Counter(
-		"financial.transaction.automatch.attempts",
-		metric.WithDescription("Number of auto-match attempts"),
-		metric.WithUnit("{attempts}"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	m.AutoMatchSuccesses, err = meter.Int64Counter(
-		"financial.transaction.automatch.successes",
-		metric.WithDescription("Number of successful auto-matches"),
-		metric.WithUnit("{matches}"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	m.AutoMatchDuration, err = meter.Float64Histogram(
-		"financial.transaction.automatch.duration",
-		metric.WithDescription("Duration of auto-match operations in seconds"),
-		metric.WithUnit("s"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	m.MatchScore, err = meter.Float64Histogram(
-		"financial.transaction.match.score",
-		metric.WithDescription("Match confidence scores"),
-		metric.WithUnit("{score}"),
 	)
 	if err != nil {
 		return nil, err

@@ -308,61 +308,6 @@ export function getVarianceStatus(variancePercent: number): VarianceStatus {
 }
 
 // =============================================================================
-// Pattern Matching Types
-// =============================================================================
-
-export type MatchConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
-
-export interface MatchScore {
-  PatternID: number;
-  Description: string;
-  Amount: string; // Decimal as string
-  CategoryID: number;
-  CategoryScore: number; // 0-1
-  AmountScore: number; // 0-1
-  DescriptionScore: number; // 0-1
-  DateScore: number; // 0-1
-  TotalScore: number; // Weighted sum (0-1)
-  Confidence: MatchConfidence;
-}
-
-export interface MatchSuggestion {
-  Pattern: PlannedEntry;
-  MatchScore: MatchScore;
-}
-
-export interface SaveTransactionAsPatternRequest {
-  is_recurrent?: boolean;
-  expected_day?: number;
-}
-
-export interface ApplyPatternToTransactionRequest {
-  pattern_id: number;
-}
-
-// Match score thresholds
-export const MATCH_THRESHOLDS = {
-  HIGH: 0.8, // 80%+ = high confidence
-  MEDIUM: 0.6, // 60-80% = medium confidence
-  LOW: 0.4, // 40-60% = low confidence (below this = don't suggest)
-} as const;
-
-export function getMatchConfidenceColor(confidence: MatchConfidence): string {
-  switch (confidence) {
-    case 'HIGH':
-      return 'text-green-600 bg-green-100';
-    case 'MEDIUM':
-      return 'text-yellow-600 bg-yellow-100';
-    case 'LOW':
-      return 'text-gray-600 bg-gray-100';
-  }
-}
-
-export function formatMatchScore(score: number): string {
-  return `${Math.round(score * 100)}%`;
-}
-
-// =============================================================================
 // Income Planning Types
 // =============================================================================
 

@@ -422,6 +422,7 @@ func (s *service) matchesAdvancedPattern(ctx context.Context, tx *TransactionMod
 }
 
 // applyAdvancedPatternToTransaction applies a pattern's target description and category to a transaction
+// It also checks if any planned entry is linked to this pattern and updates its status to "matched"
 func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *TransactionModel, pattern *AdvancedPatternModel, userID, organizationID int) error {
 	// Update transaction with pattern's target
 	description := pattern.TargetDescription
@@ -434,6 +435,135 @@ func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *Tra
 		Description:    &description,
 		CategoryID:     &categoryID,
 	})
+	if err != nil {
+		return err
+	}
 
-	return err
+	// Check if any planned entry is linked to this pattern
+	linkedEntries, err := s.Repository.FetchPlannedEntriesByPatternIDs(ctx, fetchPlannedEntriesByPatternIDsParams{
+		PatternIDs:     []int{pattern.PatternID},
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		// Log warning but don't fail - the transaction was already categorized
+		s.logger.Warn(ctx, "Failed to fetch linked planned entries for pattern",
+			"pattern_id", pattern.PatternID,
+			"error", err.Error(),
+		)
+		return nil
+	}
+
+	// If any planned entry is linked, update its status to "matched" for the transaction's month/year
+	if len(linkedEntries) > 0 {
+		month := int(tx.TransactionDate.Month())
+		year := tx.TransactionDate.Year()
+		matchedAt := s.system.Time.Now().Format("2006-01-02T15:04:05Z")
+
+		for _, entry := range linkedEntries {
+			// Create/update the planned entry status
+			statusModel, err := s.Repository.UpsertPlannedEntryStatus(ctx, upsertPlannedEntryStatusParams{
+				PlannedEntryID: entry.PlannedEntryID,
+				Month:          month,
+				Year:           year,
+				Status:         PlannedEntryStatusMatched,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "Failed to upsert planned entry status",
+					"planned_entry_id", entry.PlannedEntryID,
+					"error", err.Error(),
+				)
+				continue
+			}
+
+			// Update with transaction details
+			_, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
+				StatusID:             statusModel.StatusID,
+				MatchedTransactionID: &tx.TransactionID,
+				MatchedAmount:        &tx.Amount,
+				MatchedAt:            &matchedAt,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "Failed to update planned entry status with match details",
+					"status_id", statusModel.StatusID,
+					"error", err.Error(),
+				)
+			}
+
+			s.logger.Info(ctx, "Auto-matched planned entry via advanced pattern",
+				"planned_entry_id", entry.PlannedEntryID,
+				"pattern_id", pattern.PatternID,
+				"transaction_id", tx.TransactionID,
+				"month", month,
+				"year", year,
+			)
+		}
+	}
+
+	return nil
+}
+
+// ApplyAdvancedPatternsToTransactionInput contains parameters for applying patterns to a transaction
+type ApplyAdvancedPatternsToTransactionInput struct {
+	TransactionID  int
+	UserID         int
+	OrganizationID int
+}
+
+// ApplyAdvancedPatternsToTransaction applies all active advanced patterns to a single transaction
+// Returns true if any pattern was applied, false otherwise
+// This is called during import to auto-categorize new transactions
+func (s *service) ApplyAdvancedPatternsToTransaction(ctx context.Context, input ApplyAdvancedPatternsToTransactionInput) (bool, error) {
+	// 1. Fetch the transaction
+	tx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
+		TransactionID:  input.TransactionID,
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch transaction: %w", err)
+	}
+
+	// 2. Fetch all active advanced patterns
+	isActive := true
+	patterns, err := s.Repository.FetchAdvancedPatterns(ctx, fetchAdvancedPatternsParams{
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+		IsActive:       &isActive,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch patterns: %w", err)
+	}
+
+	if len(patterns) == 0 {
+		return false, nil
+	}
+
+	// 3. Find and apply the first matching pattern
+	for i := range patterns {
+		patternModel := &PatternModel{
+			PatternID:          patterns[i].PatternID,
+			DescriptionPattern: patterns[i].DescriptionPattern,
+			DatePattern:        patterns[i].DatePattern,
+			WeekdayPattern:     patterns[i].WeekdayPattern,
+			AmountMin:          patterns[i].AmountMin,
+			AmountMax:          patterns[i].AmountMax,
+			TargetDescription:  patterns[i].TargetDescription,
+			TargetCategoryID:   patterns[i].TargetCategoryID,
+		}
+
+		if s.matchesAdvancedPattern(ctx, &tx, patternModel) {
+			err := s.applyAdvancedPatternToTransaction(ctx, &tx, patternModel, input.UserID, input.OrganizationID)
+			if err != nil {
+				s.logger.Warn(ctx, fmt.Sprintf("Failed to apply pattern %d to transaction %d: %v",
+					patterns[i].PatternID, tx.TransactionID, err))
+				continue
+			}
+			s.logger.Info(ctx, fmt.Sprintf("Applied advanced pattern %d to transaction %d",
+				patterns[i].PatternID, tx.TransactionID))
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
