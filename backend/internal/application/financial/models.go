@@ -316,6 +316,7 @@ type PlannedEntryByPatternModel struct {
 	PlannedEntryID int    `db:"planned_entry_id"`
 	PatternID      int    `db:"pattern_id"`
 	Description    string `db:"description"`
+	SavingsGoalID  *int   `db:"savings_goal_id"`
 }
 
 // SavingsGoal type constants

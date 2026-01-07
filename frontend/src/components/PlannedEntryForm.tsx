@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { Category } from '../types/category';
-import type { Transaction } from '../types/transaction';
 import type { PlannedEntry, CreatePlannedEntryRequest } from '../types/budget';
+import type { SavingsGoal } from '../types/savingsGoals';
 import AdvancedPatternCreator, { type AdvancedPattern as AdvancedPatternInput } from './AdvancedPatternCreator';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -9,82 +9,20 @@ import { financialUrl } from '../config/api';
 
 interface PlannedEntryFormProps {
   categories: Category[];
-  transactions?: Transaction[]; // For pattern autocomplete
-  transactionsLoading?: boolean; // Loading state for transactions
+  savingsGoals?: SavingsGoal[]; // For goal selector
   onSubmit: (data: CreatePlannedEntryRequest) => void;
   onCancel: () => void;
   initialEntry?: PlannedEntry;
   isLoading?: boolean;
-  /** When true, hides pattern creation options (for editing existing entries) */
-  isEditMode?: boolean;
-}
-
-// Match scoring function - returns a score (higher = better match)
-// Returns 0 if no match, 1 for fuzzy, 2 for contains, 3 for exact word match
-function getMatchScore(text: string, query: string): number {
-  if (!query.trim()) return 1; // No query = all match equally
-
-  const textLower = text.toLowerCase();
-  const queryLower = query.toLowerCase().trim();
-
-  // Exact match or starts with query = highest priority
-  if (textLower === queryLower || textLower.startsWith(queryLower + ' ') || textLower.startsWith(queryLower)) {
-    return 4;
-  }
-
-  // Contains the exact word (surrounded by spaces or at boundaries)
-  const wordBoundaryRegex = new RegExp(`(^|\\s|[^a-zA-Z0-9])${queryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|\\s|[^a-zA-Z0-9])`, 'i');
-  if (wordBoundaryRegex.test(text)) {
-    return 3;
-  }
-
-  // Contains as substring
-  if (textLower.includes(queryLower)) {
-    return 2;
-  }
-
-  // Fuzzy match - all characters appear in order
-  let queryIndex = 0;
-  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
-    if (textLower[i] === queryLower[queryIndex]) {
-      queryIndex++;
-    }
-  }
-  if (queryIndex === queryLower.length) {
-    return 1;
-  }
-
-  return 0; // No match
-}
-
-// Get unique descriptions from transactions
-function getUniqueDescriptions(transactions: Transaction[]): { description: string; count: number; example: Transaction }[] {
-  const descMap = new Map<string, { count: number; example: Transaction }>();
-
-  for (const tx of transactions) {
-    const desc = tx.original_description || tx.description;
-    const existing = descMap.get(desc);
-    if (existing) {
-      existing.count++;
-    } else {
-      descMap.set(desc, { count: 1, example: tx });
-    }
-  }
-
-  return Array.from(descMap.entries())
-    .map(([description, data]) => ({ description, ...data }))
-    .sort((a, b) => b.count - a.count); // Sort by frequency
 }
 
 export default function PlannedEntryForm({
   categories,
-  transactions = [],
-  transactionsLoading = false,
+  savingsGoals = [],
   onSubmit,
   onCancel,
   initialEntry,
   isLoading = false,
-  isEditMode = false,
 }: PlannedEntryFormProps) {
   const { token } = useAuth();
   const { activeOrganization } = useOrganization();
@@ -132,61 +70,15 @@ export default function PlannedEntryForm({
   const [isRecurrent, setIsRecurrent] = useState<boolean>(
     initialEntry?.IsRecurrent || false
   );
-  const [isSavedPattern, setIsSavedPattern] = useState<boolean>(
-    initialEntry?.IsSavedPattern || false
+
+  // Savings goal state
+  const [savingsGoalId, setSavingsGoalId] = useState<string>(
+    initialEntry?.SavingsGoalID?.toString() || ''
   );
-  const [descriptionPattern, setDescriptionPattern] = useState<string>('');
-  const [showPatternDropdown, setShowPatternDropdown] = useState(false);
-  const patternInputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Get unique transaction descriptions for autocomplete
-  const uniqueDescriptions = useMemo(() => getUniqueDescriptions(transactions), [transactions]);
-
-  // Filter and sort descriptions based on pattern input
-  const filteredDescriptions = useMemo(() => {
-    if (!descriptionPattern.trim()) {
-      return uniqueDescriptions.slice(0, 15); // Show top 15 most frequent
-    }
-
-    // Score each item and filter out non-matches
-    const scoredItems = uniqueDescriptions
-      .map(item => ({
-        ...item,
-        score: getMatchScore(item.description, descriptionPattern),
-      }))
-      .filter(item => item.score > 0);
-
-    // Sort by score (descending), then by frequency (descending)
-    scoredItems.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return b.count - a.count;
-    });
-
-    return scoredItems.slice(0, 15);
-  }, [uniqueDescriptions, descriptionPattern]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        patternInputRef.current &&
-        !patternInputRef.current.contains(event.target as Node)
-      ) {
-        setShowPatternDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const [errors, setErrors] = useState<{
     categoryId?: string;
     description?: string;
-    descriptionPattern?: string;
     amountMin?: string;
     amountMax?: string;
     expectedDayStart?: string;
@@ -205,7 +97,7 @@ export default function PlannedEntryForm({
       setExpectedDayEnd(initialEntry.ExpectedDayEnd?.toString() || initialEntry.ExpectedDay?.toString() || '');
       setUseSingleDay(!initialEntry.ExpectedDayStart || initialEntry.ExpectedDayStart === initialEntry.ExpectedDayEnd);
       setIsRecurrent(initialEntry.IsRecurrent);
-      setIsSavedPattern(initialEntry.IsSavedPattern);
+      setSavingsGoalId(initialEntry.SavingsGoalID?.toString() || '');
     }
   }, [initialEntry]);
 
@@ -218,11 +110,6 @@ export default function PlannedEntryForm({
 
     if (!description.trim()) {
       newErrors.description = 'Descrição é obrigatória';
-    }
-
-    // Validate pattern when isSavedPattern is checked
-    if (isSavedPattern && !descriptionPattern.trim()) {
-      newErrors.descriptionPattern = 'Padrão de descrição é obrigatório para auto-matching';
     }
 
     // Validate amount range
@@ -277,10 +164,6 @@ export default function PlannedEntryForm({
     const parsedDayStart = expectedDayStart ? parseInt(expectedDayStart) : undefined;
     const parsedDayEnd = useSingleDay ? parsedDayStart : (expectedDayEnd ? parseInt(expectedDayEnd) : undefined);
 
-    // If we have a linked advanced pattern, use pattern_id instead of simple pattern
-    const hasLinkedPattern = linkedPatternId !== null;
-    const hasSimplePattern = isSavedPattern && descriptionPattern.trim() !== '' && !hasLinkedPattern;
-
     onSubmit({
       category_id: parseInt(categoryId),
       description: description.trim(),
@@ -291,9 +174,9 @@ export default function PlannedEntryForm({
       expected_day_end: parsedDayEnd || parsedDayStart,
       entry_type: entryType,
       is_recurrent: isRecurrent,
-      is_saved_pattern: hasSimplePattern,
-      description_pattern: hasSimplePattern ? descriptionPattern.trim() : undefined,
-      pattern_id: hasLinkedPattern ? linkedPatternId : undefined,
+      is_saved_pattern: false,
+      pattern_id: linkedPatternId || undefined,
+      savings_goal_id: savingsGoalId ? parseInt(savingsGoalId) : undefined,
     });
   };
 
@@ -326,8 +209,6 @@ export default function PlannedEntryForm({
     setLinkedPatternId(createdPattern.pattern_id);
     setLinkedPatternName(createdPattern.target_description || pattern.target_description);
     setShowAdvancedPatternModal(false);
-    // Disable simple pattern since we have an advanced one
-    setIsSavedPattern(false);
   };
 
   // Clear linked pattern
@@ -625,168 +506,58 @@ export default function PlannedEntryForm({
           </div>
         </label>
 
-        {/* Pattern creation only shown when creating new entries, not editing */}
-        {!isEditMode && (
-          <label className="flex items-center gap-3 p-3 bg-stone-50 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
-            <input
-              id="isSavedPattern"
-              type="checkbox"
-              checked={isSavedPattern}
-              onChange={(e) => setIsSavedPattern(e.target.checked)}
-              disabled={isLoading}
-              className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300 rounded disabled:opacity-50"
-            />
-            <div>
-              <span className="text-sm font-medium text-stone-700">Criar padrão</span>
-              <p className="text-xs text-stone-500">Auto-matching de transações futuras</p>
-            </div>
-          </label>
-        )}
-
-        {/* Description Pattern Field - shown when isSavedPattern is checked and no linked pattern (only in create mode) */}
-        {!isEditMode && isSavedPattern && !linkedPatternId && (
-          <div className="ml-6 mt-3 p-3 bg-wheat-50 rounded-lg border border-wheat-200">
+        {/* Savings Goal Selector */}
+        {savingsGoals.length > 0 && (
+          <div className="p-3 bg-stone-50 rounded-lg">
             <label
-              htmlFor="descriptionPattern"
-              className="block text-sm font-medium text-stone-700 mb-1"
+              htmlFor="savingsGoal"
+              className="block text-sm font-medium text-stone-700 mb-2"
             >
-              Padrão de Descrição *
+              🎯 Vincular a uma meta
             </label>
-            <div className="relative">
-              <input
-                ref={patternInputRef}
-                id="descriptionPattern"
-                type="text"
-                value={descriptionPattern}
-                onChange={(e) => {
-                  setDescriptionPattern(e.target.value);
-                  setShowPatternDropdown(true);
-                  if (errors.descriptionPattern) {
-                    setErrors({ ...errors, descriptionPattern: undefined });
-                  }
-                }}
-                onFocus={() => setShowPatternDropdown(true)}
-                disabled={isLoading}
-                placeholder="Digite para buscar nas transações..."
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed ${
-                  errors.descriptionPattern ? 'border-rust-500' : 'border-stone-300'
-                }`}
-              />
-
-              {/* Transaction Dropdown */}
-              {showPatternDropdown && transactions.length > 0 && (
-                <div
-                  ref={dropdownRef}
-                  className="absolute z-20 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
-                >
-                  <div className="px-3 py-2 text-xs text-stone-500 bg-stone-50 border-b sticky top-0">
-                    {filteredDescriptions.length > 0
-                      ? `${filteredDescriptions.length} transações encontradas - clique para usar`
-                      : 'Nenhuma transação encontrada'
-                    }
-                  </div>
-                  {filteredDescriptions.map((item, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      title={item.description}
-                      onClick={() => {
-                        setDescriptionPattern(item.description);
-                        setShowPatternDropdown(false);
-                        if (errors.descriptionPattern) {
-                          setErrors({ ...errors, descriptionPattern: undefined });
-                        }
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-wheat-50 border-b border-stone-100 last:border-b-0 transition-colors group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span
-                          className="text-sm text-stone-900 truncate flex-1 mr-2 group-hover:whitespace-normal group-hover:break-words"
-                          title={item.description}
-                        >
-                          {item.description}
-                        </span>
-                        <span className="text-xs text-stone-500 flex-shrink-0">
-                          {item.count}x
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-xs ${item.example.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'}`}>
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(item.example.amount))}
-                        </span>
-                        <span className="text-xs text-stone-400">
-                          {new Date(item.example.transaction_date).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                  {filteredDescriptions.length === 0 && (
-                    <div className="px-3 py-4 text-center text-sm text-stone-500">
-                      Nenhuma transação corresponde ao filtro
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Show loading state when fetching transactions */}
-              {showPatternDropdown && transactionsLoading && (
-                <div className="absolute z-20 w-full mt-1 bg-wheat-50 border border-wheat-200 rounded-lg px-3 py-2 text-xs text-wheat-700 flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Carregando transações...
-                </div>
-              )}
-
-              {/* Show hint when no transactions and not loading */}
-              {showPatternDropdown && !transactionsLoading && transactions.length === 0 && (
-                <div className="absolute z-20 w-full mt-1 bg-terra-50 border border-terra-200 rounded-lg px-3 py-2 text-xs text-terra-700">
-                  ⚠️ Nenhuma transação carregada. Digite o padrão manualmente.
-                </div>
-              )}
-            </div>
-
-            <div className="mt-2 flex items-center justify-between">
-              <p className="text-xs text-stone-600">
-                Selecione uma transação ou digite um padrão manualmente.
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowAdvancedPatternModal(true)}
-                disabled={isLoading || !categoryId || !description}
-                className="text-xs text-terra-600 hover:text-terra-800 font-medium underline disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Usar padrão avançado
-              </button>
-            </div>
-            {errors.descriptionPattern && (
-              <p className="mt-1 text-sm text-rust-600">{errors.descriptionPattern}</p>
-            )}
+            <select
+              id="savingsGoal"
+              value={savingsGoalId}
+              onChange={(e) => setSavingsGoalId(e.target.value)}
+              disabled={isLoading}
+              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 disabled:bg-stone-100 disabled:cursor-not-allowed text-sm"
+            >
+              <option value="">Nenhuma meta</option>
+              {savingsGoals
+                .filter(goal => goal.is_active && !goal.is_completed)
+                .map((goal) => (
+                <option key={goal.savings_goal_id} value={goal.savings_goal_id}>
+                  {goal.icon || '🎯'} {goal.name} (Meta: R$ {parseFloat(goal.target_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-stone-500 mt-1">
+              Transações que corresponderem a esta entrada serão automaticamente vinculadas à meta
+            </p>
           </div>
         )}
 
         {/* Linked Advanced Pattern indicator - shown when we have a linked pattern (both create and edit mode) */}
         {linkedPatternId && (
-          <div className="p-3 bg-terra-50 rounded-lg border border-terra-200">
+          <div className="p-3 bg-stone-100 rounded-lg border border-stone-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-terra-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                 </svg>
                 <div>
-                  <span className="text-sm font-medium text-terra-800">
+                  <span className="text-sm font-medium text-stone-800">
                     Padrão Avançado Vinculado
                   </span>
                   {linkedPatternName && (
-                    <p className="text-xs text-terra-600">{linkedPatternName}</p>
+                    <p className="text-xs text-stone-600">{linkedPatternName}</p>
                   )}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleClearLinkedPattern}
-                className="text-xs text-terra-600 hover:text-terra-800 underline"
+                className="text-xs text-stone-600 hover:text-stone-800 underline"
               >
                 Remover
               </button>
@@ -795,18 +566,18 @@ export default function PlannedEntryForm({
         )}
 
         {/* Advanced Pattern Creation - available in both create and edit mode when no pattern is linked */}
-        {!isSavedPattern && !linkedPatternId && (
-          <div className="p-3 bg-terra-50 rounded-lg border border-terra-200">
+        {!linkedPatternId && (
+          <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-terra-800">Padrão Avançado</span>
-                <p className="text-xs text-terra-600">Regex, filtros de data, dia da semana e mais</p>
+                <span className="text-sm font-medium text-stone-700">Padrão de Auto-Matching</span>
+                <p className="text-xs text-stone-500">Vincular transações automaticamente</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAdvancedPatternModal(true)}
                 disabled={isLoading || !categoryId || !description}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-terra-500 rounded-lg hover:bg-terra-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Criar Padrão
               </button>

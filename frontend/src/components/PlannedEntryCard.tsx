@@ -8,6 +8,7 @@ interface PlannedEntryCardProps {
   categoryName: string;
   month: number;
   year: number;
+  goalName?: string; // Name of linked savings goal (if any)
   onMatch?: (entryId: number) => void;
   onUnmatch?: (entryId: number) => void;
   onDismiss?: (entryId: number, reason?: string) => void;
@@ -21,6 +22,7 @@ export default function PlannedEntryCard({
   categoryName,
   month,
   year,
+  goalName,
   onMatch,
   onUnmatch,
   onDismiss,
@@ -166,6 +168,14 @@ export default function PlannedEntryCard({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                   </svg>
                   Padrão
+                </span>
+              )}
+              {goalName && (
+                <span
+                  className="text-xs px-2 py-1 rounded bg-wheat-100 text-wheat-800 flex items-center gap-1"
+                  title={`Vinculado à meta: ${goalName}`}
+                >
+                  🎯 {goalName}
                 </span>
               )}
             </div>

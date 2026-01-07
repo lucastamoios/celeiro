@@ -116,6 +116,7 @@ export interface PlannedEntry {
   OrganizationID: number;
   CategoryID: number;
   PatternID?: number; // Link to advanced pattern for auto-matching
+  SavingsGoalID?: number; // Link to savings goal - matched transactions inherit this
   Description: string;
   Amount: string; // Decimal as string (display amount)
   AmountMin?: string; // Decimal as string - minimum expected amount
@@ -193,6 +194,7 @@ export interface CreatePlannedEntryRequest {
   is_saved_pattern: boolean;
   pattern_id?: number;
   description_pattern?: string; // Pattern for auto-matching transaction descriptions
+  savings_goal_id?: number; // Link to savings goal - matched transactions inherit this
 }
 
 export interface UpdatePlannedEntryRequest {
@@ -206,6 +208,7 @@ export interface UpdatePlannedEntryRequest {
   entry_type?: 'expense' | 'income';
   is_active?: boolean;
   pattern_id?: number;
+  savings_goal_id?: number; // Link to savings goal - matched transactions inherit this
 }
 
 export interface GenerateMonthlyInstancesRequest {
