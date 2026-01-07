@@ -613,6 +613,7 @@ export default function TransactionList() {
       {showCreateModal && selectedAccountId && (
         <TransactionCreateModal
           accountId={selectedAccountId}
+          organizationId={activeOrganizationId}
           categories={categories}
           onClose={() => setShowCreateModal(false)}
           onSave={handleCreateTransaction}

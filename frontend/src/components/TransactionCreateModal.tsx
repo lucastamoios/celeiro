@@ -6,6 +6,7 @@ import { useModalDismiss } from '../hooks/useModalDismiss';
 
 interface TransactionCreateModalProps {
   accountId: number;
+  organizationId: string;
   categories: Map<number, Category>;
   onClose: () => void;
   onSave: () => void;
@@ -13,6 +14,7 @@ interface TransactionCreateModalProps {
 
 export default function TransactionCreateModal({
   accountId,
+  organizationId,
   categories,
   onClose,
   onSave,
@@ -69,7 +71,7 @@ export default function TransactionCreateModal({
 
       await createTransaction(accountId, data, {
         token,
-        organizationId: '1',
+        organizationId,
       });
 
       onSave();
