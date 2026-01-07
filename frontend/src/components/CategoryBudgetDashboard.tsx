@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { BarChart3, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -6,6 +6,7 @@ import { useSelectedMonth } from '../hooks/useSelectedMonth';
 import type { CategoryBudget, CreateCategoryBudgetRequest, CreatePlannedEntryRequest, PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import type { ApiResponse, Transaction } from '../types/transaction';
+import type { SavingsGoal } from '../types/savingsGoals';
 import {
   getCategoryBudgets,
   createCategoryBudget,
@@ -22,6 +23,7 @@ import {
   dismissPlannedEntry,
   undismissPlannedEntry,
 } from '../api/budget';
+import { listSavingsGoals } from '../api/savingsGoals';
 import { financialUrl } from '../config/api';
 import PlannedEntryForm from './PlannedEntryForm';
 import MonthlyBudgetCard from './MonthlyBudgetCard';
@@ -89,6 +91,24 @@ export default function CategoryBudgetDashboard() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [budgetType, setBudgetType] = useState<'fixed' | 'calculated' | 'maior'>('fixed');
   const [plannedAmount, setPlannedAmount] = useState<string>('');
+
+  // Savings goals for planned entry linking
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+
+  // Fetch savings goals for the goal selector in PlannedEntryForm
+  const fetchSavingsGoals = useCallback(async () => {
+    if (!token) return;
+    try {
+      const goals = await listSavingsGoals({ is_completed: false }, { token });
+      setSavingsGoals(goals || []);
+    } catch (err) {
+      console.error('Failed to fetch savings goals:', err);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchSavingsGoals();
+  }, [fetchSavingsGoals]);
 
   // Handle ESC key to close modals (innermost first)
   useEffect(() => {
@@ -1560,6 +1580,7 @@ export default function CategoryBudgetDashboard() {
         >
           <PlannedEntryForm
             categories={categories}
+            savingsGoals={savingsGoals}
             onSubmit={editingEntry ? handleUpdatePlannedEntry : handleCreatePlannedEntry}
             onCancel={() => {
               setShowCreateEntryModal(false);
@@ -1653,6 +1674,7 @@ export default function CategoryBudgetDashboard() {
           {editingPlannedEntryFromBudget && (
             <PlannedEntryForm
               categories={categories}
+              savingsGoals={savingsGoals}
               onSubmit={handleSavePlannedEntryFromBudget}
               onCancel={handleClosePlannedEntryEditModal}
               initialEntry={{
