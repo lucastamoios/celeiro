@@ -439,7 +439,6 @@ func (r *repository) RemoveAccount(ctx context.Context, params removeAccountPara
 
 type fetchTransactionsParams struct {
 	AccountID      int
-	UserID         int
 	OrganizationID int
 	Limit          int
 	Offset         int
@@ -471,16 +470,15 @@ const fetchTransactionsQuery = `
 	FROM transactions t
 	INNER JOIN accounts a ON a.account_id = t.account_id
 	WHERE t.account_id = $1
-		AND a.user_id = $2
-		AND a.organization_id = $3
+		AND a.organization_id = $2
 	ORDER BY t.transaction_date DESC, t.created_at DESC
-	LIMIT $4 OFFSET $5;
+	LIMIT $3 OFFSET $4;
 `
 
 func (r *repository) FetchTransactions(ctx context.Context, params fetchTransactionsParams) ([]TransactionModel, error) {
 	var result []TransactionModel
 	err := r.db.Query(ctx, &result, fetchTransactionsQuery,
-		params.AccountID, params.UserID, params.OrganizationID, params.Limit, params.Offset)
+		params.AccountID, params.OrganizationID, params.Limit, params.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +487,6 @@ func (r *repository) FetchTransactions(ctx context.Context, params fetchTransact
 
 type fetchTransactionByIDParams struct {
 	TransactionID  int
-	UserID         int
 	OrganizationID int
 }
 
@@ -519,23 +516,21 @@ const fetchTransactionByIDQuery = `
 	FROM transactions t
 	INNER JOIN accounts a ON a.account_id = t.account_id
 	WHERE t.transaction_id = $1
-		AND a.user_id = $2
-		AND a.organization_id = $3;
+		AND a.organization_id = $2;
 `
 
 func (r *repository) FetchTransactionByID(ctx context.Context, params fetchTransactionByIDParams) (TransactionModel, error) {
 	var result TransactionModel
-	err := r.db.Query(ctx, &result, fetchTransactionByIDQuery, params.TransactionID, params.UserID, params.OrganizationID)
+	err := r.db.Query(ctx, &result, fetchTransactionByIDQuery, params.TransactionID, params.OrganizationID)
 	if err != nil {
 		return TransactionModel{}, err
 	}
 	return result, nil
 }
 
-// FetchUncategorizedTransactions fetches all transactions without a category for a user/organization
+// FetchUncategorizedTransactions fetches all transactions without a category for an organization
 // Used for retroactive pattern application
 type fetchUncategorizedTransactionsParams struct {
-	UserID         int
 	OrganizationID int
 }
 
@@ -564,8 +559,7 @@ const fetchUncategorizedTransactionsQuery = `
 		t.tags
 	FROM transactions t
 	INNER JOIN accounts a ON a.account_id = t.account_id
-	WHERE a.user_id = $1
-		AND a.organization_id = $2
+	WHERE a.organization_id = $1
 		AND t.category_id IS NULL
 		AND t.is_ignored = FALSE
 	ORDER BY t.transaction_date DESC;
@@ -573,7 +567,7 @@ const fetchUncategorizedTransactionsQuery = `
 
 func (r *repository) FetchUncategorizedTransactions(ctx context.Context, params fetchUncategorizedTransactionsParams) ([]TransactionModel, error) {
 	var result []TransactionModel
-	err := r.db.Query(ctx, &result, fetchUncategorizedTransactionsQuery, params.UserID, params.OrganizationID)
+	err := r.db.Query(ctx, &result, fetchUncategorizedTransactionsQuery, params.OrganizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -583,7 +577,6 @@ func (r *repository) FetchUncategorizedTransactions(ctx context.Context, params 
 // FetchTransactionsForPatternMatching fetches all transactions for pattern matching (including already categorized ones)
 // Used for retroactive pattern application when user wants to re-apply patterns to all transactions
 type fetchTransactionsForPatternMatchingParams struct {
-	UserID         int
 	OrganizationID int
 }
 
@@ -612,15 +605,14 @@ const fetchTransactionsForPatternMatchingQuery = `
 		t.tags
 	FROM transactions t
 	INNER JOIN accounts a ON a.account_id = t.account_id
-	WHERE a.user_id = $1
-		AND a.organization_id = $2
+	WHERE a.organization_id = $1
 		AND t.is_ignored = FALSE
 	ORDER BY t.transaction_date DESC;
 `
 
 func (r *repository) FetchTransactionsForPatternMatching(ctx context.Context, params fetchTransactionsForPatternMatchingParams) ([]TransactionModel, error) {
 	var result []TransactionModel
-	err := r.db.Query(ctx, &result, fetchTransactionsForPatternMatchingQuery, params.UserID, params.OrganizationID)
+	err := r.db.Query(ctx, &result, fetchTransactionsForPatternMatchingQuery, params.OrganizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -628,7 +620,6 @@ func (r *repository) FetchTransactionsForPatternMatching(ctx context.Context, pa
 }
 
 type fetchTransactionsByMonthParams struct {
-	UserID         int
 	OrganizationID int
 	Month          int
 	Year           int
@@ -659,17 +650,16 @@ const fetchTransactionsByMonthQuery = `
 		t.tags
 	FROM transactions t
 	INNER JOIN accounts a ON a.account_id = t.account_id
-	WHERE a.user_id = $1
-		AND a.organization_id = $2
-		AND EXTRACT(MONTH FROM t.transaction_date) = $3
-		AND EXTRACT(YEAR FROM t.transaction_date) = $4
+	WHERE a.organization_id = $1
+		AND EXTRACT(MONTH FROM t.transaction_date) = $2
+		AND EXTRACT(YEAR FROM t.transaction_date) = $3
 	ORDER BY t.transaction_date ASC;
 `
 
 func (r *repository) FetchTransactionsByMonth(ctx context.Context, params fetchTransactionsByMonthParams) ([]TransactionModel, error) {
 	var result []TransactionModel
 	err := r.db.Query(ctx, &result, fetchTransactionsByMonthQuery,
-		params.UserID, params.OrganizationID, params.Month, params.Year)
+		params.OrganizationID, params.Month, params.Year)
 	if err != nil {
 		return nil, err
 	}
@@ -854,7 +844,6 @@ func (r *repository) FetchBudgets(ctx context.Context, params fetchBudgetsParams
 
 type fetchBudgetByIDParams struct {
 	BudgetID       int
-	UserID         int
 	OrganizationID int
 }
 
@@ -972,7 +961,6 @@ func (r *repository) RemoveBudget(ctx context.Context, params removeBudgetParams
 
 type fetchBudgetItemsParams struct {
 	BudgetID       int
-	UserID         int
 	OrganizationID int
 }
 
@@ -988,13 +976,12 @@ const fetchBudgetItemsQuery = `
 	FROM budget_items bi
 	INNER JOIN budgets b ON b.budget_id = bi.budget_id
 	WHERE bi.budget_id = $1
-		AND b.user_id = $2
-		AND b.organization_id = $3;
+		AND b.organization_id = $2;
 `
 
 func (r *repository) FetchBudgetItems(ctx context.Context, params fetchBudgetItemsParams) ([]BudgetItemModel, error) {
 	var result []BudgetItemModel
-	err := r.db.Query(ctx, &result, fetchBudgetItemsQuery, params.BudgetID, params.UserID, params.OrganizationID)
+	err := r.db.Query(ctx, &result, fetchBudgetItemsQuery, params.BudgetID, params.OrganizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -1238,7 +1225,6 @@ func (r *repository) RemoveClassificationRule(ctx context.Context, params remove
 
 type fetchBudgetSpendingParams struct {
 	BudgetID       int
-	UserID         int
 	OrganizationID int
 	Month          int
 	Year           int
@@ -1256,11 +1242,10 @@ const fetchBudgetSpendingQuery = `
 		COALESCE(SUM(ABS(t.amount)), 0) as total_spent
 	FROM transactions t
 	INNER JOIN accounts a ON a.account_id = t.account_id
-	WHERE a.user_id = $1
-		AND a.organization_id = $2
+	WHERE a.organization_id = $1
 		AND t.category_id IS NOT NULL
-		AND EXTRACT(MONTH FROM t.transaction_date) = $3
-		AND EXTRACT(YEAR FROM t.transaction_date) = $4
+		AND EXTRACT(MONTH FROM t.transaction_date) = $2
+		AND EXTRACT(YEAR FROM t.transaction_date) = $3
 		AND t.transaction_type = 'debit'
 		AND t.is_ignored = false
 	GROUP BY t.category_id;
@@ -1269,7 +1254,7 @@ const fetchBudgetSpendingQuery = `
 func (r *repository) FetchBudgetSpending(ctx context.Context, params fetchBudgetSpendingParams) (map[int]decimal.Decimal, error) {
 	var results []CategorySpendingResult
 	err := r.db.Query(ctx, &results, fetchBudgetSpendingQuery,
-		params.UserID, params.OrganizationID, params.Month, params.Year)
+		params.OrganizationID, params.Month, params.Year)
 	if err != nil {
 		return nil, err
 	}
