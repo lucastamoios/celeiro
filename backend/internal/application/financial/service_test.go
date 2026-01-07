@@ -335,6 +335,84 @@ func (m *MockRepository) FetchPlannedEntriesByPatternIDs(ctx context.Context, pa
 	return args.Get(0).([]PlannedEntryByPatternModel), args.Error(1)
 }
 
+// Savings Goals
+func (m *MockRepository) FetchSavingsGoals(ctx context.Context, params fetchSavingsGoalsParams) ([]SavingsGoalModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]SavingsGoalModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchSavingsGoalByID(ctx context.Context, params fetchSavingsGoalByIDParams) (SavingsGoalModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(SavingsGoalModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertSavingsGoal(ctx context.Context, params insertSavingsGoalParams) (SavingsGoalModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(SavingsGoalModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifySavingsGoal(ctx context.Context, params modifySavingsGoalParams) (SavingsGoalModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(SavingsGoalModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveSavingsGoal(ctx context.Context, params removeSavingsGoalParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+func (m *MockRepository) AddContribution(ctx context.Context, params addContributionParams) (SavingsGoalModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(SavingsGoalModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchGoalContributions(ctx context.Context, params fetchGoalContributionsParams) ([]TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TransactionModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchGoalMonthlyContributions(ctx context.Context, params fetchGoalMonthlyContributionsParams) ([]GoalMonthlyContributionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]GoalMonthlyContributionModel), args.Error(1)
+}
+
+// Tags
+func (m *MockRepository) FetchTags(ctx context.Context, params fetchTagsParams) ([]TagModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(TagModel), args.Error(1)
+}
+
+func (m *MockRepository) InsertTag(ctx context.Context, params insertTagParams) (TagModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(TagModel), args.Error(1)
+}
+
+func (m *MockRepository) ModifyTag(ctx context.Context, params modifyTagParams) (TagModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(TagModel), args.Error(1)
+}
+
+func (m *MockRepository) RemoveTag(ctx context.Context, params removeTagParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+// Transaction Tags (junction table)
+func (m *MockRepository) FetchTagsByTransactionID(ctx context.Context, params fetchTagsByTransactionIDParams) ([]TagModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagModel), args.Error(1)
+}
+
+func (m *MockRepository) SetTransactionTags(ctx context.Context, params setTransactionTagsParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
 // ============================================================================
 // Service Tests
 // ============================================================================
@@ -348,20 +426,20 @@ func TestGetCategories_Success(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	userID := 1
+	organizationID := 1
 
 	expectedModels := []CategoryModel{
-		{CategoryID: 1, Name: "Food", Icon: "🍔", IsSystem: true, UserID: nil},
-		{CategoryID: 2, Name: "Custom", Icon: "✨", IsSystem: false, UserID: &userID},
+		{CategoryID: 1, Name: "Food", Icon: "🍔", IsSystem: true, OrganizationID: nil},
+		{CategoryID: 2, Name: "Custom", Icon: "✨", IsSystem: false, OrganizationID: &organizationID},
 	}
 
 	mockRepo.On("FetchCategories", ctx, mock.MatchedBy(func(params fetchCategoriesParams) bool {
-		return *params.UserID == userID && params.IncludeSystem == true
+		return *params.OrganizationID == organizationID && params.IncludeSystem == true
 	})).Return(expectedModels, nil)
 
 	result, err := svc.GetCategories(ctx, GetCategoriesInput{
-		UserID:        userID,
-		IncludeSystem: true,
+		OrganizationID: organizationID,
+		IncludeSystem:  true,
 	})
 
 	assert.NoError(t, err)
@@ -445,13 +523,11 @@ func TestGetBudgetByID_Success(t *testing.T) {
 
 	mockRepo.On("FetchBudgetByID", ctx, fetchBudgetByIDParams{
 		BudgetID:       1,
-		UserID:         1,
 		OrganizationID: 1,
 	}).Return(budgetModel, nil)
 
 	mockRepo.On("FetchBudgetItems", ctx, fetchBudgetItemsParams{
 		BudgetID:       1,
-		UserID:         1,
 		OrganizationID: 1,
 	}).Return(itemModels, nil)
 
@@ -492,7 +568,6 @@ func TestGetTransactions_DefaultLimit(t *testing.T) {
 
 	_, err := svc.GetTransactions(ctx, GetTransactionsInput{
 		AccountID:      1,
-		UserID:         1,
 		OrganizationID: 1,
 		Limit:          0, // Should default to 100
 		Offset:         0,

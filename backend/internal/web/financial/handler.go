@@ -289,7 +289,7 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 // ============================================================================
 
 func (h *Handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
+	_, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
@@ -311,7 +311,6 @@ func (h *Handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 
 	transactions, err := h.app.FinancialService.GetTransactions(r.Context(), financialApp.GetTransactionsInput{
 		AccountID:      accountID,
-		UserID:         userID,
 		OrganizationID: organizationID,
 		Limit:          limit,
 		Offset:         offset,
@@ -325,7 +324,7 @@ func (h *Handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListUncategorizedTransactions(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
+	_, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
@@ -340,7 +339,6 @@ func (h *Handler) ListUncategorizedTransactions(w http.ResponseWriter, r *http.R
 	}
 
 	transactions, err := h.app.FinancialService.GetUncategorizedTransactions(r.Context(), financialApp.GetUncategorizedTransactionsInput{
-		UserID:         userID,
 		OrganizationID: organizationID,
 		Limit:          limit,
 		Offset:         offset,
@@ -787,7 +785,7 @@ func (h *Handler) DeleteBudgetItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetBudgetSpending(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
+	_, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
@@ -801,7 +799,6 @@ func (h *Handler) GetBudgetSpending(w http.ResponseWriter, r *http.Request) {
 
 	spending, err := h.app.FinancialService.GetBudgetSpending(r.Context(), financialApp.GetBudgetSpendingInput{
 		BudgetID:       budgetID,
-		UserID:         userID,
 		OrganizationID: organizationID,
 	})
 	if err != nil {

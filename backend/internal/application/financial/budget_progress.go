@@ -61,7 +61,6 @@ func (s *service) CalculateBudgetProgress(ctx context.Context, input CalculateBu
 	// Get budget
 	budgetModel, err := s.Repository.FetchBudgetByID(ctx, fetchBudgetByIDParams{
 		BudgetID:       input.BudgetID,
-		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
 	})
 	if err != nil {
@@ -74,7 +73,6 @@ func (s *service) CalculateBudgetProgress(ctx context.Context, input CalculateBu
 	// Get budget items
 	itemsModels, err := s.Repository.FetchBudgetItems(ctx, fetchBudgetItemsParams{
 		BudgetID:       input.BudgetID,
-		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
 	})
 	if err != nil {
@@ -89,7 +87,6 @@ func (s *service) CalculateBudgetProgress(ctx context.Context, input CalculateBu
 
 	// Get transactions for this month
 	transactions, err := s.Repository.FetchTransactionsByMonth(ctx, fetchTransactionsByMonthParams{
-		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
 		Month:          budget.Month,
 		Year:           budget.Year,

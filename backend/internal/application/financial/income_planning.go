@@ -96,36 +96,24 @@ func (s *service) GetIncomePlanning(ctx context.Context, input GetIncomePlanning
 
 // calculateMonthlyIncome sums all credit transactions for a given month
 func (s *service) calculateMonthlyIncome(ctx context.Context, userID, organizationID, month, year int) (decimal.Decimal, error) {
-	// Use the repository to fetch all transactions
-	// We'll filter by type and date in-memory since the repo doesn't support type filtering
-	params := fetchTransactionsParams{
-		UserID:         userID,
+	// Use the repository to fetch transactions by month for the organization
+	transactions, err := s.Repository.FetchTransactionsByMonth(ctx, fetchTransactionsByMonthParams{
 		OrganizationID: organizationID,
-		AccountID:      0,    // 0 means all accounts
-		Limit:          0,    // 0 means no limit
-		Offset:         0,
-	}
-
-	transactions, err := s.Repository.FetchTransactions(ctx, params)
+		Month:          month,
+		Year:           year,
+	})
 	if err != nil {
 		return decimal.Zero, err
 	}
 
-	// Filter by credit type, month and year, then sum amounts
+	// Filter by credit type and sum amounts (month/year already filtered by query)
 	total := decimal.Zero
 	for _, tx := range transactions {
 		// Only include credit transactions
 		if tx.TransactionType != "credit" {
 			continue
 		}
-
-		// Extract month and year from transaction date
-		txMonth := int(tx.TransactionDate.Month())
-		txYear := tx.TransactionDate.Year()
-
-		if txMonth == month && txYear == year {
-			total = total.Add(tx.Amount)
-		}
+		total = total.Add(tx.Amount)
 	}
 
 	return total, nil
