@@ -11,6 +11,8 @@ interface PlannedEntryFormProps {
   onCancel: () => void;
   initialEntry?: PlannedEntry;
   isLoading?: boolean;
+  /** When true, hides pattern creation options (for editing existing entries) */
+  isEditMode?: boolean;
 }
 
 // Match scoring function - returns a score (higher = better match)
@@ -78,6 +80,7 @@ export default function PlannedEntryForm({
   onCancel,
   initialEntry,
   isLoading = false,
+  isEditMode = false,
 }: PlannedEntryFormProps) {
   const [categoryId, setCategoryId] = useState<string>(
     initialEntry?.CategoryID.toString() || ''
@@ -544,9 +547,11 @@ export default function PlannedEntryForm({
         </p>
       </div>
 
-      {/* Checkboxes */}
-      <div className="space-y-2 pt-2 border-t border-stone-200">
-        <div className="flex items-center pt-2">
+      {/* Options Section */}
+      <div className="space-y-3 pt-4 border-t border-stone-200">
+        <p className="text-xs font-medium text-stone-500 uppercase tracking-wide">Opções</p>
+
+        <label className="flex items-center gap-3 p-3 bg-stone-50 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
           <input
             id="isRecurrent"
             type="checkbox"
@@ -555,27 +560,32 @@ export default function PlannedEntryForm({
             disabled={isLoading}
             className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300 rounded disabled:opacity-50"
           />
-          <label htmlFor="isRecurrent" className="ml-2 text-sm text-stone-700">
-            Entrada recorrente (aparece todo mês)
-          </label>
-        </div>
+          <div>
+            <span className="text-sm font-medium text-stone-700">Entrada recorrente</span>
+            <p className="text-xs text-stone-500">Aparece automaticamente todo mês</p>
+          </div>
+        </label>
 
-        <div className="flex items-center">
-          <input
-            id="isSavedPattern"
-            type="checkbox"
-            checked={isSavedPattern}
-            onChange={(e) => setIsSavedPattern(e.target.checked)}
-            disabled={isLoading}
-            className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300 rounded disabled:opacity-50"
-          />
-          <label htmlFor="isSavedPattern" className="ml-2 text-sm text-stone-700">
-            Criar padrão para auto-matching
+        {/* Pattern creation only shown when creating new entries, not editing */}
+        {!isEditMode && (
+          <label className="flex items-center gap-3 p-3 bg-stone-50 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
+            <input
+              id="isSavedPattern"
+              type="checkbox"
+              checked={isSavedPattern}
+              onChange={(e) => setIsSavedPattern(e.target.checked)}
+              disabled={isLoading}
+              className="h-4 w-4 text-wheat-600 focus:ring-wheat-500 border-stone-300 rounded disabled:opacity-50"
+            />
+            <div>
+              <span className="text-sm font-medium text-stone-700">Criar padrão</span>
+              <p className="text-xs text-stone-500">Auto-matching de transações futuras</p>
+            </div>
           </label>
-        </div>
+        )}
 
-        {/* Description Pattern Field - shown when isSavedPattern is checked */}
-        {isSavedPattern && (
+        {/* Description Pattern Field - shown when isSavedPattern is checked (only in create mode) */}
+        {!isEditMode && isSavedPattern && (
           <div className="ml-6 mt-3 p-3 bg-wheat-50 rounded-lg border border-wheat-200">
             <label
               htmlFor="descriptionPattern"
