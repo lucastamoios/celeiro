@@ -6,6 +6,7 @@ import (
 	accountsWeb "github.com/catrutech/celeiro/internal/web/accounts"
 	financialWeb "github.com/catrutech/celeiro/internal/web/financial"
 	"github.com/catrutech/celeiro/internal/web/middlewares"
+	"github.com/catrutech/celeiro/internal/web/webhooks"
 	"github.com/catrutech/celeiro/pkg/logging"
 
 	"github.com/go-chi/chi/v5"
@@ -18,6 +19,7 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 	mw := middlewares.NewMiddleware(application, logger)
 	ah := accountsWeb.NewHandler(application)
 	fh := financialWeb.NewHandler(application)
+	wh := webhooks.NewHandler(application, logger)
 
 	r.Use(mw.LogError)
 	r.Use(mw.Session)
@@ -59,6 +61,9 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 
 	// Public system invite acceptance (token-based auth)
 	r.Post("/system-invites/accept", ah.AcceptSystemInvite)
+
+	// Webhooks (public endpoints for external services)
+	r.Post("/webhooks/email/inbound", wh.HandleResendInbound)
 
 	// Financial endpoints (all require authentication)
 	r.Route("/financial", func(r chi.Router) {

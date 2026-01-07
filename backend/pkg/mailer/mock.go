@@ -20,3 +20,11 @@ func (m *MockMailer) SendEmail(ctx context.Context, message EmailTemplateMessage
 	log.Printf("Data: %+v", message.Data)
 	return nil
 }
+
+func (m *MockMailer) SendPlainEmail(ctx context.Context, message EmailMessage) error {
+	log.Printf("📧 MOCK MAILER (Plain) 📧")
+	log.Printf("To: %s", strings.Join(message.To, ", "))
+	log.Printf("Subject: %s", message.Subject)
+	log.Printf("Body: %s", message.Body)
+	return nil
+}

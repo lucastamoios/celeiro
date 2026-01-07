@@ -17,15 +17,18 @@ import (
 type Application struct {
 	AccountsService  accounts.Service
 	FinancialService financial.Service
+	Mailer           mailer.Mailer
 }
 
 func NewApplication(
 	accountsService accounts.Service,
 	financialService financial.Service,
+	mailer mailer.Mailer,
 ) *Application {
 	return &Application{
 		AccountsService:  accountsService,
 		FinancialService: financialService,
+		Mailer:           mailer,
 	}
 }
 

@@ -88,7 +88,11 @@ func (s *SMTP2GOProvider) SendEmail(ctx context.Context, message EmailTemplateMe
 		return fmt.Errorf("failed to build email from template: %w", err)
 	}
 
-	return s.sendEmailMessage(ctx, emailMessage)
+	return s.SendPlainEmail(ctx, emailMessage)
+}
+
+func (s *SMTP2GOProvider) SendPlainEmail(ctx context.Context, email EmailMessage) error {
+	return s.sendEmailMessage(ctx, email)
 }
 
 func (s *SMTP2GOProvider) sendEmailMessage(ctx context.Context, email EmailMessage) error {

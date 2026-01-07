@@ -34,6 +34,10 @@ func (r *ResendProvider) SendEmail(ctx context.Context, message EmailTemplateMes
 		return err
 	}
 
+	return r.SendPlainEmail(ctx, emailMessage)
+}
+
+func (r *ResendProvider) SendPlainEmail(ctx context.Context, emailMessage EmailMessage) error {
 	sender := r.config.DefaultSender
 	if sender == "" {
 		sender = "Celeiro <noreply@mail.celeiro.catru.tech>"
@@ -43,7 +47,12 @@ func (r *ResendProvider) SendEmail(ctx context.Context, message EmailTemplateMes
 		From:    sender,
 		To:      emailMessage.To,
 		Subject: emailMessage.Subject,
-		Html:    emailMessage.Body,
+	}
+
+	if emailMessage.IsHTML {
+		params.Html = emailMessage.Body
+	} else {
+		params.Text = emailMessage.Body
 	}
 
 	sent, err := r.client.Emails.Send(params)

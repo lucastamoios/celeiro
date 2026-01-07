@@ -20,6 +20,7 @@ type EmailTemplateMessage struct {
 
 type Mailer interface {
 	SendEmail(ctx context.Context, message EmailTemplateMessage) error
+	SendPlainEmail(ctx context.Context, message EmailMessage) error
 }
 
 func BuildEmailFromTemplate(tplMsg EmailTemplateMessage) (EmailMessage, error) {
