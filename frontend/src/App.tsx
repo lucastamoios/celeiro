@@ -30,11 +30,28 @@ function getInviteToken(): string | null {
   return params.get('token');
 }
 
+// Helper to get view from URL params (for middle-click support)
+function getViewFromUrl(): View | null {
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get('view');
+  if (view && VALID_VIEWS.includes(view as View)) {
+    return view as View;
+  }
+  return null;
+}
+
 const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'goals', 'settings', 'uncategorized'];
 const VIEW_STORAGE_KEY = 'celeiro_current_view';
 
 function getInitialView(): View {
-  const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+  // Priority: URL param > sessionStorage > default
+  const urlView = getViewFromUrl();
+  if (urlView) {
+    return urlView;
+  }
+
+  // Use sessionStorage for per-tab state (not shared across tabs)
+  const stored = sessionStorage.getItem(VIEW_STORAGE_KEY);
   if (stored && VALID_VIEWS.includes(stored as View)) {
     return stored as View;
   }
@@ -50,7 +67,7 @@ function AppContent() {
 
   const setCurrentView = useCallback((view: View) => {
     setCurrentViewState(view);
-    localStorage.setItem(VIEW_STORAGE_KEY, view);
+    sessionStorage.setItem(VIEW_STORAGE_KEY, view);
     setIsMobileMenuOpen(false); // Close mobile menu when navigating
   }, []);
 
@@ -82,6 +99,15 @@ function AppContent() {
     return <Login />;
   }
 
+  // Handler for middle-click (auxiliary click) to open in new tab
+  const handleAuxClick = useCallback((view: View) => (e: React.MouseEvent) => {
+    // Middle-click (button 1) or Ctrl/Cmd+click
+    if (e.button === 1 || e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      window.open(`${window.location.origin}${window.location.pathname}?view=${view}`, '_blank');
+    }
+  }, []);
+
   const navButtonClass = (view: View) =>
     `px-3 py-2 text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-2 ${
       currentView === view
@@ -105,7 +131,14 @@ function AppContent() {
             {/* Logo and Desktop Nav */}
             <div className="flex items-center space-x-6">
               <button
-                onClick={() => setCurrentView('dashboard')}
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    handleAuxClick('dashboard')(e);
+                  } else {
+                    setCurrentView('dashboard');
+                  }
+                }}
+                onAuxClick={handleAuxClick('dashboard')}
                 className="flex items-center gap-2 text-xl font-bold text-stone-900 hover:text-wheat-600 transition-colors"
               >
                 <Wheat className="w-6 h-6 text-wheat-600" />
@@ -114,21 +147,42 @@ function AppContent() {
               {/* Desktop Navigation - Hidden on mobile/tablet */}
               <div className="hidden lg:flex space-x-1">
                 <button
-                  onClick={() => setCurrentView('transactions')}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                      handleAuxClick('transactions')(e);
+                    } else {
+                      setCurrentView('transactions');
+                    }
+                  }}
+                  onAuxClick={handleAuxClick('transactions')}
                   className={navButtonClass('transactions')}
                 >
                   <CreditCard className="w-4 h-4" />
                   <span>Transações</span>
                 </button>
                 <button
-                  onClick={() => setCurrentView('budgets')}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                      handleAuxClick('budgets')(e);
+                    } else {
+                      setCurrentView('budgets');
+                    }
+                  }}
+                  onAuxClick={handleAuxClick('budgets')}
                   className={navButtonClass('budgets')}
                 >
                   <PieChart className="w-4 h-4" />
                   <span>Orçamentos</span>
                 </button>
                 <button
-                  onClick={() => setCurrentView('goals')}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                      handleAuxClick('goals')(e);
+                    } else {
+                      setCurrentView('goals');
+                    }
+                  }}
+                  onAuxClick={handleAuxClick('goals')}
                   className={navButtonClass('goals')}
                 >
                   <Target className="w-4 h-4" />
@@ -185,28 +239,56 @@ function AppContent() {
           <div className="fixed top-16 left-0 right-0 bg-white border-b border-stone-200 shadow-lg z-50 lg:hidden">
             <div className="px-4 py-4 space-y-1">
               <button
-                onClick={() => setCurrentView('dashboard')}
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    handleAuxClick('dashboard')(e);
+                  } else {
+                    setCurrentView('dashboard');
+                  }
+                }}
+                onAuxClick={handleAuxClick('dashboard')}
                 className={mobileNavButtonClass('dashboard')}
               >
                 <LayoutDashboard className="w-5 h-5" />
                 <span>Dashboard</span>
               </button>
               <button
-                onClick={() => setCurrentView('transactions')}
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    handleAuxClick('transactions')(e);
+                  } else {
+                    setCurrentView('transactions');
+                  }
+                }}
+                onAuxClick={handleAuxClick('transactions')}
                 className={mobileNavButtonClass('transactions')}
               >
                 <CreditCard className="w-5 h-5" />
                 <span>Transações</span>
               </button>
               <button
-                onClick={() => setCurrentView('budgets')}
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    handleAuxClick('budgets')(e);
+                  } else {
+                    setCurrentView('budgets');
+                  }
+                }}
+                onAuxClick={handleAuxClick('budgets')}
                 className={mobileNavButtonClass('budgets')}
               >
                 <PieChart className="w-5 h-5" />
                 <span>Orçamentos</span>
               </button>
               <button
-                onClick={() => setCurrentView('goals')}
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    handleAuxClick('goals')(e);
+                  } else {
+                    setCurrentView('goals');
+                  }
+                }}
+                onAuxClick={handleAuxClick('goals')}
                 className={mobileNavButtonClass('goals')}
               >
                 <Target className="w-5 h-5" />

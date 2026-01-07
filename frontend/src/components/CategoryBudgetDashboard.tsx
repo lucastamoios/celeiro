@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart3, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { useSelectedMonth } from '../hooks/useSelectedMonth';
 import type { CategoryBudget, CreateCategoryBudgetRequest, CreatePlannedEntryRequest, PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
@@ -37,6 +38,8 @@ interface MonthlyBudgetData {
 
 export default function CategoryBudgetDashboard() {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const organizationId = activeOrganization?.organization_id?.toString() || '1';
 
   // Shared month selection (synced across pages)
   const {
@@ -150,7 +153,7 @@ export default function CategoryBudgetDashboard() {
           // Fetch budgets for the selected month
           const budgets = await getCategoryBudgets(
             { month: selectedMonth, year: selectedYear },
-            { token, organizationId: '1' }
+            { token, organizationId }
           );
 
           const budgetArray = Array.isArray(budgets) ? budgets : [];
@@ -170,7 +173,7 @@ export default function CategoryBudgetDashboard() {
           // Fetch planned entries for the selected month
           const entries = await getPlannedEntriesForMonth(selectedMonth, selectedYear, {
             token,
-            organizationId: '1',
+            organizationId,
           });
           setExpandedMonthEntries(prev => ({
             ...prev,
@@ -230,7 +233,7 @@ export default function CategoryBudgetDashboard() {
       const allBudgetsPromises = monthsToFetch.map(({ month, year }) =>
         getCategoryBudgets(
           { month, year },
-          { token, organizationId: '1' }
+          { token, organizationId }
         ).then(budgets => {
           console.log(`📊 [fetchAllData] Budgets for ${month}/${year}:`, budgets?.length || 0, 'items', budgets?.map(b => ({ id: b.CategoryBudgetID, categoryId: b.CategoryID })));
           return { month, year, budgets: budgets || [] };
@@ -328,7 +331,7 @@ export default function CategoryBudgetDashboard() {
         )),
         // Fetch planned entries for all months
         Promise.all(monthsToFetch.map(({ month, year }) =>
-          getPlannedEntriesForMonth(month, year, { token, organizationId: '1' })
+          getPlannedEntriesForMonth(month, year, { token, organizationId })
             .then(entries => ({ month, year, entries: entries || [] }))
             .catch(() => ({ month, year, entries: [] as PlannedEntryWithStatus[] }))
         ))
@@ -551,7 +554,7 @@ export default function CategoryBudgetDashboard() {
         planned_amount: parsedAmount,
       };
 
-      await createCategoryBudget(data, { token, organizationId: '1' });
+      await createCategoryBudget(data, { token, organizationId });
 
       setSuccessMessage('Category budget created successfully!');
       setShowCreateBudgetModal(false);
@@ -604,7 +607,7 @@ export default function CategoryBudgetDashboard() {
           budget_type: budgetType,
           planned_amount: parsedAmount,
         },
-        { token, organizationId: '1' }
+        { token, organizationId }
       );
 
       setSuccessMessage('Budget updated successfully!');
@@ -628,7 +631,7 @@ export default function CategoryBudgetDashboard() {
     setError(null);
 
     try {
-      await deleteCategoryBudget(budgetId, { token, organizationId: '1' });
+      await deleteCategoryBudget(budgetId, { token, organizationId });
 
       setSuccessMessage('Budget deleted successfully!');
       await fetchAllData();
@@ -672,7 +675,7 @@ export default function CategoryBudgetDashboard() {
       console.log('🗑️ [handleDeleteMonth] Starting budget deletions...');
       const budgetDeletions = budgetIds.map((id) => {
         console.log(`🗑️ [handleDeleteMonth] Deleting budget ID: ${id}`);
-        return deleteCategoryBudget(id, { token, organizationId: '1' })
+        return deleteCategoryBudget(id, { token, organizationId })
           .then((result) => {
             console.log(`✅ [handleDeleteMonth] Budget ${id} deleted successfully`, result);
             return result;
@@ -687,7 +690,7 @@ export default function CategoryBudgetDashboard() {
       console.log('🗑️ [handleDeleteMonth] Starting planned entry dismissals...');
       const entryDismissals = plannedEntryIds.map((id) => {
         console.log(`🗑️ [handleDeleteMonth] Dismissing planned entry ID: ${id} for month ${month}/${year}`);
-        return dismissPlannedEntry(id, { month, year }, { token, organizationId: '1' })
+        return dismissPlannedEntry(id, { month, year }, { token, organizationId })
           .then((result) => {
             console.log(`✅ [handleDeleteMonth] Planned entry ${id} dismissed successfully`, result);
             return result;
@@ -729,7 +732,7 @@ export default function CategoryBudgetDashboard() {
     setError(null);
 
     try {
-      await consolidateCategoryBudget(budgetId, { token, organizationId: '1' });
+      await consolidateCategoryBudget(budgetId, { token, organizationId });
 
       setSuccessMessage('Budget consolidated successfully!');
       await fetchAllData();
@@ -759,7 +762,7 @@ export default function CategoryBudgetDashboard() {
       // Consolidate all unconsolidated budgets in parallel
       await Promise.all(
         unconsolidatedBudgets.map(budget =>
-          consolidateCategoryBudget(budget.CategoryBudgetID, { token, organizationId: '1' })
+          consolidateCategoryBudget(budget.CategoryBudgetID, { token, organizationId })
         )
       );
 
@@ -797,7 +800,7 @@ export default function CategoryBudgetDashboard() {
           target_month: targetMonth,
           target_year: targetYear,
         },
-        { token, organizationId: '1' }
+        { token, organizationId }
       );
 
       if (copiedBudgets.length === 0) {
@@ -823,7 +826,7 @@ export default function CategoryBudgetDashboard() {
     setError(null);
 
     try {
-      await createPlannedEntry(data, { token, organizationId: '1' });
+      await createPlannedEntry(data, { token, organizationId });
 
       setSuccessMessage('Entrada planejada criada com sucesso!');
       setShowCreateEntryModal(false);
@@ -868,7 +871,7 @@ export default function CategoryBudgetDashboard() {
     try {
       const entries = await getPlannedEntriesForMonth(month, year, {
         token,
-        organizationId: '1',
+        organizationId,
       });
       setExpandedMonthEntries(prev => ({ ...prev, [key]: entries || [] }));
     } catch (err) {
@@ -911,7 +914,7 @@ export default function CategoryBudgetDashboard() {
     try {
       await unmatchPlannedEntry(entryId, month, year, {
         token,
-        organizationId: '1',
+        organizationId,
       });
 
       setSuccessMessage('Entrada desvinculada com sucesso!');
@@ -939,7 +942,7 @@ export default function CategoryBudgetDashboard() {
         reason,
       }, {
         token,
-        organizationId: '1',
+        organizationId,
       });
 
       setSuccessMessage('Entrada dispensada com sucesso!');
@@ -963,7 +966,7 @@ export default function CategoryBudgetDashboard() {
     try {
       await undismissPlannedEntry(entryId, month, year, {
         token,
-        organizationId: '1',
+        organizationId,
       });
 
       setSuccessMessage('Entrada reativada com sucesso!');
@@ -995,7 +998,7 @@ export default function CategoryBudgetDashboard() {
         },
         {
           token,
-          organizationId: '1',
+          organizationId,
         }
       );
 
@@ -1068,7 +1071,7 @@ export default function CategoryBudgetDashboard() {
     try {
       await updatePlannedEntry(editingPlannedEntryFromBudget.PlannedEntryID, data, {
         token,
-        organizationId: '1',
+        organizationId,
       });
 
       setSuccessMessage('Entrada planejada atualizada com sucesso!');
@@ -1100,7 +1103,7 @@ export default function CategoryBudgetDashboard() {
     try {
       await deletePlannedEntry(entryId, {
         token,
-        organizationId: '1',
+        organizationId,
       });
 
       setSuccessMessage('Entrada planejada excluída com sucesso!');
@@ -1129,7 +1132,7 @@ export default function CategoryBudgetDashboard() {
     try {
       await updatePlannedEntry(editingEntry.PlannedEntryID, data, {
         token,
-        organizationId: '1',
+        organizationId,
       });
 
       setSuccessMessage('Entrada planejada atualizada com sucesso!');
