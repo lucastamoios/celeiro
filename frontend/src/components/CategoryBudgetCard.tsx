@@ -431,12 +431,19 @@ export default function CategoryBudgetCard({
           {plannedEntries.map((entry) => (
             <div
               key={entry.PlannedEntryID}
-              className={`bg-white rounded-lg border-l-4 p-3 shadow-warm-sm ${
+              className={`bg-white rounded-lg border-l-4 p-3 shadow-warm-sm transition-all ${
                 entry.Status === 'matched' ? 'border-sage-500' :
                 entry.Status === 'pending' ? 'border-terra-500' :
                 entry.Status === 'missed' ? 'border-rust-500' :
                 'border-stone-400'
-              }`}
+              } ${onEditEntry ? 'cursor-pointer hover:shadow-warm-md hover:bg-stone-50' : ''}`}
+              onClick={(e) => {
+                // Only trigger edit if clicking on the main content area (not action buttons)
+                const target = e.target as HTMLElement;
+                if (!target.closest('button') && onEditEntry) {
+                  onEditEntry(entry);
+                }
+              }}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">

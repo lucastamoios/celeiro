@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Category } from '../types/category';
 import type { Transaction } from '../types/transaction';
 import type { PlannedEntry, CreatePlannedEntryRequest } from '../types/budget';
+import AdvancedPatternCreator, { type AdvancedPattern as AdvancedPatternInput } from './AdvancedPatternCreator';
+import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
+import { financialUrl } from '../config/api';
 
 interface PlannedEntryFormProps {
   categories: Category[];
@@ -82,6 +86,17 @@ export default function PlannedEntryForm({
   isLoading = false,
   isEditMode = false,
 }: PlannedEntryFormProps) {
+  const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const organizationId = activeOrganization?.organization_id?.toString() || '1';
+
+  // Advanced pattern creation state
+  const [showAdvancedPatternModal, setShowAdvancedPatternModal] = useState(false);
+  const [linkedPatternId, setLinkedPatternId] = useState<number | null>(
+    initialEntry?.PatternID || null
+  );
+  const [linkedPatternName, setLinkedPatternName] = useState<string>('');
+
   const [categoryId, setCategoryId] = useState<string>(
     initialEntry?.CategoryID.toString() || ''
   );
@@ -262,6 +277,10 @@ export default function PlannedEntryForm({
     const parsedDayStart = expectedDayStart ? parseInt(expectedDayStart) : undefined;
     const parsedDayEnd = useSingleDay ? parsedDayStart : (expectedDayEnd ? parseInt(expectedDayEnd) : undefined);
 
+    // If we have a linked advanced pattern, use pattern_id instead of simple pattern
+    const hasLinkedPattern = linkedPatternId !== null;
+    const hasSimplePattern = isSavedPattern && descriptionPattern.trim() !== '' && !hasLinkedPattern;
+
     onSubmit({
       category_id: parseInt(categoryId),
       description: description.trim(),
@@ -272,9 +291,49 @@ export default function PlannedEntryForm({
       expected_day_end: parsedDayEnd || parsedDayStart,
       entry_type: entryType,
       is_recurrent: isRecurrent,
-      is_saved_pattern: isSavedPattern,
-      description_pattern: isSavedPattern ? descriptionPattern.trim() : undefined,
+      is_saved_pattern: hasSimplePattern,
+      description_pattern: hasSimplePattern ? descriptionPattern.trim() : undefined,
+      pattern_id: hasLinkedPattern ? linkedPatternId : undefined,
     });
+  };
+
+  // Handler for saving an advanced pattern
+  const handleSaveAdvancedPattern = async (pattern: AdvancedPatternInput) => {
+    if (!token) return;
+
+    const response = await fetch(financialUrl('patterns'), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-Active-Organization': organizationId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...pattern,
+        apply_retroactively: true, // Apply to existing transactions
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.message || 'Failed to create pattern');
+    }
+
+    const result = await response.json();
+    const createdPattern = result.data;
+
+    // Store the pattern info and close modal
+    setLinkedPatternId(createdPattern.pattern_id);
+    setLinkedPatternName(createdPattern.target_description || pattern.target_description);
+    setShowAdvancedPatternModal(false);
+    // Disable simple pattern since we have an advanced one
+    setIsSavedPattern(false);
+  };
+
+  // Clear linked pattern
+  const handleClearLinkedPattern = () => {
+    setLinkedPatternId(null);
+    setLinkedPatternName('');
   };
 
   const handleAmountChange = (value: string, setter: (v: string) => void, errorKey: 'amountMin' | 'amountMax') => {
@@ -697,6 +756,53 @@ export default function PlannedEntryForm({
             )}
           </div>
         )}
+
+        {/* Advanced Pattern Creation - only in create mode and when no simple pattern */}
+        {!isEditMode && !isSavedPattern && (
+          <div className="p-3 bg-terra-50 rounded-lg border border-terra-200">
+            {linkedPatternId ? (
+              // Show linked pattern indicator
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-terra-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  <div>
+                    <span className="text-sm font-medium text-terra-800">
+                      Padrão Avançado Vinculado
+                    </span>
+                    {linkedPatternName && (
+                      <p className="text-xs text-terra-600">{linkedPatternName}</p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearLinkedPattern}
+                  className="text-xs text-terra-600 hover:text-terra-800 underline"
+                >
+                  Remover
+                </button>
+              </div>
+            ) : (
+              // Show button to create advanced pattern
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-terra-800">Padrão Avançado</span>
+                  <p className="text-xs text-terra-600">Regex, filtros de data, dia da semana e mais</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedPatternModal(true)}
+                  disabled={isLoading || !categoryId || !description}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-terra-500 rounded-lg hover:bg-terra-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Criar Padrão
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Form Actions */}
@@ -717,6 +823,20 @@ export default function PlannedEntryForm({
           {isLoading ? 'Salvando...' : initialEntry ? 'Atualizar' : 'Criar Entrada'}
         </button>
       </div>
+
+      {/* Advanced Pattern Creator Modal */}
+      {showAdvancedPatternModal && (
+        <AdvancedPatternCreator
+          categories={new Map(categories.map(c => [c.category_id, c]))}
+          onClose={() => setShowAdvancedPatternModal(false)}
+          onSave={handleSaveAdvancedPattern}
+          initialData={{
+            description: description,
+            categoryId: categoryId ? parseInt(categoryId) : undefined,
+            amount: amountMin || amountMax,
+          }}
+        />
+      )}
     </form>
   );
 }
