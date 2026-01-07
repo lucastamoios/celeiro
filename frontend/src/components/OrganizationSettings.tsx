@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
-import { getOrganizationMembers, getPendingInvites, cancelOrganizationInvite } from '../api/organization';
+import { getOrganizationMembers, getPendingInvites, cancelOrganizationInvite, updateOrganization } from '../api/organization';
 import type { OrganizationMember, OrganizationInvite } from '../api/organization';
 import InviteMemberModal from './InviteMemberModal';
-import { Building2, Users, Mail, UserPlus, X, AlertCircle, Clock, Shield } from 'lucide-react';
+import { Building2, Users, Mail, UserPlus, X, AlertCircle, Clock, Shield, Pencil, Check, Loader2 } from 'lucide-react';
 
 // Role display names in Portuguese
 const ROLE_LABELS: Record<string, string> = {
@@ -19,7 +19,7 @@ function getRoleLabel(role: string): string {
 
 export default function OrganizationSettings() {
   const { token } = useAuth();
-  const { activeOrganization } = useOrganization();
+  const { activeOrganization, refreshSession } = useOrganization();
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invites, setInvites] = useState<OrganizationInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,8 +27,16 @@ export default function OrganizationSettings() {
   const [cancellingInvite, setCancellingInvite] = useState<number | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
+  // Organization name editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
   // Check if current user has permission to invite (admin or manager)
   const canInvite = activeOrganization?.user_permissions?.includes('create_regular_users') ?? false;
+
+  // Check if current user is admin (can edit organization name)
+  const isAdmin = activeOrganization?.user_role === 'admin';
 
   // Fetch members and invites
   useEffect(() => {
@@ -78,6 +86,49 @@ export default function OrganizationSettings() {
     setInvites((prev) => [newInvite, ...prev]);
   };
 
+  const handleStartEditingName = () => {
+    setEditedName(activeOrganization?.name || '');
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditingName = () => {
+    setIsEditingName(false);
+    setEditedName('');
+  };
+
+  const handleSaveName = async () => {
+    if (!token || !activeOrganization || !editedName.trim()) return;
+
+    const trimmedName = editedName.trim();
+    if (trimmedName === activeOrganization.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    setSavingName(true);
+    setError(null);
+
+    try {
+      await updateOrganization(activeOrganization.organization_id, { name: trimmedName }, { token });
+      setIsEditingName(false);
+      // Refresh session to update the context with new organization name
+      await refreshSession();
+    } catch (err) {
+      console.error('Failed to update organization name:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao atualizar nome');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSaveName();
+    } else if (e.key === 'Escape') {
+      handleCancelEditingName();
+    }
+  };
+
   if (!activeOrganization) {
     return (
       <div className="text-center py-12">
@@ -96,8 +147,53 @@ export default function OrganizationSettings() {
             <div className="w-14 h-14 bg-wheat-100 rounded-xl flex items-center justify-center">
               <Building2 className="w-7 h-7 text-wheat-600" />
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-stone-900">{activeOrganization.name}</h2>
+            <div className="flex-1">
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    onKeyDown={handleNameKeyDown}
+                    className="flex-1 text-xl font-semibold text-stone-900 bg-stone-50 border border-stone-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-wheat-500 focus:border-transparent"
+                    autoFocus
+                    disabled={savingName}
+                  />
+                  <button
+                    onClick={handleSaveName}
+                    disabled={savingName || !editedName.trim()}
+                    className="p-2 text-wheat-600 hover:bg-wheat-50 rounded-lg transition-colors disabled:opacity-50"
+                    title="Salvar"
+                  >
+                    {savingName ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Check className="w-5 h-5" />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancelEditingName}
+                    disabled={savingName}
+                    className="p-2 text-stone-400 hover:bg-stone-50 rounded-lg transition-colors disabled:opacity-50"
+                    title="Cancelar"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold text-stone-900">{activeOrganization.name}</h2>
+                  {isAdmin && (
+                    <button
+                      onClick={handleStartEditingName}
+                      className="p-1.5 text-stone-400 hover:text-wheat-600 hover:bg-wheat-50 rounded-lg transition-colors"
+                      title="Editar nome"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="flex items-center gap-2 mt-1">
                 <Shield className="w-4 h-4 text-stone-400" />
                 <span className="text-sm text-stone-500">

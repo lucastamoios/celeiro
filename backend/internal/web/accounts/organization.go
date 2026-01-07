@@ -15,6 +15,7 @@ import (
 
 type OrganizationHandler interface {
 	GetOrganizationMembers(w http.ResponseWriter, r *http.Request)
+	UpdateOrganization(w http.ResponseWriter, r *http.Request)
 	SetDefaultOrganization(w http.ResponseWriter, r *http.Request)
 	CreateOrganizationInvite(w http.ResponseWriter, r *http.Request)
 	GetPendingInvites(w http.ResponseWriter, r *http.Request)
@@ -46,6 +47,54 @@ func (h *handler) GetOrganizationMembers(w http.ResponseWriter, r *http.Request)
 	}
 
 	responses.NewSuccess(memberResponses, w)
+}
+
+// UpdateOrganization
+
+type UpdateOrganizationRequest struct {
+	Name *string `json:"name"`
+}
+
+func (r *UpdateOrganizationRequest) Validate() error {
+	if r.Name == nil {
+		return errors.ErrMissingRequiredFields
+	}
+	if strings.TrimSpace(*r.Name) == "" {
+		return errors.ErrMissingRequiredFields
+	}
+	return nil
+}
+
+func (h *handler) UpdateOrganization(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgId")
+	orgID, err := strconv.Atoi(orgIDStr)
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidFormat)
+		return
+	}
+
+	var req UpdateOrganizationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	org, err := h.accountsService.UpdateOrganization(r.Context(), accounts.UpdateOrganizationInput{
+		OrganizationID: orgID,
+		Name:           req.Name,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	response := OrganizationResponse{}.FromDTO(&org)
+	responses.NewSuccess(response, w)
 }
 
 // SetDefaultOrganization

@@ -18,6 +18,7 @@ export const API_CONFIG = {
     },
     organizations: {
       default: '/organizations/default',
+      update: (orgId: number) => `/organizations/${orgId}`,
       members: (orgId: number) => `/organizations/${orgId}/members`,
       invites: (orgId: number) => `/organizations/${orgId}/invites`,
       cancelInvite: (orgId: number, inviteId: number) => `/organizations/${orgId}/invites/${inviteId}`,

@@ -97,6 +97,40 @@ export async function setDefaultOrganization(
   }
 }
 
+export interface Organization {
+  organization_id: number;
+  name: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+}
+
+export async function updateOrganization(
+  organizationId: number,
+  data: { name: string },
+  options: RequestOptions
+): Promise<Organization> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}${API_CONFIG.endpoints.organizations.update(organizationId)}`,
+    {
+      method: 'PATCH',
+      headers: createHeaders(options),
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to update organization');
+  }
+
+  const result: ApiResponse<Organization> = await response.json();
+  return result.data;
+}
+
 export async function getPendingInvites(
   organizationId: number,
   options: RequestOptions
