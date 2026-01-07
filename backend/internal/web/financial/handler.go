@@ -1178,9 +1178,10 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		ExpectedDayStart   *int     `json:"expected_day_start,omitempty"`
 		ExpectedDayEnd     *int     `json:"expected_day_end,omitempty"`
 		ExpectedDay        *int     `json:"expected_day,omitempty"`
-		EntryType     string `json:"entry_type"`
-		IsRecurrent   bool   `json:"is_recurrent"`
-		ParentEntryID *int   `json:"parent_entry_id,omitempty"`
+		EntryType          string   `json:"entry_type"`
+		IsRecurrent        bool     `json:"is_recurrent"`
+		ParentEntryID      *int     `json:"parent_entry_id,omitempty"`
+		SavingsGoalID      *int     `json:"savings_goal_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1236,6 +1237,7 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		EntryType:        req.EntryType,
 		IsRecurrent:      req.IsRecurrent,
 		ParentEntryID:    req.ParentEntryID,
+		SavingsGoalID:    req.SavingsGoalID,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -1259,10 +1261,11 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Description *string  `json:"description,omitempty"`
-		Amount      *float64 `json:"amount,omitempty"`
-		ExpectedDay *int     `json:"expected_day,omitempty"`
-		IsActive    *bool    `json:"is_active,omitempty"`
+		Description   *string  `json:"description,omitempty"`
+		Amount        *float64 `json:"amount,omitempty"`
+		ExpectedDay   *int     `json:"expected_day,omitempty"`
+		IsActive      *bool    `json:"is_active,omitempty"`
+		SavingsGoalID *int     `json:"savings_goal_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1284,6 +1287,7 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		Amount:         amount,
 		ExpectedDay:    req.ExpectedDay,
 		IsActive:       req.IsActive,
+		SavingsGoalID:  req.SavingsGoalID,
 	})
 	if err != nil {
 		responses.NewError(w, err)

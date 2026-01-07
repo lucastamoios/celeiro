@@ -1560,8 +1560,6 @@ export default function CategoryBudgetDashboard() {
         >
           <PlannedEntryForm
             categories={categories}
-            transactions={allTransactions}
-            transactionsLoading={transactionsLoading}
             onSubmit={editingEntry ? handleUpdatePlannedEntry : handleCreatePlannedEntry}
             onCancel={() => {
               setShowCreateEntryModal(false);
@@ -1590,7 +1588,6 @@ export default function CategoryBudgetDashboard() {
               UpdatedAt: '',
             } : undefined}
             isLoading={isSubmitting}
-            isEditMode={!!editingEntry}
           />
         </Modal>
 
@@ -1656,8 +1653,6 @@ export default function CategoryBudgetDashboard() {
           {editingPlannedEntryFromBudget && (
             <PlannedEntryForm
               categories={categories}
-              transactions={allTransactions}
-              transactionsLoading={transactionsLoading}
               onSubmit={handleSavePlannedEntryFromBudget}
               onCancel={handleClosePlannedEntryEditModal}
               initialEntry={{
@@ -1682,7 +1677,6 @@ export default function CategoryBudgetDashboard() {
                 UpdatedAt: '',
               }}
               isLoading={isSubmitting}
-              isEditMode={true}
             />
           )}
         </Modal>

@@ -1432,6 +1432,7 @@ type CreatePlannedEntryInput struct {
 	EntryType        string
 	IsRecurrent      bool
 	ParentEntryID    *int
+	SavingsGoalID    *int
 }
 
 func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEntryInput) (PlannedEntry, error) {
@@ -1455,6 +1456,7 @@ func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEn
 		EntryType:        params.EntryType,
 		IsRecurrent:      params.IsRecurrent,
 		ParentEntryID:    params.ParentEntryID,
+		SavingsGoalID:    params.SavingsGoalID,
 	})
 	if err != nil {
 		return PlannedEntry{}, errors.Wrap(err, "failed to create planned entry")
@@ -1477,6 +1479,7 @@ type UpdatePlannedEntryInput struct {
 	ExpectedDay      *int
 	EntryType        *string
 	IsActive         *bool
+	SavingsGoalID    *int // Use -1 to clear
 }
 
 func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEntryInput) (PlannedEntry, error) {
@@ -1494,6 +1497,7 @@ func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEn
 		ExpectedDay:      params.ExpectedDay,
 		EntryType:        params.EntryType,
 		IsActive:         params.IsActive,
+		SavingsGoalID:    params.SavingsGoalID,
 	})
 	if err != nil {
 		return PlannedEntry{}, errors.Wrap(err, "failed to update planned entry")

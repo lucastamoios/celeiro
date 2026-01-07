@@ -460,6 +460,36 @@ func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *Tra
 		year := tx.TransactionDate.Year()
 		matchedAt := s.system.Time.Now().Format("2006-01-02T15:04:05Z")
 
+		// Inherit savings goal from the first linked entry that has one (if transaction doesn't have a goal)
+		// "Manual wins" - don't override if transaction already has a manually-set goal
+		if tx.SavingsGoalID == nil {
+			for _, entry := range linkedEntries {
+				if entry.SavingsGoalID != nil {
+					_, err := s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
+						TransactionID:  tx.TransactionID,
+						UserID:         userID,
+						OrganizationID: organizationID,
+						SavingsGoalID:  entry.SavingsGoalID,
+					})
+					if err != nil {
+						s.logger.Warn(ctx, "Failed to inherit savings goal from planned entry",
+							"transaction_id", tx.TransactionID,
+							"planned_entry_id", entry.PlannedEntryID,
+							"savings_goal_id", *entry.SavingsGoalID,
+							"error", err.Error(),
+						)
+					} else {
+						s.logger.Info(ctx, "Inherited savings goal from planned entry",
+							"transaction_id", tx.TransactionID,
+							"planned_entry_id", entry.PlannedEntryID,
+							"savings_goal_id", *entry.SavingsGoalID,
+						)
+					}
+					break // Only inherit from the first entry with a goal
+				}
+			}
+		}
+
 		for _, entry := range linkedEntries {
 			// Create/update the planned entry status
 			statusModel, err := s.Repository.UpsertPlannedEntryStatus(ctx, upsertPlannedEntryStatusParams{

@@ -2106,7 +2106,8 @@ const fetchPlannedEntriesByPatternIDsQuery = `
 	SELECT
 		planned_entry_id,
 		pattern_id,
-		description
+		description,
+		savings_goal_id
 	FROM planned_entries
 	WHERE pattern_id = ANY($1::int[])
 		AND organization_id = $2
