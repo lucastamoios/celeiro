@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Coins, XCircle, Filter } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Coins, XCircle, Filter, CheckSquare, Square, X, Upload } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,6 +48,108 @@ export default function TransactionList() {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Bulk selection state
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<number>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [showBulkCategorySelect, setShowBulkCategorySelect] = useState(false);
+
+  // Bulk selection handlers
+  const handleToggleSelection = useCallback((transactionId: number, e?: React.MouseEvent) => {
+    // Prevent opening the edit modal when clicking the checkbox
+    e?.stopPropagation();
+    setSelectedTransactions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionId)) {
+        newSet.delete(transactionId);
+      } else {
+        newSet.add(transactionId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback((transactionIds: number[]) => {
+    setSelectedTransactions(prev => {
+      const allSelected = transactionIds.every(id => prev.has(id));
+      if (allSelected) {
+        // Deselect all
+        return new Set();
+      } else {
+        // Select all
+        return new Set(transactionIds);
+      }
+    });
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedTransactions(new Set());
+    setShowBulkCategorySelect(false);
+  }, []);
+
+  const handleBulkCategoryChange = useCallback(async (categoryId: number | null) => {
+    if (!token || selectedTransactions.size === 0) return;
+
+    setBulkActionLoading(true);
+    setError(null);
+
+    try {
+      const promises = Array.from(selectedTransactions).map(transactionId =>
+        fetch(financialUrl(`transactions/${transactionId}`), {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'X-Active-Organization': activeOrganizationId,
+          },
+          body: JSON.stringify({ category_id: categoryId }),
+        })
+      );
+
+      await Promise.all(promises);
+      setUploadSuccess(`✅ ${selectedTransactions.size} transações atualizadas!`);
+      setTimeout(() => setUploadSuccess(null), 3000);
+      handleClearSelection();
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao atualizar transações');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection]);
+
+  const handleBulkIgnore = useCallback(async (shouldIgnore: boolean) => {
+    if (!token || selectedTransactions.size === 0) return;
+
+    setBulkActionLoading(true);
+    setError(null);
+
+    try {
+      const promises = Array.from(selectedTransactions).map(transactionId =>
+        fetch(financialUrl(`transactions/${transactionId}`), {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'X-Active-Organization': activeOrganizationId,
+          },
+          body: JSON.stringify({ is_ignored: shouldIgnore }),
+        })
+      );
+
+      await Promise.all(promises);
+      const action = shouldIgnore ? 'ignoradas' : 'restauradas';
+      setUploadSuccess(`✅ ${selectedTransactions.size} transações ${action}!`);
+      setTimeout(() => setUploadSuccess(null), 3000);
+      handleClearSelection();
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao atualizar transações');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection]);
 
   // Filters (persisted to localStorage) - month is handled separately by useSelectedMonth
   const { filters, setFilter } = usePersistedFilters(
@@ -140,66 +242,121 @@ export default function TransactionList() {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !token) return;
+  // Upload multiple OFX files
+  const uploadFiles = useCallback(async (files: File[]) => {
+    if (!token || files.length === 0) return;
+
+    if (!selectedAccountId) {
+      setError('Selecione uma conta antes de importar OFX.');
+      return;
+    }
+
+    // Filter to only .ofx files
+    const ofxFiles = files.filter(f => f.name.toLowerCase().endsWith('.ofx'));
+    if (ofxFiles.length === 0) {
+      setError('Nenhum arquivo OFX válido selecionado.');
+      return;
+    }
 
     setUploading(true);
     setError(null);
     setUploadSuccess(null);
 
-    const formData = new FormData();
-    formData.append('ofx_file', file);
-    if (!selectedAccountId) {
-      setError('Selecione uma conta antes de importar OFX.');
-      setUploading(false);
-      event.target.value = '';
-      return;
-    }
+    let totalImported = 0;
+    let totalDuplicates = 0;
+    let failedFiles: string[] = [];
 
-    try {
-      const response = await fetch(
-        `${financialUrl('accounts')}/${selectedAccountId}/transactions/import`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': activeOrganizationId,
-          },
-          body: formData,
+    for (const file of ofxFiles) {
+      try {
+        const formData = new FormData();
+        formData.append('ofx_file', file);
+
+        const response = await fetch(
+          `${financialUrl('accounts')}/${selectedAccountId}/transactions/import`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'X-Active-Organization': activeOrganizationId,
+            },
+            body: formData,
+          }
+        );
+
+        if (!response.ok) {
+          const maybeJson = await response.json().catch(() => null);
+          const msg = maybeJson?.message || 'Failed to upload';
+          failedFiles.push(`${file.name}: ${msg}`);
+          continue;
         }
-      );
 
-      if (!response.ok) {
-        const maybeJson = await response.json().catch(() => null);
-        const msg = maybeJson?.message || 'Failed to upload OFX file';
-        const code = maybeJson?.code ? ` (${maybeJson.code})` : '';
-        throw new Error(`${msg}${code}`);
+        const result = await response.json();
+        const imported =
+          result?.data?.ImportedCount ??
+          result?.data?.imported_count ??
+          result?.data?.importedCount ??
+          0;
+        const duplicates =
+          result?.data?.DuplicateCount ??
+          result?.data?.duplicate_count ??
+          result?.data?.duplicateCount ??
+          0;
+
+        totalImported += typeof imported === 'number' ? imported : 0;
+        totalDuplicates += typeof duplicates === 'number' ? duplicates : 0;
+      } catch (err) {
+        failedFiles.push(`${file.name}: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
       }
-
-      const result = await response.json();
-      const imported =
-        result?.data?.ImportedCount ??
-        result?.data?.imported_count ??
-        result?.data?.importedCount ??
-        'unknown';
-      const duplicates =
-        result?.data?.DuplicateCount ??
-        result?.data?.duplicate_count ??
-        result?.data?.duplicateCount ??
-        0;
-      setUploadSuccess(`✅ Imported ${imported} transactions (duplicates: ${duplicates}).`);
-
-      // Refresh the transaction list
-      fetchData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload OFX file');
-    } finally {
-      setUploading(false);
-      // Reset file input
-      event.target.value = '';
     }
+
+    // Build success/error message
+    if (failedFiles.length > 0) {
+      setError(`Falha em ${failedFiles.length} arquivo(s): ${failedFiles.join('; ')}`);
+    }
+
+    if (totalImported > 0 || totalDuplicates > 0) {
+      const filesText = ofxFiles.length > 1 ? `${ofxFiles.length} arquivos` : '1 arquivo';
+      setUploadSuccess(`✅ ${filesText}: ${totalImported} transações importadas (${totalDuplicates} duplicadas).`);
+      setTimeout(() => setUploadSuccess(null), 5000);
+    }
+
+    // Refresh the transaction list
+    await fetchData();
+    setUploading(false);
+  }, [token, selectedAccountId, activeOrganizationId]);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    await uploadFiles(Array.from(files));
+    // Reset file input
+    event.target.value = '';
   };
+
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the drop zone entirely
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    await uploadFiles(files);
+  }, [uploadFiles]);
 
   // Simple pattern functions removed - pattern system now unified in PatternManager
 
@@ -375,13 +532,12 @@ export default function TransactionList() {
                 Nova Transação
               </button>
               <label className="btn-secondary text-sm cursor-pointer">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
+                <Upload className="w-4 h-4" />
                 {uploading ? 'Importando...' : 'Importar OFX'}
                 <input
                   type="file"
                   accept=".ofx"
+                  multiple
                   onChange={handleFileUpload}
                   disabled={uploading}
                   className="hidden"
@@ -391,11 +547,42 @@ export default function TransactionList() {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Drag and Drop Zone */}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`mb-6 border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+            isDragging
+              ? 'border-wheat-500 bg-wheat-50'
+              : 'border-stone-300 bg-stone-50 hover:border-stone-400'
+          }`}
+        >
+          <Upload className={`w-8 h-8 mx-auto mb-2 ${isDragging ? 'text-wheat-600' : 'text-stone-400'}`} />
+          <p className={`text-sm font-medium ${isDragging ? 'text-wheat-700' : 'text-stone-600'}`}>
+            {isDragging ? 'Solte os arquivos aqui' : 'Arraste arquivos OFX aqui'}
+          </p>
+          <p className="text-xs text-stone-500 mt-1">
+            ou use o botão "Importar OFX" acima (múltiplos arquivos permitidos)
+          </p>
+        </div>
+
+        {/* Filters and Bulk Actions */}
         <div className="mb-6 bg-white border border-stone-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-stone-500" />
-            <span className="text-sm font-medium text-stone-700">Filtros</span>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-stone-500" />
+              <span className="text-sm font-medium text-stone-700">Filtros</span>
+            </div>
+            {/* Select All toggle */}
+            <button
+              onClick={() => handleSelectAll(filteredTransactions.map(t => t.transaction_id))}
+              className="text-xs text-wheat-600 hover:text-wheat-800 hover:underline transition-colors"
+            >
+              {filteredTransactions.length > 0 && filteredTransactions.every(t => selectedTransactions.has(t.transaction_id))
+                ? 'Desmarcar todas'
+                : 'Selecionar todas'}
+            </button>
           </div>
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 cursor-pointer group">
@@ -426,6 +613,96 @@ export default function TransactionList() {
               <span className="text-sm text-stone-600 group-hover:text-stone-900">Com descrição original</span>
             </label>
           </div>
+
+          {/* Bulk Actions - shown when transactions are selected */}
+          {selectedTransactions.size > 0 && (
+            <div className="mt-4 pt-4 border-t border-stone-200">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-wheat-600" />
+                  <span className="text-sm font-medium text-stone-700">
+                    {selectedTransactions.size} {selectedTransactions.size === 1 ? 'selecionada' : 'selecionadas'}
+                  </span>
+                  <button
+                    onClick={handleClearSelection}
+                    className="p-1 text-stone-400 hover:text-stone-600 transition-colors"
+                    title="Limpar seleção"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="h-4 w-px bg-stone-300 hidden sm:block" />
+
+                {/* Category selection dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowBulkCategorySelect(!showBulkCategorySelect)}
+                    disabled={bulkActionLoading}
+                    className="px-3 py-1.5 text-sm font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <span>📁</span>
+                    Definir categoria
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {showBulkCategorySelect && (
+                    <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-stone-200 rounded-lg shadow-lg z-20 max-h-64 overflow-y-auto">
+                      <button
+                        onClick={() => {
+                          handleBulkCategoryChange(null);
+                          setShowBulkCategorySelect(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-stone-600 hover:bg-stone-50 italic"
+                      >
+                        Remover categoria
+                      </button>
+                      {Array.from(categories.values()).map(cat => (
+                        <button
+                          key={cat.category_id}
+                          onClick={() => {
+                            handleBulkCategoryChange(cat.category_id);
+                            setShowBulkCategorySelect(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm text-stone-700 hover:bg-wheat-50 flex items-center gap-2"
+                        >
+                          <span>{cat.icon}</span>
+                          <span>{cat.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Ignore button */}
+                <button
+                  onClick={() => handleBulkIgnore(true)}
+                  disabled={bulkActionLoading}
+                  className="px-3 py-1.5 text-sm font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Ignorar
+                </button>
+
+                {/* Restore button */}
+                <button
+                  onClick={() => handleBulkIgnore(false)}
+                  disabled={bulkActionLoading}
+                  className="px-3 py-1.5 text-sm font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Restaurar
+                </button>
+
+                {bulkActionLoading && (
+                  <span className="text-sm text-stone-500">Processando...</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Success/Error Messages */}
@@ -479,46 +756,65 @@ export default function TransactionList() {
           {filteredTransactions.map((transaction) => (
             <div
               key={transaction.transaction_id}
-              onClick={() => handleOpenEditModal(transaction)}
-              className={`bg-white border border-stone-200 rounded-xl p-4 cursor-pointer
+              className={`bg-white border rounded-xl p-4 cursor-pointer
                 transition-all duration-150 ease-out
-                active:scale-[0.98] active:bg-stone-50 active:shadow-inner active:border-stone-300
+                ${selectedTransactions.has(transaction.transaction_id)
+                  ? 'border-wheat-400 bg-wheat-50 ring-1 ring-wheat-300'
+                  : 'border-stone-200 active:scale-[0.98] active:bg-stone-50 active:shadow-inner active:border-stone-300'
+                }
                 ${transaction.is_ignored ? 'opacity-50' : 'shadow-sm'}`}
             >
-              {/* First line: Description */}
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <p className={`text-sm font-medium text-stone-900 line-clamp-2 flex-1 ${
-                  transaction.is_ignored ? 'line-through' : ''
-                }`}>
-                  {transaction.description}
-                </p>
-                <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
-                  transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
-                }`}>
-                  {transaction.transaction_type === 'credit' ? '+' : '-'}
-                  {formatCurrency(transaction.amount)}
-                </span>
-              </div>
+              <div className="flex gap-3">
+                {/* Checkbox */}
+                <button
+                  onClick={(e) => handleToggleSelection(transaction.transaction_id, e)}
+                  className="flex-shrink-0 mt-0.5"
+                >
+                  {selectedTransactions.has(transaction.transaction_id) ? (
+                    <CheckSquare className="w-5 h-5 text-wheat-600" />
+                  ) : (
+                    <Square className="w-5 h-5 text-stone-400" />
+                  )}
+                </button>
 
-              {/* Second line: Date + Category + Ignored badge */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-stone-500 tabular-nums">
-                  {formatDate(transaction.transaction_date)}
-                </span>
-                <span className="text-stone-300">•</span>
-                {transaction.category_id && categories.has(transaction.category_id) ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-stone-600">
-                    <span>{categories.get(transaction.category_id)!.icon}</span>
-                    <span>{categories.get(transaction.category_id)!.name}</span>
-                  </span>
-                ) : (
-                  <span className="text-xs text-stone-400 italic">Sem categoria</span>
-                )}
-                {transaction.is_ignored && (
-                  <span className="text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">
-                    IGNORADA
-                  </span>
-                )}
+                {/* Card content */}
+                <div className="flex-1 min-w-0" onClick={() => handleOpenEditModal(transaction)}>
+                  {/* First line: Description */}
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <p className={`text-sm font-medium text-stone-900 line-clamp-2 flex-1 ${
+                      transaction.is_ignored ? 'line-through' : ''
+                    }`}>
+                      {transaction.description}
+                    </p>
+                    <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
+                      transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
+                    }`}>
+                      {transaction.transaction_type === 'credit' ? '+' : '-'}
+                      {formatCurrency(transaction.amount)}
+                    </span>
+                  </div>
+
+                  {/* Second line: Date + Category + Ignored badge */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-stone-500 tabular-nums">
+                      {formatDate(transaction.transaction_date)}
+                    </span>
+                    <span className="text-stone-300">•</span>
+                    {transaction.category_id && categories.has(transaction.category_id) ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-stone-600">
+                        <span>{categories.get(transaction.category_id)!.icon}</span>
+                        <span>{categories.get(transaction.category_id)!.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-stone-400 italic">Sem categoria</span>
+                    )}
+                    {transaction.is_ignored && (
+                      <span className="text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">
+                        IGNORADA
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -530,6 +826,19 @@ export default function TransactionList() {
             <table className="min-w-full divide-y divide-stone-200">
               <thead className="bg-stone-50">
                 <tr>
+                  <th className="w-12 px-4 py-3">
+                    <button
+                      onClick={() => handleSelectAll(filteredTransactions.map(t => t.transaction_id))}
+                      className="flex items-center justify-center"
+                      title={filteredTransactions.every(t => selectedTransactions.has(t.transaction_id)) ? 'Desmarcar todas' : 'Selecionar todas'}
+                    >
+                      {filteredTransactions.length > 0 && filteredTransactions.every(t => selectedTransactions.has(t.transaction_id)) ? (
+                        <CheckSquare className="w-4 h-4 text-wheat-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-stone-400" />
+                      )}
+                    </button>
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                     Data
                   </th>
@@ -548,13 +857,34 @@ export default function TransactionList() {
                 {filteredTransactions.map((transaction) => (
                     <tr
                       key={transaction.transaction_id}
-                      className={`hover:bg-wheat-50 cursor-pointer transition-colors ${transaction.is_ignored ? 'opacity-40 bg-stone-50' : ''}`}
-                      onClick={() => handleOpenEditModal(transaction)}
+                      className={`cursor-pointer transition-colors ${
+                        selectedTransactions.has(transaction.transaction_id)
+                          ? 'bg-wheat-50'
+                          : 'hover:bg-wheat-50'
+                      } ${transaction.is_ignored ? 'opacity-40' : ''}`}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-900 tabular-nums">
+                      <td className="w-12 px-4 py-4">
+                        <button
+                          onClick={(e) => handleToggleSelection(transaction.transaction_id, e)}
+                          className="flex items-center justify-center"
+                        >
+                          {selectedTransactions.has(transaction.transaction_id) ? (
+                            <CheckSquare className="w-4 h-4 text-wheat-600" />
+                          ) : (
+                            <Square className="w-4 h-4 text-stone-400" />
+                          )}
+                        </button>
+                      </td>
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm text-stone-900 tabular-nums"
+                        onClick={() => handleOpenEditModal(transaction)}
+                      >
                         {formatDate(transaction.transaction_date)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-stone-900 max-w-md">
+                      <td
+                        className="px-6 py-4 text-sm text-stone-900 max-w-md"
+                        onClick={() => handleOpenEditModal(transaction)}
+                      >
                         <div className={`truncate flex items-center gap-2 ${transaction.is_ignored ? 'line-through' : ''}`}>
                           {transaction.description}
                           {transaction.is_ignored && (
@@ -562,13 +892,19 @@ export default function TransactionList() {
                           )}
                         </div>
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium tabular-nums ${
-                        transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
-                      }`}>
+                      <td
+                        className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium tabular-nums ${
+                          transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
+                        }`}
+                        onClick={() => handleOpenEditModal(transaction)}
+                      >
                         {transaction.transaction_type === 'credit' ? '+' : '-'}
                         {formatCurrency(transaction.amount)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-500">
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm text-stone-500"
+                        onClick={() => handleOpenEditModal(transaction)}
+                      >
                         {transaction.category_id && categories.has(transaction.category_id) ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-wheat-100 text-wheat-700 rounded-full">
                             <span>{categories.get(transaction.category_id)!.icon}</span>
