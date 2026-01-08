@@ -38,6 +38,7 @@ type UserForSessionInfoResponse struct {
 	ID          int     `json:"id"`
 	Name        string  `json:"name"`
 	Email       string  `json:"email"`
+	EmailID     string  `json:"email_id"`
 	Phone       int     `json:"phone"`
 	Address     string  `json:"address"`
 	City        string  `json:"city"`
@@ -54,6 +55,7 @@ func (u UserForSessionInfoResponse) FromDTO(user *accounts.UserForSessionInfo) U
 		ID:          user.ID,
 		Name:        user.Name,
 		Email:       user.Email,
+		EmailID:     user.EmailID,
 		Phone:       user.Phone,
 		Address:     user.Address,
 		City:        user.City,
