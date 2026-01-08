@@ -140,6 +140,12 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 		"attachment_count", len(payload.Data.Attachments),
 	)
 
+	// Check if this is a Gmail forwarding verification email
+	if isGmailForwardingVerification(payload.Data.From, payload.Data.Subject) {
+		h.handleGmailForwardingVerification(ctx, payload.Data, w)
+		return
+	}
+
 	// Extract sender email from "Name <email@domain.com>" format
 	senderEmail := extractEmail(payload.Data.From)
 	if senderEmail == "" {
@@ -538,4 +544,120 @@ func parseTimestamp(ts string) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return time.Unix(timestamp, 0), nil
+}
+
+// isGmailForwardingVerification checks if the email is a Gmail forwarding verification request
+func isGmailForwardingVerification(from, subject string) bool {
+	fromLower := strings.ToLower(from)
+	subjectLower := strings.ToLower(subject)
+
+	return strings.Contains(fromLower, "forwarding-noreply@google.com") &&
+		(strings.Contains(subjectLower, "confirmação de encaminhamento") ||
+			strings.Contains(subjectLower, "forwarding confirmation") ||
+			strings.Contains(subjectLower, "gmail forwarding"))
+}
+
+// extractGmailForwardingRequester extracts the email address that requested forwarding
+// from the verification email text. Example text:
+// "lucas.tamoios@gmail.com pediu para encaminhar e-mails automaticamente"
+func extractGmailForwardingRequester(text string) string {
+	// Pattern matches email at the start of the text or after common phrases
+	patterns := []string{
+		`^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s+(?:pediu|requested|has requested)`,
+		`([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s+(?:pediu|requested|has requested)`,
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		matches := re.FindStringSubmatch(text)
+		if len(matches) > 1 {
+			return strings.ToLower(matches[1])
+		}
+	}
+
+	return ""
+}
+
+// extractGmailVerificationURL extracts the verification URL from the email text
+func extractGmailVerificationURL(text string) string {
+	// Look for the confirmation URL pattern
+	// URL format: https://mail-settings.google.com/mail/vf-[token]-[suffix]
+	re := regexp.MustCompile(`(https://mail-settings\.google\.com/mail/vf-[^\s]+)`)
+	matches := re.FindStringSubmatch(text)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+// handleGmailForwardingVerification handles automatic confirmation of Gmail forwarding
+func (h *Handler) handleGmailForwardingVerification(ctx context.Context, email ResendInboundEmail, w http.ResponseWriter) {
+	h.logger.Info(ctx, "Detected Gmail forwarding verification email")
+
+	// Extract the requester's email from the email text
+	requesterEmail := extractGmailForwardingRequester(email.Text)
+	if requesterEmail == "" {
+		h.logger.Warn(ctx, "Could not extract requester email from Gmail verification")
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: "Could not extract requester email",
+		}, w)
+		return
+	}
+
+	h.logger.Info(ctx, "Gmail forwarding requested by", "requester_email", requesterEmail)
+
+	// Check if the requester is a registered user
+	_, err := h.app.AccountsService.GetUserByEmail(ctx, accounts.GetUserByEmailInput{
+		Email: requesterEmail,
+	})
+	if err != nil {
+		h.logger.Warn(ctx, "Gmail forwarding requester is not a registered user",
+			"requester_email", requesterEmail,
+			"error", err,
+		)
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: "Requester is not a registered user",
+		}, w)
+		return
+	}
+
+	// Extract the verification URL
+	verificationURL := extractGmailVerificationURL(email.Text)
+	if verificationURL == "" {
+		h.logger.Error(ctx, "Could not extract verification URL from Gmail email")
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: "Could not extract verification URL",
+		}, w)
+		return
+	}
+
+	h.logger.Info(ctx, "Confirming Gmail forwarding", "url", verificationURL)
+
+	// Make GET request to confirm the forwarding
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(verificationURL)
+	if err != nil {
+		h.logger.Error(ctx, "Failed to confirm Gmail forwarding", "error", err)
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to confirm: %v", err),
+		}, w)
+		return
+	}
+	defer resp.Body.Close()
+
+	h.logger.Info(ctx, "Gmail forwarding confirmation response",
+		"status", resp.StatusCode,
+		"requester_email", requesterEmail,
+	)
+
+	responses.NewSuccess(EmailInboundResponse{
+		Success: true,
+		Message: fmt.Sprintf("Gmail forwarding confirmed for %s", requesterEmail),
+	}, w)
 }
