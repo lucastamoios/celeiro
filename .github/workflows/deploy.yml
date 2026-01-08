@@ -151,8 +151,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            mkdir -p /var/celeiro
-            rm -f /var/celeiro/docker-compose.prod.yml /var/celeiro/docker-compose.yml
+            sudo mkdir -p /var/celeiro
+            sudo rm -f /var/celeiro/docker-compose.prod.yml /var/celeiro/docker-compose.yml
+            sudo chown -R $USER:$USER /var/celeiro
 
       - name: Copy docker-compose to server
         uses: appleboy/scp-action@v0.1.7
