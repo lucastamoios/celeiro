@@ -14,6 +14,7 @@ type UserModel struct {
 
 	Name         string         `db:"name"`
 	Email        string         `db:"email"`
+	EmailID      string         `db:"email_id"`
 	Phone        int            `db:"phone"`
 	PasswordHash sql.NullString `db:"password_hash"`
 

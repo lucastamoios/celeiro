@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { setPassword } from '../api/auth';
 import { API_CONFIG } from '../config/api';
-import { Mail, LogOut, AlertCircle, Lock, Check, Eye, EyeOff } from 'lucide-react';
+import { Mail, LogOut, AlertCircle, Lock, Check, Eye, EyeOff, Inbox, Copy, ExternalLink } from 'lucide-react';
 
 interface UserInfo {
   id: number;
   name: string;
   email: string;
+  EmailID: string;
   has_password: boolean;
 }
 
@@ -27,6 +28,9 @@ export default function AccountSettings() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Email import copy state
+  const [emailCopied, setEmailCopied] = useState(false);
 
   // Fetch user info to get has_password
   useEffect(() => {
@@ -72,6 +76,20 @@ export default function AccountSettings() {
   const isValidPassword = newPassword.length >= 8;
   const passwordsMatch = newPassword === confirmPassword;
   const canSubmitPassword = isValidPassword && passwordsMatch && (!userInfo?.has_password || oldPassword.length > 0);
+
+  // Email import address
+  const importEmail = userInfo?.EmailID ? `${userInfo.EmailID}@mail.celeiro.catru.tech` : null;
+
+  const handleCopyEmail = async () => {
+    if (!importEmail) return;
+    try {
+      await navigator.clipboard.writeText(importEmail);
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,6 +321,117 @@ export default function AccountSettings() {
           )}
         </div>
       </div>
+
+      {/* Email Import Section */}
+      {importEmail && (
+        <div className="bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-wheat-100 rounded-full flex items-center justify-center">
+                <Inbox className="w-5 h-5 text-wheat-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-stone-900">Importar por Email</h2>
+                <p className="text-sm text-stone-500">
+                  Receba extratos OFX diretamente na sua conta
+                </p>
+              </div>
+            </div>
+
+            {/* Email Address Display */}
+            <div className="bg-stone-50 rounded-lg p-4 mb-4">
+              <label className="block text-sm font-medium text-stone-600 mb-2">
+                Seu endereço de importação
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-white border border-stone-200 rounded-lg px-3 py-2 font-mono text-sm text-stone-800 overflow-x-auto">
+                  {importEmail}
+                </div>
+                <button
+                  onClick={handleCopyEmail}
+                  className="p-2 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex-shrink-0"
+                  title="Copiar email"
+                >
+                  {emailCopied ? (
+                    <Check className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Copy className="w-5 h-5 text-stone-500" />
+                  )}
+                </button>
+              </div>
+              {emailCopied && (
+                <p className="text-xs text-green-600 mt-1">Email copiado!</p>
+              )}
+            </div>
+
+            {/* Instructions */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-stone-800">Como configurar</h3>
+
+              <div className="space-y-3 text-sm text-stone-600">
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 bg-wheat-100 text-wheat-700 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0">
+                    1
+                  </span>
+                  <div>
+                    <p className="font-medium text-stone-800">Configure um filtro no Gmail</p>
+                    <p className="mt-1">
+                      Abra as configurações do Gmail → Filtros → Criar novo filtro
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 bg-wheat-100 text-wheat-700 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0">
+                    2
+                  </span>
+                  <div>
+                    <p className="font-medium text-stone-800">Filtre emails com anexos OFX</p>
+                    <p className="mt-1">
+                      No campo "Contém as palavras", digite: <code className="bg-stone-100 px-1 rounded">filename:ofx OR filename:qfx</code>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 bg-wheat-100 text-wheat-700 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0">
+                    3
+                  </span>
+                  <div>
+                    <p className="font-medium text-stone-800">Configure o encaminhamento</p>
+                    <p className="mt-1">
+                      Selecione "Encaminhar para" e use o endereço acima. O Gmail pedirá confirmação - isso será feito automaticamente.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 bg-wheat-100 text-wheat-700 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0">
+                    4
+                  </span>
+                  <div>
+                    <p className="font-medium text-stone-800">Pronto!</p>
+                    <p className="mt-1">
+                      Seus extratos serão importados automaticamente. Você receberá um email de confirmação a cada importação.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Gmail Settings Link */}
+              <a
+                href="https://mail.google.com/mail/u/0/#settings/filters"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-wheat-700 hover:text-wheat-800 font-medium mt-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Abrir configurações de filtros do Gmail
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

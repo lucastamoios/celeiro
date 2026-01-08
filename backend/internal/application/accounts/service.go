@@ -21,6 +21,7 @@ type Service interface {
 	RegisterUser(ctx context.Context, params RegisterUserInput) (RegisterUserOutput, error)
 	GetUser(ctx context.Context, params GetUserInput) (User, error)
 	GetUserByEmail(ctx context.Context, params GetUserByEmailInput) (User, error)
+	GetUserByEmailID(ctx context.Context, params GetUserByEmailIDInput) (User, error)
 	GetUsers(ctx context.Context, params GetUsersInput) ([]User, error)
 	GetOrganization(ctx context.Context, params GetOrganizationInput) (Organization, error)
 	UpdateOrganization(ctx context.Context, params UpdateOrganizationInput) (Organization, error)
@@ -109,6 +110,21 @@ func (s *service) GetUserByEmail(ctx context.Context, params GetUserByEmailInput
 	})
 	if err != nil {
 		return User{}, pkgerrors.Wrap(err, "failed to get user by email")
+	}
+
+	return User{}.FromModel(&user), nil
+}
+
+// GetUserByEmailID
+
+type GetUserByEmailIDInput struct {
+	EmailID string
+}
+
+func (s *service) GetUserByEmailID(ctx context.Context, params GetUserByEmailIDInput) (User, error) {
+	user, err := s.Repository.FetchUserByEmailID(ctx, params.EmailID)
+	if err != nil {
+		return User{}, pkgerrors.Wrap(err, "failed to get user by email_id")
 	}
 
 	return User{}.FromModel(&user), nil
