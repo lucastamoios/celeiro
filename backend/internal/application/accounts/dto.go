@@ -6,6 +6,7 @@ type User struct {
 	UserID    int
 	Name      string
 	Email     string
+	EmailID   string
 	Phone     int
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -23,6 +24,7 @@ func (u User) FromModel(model *UserModel) User {
 		UserID:    model.UserID,
 		Name:      model.Name,
 		Email:     model.Email,
+		EmailID:   model.EmailID,
 		Phone:     model.Phone,
 		CreatedAt: model.CreatedAt,
 		UpdatedAt: model.UpdatedAt,
@@ -119,6 +121,7 @@ type UserForSessionInfo struct {
 	ID          int
 	Name        string
 	Email       string
+	EmailID     string
 	Phone       int
 	Address     string
 	City        string
@@ -135,6 +138,7 @@ func (u UserForSessionInfo) FromUser(user UserModel) UserForSessionInfo {
 		ID:          user.UserID,
 		Name:        user.Name,
 		Email:       user.Email,
+		EmailID:     user.EmailID,
 		Phone:       user.Phone,
 		Address:     user.Address,
 		City:        user.City,

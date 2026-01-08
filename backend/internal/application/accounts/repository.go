@@ -19,6 +19,7 @@ type Repository interface {
 	InsertOrganization(ctx context.Context, params insertOrganizationParams) (OrganizationModel, error)
 	InsertUserOrganization(ctx context.Context, params createUserOrganizationParams) (UserOrganizationModel, error)
 	FetchUserByEmail(ctx context.Context, params getUserByEmailParams) (UserModel, error)
+	FetchUserByEmailID(ctx context.Context, emailID string) (UserModel, error)
 	FetchOrganization(ctx context.Context, params getOrganizationParams) (OrganizationModel, error)
 	ModifyOrganization(ctx context.Context, params modifyOrganizationParams) (OrganizationModel, error)
 
@@ -131,14 +132,15 @@ type createUserParams struct {
 
 const InsertUserQuery = `
 	-- accounts.insertUserQuery
-	INSERT INTO users 
-	(name, email) VALUES 
-	($1, $2)
-	RETURNING 
-		user_id, 
-		name, 
-		email, 
-		created_at, 
+	INSERT INTO users
+	(name, email, email_id) VALUES
+	($1, $2, 'u' || substr(encode(sha256(('celeiro-' || gen_random_uuid()::text)::bytea), 'hex'), 1, 12))
+	RETURNING
+		user_id,
+		name,
+		email,
+		email_id,
+		created_at,
 		updated_at;
 	`
 
@@ -151,6 +153,38 @@ func (r *repository) InsertUser(ctx context.Context, params createUserParams) (U
 	}
 
 	return userResult, nil
+}
+
+// FetchUserByEmailID fetches a user by their email import ID
+const fetchUserByEmailIDQuery = `
+	-- accounts.fetchUserByEmailIDQuery
+	SELECT
+		user_id,
+		name,
+		email,
+		email_id,
+		phone,
+		COALESCE(password_hash, '') as password_hash,
+		address,
+		city,
+		state,
+		zip,
+		country,
+		latitude,
+		longitude,
+		created_at,
+		updated_at
+	FROM users
+	WHERE email_id = $1;
+	`
+
+func (r *repository) FetchUserByEmailID(ctx context.Context, emailID string) (UserModel, error) {
+	var result UserModel
+	err := r.db.Query(ctx, &result, fetchUserByEmailIDQuery, emailID)
+	if err != nil {
+		return UserModel{}, err
+	}
+	return result, nil
 }
 
 // GetUser

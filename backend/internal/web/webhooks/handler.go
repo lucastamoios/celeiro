@@ -136,6 +136,7 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info(ctx, "Processing inbound email",
 		"email_id", payload.Data.EmailID,
 		"from", payload.Data.From,
+		"to", payload.Data.To,
 		"subject", payload.Data.Subject,
 		"attachment_count", len(payload.Data.Attachments),
 	)
@@ -146,28 +147,38 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract sender email from "Name <email@domain.com>" format
+	// Extract sender email for notification purposes
 	senderEmail := extractEmail(payload.Data.From)
-	if senderEmail == "" {
-		h.logger.Error(ctx, "Could not extract sender email", "from", payload.Data.From)
-		h.sendErrorEmail(ctx, payload.Data.From, "Formato de email inválido")
+
+	// Extract user's email_id from the To address
+	// e.g., "ofx+lucas.tamoios@mail.celeiro.catru.tech" -> "ofx+lucas.tamoios"
+	userEmailID := extractEmailIDFromTo(payload.Data.To)
+	if userEmailID == "" {
+		h.logger.Error(ctx, "Could not extract email_id from To address", "to", payload.Data.To)
+		if senderEmail != "" {
+			h.sendErrorEmail(ctx, senderEmail, "Endereço de destino inválido. Use seu email de importação pessoal.")
+		}
 		responses.NewSuccess(EmailInboundResponse{
 			Success: false,
-			Message: "Invalid sender email format",
+			Message: "Invalid destination address - no email_id found",
 		}, w)
 		return
 	}
 
-	// Find user by email
-	user, err := h.app.AccountsService.GetUserByEmail(ctx, accounts.GetUserByEmailInput{
-		Email: senderEmail,
+	h.logger.Info(ctx, "Looking up user by email_id", "email_id", userEmailID)
+
+	// Find user by email_id
+	user, err := h.app.AccountsService.GetUserByEmailID(ctx, accounts.GetUserByEmailIDInput{
+		EmailID: userEmailID,
 	})
 	if err != nil {
 		if stderrors.Is(err, sql.ErrNoRows) {
-			h.logger.Warn(ctx, "User not found for email", "email", senderEmail)
-			h.sendErrorEmail(ctx, senderEmail, "Usuário não encontrado. Certifique-se de usar o email cadastrado no Celeiro.")
+			h.logger.Warn(ctx, "User not found for email_id", "email_id", userEmailID)
+			if senderEmail != "" {
+				h.sendErrorEmail(ctx, senderEmail, "Usuário não encontrado. Verifique se o endereço de destino está correto.")
+			}
 		} else {
-			h.logger.Error(ctx, "Failed to get user by email", "email", senderEmail, "error", err)
+			h.logger.Error(ctx, "Failed to get user by email_id", "email_id", userEmailID, "error", err)
 		}
 		responses.NewSuccess(EmailInboundResponse{
 			Success: false,
@@ -176,13 +187,16 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use the user's registered email for all notifications from here
+	userEmail := user.Email
+
 	// Get user's organizations to find accounts
 	organizations, err := h.app.AccountsService.GetOrganizationsByUser(ctx, accounts.GetOrganizationsByUserInput{
 		UserID: user.UserID,
 	})
 	if err != nil || len(organizations) == 0 {
 		h.logger.Error(ctx, "User has no organizations", "user_id", user.UserID)
-		h.sendErrorEmail(ctx, senderEmail, "Nenhuma organização encontrada para o usuário.")
+		h.sendErrorEmail(ctx, userEmail, "Nenhuma organização encontrada para o usuário.")
 		responses.NewSuccess(EmailInboundResponse{
 			Success: false,
 			Message: "No organization found",
@@ -213,7 +227,7 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 
 	if len(ofxAttachments) == 0 {
 		h.logger.Warn(ctx, "No OFX/QFX attachments found in email", "email_id", payload.Data.EmailID)
-		h.sendErrorEmail(ctx, senderEmail, "Nenhum arquivo OFX ou QFX encontrado no email. Anexe um arquivo .ofx ou .qfx.")
+		h.sendErrorEmail(ctx, userEmail, "Nenhum arquivo OFX ou QFX encontrado no email. Anexe um arquivo .ofx ou .qfx.")
 		responses.NewSuccess(EmailInboundResponse{
 			Success: false,
 			Message: "No OFX/QFX attachments found",
@@ -233,7 +247,7 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil || len(userAccounts) == 0 {
 		h.logger.Error(ctx, "User has no accounts", "user_id", user.UserID)
-		h.sendErrorEmail(ctx, senderEmail, "Nenhuma conta encontrada. Crie uma conta no Celeiro antes de importar transações.")
+		h.sendErrorEmail(ctx, userEmail, "Nenhuma conta encontrada. Crie uma conta no Celeiro antes de importar transações.")
 		responses.NewSuccess(EmailInboundResponse{
 			Success: false,
 			Message: "No accounts found",
@@ -299,8 +313,8 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	// Send confirmation email
-	h.sendConfirmationEmail(ctx, senderEmail, targetAccount.Name, totalImported, totalDuplicates, importErrors)
+	// Send confirmation email to the user's registered email
+	h.sendConfirmationEmail(ctx, userEmail, targetAccount.Name, totalImported, totalDuplicates, importErrors)
 
 	responses.NewSuccess(EmailInboundResponse{
 		Success:        true,
@@ -323,6 +337,31 @@ func extractEmail(from string) string {
 	// If no angle brackets, assume the whole string is an email
 	if strings.Contains(from, "@") {
 		return strings.ToLower(strings.TrimSpace(from))
+	}
+
+	return ""
+}
+
+// extractEmailIDFromTo extracts the email_id from a To address
+// e.g., "ofx+lucas.tamoios@mail.celeiro.catru.tech" -> "ofx+lucas.tamoios"
+// e.g., "u4a3b2c1d@mail.celeiro.catru.tech" -> "u4a3b2c1d"
+func extractEmailIDFromTo(toAddresses []string) string {
+	// Look for an address that matches our mail domain
+	mailDomainSuffix := "@mail.celeiro.catru.tech"
+
+	for _, to := range toAddresses {
+		// Extract email from angle brackets if present
+		email := extractEmail(to)
+		if email == "" {
+			email = strings.ToLower(strings.TrimSpace(to))
+		}
+
+		// Check if it's our inbound mail address
+		if strings.HasSuffix(email, mailDomainSuffix) {
+			// Extract the local part (before @)
+			emailID := strings.TrimSuffix(email, mailDomainSuffix)
+			return emailID
+		}
 	}
 
 	return ""
