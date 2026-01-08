@@ -370,8 +370,8 @@ func (h *Handler) getAttachmentContent(ctx context.Context, emailID string, att 
 		return nil, fmt.Errorf("resend API key not configured")
 	}
 
-	// Fetch attachment from Resend API
-	url := fmt.Sprintf("https://api.resend.com/emails/%s/attachments/%s", emailID, att.ID)
+	// Fetch attachment from Resend API (using receiving endpoint for inbound emails)
+	url := fmt.Sprintf("https://api.resend.com/emails/receiving/%s/attachments/%s", emailID, att.ID)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
