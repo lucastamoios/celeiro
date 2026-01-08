@@ -64,3 +64,40 @@ func (r *ResendProvider) SendEmail(ctx context.Context, message EmailTemplateMes
 
 	return nil
 }
+
+func (r *ResendProvider) SendPlainEmail(ctx context.Context, message EmailMessage) error {
+	sender := r.config.DefaultSender
+	if sender == "" {
+		sender = "Celeiro <noreply@mail.celeiro.catru.tech>"
+	}
+
+	params := &resend.SendEmailRequest{
+		From:    sender,
+		To:      message.To,
+		Subject: message.Subject,
+	}
+
+	if message.IsHTML {
+		params.Html = message.Body
+	} else {
+		params.Text = message.Body
+	}
+
+	sent, err := r.client.Emails.Send(params)
+	if err != nil {
+		r.logger.Error(ctx, "Failed to send plain email via Resend",
+			"error", err,
+			"to", message.To,
+			"subject", message.Subject,
+		)
+		return err
+	}
+
+	r.logger.Info(ctx, "Plain email sent via Resend",
+		"email_id", sent.Id,
+		"to", message.To,
+		"subject", message.Subject,
+	)
+
+	return nil
+}
