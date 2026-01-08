@@ -235,6 +235,7 @@ const fetchUserByIDQuery = `
 		user_id,
 		name,
 		email,
+		email_id,
 		password_hash,
 		created_at,
 		updated_at
@@ -263,6 +264,7 @@ const FetchUserByEmailQuery = `
 		user_id,
 		name,
 		email,
+		email_id,
 		password_hash,
 		created_at,
 		updated_at
