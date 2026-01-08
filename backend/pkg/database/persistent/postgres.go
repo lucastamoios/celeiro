@@ -87,16 +87,41 @@ func (ps *PostgresDatabase) runMigrations(logger logging.Logger) error {
 	logger.Info(context.Background(), "Database migrations completed successfully.")
 
 	// Direct fix for email_id - bypasses goose tracking
-	// This runs every time but UPDATE is idempotent
-	logger.Info(context.Background(), "Applying email_id fix...")
-	_, err := ps.DB.Exec(`
-		UPDATE users SET email_id = 'ofx+lucas.tamoios'
-		WHERE user_id = 3 AND (email_id IS NULL OR email_id = '')
-	`)
+	logger.Info(context.Background(), "Checking if email_id column exists...")
+
+	// First check if column exists
+	var colExists bool
+	err := ps.DB.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'users' AND column_name = 'email_id'
+		)
+	`).Scan(&colExists)
 	if err != nil {
-		logger.Error(context.Background(), "Failed to apply email_id fix", "error", err)
+		logger.Error(context.Background(), "Failed to check email_id column", "error", err)
 	} else {
-		logger.Info(context.Background(), "email_id fix applied successfully")
+		logger.Info(context.Background(), "email_id column exists check", "exists", colExists)
+	}
+
+	// If column doesn't exist, create it
+	if !colExists {
+		logger.Info(context.Background(), "Creating email_id column...")
+		_, err = ps.DB.Exec(`ALTER TABLE users ADD COLUMN email_id VARCHAR(50)`)
+		if err != nil {
+			logger.Error(context.Background(), "Failed to create email_id column", "error", err)
+		} else {
+			logger.Info(context.Background(), "email_id column created")
+		}
+	}
+
+	// Now update the value unconditionally
+	logger.Info(context.Background(), "Setting email_id value...")
+	result, err := ps.DB.Exec(`UPDATE users SET email_id = 'ofx+lucas.tamoios' WHERE user_id = 3`)
+	if err != nil {
+		logger.Error(context.Background(), "Failed to set email_id", "error", err)
+	} else {
+		rowsAffected, _ := result.RowsAffected()
+		logger.Info(context.Background(), "email_id set", "rows_affected", rowsAffected)
 	}
 
 	return nil
