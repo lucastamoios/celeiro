@@ -2,6 +2,8 @@ package webhooks
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -11,6 +13,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/catrutech/celeiro/internal/application"
 	"github.com/catrutech/celeiro/internal/application/accounts"
@@ -24,17 +27,19 @@ import (
 
 // Handler handles webhook requests
 type Handler struct {
-	app          *application.Application
-	logger       logging.Logger
-	resendAPIKey string
+	app                 *application.Application
+	logger              logging.Logger
+	resendAPIKey        string
+	resendWebhookSecret string
 }
 
 // NewHandler creates a new webhook handler
 func NewHandler(app *application.Application, logger logging.Logger, cfg *config.Config) *Handler {
 	return &Handler{
-		app:          app,
-		logger:       logger,
-		resendAPIKey: cfg.Resend.APIKey,
+		app:                 app,
+		logger:              logger,
+		resendAPIKey:        cfg.Resend.APIKey,
+		resendWebhookSecret: cfg.Resend.WebhookSecret,
 	}
 }
 
@@ -92,9 +97,27 @@ type EmailInboundResponse struct {
 func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	// Read the raw body for signature verification
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.logger.Error(ctx, "Failed to read request body", "error", err)
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	// Verify webhook signature if secret is configured
+	if h.resendWebhookSecret != "" {
+		if err := h.verifyWebhookSignature(r.Header, body); err != nil {
+			h.logger.Error(ctx, "Webhook signature verification failed", "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid signature"})
+			return
+		}
+	}
+
 	// Parse the webhook payload
 	var payload ResendInboundPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal(body, &payload); err != nil {
 		h.logger.Error(ctx, "Failed to decode webhook payload", "error", err)
 		responses.NewError(w, errors.ErrInvalidRequestBody)
 		return
@@ -447,4 +470,83 @@ func (h *Handler) sendErrorEmail(ctx context.Context, toEmail, errorMessage stri
 	if err != nil {
 		h.logger.Error(ctx, "Failed to send error email", "to", toEmail, "error", err)
 	}
+}
+
+// verifyWebhookSignature verifies the Resend webhook signature
+// Resend uses svix for webhook signatures with the format:
+// svix-id: msg_xxx
+// svix-timestamp: 1234567890
+// svix-signature: v1,base64signature
+func (h *Handler) verifyWebhookSignature(header http.Header, payload []byte) error {
+	svixID := header.Get("svix-id")
+	svixTimestamp := header.Get("svix-timestamp")
+	svixSignature := header.Get("svix-signature")
+
+	if svixID == "" || svixTimestamp == "" || svixSignature == "" {
+		return fmt.Errorf("missing svix headers")
+	}
+
+	// Verify timestamp is not too old (5 minute tolerance)
+	ts, err := parseTimestamp(svixTimestamp)
+	if err != nil {
+		return fmt.Errorf("invalid timestamp: %w", err)
+	}
+
+	now := time.Now()
+	if now.Sub(ts) > 5*time.Minute {
+		return fmt.Errorf("timestamp too old")
+	}
+	if ts.Sub(now) > 5*time.Minute {
+		return fmt.Errorf("timestamp in future")
+	}
+
+	// Build the signed payload: "{svix-id}.{svix-timestamp}.{body}"
+	signedPayload := fmt.Sprintf("%s.%s.%s", svixID, svixTimestamp, string(payload))
+
+	// Extract the secret (remove "whsec_" prefix if present)
+	secret := h.resendWebhookSecret
+	if strings.HasPrefix(secret, "whsec_") {
+		secret = secret[6:]
+	}
+
+	// Decode the secret from base64
+	secretBytes, err := base64.StdEncoding.DecodeString(secret)
+	if err != nil {
+		return fmt.Errorf("invalid webhook secret: %w", err)
+	}
+
+	// Compute HMAC-SHA256
+	mac := hmac.New(sha256.New, secretBytes)
+	mac.Write([]byte(signedPayload))
+	expectedSig := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+	// Parse signatures (format: "v1,sig1 v1,sig2")
+	signatures := strings.Split(svixSignature, " ")
+	for _, sig := range signatures {
+		parts := strings.SplitN(sig, ",", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		version := parts[0]
+		signature := parts[1]
+
+		if version != "v1" {
+			continue
+		}
+
+		if hmac.Equal([]byte(signature), []byte(expectedSig)) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("signature mismatch")
+}
+
+// parseTimestamp parses a Unix timestamp string
+func parseTimestamp(ts string) (time.Time, error) {
+	var timestamp int64
+	if _, err := fmt.Sscanf(ts, "%d", &timestamp); err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(timestamp, 0), nil
 }

@@ -49,7 +49,8 @@ type SMTP2GOConfig struct {
 }
 
 type ResendConfig struct {
-	APIKey string
+	APIKey         string
+	WebhookSecret  string
 }
 
 func New() *Config {
@@ -76,6 +77,7 @@ func New() *Config {
 	smtp2goBaseURL := flag.String("smtp2go-base-url", getEnvAsString("SMTP2GO_BASE_URL", ""), "SMTP2GO base URL")
 	smtp2goTimeout := flag.Int("smtp2go-timeout", getEnvAsInt("SMTP2GO_TIMEOUT", 30), "SMTP2GO timeout in seconds")
 	resendAPIKey := flag.String("resend-api-key", getEnvAsString("RESEND_API_KEY", ""), "Resend API key")
+	resendWebhookSecret := flag.String("resend-webhook-secret", getEnvAsString("RESEND_WEBHOOK_SECRET", ""), "Resend webhook signing secret")
 	frontendURL := flag.String("frontend-url", getEnvAsString("FRONTEND_URL", "http://localhost:51111"), "Frontend base URL for email links")
 	googleClientID := flag.String("google-client-id", getEnvAsString("GOOGLE_CLIENT_ID", ""), "Google OAuth Client ID")
 
@@ -106,7 +108,8 @@ func New() *Config {
 			Timeout:       time.Duration(*smtp2goTimeout) * time.Second,
 		},
 		Resend: ResendConfig{
-			APIKey: *resendAPIKey,
+			APIKey:        *resendAPIKey,
+			WebhookSecret: *resendWebhookSecret,
 		},
 		FrontendURL: *frontendURL,
 		GoogleOAuth: GoogleOAuthConfig{
