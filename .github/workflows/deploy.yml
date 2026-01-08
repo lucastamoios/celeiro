@@ -182,9 +182,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           envs: DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_WEBHOOK_SECRET,GOOGLE_CLIENT_ID,GITHUB_TOKEN,GITHUB_ACTOR
           script: |
-            # Create directories
-            mkdir -p /var/celeiro/postgres_data
-            mkdir -p /var/celeiro/redis_data
+            # Create directories with correct ownership
+            sudo mkdir -p /var/celeiro/postgres_data
+            sudo mkdir -p /var/celeiro/redis_data
+
+            # Fix Redis data directory ownership (Redis runs as UID 999)
+            sudo chown -R 999:999 /var/celeiro/redis_data
 
             # Rename docker-compose file if it exists
             [ -f /var/celeiro/docker-compose.prod.yml ] && mv /var/celeiro/docker-compose.prod.yml /var/celeiro/docker-compose.yml
