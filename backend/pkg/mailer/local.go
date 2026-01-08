@@ -143,3 +143,14 @@ func (l *LocalMailer) ClearSentEmails() error {
 func (l *LocalMailer) SetTestError(err error) {
 	l.testError = err
 }
+
+func (l *LocalMailer) SendPlainEmail(ctx context.Context, message EmailMessage) error {
+	if l.testError != nil {
+		return l.testError
+	}
+
+	l.logger.Info(ctx, "LOCAL MAILER (Plain)", "from", l.config.EmailFrom, "to", strings.Join(message.To, ", "), "subject", message.Subject)
+	l.logger.Info(ctx, "Email Body", "body", message.Body)
+
+	return nil
+}
