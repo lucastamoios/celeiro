@@ -1,8 +1,9 @@
 // Centralized API configuration
 // Uses Vite environment variables (VITE_API_URL)
-// Defaults to http://localhost:8080 for development
+// Defaults to empty string for production (proxied by nginx)
+// Set to http://localhost:8080 for local development
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const API_CONFIG = {
   baseURL: API_BASE_URL,
