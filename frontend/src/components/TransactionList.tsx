@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Coins, XCircle, Filter, CheckSquare, Square, X, Upload } from 'lucide-react';
+import { Coins, XCircle, CheckSquare, Square, X, Upload } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,7 +15,6 @@ import TransactionCreateModal from './TransactionCreateModal';
 const DEFAULT_TRANSACTION_FILTERS = {
   hideIgnored: false,
   onlyUncategorized: false,
-  onlyOriginalDescription: false,
 };
 
 // Month names for display
@@ -95,17 +94,21 @@ export default function TransactionList() {
     setError(null);
 
     try {
-      const promises = Array.from(selectedTransactions).map(transactionId =>
-        fetch(financialUrl(`transactions/${transactionId}`), {
-          method: 'PUT',
+      const promises = Array.from(selectedTransactions).map(transactionId => {
+        // Find the transaction to get its account_id
+        const transaction = transactions.find(t => t.transaction_id === transactionId);
+        if (!transaction) return Promise.resolve();
+
+        return fetch(financialUrl(`accounts/${transaction.account_id}/transactions/${transactionId}`), {
+          method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
             'X-Active-Organization': activeOrganizationId,
           },
           body: JSON.stringify({ category_id: categoryId }),
-        })
-      );
+        });
+      });
 
       await Promise.all(promises);
       setUploadSuccess(`✅ ${selectedTransactions.size} transações atualizadas!`);
@@ -117,7 +120,7 @@ export default function TransactionList() {
     } finally {
       setBulkActionLoading(false);
     }
-  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection]);
+  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection, transactions]);
 
   const handleBulkIgnore = useCallback(async (shouldIgnore: boolean) => {
     if (!token || selectedTransactions.size === 0) return;
@@ -126,17 +129,21 @@ export default function TransactionList() {
     setError(null);
 
     try {
-      const promises = Array.from(selectedTransactions).map(transactionId =>
-        fetch(financialUrl(`transactions/${transactionId}`), {
-          method: 'PUT',
+      const promises = Array.from(selectedTransactions).map(transactionId => {
+        // Find the transaction to get its account_id
+        const transaction = transactions.find(t => t.transaction_id === transactionId);
+        if (!transaction) return Promise.resolve();
+
+        return fetch(financialUrl(`accounts/${transaction.account_id}/transactions/${transactionId}`), {
+          method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
             'X-Active-Organization': activeOrganizationId,
           },
           body: JSON.stringify({ is_ignored: shouldIgnore }),
-        })
-      );
+        });
+      });
 
       await Promise.all(promises);
       const action = shouldIgnore ? 'ignoradas' : 'restauradas';
@@ -149,14 +156,14 @@ export default function TransactionList() {
     } finally {
       setBulkActionLoading(false);
     }
-  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection]);
+  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection, transactions]);
 
   // Filters (persisted to localStorage) - month is handled separately by useSelectedMonth
   const { filters, setFilter } = usePersistedFilters(
     'celeiro:transaction-filters',
     DEFAULT_TRANSACTION_FILTERS
   );
-  const { hideIgnored, onlyUncategorized, onlyOriginalDescription } = filters;
+  const { hideIgnored, onlyUncategorized } = filters;
 
   // Shared month selection (synced across pages)
   const {
@@ -334,19 +341,53 @@ export default function TransactionList() {
     event.target.value = '';
   };
 
-  // Drag and drop handlers
+  // Global drag detection - show drop zone when dragging files anywhere on page
+  useEffect(() => {
+    let dragCounter = 0;
+
+    const handleWindowDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter++;
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleWindowDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter === 0) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleWindowDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    const handleWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter = 0;
+      setIsDragging(false);
+    };
+
+    window.addEventListener('dragenter', handleWindowDragEnter);
+    window.addEventListener('dragleave', handleWindowDragLeave);
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('drop', handleWindowDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', handleWindowDragEnter);
+      window.removeEventListener('dragleave', handleWindowDragLeave);
+      window.removeEventListener('dragover', handleWindowDragOver);
+      window.removeEventListener('drop', handleWindowDrop);
+    };
+  }, []);
+
+  // Drop zone handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only set to false if we're leaving the drop zone entirely
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    setIsDragging(false);
   }, []);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -452,8 +493,6 @@ export default function TransactionList() {
     if (hideIgnored && t.is_ignored) return false;
     // Filter: only uncategorized transactions (category_id can be null, undefined, or 0)
     if (onlyUncategorized && t.category_id) return false;
-    // Filter: only transactions with original description (not renamed)
-    if (onlyOriginalDescription && t.description !== t.original_description) return false;
     return true;
   });
 
@@ -547,71 +586,53 @@ export default function TransactionList() {
           </div>
         </div>
 
-        {/* Drag and Drop Zone */}
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`mb-6 border-2 border-dashed rounded-xl p-6 text-center transition-all ${
-            isDragging
-              ? 'border-wheat-500 bg-wheat-50'
-              : 'border-stone-300 bg-stone-50 hover:border-stone-400'
-          }`}
-        >
-          <Upload className={`w-8 h-8 mx-auto mb-2 ${isDragging ? 'text-wheat-600' : 'text-stone-400'}`} />
-          <p className={`text-sm font-medium ${isDragging ? 'text-wheat-700' : 'text-stone-600'}`}>
-            {isDragging ? 'Solte os arquivos aqui' : 'Arraste arquivos OFX aqui'}
-          </p>
-          <p className="text-xs text-stone-500 mt-1">
-            ou use o botão "Importar OFX" acima (múltiplos arquivos permitidos)
-          </p>
-        </div>
+        {/* Drag and Drop Zone - Only visible when dragging files */}
+        {isDragging && (
+          <div
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className="fixed inset-0 z-50 bg-wheat-500/20 backdrop-blur-sm flex items-center justify-center"
+          >
+            <div className="bg-white border-2 border-dashed border-wheat-500 rounded-xl p-12 text-center shadow-2xl">
+              <Upload className="w-16 h-16 mx-auto mb-4 text-wheat-600" />
+              <p className="text-xl font-medium text-wheat-700">Solte os arquivos OFX aqui</p>
+            </div>
+          </div>
+        )}
 
         {/* Filters and Bulk Actions */}
         <div className="mb-6 bg-white border border-stone-200 rounded-xl p-4">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-stone-500" />
-              <span className="text-sm font-medium text-stone-700">Filtros</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Filters inline */}
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={onlyUncategorized}
+                  onChange={(e) => setFilter('onlyUncategorized', e.target.checked)}
+                  className="w-4 h-4 rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
+                />
+                <span className="text-sm text-stone-600 group-hover:text-stone-900">Sem categoria</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={hideIgnored}
+                  onChange={(e) => setFilter('hideIgnored', e.target.checked)}
+                  className="w-4 h-4 rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
+                />
+                <span className="text-sm text-stone-600 group-hover:text-stone-900">Ocultar ignoradas</span>
+              </label>
             </div>
             {/* Select All toggle */}
             <button
               onClick={() => handleSelectAll(filteredTransactions.map(t => t.transaction_id))}
-              className="text-xs text-wheat-600 hover:text-wheat-800 hover:underline transition-colors"
+              className="text-xs text-wheat-600 hover:text-wheat-800 hover:underline transition-colors whitespace-nowrap"
             >
               {filteredTransactions.length > 0 && filteredTransactions.every(t => selectedTransactions.has(t.transaction_id))
                 ? 'Desmarcar todas'
                 : 'Selecionar todas'}
             </button>
-          </div>
-          <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={onlyUncategorized}
-                onChange={(e) => setFilter('onlyUncategorized', e.target.checked)}
-                className="w-4 h-4 rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
-              />
-              <span className="text-sm text-stone-600 group-hover:text-stone-900">Sem categoria</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={hideIgnored}
-                onChange={(e) => setFilter('hideIgnored', e.target.checked)}
-                className="w-4 h-4 rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
-              />
-              <span className="text-sm text-stone-600 group-hover:text-stone-900">Ocultar ignoradas</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={onlyOriginalDescription}
-                onChange={(e) => setFilter('onlyOriginalDescription', e.target.checked)}
-                className="w-4 h-4 rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
-              />
-              <span className="text-sm text-stone-600 group-hover:text-stone-900">Com descrição original</span>
-            </label>
           </div>
 
           {/* Bulk Actions - shown when transactions are selected */}
