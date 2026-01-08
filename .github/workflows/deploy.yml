@@ -222,3 +222,8 @@ jobs:
 
             echo "✅ Celeiro deployed to celeiro.catru.tech"
             docker compose ps
+
+            # Wait for backend to start and show logs (including migration output)
+            sleep 5
+            echo "📋 Backend logs:"
+            docker compose logs backend --tail=50
