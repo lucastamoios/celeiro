@@ -8,7 +8,7 @@ interface UserInfo {
   id: number;
   name: string;
   email: string;
-  EmailID: string;
+  email_id: string;
   has_password: boolean;
 }
 
@@ -78,7 +78,7 @@ export default function AccountSettings() {
   const canSubmitPassword = isValidPassword && passwordsMatch && (!userInfo?.has_password || oldPassword.length > 0);
 
   // Email import address
-  const importEmail = userInfo?.EmailID ? `${userInfo.EmailID}@mail.celeiro.catru.tech` : null;
+  const importEmail = userInfo?.email_id ? `${userInfo.email_id}@mail.celeiro.catru.tech` : null;
 
   const handleCopyEmail = async () => {
     if (!importEmail) return;
