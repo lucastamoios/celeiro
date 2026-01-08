@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/catrutech/celeiro/internal/config"
+	"github.com/catrutech/celeiro/internal/migrations"
 	"github.com/catrutech/celeiro/pkg/errors"
 	"github.com/catrutech/celeiro/pkg/logging"
+	"github.com/pressly/goose/v3"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // Standard library bindings for pgx
 	"github.com/jmoiron/sqlx"
@@ -54,10 +56,36 @@ func (ps *PostgresDatabase) tryConnect(connStr, dbName string, maxIdle, maxConn 
 		conn.SetMaxOpenConns(maxConn)
 		ps.DB = conn
 		logger.Info(context.Background(), "Successfully connected to the database.")
+
+		// Run migrations automatically on startup
+		if err := ps.runMigrations(logger); err != nil {
+			logger.Error(context.Background(), "Failed to run migrations", "error", err)
+			// Don't fail startup - log the error and continue
+			// This allows the app to start even if migrations have issues
+		}
+
 		return true
 	}
 	logger.Error(context.Background(), "Connection to db failed", "error", err)
 	return false
+}
+
+// runMigrations runs all pending database migrations using goose
+func (ps *PostgresDatabase) runMigrations(logger logging.Logger) error {
+	logger.Info(context.Background(), "Running database migrations...")
+
+	goose.SetBaseFS(migrations.MigrationsFS)
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
+
+	if err := goose.Up(ps.DB.DB, "."); err != nil {
+		return err
+	}
+
+	logger.Info(context.Background(), "Database migrations completed successfully.")
+	return nil
 }
 
 func (ps *PostgresDatabase) connect(connStr, dbName string, maxIdle, maxConn int, logger logging.Logger) {
