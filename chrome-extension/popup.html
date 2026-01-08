@@ -335,12 +335,60 @@
     .hidden {
       display: none !important;
     }
+
+    /* Settings toggle */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .btn-icon {
+      padding: 6px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #6c757d;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      background: #e9ecef;
+      color: #212529;
+    }
+
+    .btn-icon.active {
+      background: #e9ecef;
+      color: #22c55e;
+    }
+
+    /* Current month display */
+    .current-month-display {
+      text-align: center;
+      padding: 8px 12px;
+      background: #f0fdf4;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #166534;
+    }
+
+    .current-month-display strong {
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="logo">C</div>
     <h1>Celeiro Amazon Sync</h1>
+    <div class="header-actions">
+      <button id="settingsBtn" class="btn-icon" title="Configurações">
+        ⚙️
+      </button>
+    </div>
   </div>
 
   <div id="status" class="status"></div>
@@ -376,7 +424,12 @@
     <button id="logoutBtn" class="btn-logout">Sair</button>
   </div>
 
-  <!-- Configuration Section (shown when authenticated) -->
+  <!-- Current Month Display (shown when authenticated) -->
+  <div id="currentMonthDisplay" class="current-month-display hidden">
+    Sincronizando: <strong id="currentMonthText">-</strong>
+  </div>
+
+  <!-- Configuration Section (hidden by default, toggle via settings) -->
   <div id="configSection" class="section hidden">
     <div class="section-title">Configuração</div>
     <div class="config-row">
@@ -432,10 +485,6 @@
       </div>
     </div>
   </div>
-
-  <button id="openAmazonBtn" class="btn btn-secondary hidden">
-    📦 Abrir Amazon Orders
-  </button>
 
   <div class="footer">
     Desenvolvido para <a href="#">Celeiro</a>

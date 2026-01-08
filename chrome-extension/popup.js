@@ -1,8 +1,8 @@
 // Celeiro Amazon Sync - Popup Script
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load saved settings
-  const settings = await chrome.storage.local.get(['apiUrl', 'token', 'userEmail', 'month', 'year']);
+  // Load saved settings (only API URL and auth, month/year always default to current)
+  const settings = await chrome.storage.local.get(['apiUrl', 'token', 'userEmail']);
 
   // DOM Elements - Auth
   const loginSection = document.getElementById('loginSection');
@@ -22,7 +22,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const monthSelect = document.getElementById('month');
   const yearInput = document.getElementById('year');
   const syncBtn = document.getElementById('syncBtn');
-  const openAmazonBtn = document.getElementById('openAmazonBtn');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const currentMonthDisplay = document.getElementById('currentMonthDisplay');
+  const currentMonthText = document.getElementById('currentMonthText');
   const statusDiv = document.getElementById('status');
   const progressContainer = document.getElementById('progressContainer');
   const progressFill = document.getElementById('progressFill');
@@ -31,11 +33,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ordersFoundSpan = document.getElementById('ordersFound');
   const transactionsMatchedSpan = document.getElementById('transactionsMatched');
 
-  // Set default values
+  // Month names for display
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
+  // Set default values - always use current month/year
   const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1;
+  const currentYear = currentDate.getFullYear();
+
   apiUrlInput.value = settings.apiUrl || 'https://celeiro.catru.tech';
-  monthSelect.value = settings.month || currentDate.getMonth() + 1;
-  yearInput.value = settings.year || currentDate.getFullYear();
+  monthSelect.value = currentMonth;
+  yearInput.value = currentYear;
+
+  // Update current month display text
+  const updateMonthDisplay = () => {
+    const month = parseInt(monthSelect.value);
+    const year = parseInt(yearInput.value);
+    currentMonthText.textContent = `${monthNames[month - 1]} ${year}`;
+  };
+
+  // Track if settings panel is visible
+  let settingsVisible = false;
 
   // Check if user is authenticated
   const updateAuthUI = () => {
@@ -44,35 +65,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isAuthenticated) {
       loginSection.classList.add('hidden');
       userInfoSection.classList.remove('hidden');
-      configSection.classList.remove('hidden');
+      // Config section stays hidden by default (toggle via settings)
+      configSection.classList.add('hidden');
       syncSection.classList.remove('hidden');
-      openAmazonBtn.classList.remove('hidden');
+      currentMonthDisplay.classList.remove('hidden');
 
       userEmailSpan.textContent = settings.userEmail;
       userAvatar.textContent = settings.userEmail.charAt(0).toUpperCase();
+      updateMonthDisplay();
     } else {
       loginSection.classList.remove('hidden');
       userInfoSection.classList.add('hidden');
       configSection.classList.add('hidden');
       syncSection.classList.add('hidden');
-      openAmazonBtn.classList.add('hidden');
+      currentMonthDisplay.classList.add('hidden');
     }
   };
 
   updateAuthUI();
 
-  // Save settings on change
-  const saveSettings = () => {
+  // Settings toggle
+  settingsBtn.addEventListener('click', () => {
+    settingsVisible = !settingsVisible;
+    if (settingsVisible) {
+      configSection.classList.remove('hidden');
+      settingsBtn.classList.add('active');
+    } else {
+      configSection.classList.add('hidden');
+      settingsBtn.classList.remove('active');
+    }
+  });
+
+  // Save API URL only (month/year always default to current)
+  const saveApiUrl = () => {
     chrome.storage.local.set({
-      apiUrl: apiUrlInput.value,
-      month: monthSelect.value,
-      year: yearInput.value
+      apiUrl: apiUrlInput.value
     });
   };
 
-  apiUrlInput.addEventListener('change', saveSettings);
-  monthSelect.addEventListener('change', saveSettings);
-  yearInput.addEventListener('change', saveSettings);
+  apiUrlInput.addEventListener('change', saveApiUrl);
+
+  // Update month display when changed in settings
+  monthSelect.addEventListener('change', updateMonthDisplay);
+  yearInput.addEventListener('change', updateMonthDisplay);
 
   // Status display helper
   const showStatus = (message, type = 'info') => {
@@ -169,24 +204,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(hideStatus, 2000);
   });
 
-  // Open Amazon orders page
-  openAmazonBtn.addEventListener('click', async () => {
-    const month = parseInt(monthSelect.value);
-    const year = parseInt(yearInput.value);
-
-    // Calculate date range for the month
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
-
-    // Format dates for Amazon URL (YYYY-MM-DD)
-    const formatDate = (d) => d.toISOString().split('T')[0];
-
-    // Amazon orders URL with date filter
-    const url = `https://www.amazon.com.br/your-orders/orders?timeFilter=year-${year}&startDate=${formatDate(startDate)}&endDate=${formatDate(endDate)}`;
-
-    chrome.tabs.create({ url });
-  });
-
   // Sync orders
   syncBtn.addEventListener('click', async () => {
     const apiUrl = apiUrlInput.value.trim();
@@ -204,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    saveSettings();
+    saveApiUrl();
 
     try {
       syncBtn.disabled = true;
@@ -212,7 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       resultsSection.style.display = 'none';
       showProgress(0, 'Buscando aba da Amazon...');
 
-      // Find active Amazon tab
+      // Find active Amazon tab or any Amazon tab
       const tabs = await chrome.tabs.query({
         url: ['https://www.amazon.com.br/*', 'https://www.amazon.com/*'],
         active: true,
@@ -231,11 +248,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           amazonTab = allAmazonTabs[0];
           await chrome.tabs.update(amazonTab.id, { active: true });
         } else {
-          showStatus('Abra a página de pedidos da Amazon primeiro', 'warning');
-          showProgress(0, '');
-          hideProgress();
-          syncBtn.disabled = false;
-          return;
+          // No Amazon tab found - open one automatically
+          showProgress(5, 'Abrindo Amazon...');
+          const ordersUrl = `https://www.amazon.com.br/your-orders/orders?timeFilter=year-${year}`;
+          amazonTab = await chrome.tabs.create({ url: ordersUrl, active: true });
+
+          // Wait longer for the new tab to load
+          await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
 
