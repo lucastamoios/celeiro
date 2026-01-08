@@ -193,6 +193,11 @@ jobs:
             # Rename docker-compose file if it exists
             [ -f /var/celeiro/docker-compose.prod.yml ] && mv /var/celeiro/docker-compose.prod.yml /var/celeiro/docker-compose.yml
 
+            # Restart postgres to pick up permission changes (if it was running with wrong perms)
+            cd /var/celeiro
+            docker compose restart postgres 2>/dev/null || true
+            sleep 2  # Give postgres time to restart
+
             # Create .env file with secrets
             cat > /var/celeiro/.env << ENVEOF
             DB_USER=${DB_USER}
