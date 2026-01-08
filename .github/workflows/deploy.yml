@@ -144,6 +144,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Prepare server directory
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            mkdir -p /var/celeiro
+            rm -f /var/celeiro/docker-compose.prod.yml /var/celeiro/docker-compose.yml
+
       - name: Copy docker-compose to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -161,6 +171,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_WEBHOOK_SECRET: ${{ secrets.RESEND_WEBHOOK_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
@@ -168,7 +179,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          envs: DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,GOOGLE_CLIENT_ID,GITHUB_TOKEN,GITHUB_ACTOR
+          envs: DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_WEBHOOK_SECRET,GOOGLE_CLIENT_ID,GITHUB_TOKEN,GITHUB_ACTOR
           script: |
             # Create directories
             mkdir -p /var/celeiro/postgres_data
@@ -187,6 +198,7 @@ jobs:
             BACKOFFICE_PORT=9082
             MAILER_TYPE=resend
             RESEND_API_KEY=${RESEND_API_KEY}
+            RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET}
             EMAIL_FROM=Celeiro <noreply@mail.celeiro.catru.tech>
             GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
             ENVEOF
