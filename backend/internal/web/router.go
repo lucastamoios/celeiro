@@ -3,21 +3,24 @@ package web
 import (
 	"github.com/catrutech/celeiro/internal/application"
 	"github.com/catrutech/celeiro/internal/application/accounts"
+	"github.com/catrutech/celeiro/internal/config"
 	accountsWeb "github.com/catrutech/celeiro/internal/web/accounts"
 	financialWeb "github.com/catrutech/celeiro/internal/web/financial"
 	"github.com/catrutech/celeiro/internal/web/middlewares"
+	webhooksWeb "github.com/catrutech/celeiro/internal/web/webhooks"
 	"github.com/catrutech/celeiro/pkg/logging"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 )
 
-func NewRouter(application *application.Application, logger logging.Logger) *chi.Mux {
+func NewRouter(application *application.Application, logger logging.Logger, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	mw := middlewares.NewMiddleware(application, logger)
 	ah := accountsWeb.NewHandler(application)
 	fh := financialWeb.NewHandler(application)
+	wh := webhooksWeb.NewHandler(application, logger, cfg)
 
 	r.Use(mw.LogError)
 	r.Use(mw.Session)
@@ -59,6 +62,11 @@ func NewRouter(application *application.Application, logger logging.Logger) *chi
 
 	// Public system invite acceptance (token-based auth)
 	r.Post("/system-invites/accept", ah.AcceptSystemInvite)
+
+	// Webhooks (public endpoints for external services)
+	r.Route("/webhooks", func(r chi.Router) {
+		r.Post("/email/inbound", wh.HandleEmailInbound)
+	})
 
 	// Financial endpoints (all require authentication)
 	r.Route("/financial", func(r chi.Router) {

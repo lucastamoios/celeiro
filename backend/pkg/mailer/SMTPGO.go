@@ -189,3 +189,7 @@ func (s *SMTP2GOProvider) sendEmailMessage(ctx context.Context, email EmailMessa
 
 	return fmt.Errorf("SMTP2GO API error: %s", errorMsg)
 }
+
+func (s *SMTP2GOProvider) SendPlainEmail(ctx context.Context, message EmailMessage) error {
+	return s.sendEmailMessage(ctx, message)
+}
