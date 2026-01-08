@@ -13,6 +13,7 @@ Personal finance management system with Go backend and React frontend.
 | Fix common issues | [troubleshooting.md](./troubleshooting.md) |
 | Understand database schema | [database.md](./database.md) |
 | Set up development environment | [setup.md](./setup.md) |
+| Deploy to staging/production | [deployment.md](./deployment.md) |
 
 ## Project Structure
 

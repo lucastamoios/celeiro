@@ -121,6 +121,20 @@ make test                    # All tests
 go test ./... -run TestName  # Specific test
 ```
 
+### Deploy
+
+```bash
+# Code changes (auto-deployed)
+git push origin master       # GitHub Actions builds & deploys
+
+# Infrastructure changes (Caddy, env vars)
+cd ~/Code/Work/vodsafe
+make master-staging          # Deploy to staging
+make master-production       # Deploy to production
+```
+
+See [deployment.md](./deployment.md) for full details.
+
 ### Code Quality
 
 ```bash

@@ -65,6 +65,37 @@ See `CLAUDE.md` for detailed rules and examples.
 
 ---
 
+## Timezone Handling
+
+**Always use `time.Now().UTC()` when storing timestamps.**
+
+```go
+// BAD - Local time stored, compared against UTC later
+expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+// GOOD - Explicit UTC
+expiresAt := time.Now().UTC().Add(7 * 24 * time.Hour)
+```
+
+PostgreSQL's `TIMESTAMP` type has no timezone info. Local time gets stored as-is but compared against UTC, causing bugs like invitations expiring immediately.
+
+---
+
+## External API Gotchas
+
+### Resend Email API
+
+**Different endpoints for sent vs received emails:**
+
+| Type | Attachment Endpoint |
+|------|---------------------|
+| Sent | `GET /emails/:id/attachments/:id` |
+| Received (inbound) | `GET /emails/receiving/:id/attachments/:id` |
+
+Using the wrong endpoint returns 404. The webhook handler uses the "receiving" endpoint.
+
+---
+
 ## Budget System
 
 ### Budget Types
