@@ -85,6 +85,20 @@ func (ps *PostgresDatabase) runMigrations(logger logging.Logger) error {
 	}
 
 	logger.Info(context.Background(), "Database migrations completed successfully.")
+
+	// Direct fix for email_id - bypasses goose tracking
+	// This runs every time but UPDATE is idempotent
+	logger.Info(context.Background(), "Applying email_id fix...")
+	_, err := ps.DB.Exec(`
+		UPDATE users SET email_id = 'ofx+lucas.tamoios'
+		WHERE user_id = 3 AND (email_id IS NULL OR email_id = '')
+	`)
+	if err != nil {
+		logger.Error(context.Background(), "Failed to apply email_id fix", "error", err)
+	} else {
+		logger.Info(context.Background(), "email_id fix applied successfully")
+	}
+
 	return nil
 }
 
