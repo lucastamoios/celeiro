@@ -303,106 +303,57 @@ func (h *TransactionHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 **Golden Rule: If you're tempted to JOIN tables from different domains, STOP and call the other service instead.**
 
-EOF
-cat /Users/lucastamoios/Code/Work/celeiro/CLAUDE.md | tail -100
-Output
+---
 
-// Handler layer orchestrates
-func (h *TransactionHandler) GetTransaction(w http.ResponseWriter, r *http.Request) {
-    txID := chi.URLParam(r, "id")
-    
-    // 1. Get transaction (only tx data)
-    tx, err := h.transactionService.GetByID(ctx, txID)
-    if err != nil {
-        // handle error
-    }
-    
-    // 2. If you need user info, call UserService
-    user, err := h.userService.GetByID(ctx, tx.UserID) // if tx has UserID
-    if err != nil {
-        // handle error
-    }
-    
-    // 3. Compose response
-    response := map[string]interface{}{
-        "transaction": tx,
-        "user":        user,
-    }
-    json.NewEncoder(w).Encode(response)
-}
+## 🚀 Deployment
+
+### Quick Reference
+
+| Action | Command |
+|--------|---------|
+| Deploy code | `git push origin master` (auto-deployed via GitHub Actions) |
+| Deploy infra | `cd ~/Code/Work/vodsafe && make master-staging` |
+| View logs | `ssh vodsafe@staging.vodsafe.com` then `docker logs -f celeiro_backend` |
+
+### Architecture
+
+```
+Internet → Caddy (HTTPS) → Docker containers
+                ├── /auth/*, /financial/*, /webhooks/* → backend:9080
+                └── /* → frontend:9081
 ```
 
-#### ✅ BETTER: Avoid cross-service calls when possible
+**Key insight**: Caddy handles routing, not nginx. nginx inside frontend container only serves static files.
+
+### Adding New Backend Routes
+
+1. Add route in `backend/internal/web/router.go`
+2. If new path prefix (e.g., `/newpath/*`), add to Caddyfile:
+   - Edit `vodsafe/infra/roles/master/templates/Caddyfile.j2`
+   - Add path to `@api` matcher
+   - Run `make master-staging` from vodsafe repo
+
+### External Services
+
+**Resend (Email)**:
+- Dashboard: https://resend.com/emails
+- Inbound webhook: `POST /webhooks/email/inbound`
+- **Important**: Use `/emails/receiving/:id/attachments/:id` for inbound email attachments (not `/emails/:id/...`)
+
+See [docs/deployment.md](./docs/deployment.md) for full details.
+
+---
+
+## ⏰ Timezone Handling
+
+**Critical**: Always use `time.Now().UTC()` when storing timestamps in PostgreSQL.
 
 ```go
-// Transaction already knows its accountID
-// Account already knows its userID
-// So pass userID down from the start
+// ❌ BAD - Local time interpreted as UTC by Postgres
+expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-func (h *TransactionHandler) Import(w http.ResponseWriter, r *http.Request) {
-    userID := getUserIDFromContext(r.Context()) // From JWT
-    accountID := r.URL.Query().Get("accountId")
-    
-    // Pass both IDs - no need to look up user
-    err := h.transactionService.ImportFromOFX(ctx, file, accountID, userID)
-    // Service never needs to call UserService
-}
+// ✅ GOOD - Explicit UTC
+expiresAt := time.Now().UTC().Add(7 * 24 * time.Hour)
 ```
 
-### Key Principles
-
-1. **Repository = Single Table** - Each repo only touches one table (except its owned children like budgets → budget_items)
-
-2. **Service = Single Domain** - Each service only calls its own repository + other services if needed
-
-3. **Prefer Passing IDs** - If you already have the ID, don't fetch the entity
-
-4. **Orchestrator for Complex** - Create dedicated services like DashboardService, ReportService for multi-domain operations
-
-5. **Handler as Thin Coordinator** - Handlers can call multiple services, but keep logic minimal
-
-### When to Break the Rule?
-
-**Only these exceptions are allowed:**
-
-1. **Parent-Child relationships in same domain:**
-   ```go
-   // ✅ OK - budgets owns budget_items
-   func (r *BudgetRepository) GetWithItems(ctx context.Context, id uuid.UUID) error {
-       query := `
-           SELECT b.*, bi.*
-           FROM budgets b
-           LEFT JOIN budget_items bi ON bi.budget_id = b.budget_id
-           WHERE b.budget_id = $1
-       `
-       // OK because budget_items belongs to budgets domain
-   }
-   ```
-
-2. **Read-only reference data via FK (rare):**
-   ```go
-   // ✅ Acceptable - Just getting category name for display
-   func (r *TransactionRepository) ListWithCategoryName(ctx context.Context, accountID uuid.UUID) error {
-       query := `
-           SELECT t.*, c.name as category_name
-           FROM transactions t
-           LEFT JOIN categories c ON c.category_id = t.category_id
-           WHERE t.account_id = $1
-       `
-       // Acceptable IF you only need the name for display
-       // But prefer calling CategoryService if you need more category data
-   }
-   ```
-
-### Summary
-
-**Think of services as microservices:**
-- Each has its own database (even though they share the same physical DB)
-- Communication happens via service calls, not direct table access
-- This makes the code easier to:
-  - Understand (clear boundaries)
-  - Test (mock service dependencies)
-  - Refactor (move to actual microservices later if needed)
-  - Debug (logs show service call chains)
-
-**Golden Rule: If you're tempted to JOIN tables from different domains, STOP and call the other service instead.**
+PostgreSQL stores `TIMESTAMP` without timezone info. If you pass local time, it's stored as-is but compared against UTC later, causing bugs (e.g., invitations expiring immediately).
