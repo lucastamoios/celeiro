@@ -186,7 +186,8 @@ jobs:
             sudo mkdir -p /var/celeiro/postgres_data
             sudo mkdir -p /var/celeiro/redis_data
 
-            # Fix Redis data directory ownership (Redis runs as UID 999)
+            # Fix data directory ownership (Postgres and Redis both run as UID 999)
+            sudo chown -R 999:999 /var/celeiro/postgres_data
             sudo chown -R 999:999 /var/celeiro/redis_data
 
             # Rename docker-compose file if it exists
