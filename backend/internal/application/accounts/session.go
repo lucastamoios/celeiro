@@ -17,6 +17,7 @@ type AccountsSession interface {
 	SetSessionToContext(ctx context.Context, session Session) context.Context
 	GetActiveOrganizationFromContext(ctx context.Context) (int, error)
 	SetActiveOrganizationToContext(ctx context.Context, organizationID int) context.Context
+	UpdateOrganizationInSession(ctx context.Context, params UpdateOrganizationInSessionInput) error
 
 	deleteSession(ctx context.Context, params DeleteSessionInput) error
 	refreshSession(ctx context.Context, params RefreshSessionInput) (Session, error)
@@ -173,4 +174,52 @@ func (s *service) refreshSession(ctx context.Context, params RefreshSessionInput
 
 func (s *service) getSessionKey(sessionID string) string {
 	return fmt.Sprintf("session:%s", sessionID)
+}
+
+// UpdateOrganizationInSession updates organization data in the user's session stored in Redis
+// This is called when organization details (like name) are updated to keep session data fresh
+
+type UpdateOrganizationInSessionInput struct {
+	SessionToken   string
+	OrganizationID int
+	Name           string
+}
+
+func (s *service) UpdateOrganizationInSession(ctx context.Context, params UpdateOrganizationInSessionInput) error {
+	if s.transientDB == nil {
+		return errors.New("transient database not available")
+	}
+
+	// Load the current session
+	session, err := s.LoadSession(ctx, LoadSessionInput{SessionID: params.SessionToken})
+	if err != nil {
+		return errors.Wrap(err, "failed to load session for update")
+	}
+
+	// Find and update the organization in the session
+	for i := range session.Info.Organizations {
+		if session.Info.Organizations[i].OrganizationID == params.OrganizationID {
+			session.Info.Organizations[i].Name = params.Name
+			break
+		}
+	}
+
+	// Calculate remaining TTL
+	remaining := time.Until(session.ExpiresAt)
+	if remaining <= 0 {
+		return errors.New("session has expired")
+	}
+
+	// Save the updated session back to Redis
+	sessionJSON, err := json.Marshal(session)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal updated session")
+	}
+
+	key := s.getSessionKey(params.SessionToken)
+	if err := s.transientDB.SetWithExpiration(ctx, key, string(sessionJSON), remaining); err != nil {
+		return errors.Wrap(err, "failed to save updated session")
+	}
+
+	return nil
 }

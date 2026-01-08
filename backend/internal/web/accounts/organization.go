@@ -93,6 +93,17 @@ func (h *handler) UpdateOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update the organization in the user's session so refreshSession returns fresh data
+	session, err := h.accountsService.GetSessionFromContext(r.Context())
+	if err == nil && req.Name != nil {
+		// Best effort - don't fail the request if session update fails
+		_ = h.accountsService.UpdateOrganizationInSession(r.Context(), accounts.UpdateOrganizationInSessionInput{
+			SessionToken:   session.Token,
+			OrganizationID: orgID,
+			Name:           *req.Name,
+		})
+	}
+
 	response := OrganizationResponse{}.FromDTO(&org)
 	responses.NewSuccess(response, w)
 }
