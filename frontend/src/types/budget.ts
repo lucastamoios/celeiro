@@ -209,6 +209,7 @@ export interface UpdatePlannedEntryRequest {
   is_active?: boolean;
   pattern_id?: number;
   savings_goal_id?: number; // Link to savings goal - matched transactions inherit this
+  category_id?: number;
 }
 
 export interface GenerateMonthlyInstancesRequest {

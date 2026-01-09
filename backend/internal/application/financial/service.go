@@ -1467,6 +1467,7 @@ type UpdatePlannedEntryInput struct {
 	EntryType        *string
 	IsActive         *bool
 	SavingsGoalID    *int // Use -1 to clear
+	CategoryID       *int
 }
 
 func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEntryInput) (PlannedEntry, error) {
@@ -1485,6 +1486,7 @@ func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEn
 		EntryType:        params.EntryType,
 		IsActive:         params.IsActive,
 		SavingsGoalID:    params.SavingsGoalID,
+		CategoryID:       params.CategoryID,
 	})
 	if err != nil {
 		return PlannedEntry{}, errors.Wrap(err, "failed to update planned entry")
