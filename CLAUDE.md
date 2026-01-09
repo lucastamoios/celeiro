@@ -312,26 +312,89 @@ func (h *TransactionHandler) Import(w http.ResponseWriter, r *http.Request) {
 | Action | Command |
 |--------|---------|
 | Deploy code | `git push origin master` (auto-deployed via GitHub Actions) |
-| Deploy infra | `cd ~/Code/Work/vodsafe && make master-staging` |
-| View logs | `ssh vodsafe@staging.vodsafe.com` then `docker logs -f celeiro_backend` |
+| Deploy Caddyfile | `cd ~/Code/Work/vodsafe && make master-staging` |
+| View logs | `ssh master-staging` then `docker logs -f celeiro_backend` |
+| Manual redeploy | Go to GitHub Actions → "Build and Deploy" → "Run workflow" |
 
 ### Architecture
 
 ```
-Internet → Caddy (HTTPS) → Docker containers
-                ├── /auth/*, /financial/*, /webhooks/* → backend:9080
-                └── /* → frontend:9081
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Deployment Flow                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  git push master ──► GitHub Actions (.github/workflows/deploy.yml)  │
+│                              │                                       │
+│                              ▼                                       │
+│                    1. Build Docker images                            │
+│                    2. Push to ghcr.io                                │
+│                    3. SSH to server                                  │
+│                    4. Copy docker-compose.prod.yml                   │
+│                    5. Create .env from GitHub Secrets                │
+│                    6. docker compose up -d                           │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Server Architecture                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Internet → Caddy (HTTPS) ──► Docker containers                      │
+│                    │                                                 │
+│   celeiro.catru.tech:                                                │
+│     ├── /auth/*, /financial/*, etc → backend:9080                   │
+│     └── /* → frontend:9081                                           │
+│                                                                      │
+│   backoffice.catru.tech:                                             │
+│     ├── /api/* → backend:9080 (uri strip_prefix /api)               │
+│     └── /* → backoffice:9082                                         │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key insight**: Caddy handles routing, not nginx. nginx inside frontend container only serves static files.
+### Separation of Concerns
+
+| Component | Managed By | Location |
+|-----------|------------|----------|
+| Container deployment | GitHub Actions | `celeiro/.github/workflows/deploy.yml` |
+| Docker Compose | Git (celeiro repo) | `celeiro/docker-compose.prod.yml` |
+| Secrets | GitHub Secrets | Settings → Secrets → Actions |
+| Caddyfile routing | Ansible (vodsafe repo) | `vodsafe/infra/roles/master/templates/Caddyfile.j2` |
+
+### GitHub Secrets Required
+
+These secrets must be set in GitHub → Settings → Secrets → Actions:
+
+| Secret | Description |
+|--------|-------------|
+| `SSH_HOST` | Server IP (5.161.217.193) |
+| `SSH_USER` | SSH user (vodsafe) |
+| `SSH_KEY` | SSH private key for deployment |
+| `DB_USER` | PostgreSQL user |
+| `DB_PASSWORD` | PostgreSQL password |
+| `DB_NAME` | PostgreSQL database name |
+| `RESEND_API_KEY` | Resend email API key |
+| `RESEND_WEBHOOK_SECRET` | Resend webhook validation secret |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 
 ### Adding New Backend Routes
 
 1. Add route in `backend/internal/web/router.go`
 2. If new path prefix (e.g., `/newpath/*`), add to Caddyfile:
    - Edit `vodsafe/infra/roles/master/templates/Caddyfile.j2`
-   - Add path to `@api` matcher
+   - Add path to `@api` matcher (for celeiro.catru.tech)
    - Run `make master-staging` from vodsafe repo
+
+### Backoffice API Pattern
+
+Backoffice uses `/api` prefix for all backend calls:
+- Frontend calls: `/api/auth/validate/`, `/api/backoffice/users`, etc.
+- Caddy strips `/api` prefix before proxying to backend
+- Backend sees: `/auth/validate/`, `/backoffice/users`, etc.
+
+This is configured in:
+- `backoffice/src/api/config.ts` - adds `/api` prefix in production
+- `backoffice/.dockerignore` - excludes `.env` so production build uses `/api`
 
 ### External Services
 
