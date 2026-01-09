@@ -100,8 +100,8 @@ export default function TransactionPlannedEntryLinkModal({
     if (searchTerm && !entry.Description.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
-    // Only show pending entries (not already matched)
-    if (entry.Status !== 'pending' && entry.Status !== 'missed') {
+    // Exclude entries that are already matched or dismissed
+    if (entry.Status === 'matched' || entry.Status === 'dismissed') {
       return false;
     }
     return true;
