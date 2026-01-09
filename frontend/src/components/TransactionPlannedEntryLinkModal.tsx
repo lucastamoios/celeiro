@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import type { Transaction } from '../types/transaction';
@@ -20,6 +21,8 @@ export default function TransactionPlannedEntryLinkModal({
   onLink,
 }: TransactionPlannedEntryLinkModalProps) {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const organizationId = activeOrganization?.organization_id?.toString() || '1';
   const [entries, setEntries] = useState<PlannedEntryWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +47,7 @@ export default function TransactionPlannedEntryLinkModal({
       try {
         const result = await getPlannedEntriesForMonth(txMonth, txYear, {
           token,
-          organizationId: '1',
+          organizationId,
         });
         setEntries(result || []);
       } catch (err) {
@@ -55,7 +58,7 @@ export default function TransactionPlannedEntryLinkModal({
     };
 
     fetchEntries();
-  }, [token, txMonth, txYear]);
+  }, [token, txMonth, txYear, organizationId]);
 
   const handleLink = async (entryId: number) => {
     if (!token) return;
@@ -69,7 +72,7 @@ export default function TransactionPlannedEntryLinkModal({
           month: txMonth,
           year: txYear,
         },
-        { token, organizationId: '1' }
+        { token, organizationId }
       );
       onLink();
     } catch (err) {

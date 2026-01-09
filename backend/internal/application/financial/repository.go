@@ -1666,6 +1666,7 @@ type modifyPlannedEntryParams struct {
 	ExpectedDay      *int
 	EntryType        *string
 	IsActive         *bool
+	CategoryID       *int
 }
 
 const modifyPlannedEntryQuery = `
@@ -1687,6 +1688,7 @@ const modifyPlannedEntryQuery = `
 		expected_day = COALESCE($12, expected_day),
 		entry_type = COALESCE($13, entry_type),
 		is_active = COALESCE($14, is_active),
+		category_id = COALESCE($15, category_id),
 		updated_at = CURRENT_TIMESTAMP
 	WHERE planned_entry_id = $1
 		AND user_id = $2
@@ -1719,7 +1721,7 @@ func (r *repository) ModifyPlannedEntry(ctx context.Context, params modifyPlanne
 		params.PlannedEntryID, params.UserID, params.OrganizationID,
 		params.PatternID, params.SavingsGoalID, params.Description, params.Amount, params.AmountMin,
 		params.AmountMax, params.ExpectedDayStart, params.ExpectedDayEnd,
-		params.ExpectedDay, params.EntryType, params.IsActive)
+		params.ExpectedDay, params.EntryType, params.IsActive, params.CategoryID)
 	return entry, err
 }
 
