@@ -1269,6 +1269,7 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		IsActive         *bool    `json:"is_active,omitempty"`
 		PatternID        *int     `json:"pattern_id,omitempty"`
 		SavingsGoalID    *int     `json:"savings_goal_id,omitempty"`
+		CategoryID       *int     `json:"category_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1309,6 +1310,7 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		IsActive:         req.IsActive,
 		PatternID:        req.PatternID,
 		SavingsGoalID:    req.SavingsGoalID,
+		CategoryID:       req.CategoryID,
 	})
 	if err != nil {
 		responses.NewError(w, err)
