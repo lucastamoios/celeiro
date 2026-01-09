@@ -1,0 +1,22 @@
+# Dependencies
+node_modules
+
+# Environment files (production uses empty VITE_API_URL for /api prefix)
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist
+
+# IDE
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+
+# Misc
+*.log
+*.md
