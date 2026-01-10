@@ -1,5 +1,38 @@
 # Project Conventions
 
+## Decision Trees
+
+### Need Cross-Domain Data?
+
+```
+START → Is ID already available (passed from caller)?
+  YES → Use the ID directly, no service call needed
+  NO  → Is this a simple lookup (one entity)?
+        YES → Call the other service once
+        NO  → Create orchestrator service (DashboardService, ReportService)
+```
+
+### Implementing a New Feature?
+
+```
+START → Is this a new domain?
+  YES → Create service.go + repository.go in new folder
+  NO  → Add to existing service
+        → Add handler in web/{domain}/
+        → Add route in web/router.go
+        → If new table: add migration first
+```
+
+### Modifying Planned Entry?
+
+```
+START → Is this for ALL future months?
+  YES → Modify the parent recurrent entry
+  NO  → Is there a monthly instance?
+        YES → Modify the instance
+        NO  → Create instance first, then modify it
+```
+
 ## Critical: Service Boundaries
 
 **Each repository only accesses its own domain table. No cross-domain JOINs.**
@@ -110,14 +143,18 @@ Two pattern types:
 
 Commit format: `<type>: <description>` (types: feat, fix, docs, refactor, test, chore)
 
-## Common Mistakes
+## Common Mistakes (AI: Avoid These)
 
-1. Cross-domain JOINs in repos - use service composition
-2. Missing X-Active-Organization header for /financial/* endpoints
-3. Modifying recurrent parent for monthly change - generate instance first
-4. Not running `make migrate` after schema changes
-5. Using local time instead of UTC for timestamps
-6. Matching against `description` instead of `original_description`
+| Mistake | Why It's Wrong | Correct Approach |
+|---------|----------------|------------------|
+| Cross-domain JOIN in repository | Violates service boundary | Call other service, compose in handler |
+| Missing X-Active-Organization header | Financial routes require org context | Always pass header on /financial/* |
+| Modify recurrent parent for one month | Changes ALL future instances | Create monthly instance, modify that |
+| `time.Now()` without `.UTC()` | Timezone bugs in database | Always `time.Now().UTC()` |
+| Match against `description` | User may have edited it | Use `original_description` (immutable) |
+| Use `budgets` table | Legacy, being deprecated | Use `category_budgets` |
+| Skip `make migrate` after schema change | Table doesn't exist | Run `make migrate` first |
+| Return raw SQL errors to client | Security + UX issue | Wrap in domain error |
 
 ## External APIs
 

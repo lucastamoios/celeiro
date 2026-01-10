@@ -2,7 +2,38 @@
 
 Personal finance management system with Go backend, React frontend, PostgreSQL database.
 
-## Quick Reference
+## AI Quick Reference
+
+**Critical rules to always follow:**
+
+| Rule | Details |
+|------|---------|
+| Service boundaries | Repositories access ONE table only. Use service composition for cross-domain data. |
+| Timezone | Always `time.Now().UTC()` for database timestamps |
+| Required headers | `/financial/*` routes need `Authorization` + `X-Active-Organization` |
+| Pattern matching | Use `original_description` (immutable), not `description` (user-editable) |
+| Budgets | Use `category_budgets` table (NOT legacy `budgets` table) |
+
+**Common patterns:**
+
+| Task | How to |
+|------|--------|
+| Add endpoint | router.go → handler → service → repository |
+| Add table | migrations/ → models.go → dto.go → repository |
+| Cross-domain query | Call services sequentially, compose in handler |
+| Test locally | `make up` then `make migrate` |
+
+**Key file locations:**
+
+| What | Where |
+|------|-------|
+| Routes | `backend/internal/web/router.go` |
+| Business logic | `backend/internal/application/{domain}/service.go` |
+| Data access | `backend/internal/application/{domain}/repository.go` |
+| React pages | `frontend/src/components/` |
+| API clients | `frontend/src/api/` |
+
+## Documentation Index
 
 | Topic | Document |
 |-------|----------|
@@ -15,7 +46,6 @@ Personal finance management system with Go backend, React frontend, PostgreSQL d
 | Development setup | [setup.md](./setup.md) |
 | Deployment | [deployment.md](./deployment.md) |
 | Troubleshooting | [troubleshooting.md](./troubleshooting.md) |
-| Code issues | [code-issues.md](./code-issues.md) |
 
 ## Project Structure
 
