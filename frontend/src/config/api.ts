@@ -26,6 +26,9 @@ export const API_CONFIG = {
     invites: {
       accept: '/invites/accept',
     },
+    systemInvites: {
+      accept: '/system-invites/accept',
+    },
     financial: {
       categories: '/financial/categories',
       accounts: '/financial/accounts',
