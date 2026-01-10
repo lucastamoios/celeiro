@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { acceptOrganizationInvite } from '../api/organization';
+import { acceptAnyInvite } from '../api/organization';
 import { Loader2, CheckCircle, XCircle, Building2 } from 'lucide-react';
 
 type AcceptState = 'loading' | 'success' | 'error';
@@ -25,7 +25,7 @@ export default function AcceptInvite({ token, onComplete }: AcceptInviteProps) {
       }
 
       try {
-        const result = await acceptOrganizationInvite(token);
+        const result = await acceptAnyInvite(token);
 
         // Login the user with the session token
         login(result.session_token, result.session_info.user.email);

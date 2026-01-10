@@ -215,3 +215,40 @@ export async function acceptOrganizationInvite(
   const result: ApiResponse<AcceptInviteResponse> = await response.json();
   return result.data;
 }
+
+export async function acceptSystemInvite(
+  token: string
+): Promise<AcceptInviteResponse> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}${API_CONFIG.endpoints.systemInvites.accept}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Invalid or expired invite');
+  }
+
+  const result: ApiResponse<AcceptInviteResponse> = await response.json();
+  return result.data;
+}
+
+/**
+ * Accept any type of invite (organization or system).
+ * Tries organization invite first, then falls back to system invite.
+ */
+export async function acceptAnyInvite(
+  token: string
+): Promise<AcceptInviteResponse> {
+  // Try organization invite first
+  try {
+    return await acceptOrganizationInvite(token);
+  } catch {
+    // If organization invite fails, try system invite
+    return await acceptSystemInvite(token);
+  }
+}
