@@ -373,7 +373,7 @@ const modifyUserQuery = `
 
 func (r *repository) ModifyUser(ctx context.Context, params updateUserParams) (UserModel, error) {
 	var result UserModel
-	err := r.db.Query(ctx, &result, modifyUserQuery, params.UserID, params.Name, params.Email, time.Now())
+	err := r.db.Query(ctx, &result, modifyUserQuery, params.UserID, params.Name, params.Email, time.Now().UTC())
 	if err != nil {
 		return UserModel{}, err
 	}
@@ -455,7 +455,7 @@ const modifyUserPasswordQuery = `
 	`
 
 func (r *repository) ModifyUserPassword(ctx context.Context, params modifyUserPasswordParams) error {
-	return r.db.Run(ctx, modifyUserPasswordQuery, params.UserID, params.PasswordHash, time.Now())
+	return r.db.Run(ctx, modifyUserPasswordQuery, params.UserID, params.PasswordHash, time.Now().UTC())
 }
 
 // FetchOrganizationMembers

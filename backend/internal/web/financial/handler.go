@@ -2396,15 +2396,11 @@ type AmazonOrder struct {
 // SyncAmazonOrders receives Amazon orders from the Chrome extension and matches them with transactions
 // POST /financial/amazon/sync
 func (h *Handler) SyncAmazonOrders(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[DEBUG] SyncAmazonOrders called")
-
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
-		fmt.Println("[DEBUG] SyncAmazonOrders - unauthorized:", err)
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
 	}
-	fmt.Printf("[DEBUG] SyncAmazonOrders - user=%d org=%d\n", userID, organizationID)
 
 	var req struct {
 		Orders []AmazonOrder `json:"orders"`
@@ -2413,19 +2409,8 @@ func (h *Handler) SyncAmazonOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		fmt.Println("[DEBUG] SyncAmazonOrders - decode error:", err)
 		responses.NewError(w, errors.ErrInvalidRequestBody)
 		return
-	}
-	fmt.Printf("[DEBUG] SyncAmazonOrders - received %d orders for %d/%d\n", len(req.Orders), req.Month, req.Year)
-
-	// Debug: print first order details
-	if len(req.Orders) > 0 {
-		o := req.Orders[0]
-		fmt.Printf("[DEBUG] First order: id=%s date=%s total=%s parsed_total=%v\n", o.OrderID, o.Date, o.Total, o.ParsedTotal)
-		if o.ParsedDate != nil {
-			fmt.Printf("[DEBUG] First order parsed_date: %+v\n", *o.ParsedDate)
-		}
 	}
 
 	// Validation

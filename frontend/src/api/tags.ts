@@ -11,9 +11,12 @@ interface RequestOptions {
  * Helper function to create headers for API requests
  */
 function createHeaders(options: RequestOptions): HeadersInit {
+  if (!options.organizationId) {
+    throw new Error('Organization ID is required - ensure activeOrganization is set');
+  }
   return {
     'Authorization': `Bearer ${options.token}`,
-    'X-Active-Organization': options.organizationId || '1',
+    'X-Active-Organization': options.organizationId,
     'Content-Type': 'application/json',
   };
 }
@@ -31,8 +34,8 @@ export async function getTags(options: RequestOptions): Promise<Tag[]> {
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Falha ao buscar tags: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha ao buscar tags');
   }
 
   const result: ApiResponse<Tag[]> = await response.json();
@@ -56,8 +59,8 @@ export async function createTag(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Falha ao criar tag: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha ao criar tag');
   }
 
   const result: ApiResponse<Tag> = await response.json();
@@ -82,8 +85,8 @@ export async function updateTag(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Falha ao atualizar tag: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha ao atualizar tag');
   }
 
   const result: ApiResponse<Tag> = await response.json();
@@ -106,8 +109,8 @@ export async function deleteTag(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Falha ao excluir tag: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha ao excluir tag');
   }
 }
 
@@ -127,8 +130,8 @@ export async function getTransactionTags(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Falha ao buscar tags da transacao: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha ao buscar tags da transacao');
   }
 
   const result: ApiResponse<Tag[]> = await response.json();
@@ -153,7 +156,7 @@ export async function setTransactionTags(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Falha ao atualizar tags da transacao: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha ao atualizar tags da transacao');
   }
 }

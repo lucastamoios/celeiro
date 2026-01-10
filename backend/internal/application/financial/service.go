@@ -15,6 +15,17 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// Amazon sync matching tolerances
+const (
+	// AmazonAmountTolerancePercent is the maximum percentage difference allowed between
+	// Amazon order amount and transaction amount for matching (2% tolerance for rounding)
+	AmazonAmountTolerancePercent = 0.02
+
+	// AmazonDateToleranceDays is the maximum number of days difference allowed between
+	// Amazon order date and transaction date (±5 days for credit card processing delays)
+	AmazonDateToleranceDays = 5
+)
+
 type Service interface {
 	// Categories
 	GetCategories(ctx context.Context, params GetCategoriesInput) ([]Category, error)
@@ -1548,12 +1559,15 @@ func (s *service) GenerateMonthlyInstances(ctx context.Context, params GenerateM
 		return nil, errors.Wrap(err, "failed to check existing instances")
 	}
 
-	// Filter to see if this month/year already has an instance
+	// Check if an instance already exists for this specific month/year
 	for _, instance := range existingInstances {
-		// This is a simplified check - in production you'd want to add month/year fields
-		// or check creation dates more carefully
 		if instance.IsActive {
-			return nil, errors.New("instance already exists for this month")
+			// Check if instance was created in the same month/year
+			instanceMonth := int(instance.CreatedAt.Month())
+			instanceYear := instance.CreatedAt.Year()
+			if instanceMonth == params.Month && instanceYear == params.Year {
+				return nil, errors.New("instance already exists for this month")
+			}
 		}
 	}
 
@@ -1700,7 +1714,7 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 			statusDTO.MatchedAmount = status.MatchedAmount
 			statusDTO.MatchedTransactionID = status.MatchedTransactionID
 			if status.MatchedAt != nil {
-				matchedAt := status.MatchedAt.Format("2006-01-02T15:04:05Z")
+				matchedAt := status.MatchedAt.Format(time.RFC3339)
 				statusDTO.MatchedAt = &matchedAt
 			}
 		} else {
@@ -1782,7 +1796,7 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 	}
 
 	// 3. First create/update the status as "matched"
-	matchedAt := s.system.Time.Now().Format("2006-01-02T15:04:05Z")
+	matchedAt := s.system.Time.Now().Format(time.RFC3339)
 	statusModel, err := s.Repository.UpsertPlannedEntryStatus(ctx, upsertPlannedEntryStatusParams{
 		PlannedEntryID: params.PlannedEntryID,
 		Month:          params.Month,
@@ -1890,7 +1904,7 @@ func (s *service) DismissPlannedEntry(ctx context.Context, params DismissPlanned
 	}
 
 	// 3. Update with dismissal details
-	dismissedAt := s.system.Time.Now().Format("2006-01-02T15:04:05Z")
+	dismissedAt := s.system.Time.Now().Format(time.RFC3339)
 	statusModel, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
 		StatusID:        statusModel.StatusID,
 		DismissedAt:     &dismissedAt,
@@ -1972,7 +1986,7 @@ func (s *service) GetPlannedEntryForTransaction(ctx context.Context, params GetP
 	// 3. Convert matched_at timestamp if present
 	var matchedAt *string
 	if status.MatchedAt != nil {
-		formatted := status.MatchedAt.Format("2006-01-02T15:04:05Z")
+		formatted := status.MatchedAt.Format(time.RFC3339)
 		matchedAt = &formatted
 	}
 
@@ -2072,8 +2086,8 @@ func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersI
 			diff := orderAmt.Sub(txAmt).Abs()
 			percentDiff := diff.Div(orderAmt).InexactFloat64()
 
-			// Allow 2% tolerance for rounding differences
-			if percentDiff > 0.02 {
+			// Allow tolerance for rounding differences
+			if percentDiff > AmazonAmountTolerancePercent {
 				continue
 			}
 
@@ -2085,8 +2099,8 @@ func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersI
 					daysDiff = -daysDiff
 				}
 
-				// Skip if more than 5 days apart
-				if daysDiff > 5 {
+				// Skip if date difference exceeds tolerance
+				if daysDiff > AmazonDateToleranceDays {
 					continue
 				}
 
@@ -2189,22 +2203,24 @@ func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersI
 						if daysDiff < 0 {
 							daysDiff = -daysDiff
 						}
-						if percentDiff <= 2 && daysDiff > 5 {
+						tolerancePercent := AmazonAmountTolerancePercent * 100
+						if percentDiff <= tolerancePercent && daysDiff > AmazonDateToleranceDays {
 							reason = fmt.Sprintf("Valor OK (%.1f%% diff) mas data muito distante (%d dias): TX %s em %s",
 								percentDiff, daysDiff, desc, tx.TransactionDate.Format("02/01"))
 							break
 						}
-						if percentDiff > 2 && daysDiff <= 5 {
+						if percentDiff > tolerancePercent && daysDiff <= AmazonDateToleranceDays {
 							reason = fmt.Sprintf("Data OK (%d dias) mas valor diferente (%.1f%%): TX R$%.2f vs Pedido R$%.2f",
 								daysDiff, percentDiff, txAmt.InexactFloat64(), orderAmt.InexactFloat64())
 							break
 						}
-						if percentDiff > 2 && daysDiff > 5 {
+						if percentDiff > tolerancePercent && daysDiff > AmazonDateToleranceDays {
 							reason = fmt.Sprintf("Candidato Amazon: %s - valor %.1f%% diff, %d dias diff",
 								desc, percentDiff, daysDiff)
 						}
 					} else {
-						if percentDiff <= 2 {
+						tolerancePercent := AmazonAmountTolerancePercent * 100
+						if percentDiff <= tolerancePercent {
 							reason = fmt.Sprintf("Valor OK mas sem data para comparar: TX %s", desc)
 							break
 						}
