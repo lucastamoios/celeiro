@@ -10,9 +10,12 @@ interface RequestOptions {
  * Helper function to create headers for authenticated API requests
  */
 function createHeaders(options: RequestOptions): HeadersInit {
+  if (!options.organizationId) {
+    throw new Error('Organization ID is required - ensure activeOrganization is set');
+  }
   return {
     'Authorization': `Bearer ${options.token}`,
-    'X-Active-Organization': options.organizationId || '1',
+    'X-Active-Organization': options.organizationId,
     'Content-Type': 'application/json',
   };
 }

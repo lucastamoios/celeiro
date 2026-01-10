@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/catrutech/celeiro/internal/application/accounts"
 	"github.com/catrutech/celeiro/internal/errors"
@@ -49,7 +50,7 @@ func (r SystemUserResponse) FromDTO(user *accounts.SystemUser) SystemUserRespons
 		UserID:        user.UserID,
 		Name:          user.Name,
 		Email:         user.Email,
-		CreatedAt:     user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:     user.CreatedAt.Format(time.RFC3339),
 		HasPassword:   user.HasPassword,
 		Organizations: orgs,
 	}
@@ -103,8 +104,8 @@ func (r SystemInviteResponse) FromDTO(invite *accounts.SystemInvite) SystemInvit
 		InviteID:         invite.InviteID,
 		Email:            invite.Email,
 		OrganizationName: invite.OrganizationName,
-		CreatedAt:        invite.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		ExpiresAt:        invite.ExpiresAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:        invite.CreatedAt.Format(time.RFC3339),
+		ExpiresAt:        invite.ExpiresAt.Format(time.RFC3339),
 	}
 }
 
