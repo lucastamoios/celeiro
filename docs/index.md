@@ -1,73 +1,73 @@
-# Celeiro Documentation Index
+# Celeiro Documentation
 
-Personal finance management system with Go backend and React frontend.
+Personal finance management system with Go backend, React frontend, PostgreSQL database.
 
 ## Quick Reference
 
-| Need to... | Read |
-|------------|------|
-| Understand system architecture | [architecture.md](./architecture.md) |
-| Understand domain entities | [domains.md](./domains.md) |
-| Find files for a specific task | [key-files.md](./key-files.md) |
-| Know project quirks/conventions | [gotchas.md](./gotchas.md) |
-| Fix common issues | [troubleshooting.md](./troubleshooting.md) |
-| Understand database schema | [database.md](./database.md) |
-| Set up development environment | [setup.md](./setup.md) |
-| Deploy to staging/production | [deployment.md](./deployment.md) |
+| Topic | Document |
+|-------|----------|
+| System architecture | [architecture.md](./architecture.md) |
+| Database schema | [database.md](./database.md) |
+| Domain entities | [domains.md](./domains.md) |
+| Authentication | [auth.md](./auth.md) |
+| Project conventions | [conventions.md](./conventions.md) |
+| Key files location | [files.md](./files.md) |
+| Development setup | [setup.md](./setup.md) |
+| Deployment | [deployment.md](./deployment.md) |
+| Troubleshooting | [troubleshooting.md](./troubleshooting.md) |
 
 ## Project Structure
 
 ```
 celeiro/
-├── backend/           Go API (Chi router, PostgreSQL, Redis)
-│   ├── internal/
-│   │   ├── application/   # Business logic (services, repos)
-│   │   │   ├── accounts/  # Auth domain
-│   │   │   └── financial/ # Core financial domain (MOST CODE HERE)
-│   │   ├── web/           # HTTP handlers
-│   │   └── migrations/    # SQL migrations (Goose)
-│   └── pkg/               # Shared packages
+├── backend/           Go API (Chi router, SQLX, PostgreSQL)
+│   └── internal/
+│       ├── application/   Business logic (services, repos)
+│       │   ├── accounts/  Auth domain
+│       │   └── financial/ Core financial domain
+│       ├── web/           HTTP handlers
+│       └── migrations/    SQL migrations (Goose)
 ├── frontend/          React 19 + Vite + Tailwind
-│   └── src/
-│       ├── components/    # All UI components
-│       ├── api/           # API client
-│       └── contexts/      # React contexts (auth)
+├── backoffice/        Admin panel (React)
 ├── docs/              This documentation
-└── openspec/          Change proposals and specs
+└── openspec/          Change proposals
 ```
 
 ## Development Ports
 
-| Service | Port | URL |
-|---------|------|-----|
-| Frontend | 13000 | http://localhost:13000 |
-| Backend API | 9090 | http://localhost:9090 |
-| PostgreSQL | 54330 | localhost:54330 |
-| Redis | 63800 | localhost:63800 |
-| Grafana | 13001 | http://localhost:13001 |
+| Service | Port |
+|---------|------|
+| Frontend | 13000 |
+| Backend API | 9090 |
+| PostgreSQL | 54330 |
+| Redis | 63800 |
 
 ## Core Domains
 
-1. **Auth** - Passwordless magic link authentication
-2. **Accounts** - Bank accounts (checking, savings, credit)
-3. **Transactions** - Financial transactions with OFX import
-4. **Categories** - Transaction classification with emoji/color support
-5. **Budgets** - Category-centric budgeting (fixed/calculated/maior)
-6. **Patterns** - Regex-based automatic transaction matching
+| Domain | Description |
+|--------|-------------|
+| Auth | Passwordless magic link authentication |
+| Accounts | Bank accounts (checking, savings, credit) |
+| Transactions | Financial transactions, OFX import |
+| Categories | Transaction classification with icons |
+| Budgets | Category-centric budgeting |
+| Patterns | Regex-based automatic categorization |
 
 ## Key Commands
 
-```bash
-make up           # Start all services
-make down         # Stop all services
-make test         # Run tests
-make dbshell      # Database shell
-make migrate      # Run migrations
-make restart      # Rebuild and restart
-```
+| Command | Action |
+|---------|--------|
+| `make up` | Start all services |
+| `make down` | Stop all services |
+| `make test` | Run tests |
+| `make dbshell` | Database shell |
+| `make migrate` | Run migrations |
+| `make restart` | Rebuild and restart |
 
-## Critical Rule: Service Boundaries
+## Critical Rules
 
-**Each repository ONLY accesses its own domain table. No cross-domain JOINs.**
+1. **Service Boundaries**: Each repository only accesses its own domain table. No cross-domain JOINs.
+2. **Timezone**: Always use `time.Now().UTC()` for timestamps.
+3. **Headers**: Financial endpoints require `Authorization` and `X-Active-Organization` headers.
 
-See [gotchas.md](./gotchas.md) and `CLAUDE.md` for detailed rules.
+See [conventions.md](./conventions.md) for detailed rules.
