@@ -361,6 +361,25 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     ? stats.budgetSummary.totalPlanned - stats.budgetSummary.totalActual
     : 0;
 
+  // Calculate day progress for the current month marker
+  const now = new Date();
+  const isCurrentMonth = stats.month === now.getMonth() && stats.year === now.getFullYear();
+  const currentDay = now.getDate();
+  const daysInMonth = new Date(stats.year, stats.month + 1, 0).getDate();
+  const dayProgressPercent = (currentDay / daysInMonth) * 100;
+
+  // Calculate spending pace
+  const expectedSpentByNow = stats.budgetSummary
+    ? (stats.budgetSummary.totalPlanned * dayProgressPercent) / 100
+    : 0;
+  const spendingPace = expectedSpentByNow > 0 && stats.budgetSummary
+    ? ((stats.budgetSummary.totalActual - expectedSpentByNow) / expectedSpentByNow) * 100
+    : 0;
+  const isAheadOfPace = stats.budgetSummary ? stats.budgetSummary.totalActual > expectedSpentByNow : false;
+  const projectedMonthEnd = stats.budgetSummary && dayProgressPercent > 0
+    ? (stats.budgetSummary.totalActual / dayProgressPercent) * 100
+    : 0;
+
   // Check if there are attention items
   const hasAttentionItems = stats.uncategorizedCount > 0 ||
     (stats.budgetSummary?.plannedEntries.missed || 0) > 0 ||
@@ -408,6 +427,13 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
               <p className={`text-lg font-bold ${budgetStatus.textClass}`}>
                 {percentSpent}% usado
               </p>
+              {isCurrentMonth && (
+                <p className={`text-xs ${isAheadOfPace ? 'text-terra-600' : 'text-sage-600'}`}>
+                  {isAheadOfPace
+                    ? `${Math.abs(Math.round(spendingPace))}% acima do ritmo`
+                    : `${Math.abs(Math.round(spendingPace))}% abaixo do ritmo`}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -415,12 +441,25 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         {/* Progress bar */}
         {stats.budgetSummary && (
           <div className="mt-6">
-            <div className="progress-bar h-3">
+            <div className="progress-bar h-3 relative">
               <div
                 className={`h-3 rounded-full transition-all duration-500 ${getProgressBarClasses(percentSpent)}`}
                 style={{ width: `${Math.min(100, percentSpent)}%` }}
               />
+              {/* Day progress marker */}
+              {isCurrentMonth && (
+                <div
+                  className="absolute top-0 w-0.5 h-3 bg-stone-800 opacity-60"
+                  style={{ left: `${dayProgressPercent}%` }}
+                  title={`Dia ${currentDay} de ${daysInMonth}`}
+                />
+              )}
             </div>
+            {isCurrentMonth && projectedMonthEnd > 0 && (
+              <p className="text-xs text-stone-500 mt-1 text-right">
+                Projeção fim do mês: {formatCurrency(projectedMonthEnd)}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -565,6 +604,16 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                 ? (amount / budget.planned) * 100
                 : 0;
               const statusIndicator = budget ? getStatusIndicator(budgetPercent) : null;
+              const hasBudget = budget && budget.planned > 0;
+
+              // For categories with budget, calculate expected spending by now
+              const expectedByNow = hasBudget
+                ? (budget.planned * dayProgressPercent) / 100
+                : 0;
+              const categoryPacePercent = expectedByNow > 0
+                ? ((amount - expectedByNow) / expectedByNow) * 100
+                : 0;
+              const isCategoryAhead = amount > expectedByNow;
 
               return (
                 <div key={category.category_id} className="flex items-center gap-4">
@@ -587,21 +636,42 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                           {formatCurrency(amount)}
                         </span>
                       </div>
-                      <div className="progress-bar">
+                      <div className="progress-bar relative">
                         <div
                           className={`h-2 rounded-full transition-all duration-500 ${
-                            statusIndicator ? getProgressBarClasses(budgetPercent) : 'bg-stone-400'
+                            hasBudget ? getProgressBarClasses(budgetPercent) : 'bg-stone-400'
                           }`}
-                          style={{ width: `${Math.min(100, percentage)}%` }}
+                          style={{ width: `${Math.min(100, hasBudget ? budgetPercent : percentage)}%` }}
                         />
+                        {/* Day progress marker - only for budgeted categories in current month */}
+                        {hasBudget && isCurrentMonth && (
+                          <div
+                            className="absolute top-0 w-0.5 h-2 bg-stone-700 opacity-50"
+                            style={{ left: `${dayProgressPercent}%` }}
+                            title={`Esperado até dia ${currentDay}: ${formatCurrency(expectedByNow)}`}
+                          />
+                        )}
                       </div>
                       <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-stone-500">
-                          {percentage.toFixed(1)}% do total
-                        </span>
-                        {budget && (
+                        {hasBudget ? (
+                          <>
+                            <span className={`text-xs ${
+                              isCurrentMonth && isCategoryAhead ? 'text-terra-600' : 'text-stone-500'
+                            }`}>
+                              {budgetPercent.toFixed(0)}% do orçamento
+                              {isCurrentMonth && Math.abs(categoryPacePercent) > 5 && (
+                                <span className={isCategoryAhead ? 'text-terra-600' : 'text-sage-600'}>
+                                  {' '}({isCategoryAhead ? '+' : ''}{categoryPacePercent.toFixed(0)}%)
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-xs text-stone-500">
+                              de {formatCurrency(budget.planned)}
+                            </span>
+                          </>
+                        ) : (
                           <span className="text-xs text-stone-500">
-                            de {formatCurrency(budget.planned)}
+                            {percentage.toFixed(1)}% do total
                           </span>
                         )}
                       </div>
