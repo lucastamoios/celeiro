@@ -385,6 +385,7 @@ These secrets must be set in GitHub → Settings → Secrets → Actions:
 | `DB_USER` | PostgreSQL user |
 | `DB_PASSWORD` | PostgreSQL password |
 | `DB_NAME` | PostgreSQL database name |
+| `FRONTEND_URL` | Frontend URL for email links (https://celeiro.catru.tech) |
 | `RESEND_API_KEY` | Resend email API key |
 | `RESEND_WEBHOOK_SECRET` | Resend webhook validation secret |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
