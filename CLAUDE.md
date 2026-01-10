@@ -17,6 +17,18 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
+# Documentation
+
+For detailed documentation, see [docs/index.md](./docs/index.md).
+
+Key documents:
+- [Architecture](./docs/architecture.md) - System overview, tech stack, data flows
+- [Database](./docs/database.md) - Schema, tables, relationships
+- [Domains](./docs/domains.md) - Entity models and operations
+- [Conventions](./docs/conventions.md) - Naming, patterns, gotchas
+
+---
+
 # Services Architecture
 
 ## 🏛️ Service & Repository Boundaries
@@ -373,6 +385,7 @@ These secrets must be set in GitHub → Settings → Secrets → Actions:
 | `DB_USER` | PostgreSQL user |
 | `DB_PASSWORD` | PostgreSQL password |
 | `DB_NAME` | PostgreSQL database name |
+| `FRONTEND_URL` | Frontend URL for email links (https://celeiro.catru.tech) |
 | `RESEND_API_KEY` | Resend email API key |
 | `RESEND_WEBHOOK_SECRET` | Resend webhook validation secret |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |

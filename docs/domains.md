@@ -1,7 +1,5 @@
 # Domain Guide
 
-How domains interact and what each one manages.
-
 ## Domain Overview
 
 ```mermaid
@@ -10,6 +8,7 @@ flowchart TD
         User
         Organization
         Session
+        Invite
     end
 
     subgraph financial["Financial Domain"]
@@ -18,7 +17,10 @@ flowchart TD
         Category
         CategoryBudget
         PlannedEntry
-        Pattern["AdvancedPattern"]
+        PlannedEntryStatus
+        AdvancedPattern
+        SavingsGoal
+        Tag
     end
 
     User --> Organization
@@ -27,7 +29,11 @@ flowchart TD
     Category --> Transaction
     Category --> CategoryBudget
     Category --> PlannedEntry
-    Pattern --> Category
+    PlannedEntry --> PlannedEntryStatus
+    AdvancedPattern --> Category
+    SavingsGoal --> Transaction
+    SavingsGoal --> PlannedEntry
+    Tag --> Transaction
 ```
 
 ## Accounts Domain
@@ -36,229 +42,188 @@ flowchart TD
 
 | Entity | Purpose |
 |--------|---------|
-| User | Authenticated user with email |
-| Organization | Logical grouping (1:1 with user) |
-| Session | Redis-backed session token |
+| User | Authenticated user with email, optional password |
+| Organization | Multi-tenant container |
+| Session | Redis-backed authentication token |
+| OrganizationInvite | Pending member invitation |
+| SystemInvite | System-wide admin invitation |
 
 ### Key Operations
 
-| Operation | Service Method | Notes |
-|-----------|---------------|-------|
-| Request magic code | `RequestMagicCode` | Sends 4-digit code via email |
-| Validate & login | `Authenticate` | Creates user if new email |
-| Get current user | `GetByID` | Returns user with org memberships |
-
----
+| Operation | Description |
+|-----------|-------------|
+| RequestMagicCode | Sends 4-digit code via email |
+| Authenticate | Validates code/password/Google, creates user if new |
+| GetByID | Returns user with org memberships |
+| InviteMember | Creates org invitation |
+| AcceptInvite | Joins organization |
 
 ## Financial Domain
 
 **Location**: `backend/internal/application/financial/`
 
-This is the main domain containing all budgeting functionality.
-
 ### Category
 
 Transaction classifier with visual identity.
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `name` | string | Display name |
-| `icon` | string | Emoji icon |
-| `color` | string | Hex color code |
-| `is_system` | bool | System-provided vs user-created |
-
-**Key Methods**: `GetCategories`, `CreateCategory`, `UpdateCategory`
+| Field | Purpose |
+|-------|---------|
+| name | Display name |
+| icon | Emoji icon |
+| color | Hex color code |
+| category_type | expense or income |
+| is_system | System-provided vs user-created |
 
 ### Account
 
 Bank account container for transactions.
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `account_type` | enum | checking, savings, credit_card, investment |
-| `bank_name` | string | Institution name |
-| `balance` | decimal | Current balance |
-
-**Key Methods**: `GetAccounts`, `CreateAccount`
+| Field | Purpose |
+|-------|---------|
+| account_type | checking, savings, credit_card, investment |
+| bank_name | Institution name |
+| balance | Current balance |
 
 ### Transaction
 
 Individual financial transaction.
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `description` | string | User-editable description |
-| `original_description` | string | Immutable OFX value (for patterns) |
-| `amount` | decimal | Transaction amount |
-| `category_id` | int | Optional classification |
-| `is_classified` | bool | Has been categorized |
-| `is_ignored` | bool | Soft delete flag |
-| `ofx_fitid` | string | OFX unique identifier |
-
-**Key Methods**:
-- `GetTransactions` - List for account
-- `GetUncategorizedTransactions` - List needing classification
-- `ImportTransactionsFromOFX` - Bulk import from OFX file
-- `UpdateTransaction` - Modify description, category, etc.
+| Field | Purpose |
+|-------|---------|
+| description | User-editable description |
+| original_description | Immutable OFX value (for pattern matching) |
+| amount | Transaction amount |
+| category_id | Optional classification |
+| savings_goal_id | Optional savings goal contribution |
+| is_classified | Has been categorized |
+| is_ignored | Soft delete flag |
+| ofx_fitid | OFX unique identifier |
 
 ### CategoryBudget
 
 Monthly budget for a specific category.
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `category_id` | int | Target category |
-| `month` / `year` | int | Budget period |
-| `budget_type` | enum | fixed, calculated, maior |
-| `planned_amount` | decimal | Budget amount (for fixed type) |
+| Field | Purpose |
+|-------|---------|
+| category_id | Target category |
+| month / year | Budget period |
+| budget_type | fixed, calculated, or maior |
+| planned_amount | Budget amount (for fixed type) |
 
-**Budget Type Logic**:
-```go
-switch budget_type {
-case "fixed":
-    return planned_amount
-case "calculated":
-    return sum(planned_entries)
-case "maior":
-    return max(planned_amount, sum(planned_entries))
-}
-```
-
-**Key Methods**: `GetCategoryBudgets`, `CreateCategoryBudget`, `ConsolidateCategoryBudget`
+**Budget Type Calculation**:
+- fixed: Uses planned_amount directly
+- calculated: Sum of planned entries
+- maior: MAX(planned_amount, sum of entries)
 
 ### PlannedEntry
 
-Expected expense or income.
+Expected expense or income ("Entrada Planejada").
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `category_id` | int | Target category |
-| `description` | string | Expected description |
-| `amount` | decimal | Expected amount |
-| `is_recurrent` | bool | Repeats monthly |
-| `expected_day` | int | Day of month (1-31) |
-| `parent_entry_id` | int | For generated instances |
-| `is_saved_pattern` | bool | Used for matching |
+| Field | Purpose |
+|-------|---------|
+| description | Expected description |
+| amount_min / amount_max | Expected amount range |
+| expected_day_start / end | Day range (1-31) |
+| is_recurrent | Repeats monthly |
+| entry_type | expense or income |
+| category_id | Target category |
+| savings_goal_id | Optional linked goal |
 
-**Key Methods**:
-- `GetPlannedEntries` - List for category/month
-- `CreatePlannedEntry` - Create new entry
-- `GenerateMonthlyInstances` - Create instances from recurrent
-- `GetSavedPatterns` - Get entries usable as patterns
+### PlannedEntryStatus
+
+Monthly tracking for planned entries.
+
+| Field | Purpose |
+|-------|---------|
+| planned_entry_id | Parent entry |
+| month / year | Period |
+| status | pending, matched, dismissed, missing |
+| matched_transaction_id | Linked transaction when matched |
 
 ### AdvancedPattern
 
 Regex-based automatic categorization rule.
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `description_pattern` | regex | Match transaction description |
-| `weekday_pattern` | regex | Match day of week (0-6) |
-| `amount_min/max` | decimal | Amount range |
-| `target_category_id` | int | Category to assign |
-| `target_description` | string | Description to set |
+| Field | Purpose |
+|-------|---------|
+| description_pattern | Regex to match original_description |
+| weekday_pattern | Regex for day of week (0-6) |
+| amount_min / amount_max | Amount range filter |
+| target_category_id | Category to assign |
+| target_description | Description to set |
 
-**Key Methods**:
-- `CreateAdvancedPattern` - Create new pattern
-- `GetAdvancedPatterns` - List patterns
-- `ApplyPatternRetroactivelySync` - Apply to existing transactions
+### SavingsGoal
 
----
+Long-term savings target ("Reserva" or "Investimento").
 
-## Service Interface
+| Field | Purpose |
+|-------|---------|
+| name | Goal name |
+| target_amount | Target to save |
+| current_amount | Current progress |
+| goal_type | reserva (short-term) or investimento (long-term) |
+| status | active, completed, cancelled |
 
-The main service interface shows all available operations.
+### Tag
 
-```go
-// backend/internal/application/financial/service.go
-type Service interface {
-    // Categories
-    GetCategories(ctx, params)
-    CreateCategory(ctx, params)
-    UpdateCategory(ctx, params)
-    DeleteCategory(ctx, params)
+User-defined transaction label.
 
-    // Accounts
-    GetAccounts(ctx, params)
-    CreateAccount(ctx, params)
+| Field | Purpose |
+|-------|---------|
+| name | Tag name |
+| color | Hex color code |
 
-    // Transactions
-    GetTransactions(ctx, params)
-    GetUncategorizedTransactions(ctx, params)
-    ImportTransactionsFromOFX(ctx, params)
-    UpdateTransaction(ctx, params)
-
-    // Category Budgets
-    GetCategoryBudgets(ctx, params)
-    CreateCategoryBudget(ctx, params)
-    ConsolidateCategoryBudget(ctx, params)
-
-    // Planned Entries
-    GetPlannedEntries(ctx, params)
-    CreatePlannedEntry(ctx, params)
-    GenerateMonthlyInstances(ctx, params)
-
-    // Pattern Matching
-    GetMatchSuggestionsForTransaction(ctx, input)
-    ApplyPatternToTransaction(ctx, input)
-    SaveTransactionAsPattern(ctx, input)
-
-    // Advanced Patterns
-    CreateAdvancedPattern(ctx, input)
-    GetAdvancedPatterns(ctx, input)
-    ApplyPatternRetroactivelySync(ctx, input)
-
-    // Budget Progress
-    CalculateBudgetProgress(ctx, input)
-    GetIncomePlanning(ctx, input)
-}
-```
-
----
-
-## Data Flow: Transaction Categorization
+## Transaction Categorization Flow
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant TX as Transaction
     participant AP as AdvancedPattern
-    participant SP as SavedPattern
+    participant PE as PlannedEntry
     participant CAT as Category
 
     U->>TX: Import OFX
-    TX->>AP: Check patterns
+    TX->>AP: Check regex patterns
     alt Pattern matches
-        AP->>CAT: Auto-assign
-        TX->>TX: Set is_classified=true
+        AP->>CAT: Auto-assign category
+        AP->>TX: Set target_description
     else No match
         TX->>TX: Stays uncategorized
     end
 
     U->>TX: View uncategorized
-    TX->>SP: Get suggestions
-    SP-->>U: Show matches
-    U->>TX: Apply suggestion
-    TX->>CAT: Assign category
+    TX->>PE: Get planned entry suggestions
+    PE-->>U: Show matches by description/amount
+    U->>TX: Link to planned entry
+    TX->>CAT: Assign category from entry
 ```
 
----
+## Planned Entry Lifecycle
 
-## Database Tables by Domain
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: Month starts
+    Pending --> Matched: Transaction linked
+    Pending --> Dismissed: User dismisses
+    Pending --> Missing: Month ends unmatched
+    Matched --> [*]
+    Dismissed --> [*]
+    Missing --> [*]
+```
+
+## Tables by Domain
 
 ### Accounts Domain
-- `users`
-- `organizations`
-- `user_organizations`
-- `roles`, `permissions`, `role_permissions`
+- users, organizations, user_organizations
+- roles, permissions, role_permissions
+- organization_invites, system_invites
 
 ### Financial Domain
-- `accounts`
-- `transactions`
-- `categories`
-- `category_budgets`
-- `planned_entries`
-- `advanced_patterns`
-- `monthly_snapshots`
-- `budgets`, `budget_items` (legacy)
-- `classification_rules` (legacy)
+- accounts, transactions, transaction_tags
+- categories, tags
+- budgets, budget_items (legacy)
+- category_budgets, monthly_snapshots
+- planned_entries, planned_entry_statuses
+- advanced_patterns, classification_rules
+- savings_goals
