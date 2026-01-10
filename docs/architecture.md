@@ -1,7 +1,5 @@
 # System Architecture
 
-Celeiro is a personal finance management system with category-centric budgeting.
-
 ## Tech Stack
 
 | Layer | Technology |
@@ -12,7 +10,7 @@ Celeiro is a personal finance management system with category-centric budgeting.
 | Cache/Sessions | Redis 7 |
 | Observability | Grafana, Loki, OpenTelemetry |
 
-## System Flow
+## System Overview
 
 ```mermaid
 flowchart TB
@@ -21,8 +19,8 @@ flowchart TB
     end
 
     subgraph Backend
-        Handler[Handler Layer<br/>web/]
-        Service[Service Layer<br/>application/]
+        Handler[Handler Layer]
+        Service[Service Layer]
         Repo[Repository Layer]
     end
 
@@ -38,112 +36,48 @@ flowchart TB
     Handler -.->|Sessions| Redis
 ```
 
-## Backend Layer Pattern
+## Backend Layers
 
-**Handler -> Service -> Repository**
-
-```
-internal/
-├── application/
-│   ├── accounts/      # Auth, users, organizations
-│   └── financial/     # Transactions, budgets, patterns (MAIN DOMAIN)
-├── web/
-│   ├── router.go      # All route definitions
-│   ├── accounts/      # Auth handlers
-│   └── financial/     # Financial handlers
-└── migrations/        # SQL migrations (Goose)
+```mermaid
+flowchart LR
+    A[HTTP Request] --> B[Handler]
+    B --> C[Service]
+    C --> D[Repository]
+    D --> E[(Database)]
 ```
 
-### Layer Responsibilities
-
-| Layer | Does | Does NOT |
-|-------|------|----------|
-| Handler | HTTP parsing, validation, auth check | Business logic |
-| Service | Business logic, coordinates repos | Direct SQL |
-| Repository | Data access, single table only | Cross-domain JOINs |
-
-### Repository Naming Convention
-
-| Action | Repository Method | Service Method |
-|--------|-------------------|----------------|
-| Read one | `FetchByID` | `GetByID` |
-| Read many | `Fetch*` | `Get*` / `List*` |
-| Create | `Insert*` | `Create*` |
-| Update | `Modify*` | `Update*` |
-| Delete | `Remove*` | `Delete*` |
+| Layer | Responsibility | Location |
+|-------|----------------|----------|
+| Handler | HTTP parsing, validation, auth | `internal/web/` |
+| Service | Business logic, orchestration | `internal/application/` |
+| Repository | Data access, single table only | `internal/application/*/repository.go` |
 
 ## Domain Model
 
 ```mermaid
 erDiagram
-    User ||--|| Organization : "1:1 currently"
+    User ||--|| Organization : "belongs to"
     Organization ||--o{ Account : has
     Account ||--o{ Transaction : contains
     Transaction }o--o| Category : "classified by"
     Category ||--o{ CategoryBudget : "budgeted per month"
-    Category ||--o{ PlannedEntry : "has planned expenses"
+    Category ||--o{ PlannedEntry : "expected expenses"
     Category ||--o{ AdvancedPattern : "matched by"
 ```
 
-### Core Entities
-
-- **User**: Authenticated user with organization membership
-- **Organization**: Logical grouping (1:1 with user currently)
-- **Account**: Bank account (checking, savings, credit_card, investment)
-- **Transaction**: Financial transaction with OFX import support
-- **Category**: Transaction classification with icon/color
-- **CategoryBudget**: Monthly budget per category
-- **PlannedEntry**: Expected expense (recurrent or one-time)
-- **AdvancedPattern**: Regex-based automatic categorization
-
 ## API Routes
 
-All financial endpoints under `/financial` (require authentication):
+All financial endpoints under `/financial` require authentication.
 
-### Categories
-```
-GET    /financial/categories           List categories
-POST   /financial/categories           Create category
-PATCH  /financial/categories/{id}      Update category
-```
+| Resource | Endpoints |
+|----------|-----------|
+| Categories | GET, POST, PATCH `/financial/categories` |
+| Accounts | GET, POST `/financial/accounts` |
+| Transactions | GET, POST import, PATCH `/financial/accounts/{id}/transactions` |
+| Budgets | GET, POST, PUT `/financial/budgets/categories` |
+| Patterns | GET, POST, PUT, DELETE `/financial/patterns` |
 
-### Accounts & Transactions
-```
-GET    /financial/accounts                              List accounts
-POST   /financial/accounts                              Create account
-GET    /financial/accounts/{id}/transactions            List transactions
-POST   /financial/accounts/{id}/transactions/import     Import OFX
-PATCH  /financial/accounts/{id}/transactions/{txId}     Update transaction
-GET    /financial/transactions/uncategorized            List uncategorized
-```
-
-### Budgets
-```
-GET    /financial/budgets/categories                    List category budgets
-POST   /financial/budgets/categories                    Create category budget
-PUT    /financial/budgets/categories/{id}               Update category budget
-POST   /financial/budgets/categories/{id}/consolidate   Consolidate month
-```
-
-### Patterns
-```
-GET    /financial/patterns                      List patterns
-POST   /financial/patterns                      Create pattern
-PUT    /financial/patterns/{id}                 Update pattern
-DELETE /financial/patterns/{id}                 Delete pattern
-POST   /financial/patterns/{id}/apply-retroactively   Apply to existing txs
-```
-
-### Pattern Matching
-```
-GET    /financial/match-suggestions                     Get match suggestions
-POST   /financial/transactions/{id}/apply-pattern       Apply pattern
-POST   /financial/transactions/{id}/save-as-pattern     Save tx as pattern
-```
-
-## Data Flow Examples
-
-### OFX Import
+## Data Flow: OFX Import
 
 ```mermaid
 sequenceDiagram
@@ -153,41 +87,31 @@ sequenceDiagram
     participant R as Repository
     participant DB as PostgreSQL
 
-    FE->>H: POST /accounts/{id}/transactions/import
-    H->>S: ImportTransactionsFromOFX()
-    S->>S: OFXParser.Parse(file)
-    S->>R: BulkInsertTransactions()
-    R->>DB: INSERT ... ON CONFLICT DO NOTHING
-    DB-->>R: Inserted rows
-    R-->>S: []Transaction
-    S-->>H: ImportOFXOutput
-    H-->>FE: JSON response
+    FE->>H: POST /import (OFX file)
+    H->>S: ImportTransactionsFromOFX
+    S->>S: Parse OFX
+    S->>R: BulkInsert
+    R->>DB: INSERT ON CONFLICT DO NOTHING
+    DB-->>FE: {inserted, skipped}
 ```
 
-### Pattern Matching Flow
+## Pattern Matching Flow
 
 ```mermaid
 flowchart LR
     TX[New Transaction] --> PM[Pattern Matcher]
-    PM --> AP[Check Advanced Patterns]
+    PM --> AP[Advanced Patterns]
     AP -->|regex match| CAT[Assign Category]
-    AP -->|no match| SP[Check Saved Patterns]
-    SP -->|similarity match| CAT
+    AP -->|no match| SP[Saved Patterns]
+    SP -->|similarity| CAT
     SP -->|no match| UC[Uncategorized]
 ```
 
-## Security Model
+## Security
 
-### Authentication
-- Passwordless magic codes (4-digit, 10-minute expiry)
-- Session tokens stored in Redis
-- Auto-registration on first login
-
-### Authorization Headers
-- `Authorization: Bearer <session_token>`
-- `X-Active-Organization: <org_id>` (required for /financial endpoints)
-
-### Data Isolation
-- All queries scoped by organization_id
-- Prepared statements prevent SQL injection
-- CORS configured per environment
+| Aspect | Implementation |
+|--------|----------------|
+| Authentication | Passwordless magic codes (4-digit, 10min expiry) |
+| Sessions | Redis-stored, UUID tokens |
+| Headers | `Authorization: Bearer <token>`, `X-Active-Organization: <id>` |
+| Data isolation | All queries scoped by organization_id |
