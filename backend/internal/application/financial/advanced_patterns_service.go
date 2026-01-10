@@ -456,7 +456,7 @@ func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *Tra
 	if len(linkedEntries) > 0 {
 		month := int(tx.TransactionDate.Month())
 		year := tx.TransactionDate.Year()
-		matchedAt := s.system.Time.Now().Format("2006-01-02T15:04:05Z")
+		matchedAt := s.system.Time.Now().Format(time.RFC3339)
 
 		// Inherit savings goal from the first linked entry that has one (if transaction doesn't have a goal)
 		// "Manual wins" - don't override if transaction already has a manually-set goal

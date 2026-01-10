@@ -30,9 +30,12 @@ interface RequestOptions {
  * Helper function to create headers for API requests
  */
 function createHeaders(options: RequestOptions): HeadersInit {
+  if (!options.organizationId) {
+    throw new Error('Organization ID is required - ensure activeOrganization is set');
+  }
   return {
     'Authorization': `Bearer ${options.token}`,
-    'X-Active-Organization': options.organizationId || '1',
+    'X-Active-Organization': options.organizationId,
     'Content-Type': 'application/json',
   };
 }
@@ -55,8 +58,8 @@ export async function createBudgetItem(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to create budget item: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create budget item');
   }
 
   const result: ApiResponse<BudgetItem> = await response.json();
@@ -82,8 +85,8 @@ export async function updateBudgetItem(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to update budget item: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to update budget item');
   }
 
   const result: ApiResponse<BudgetItem> = await response.json();
@@ -107,8 +110,8 @@ export async function deleteBudgetItem(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to delete budget item: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to delete budget item');
   }
 }
 
@@ -128,8 +131,8 @@ export async function getBudgetSpending(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch budget spending: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch budget spending');
   }
 
   const result: ApiResponse<BudgetSpending> = await response.json();
@@ -152,8 +155,8 @@ export async function getBudgetProgress(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch budget progress: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch budget progress');
   }
 
   const result: ApiResponse<BudgetProgress> = await response.json();
@@ -184,8 +187,8 @@ export async function getCategoryBudgets(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch category budgets: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch category budgets');
   }
 
   const result: ApiResponse<CategoryBudget[]> = await response.json();
@@ -208,8 +211,8 @@ export async function getCategoryBudget(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch category budget: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch category budget');
   }
 
   const result: ApiResponse<CategoryBudget> = await response.json();
@@ -233,8 +236,8 @@ export async function createCategoryBudget(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to create category budget: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create category budget');
   }
 
   const result: ApiResponse<CategoryBudget> = await response.json();
@@ -259,8 +262,8 @@ export async function updateCategoryBudget(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to update category budget: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to update category budget');
   }
 
   const result: ApiResponse<CategoryBudget> = await response.json();
@@ -274,24 +277,18 @@ export async function deleteCategoryBudget(
   budgetId: number,
   options: RequestOptions
 ): Promise<void> {
-  console.log(`🗑️ [API] deleteCategoryBudget: Sending DELETE for budget ID ${budgetId}`);
-  const url = `${API_CONFIG.baseURL}/financial/budgets/categories/${budgetId}`;
-  console.log(`🗑️ [API] deleteCategoryBudget: URL = ${url}`);
-
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: createHeaders(options),
-  });
-
-  console.log(`🗑️ [API] deleteCategoryBudget: Response status ${response.status} ${response.statusText}`);
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/budgets/categories/${budgetId}`,
+    {
+      method: 'DELETE',
+      headers: createHeaders(options),
+    }
+  );
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error(`❌ [API] deleteCategoryBudget: FAILED - ${error}`);
-    throw new Error(`Failed to delete category budget: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to delete category budget');
   }
-
-  console.log(`✅ [API] deleteCategoryBudget: Budget ${budgetId} deleted successfully`);
 }
 
 /**
@@ -310,8 +307,8 @@ export async function consolidateCategoryBudget(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to consolidate category budget: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to consolidate category budget');
   }
 
   const result: ApiResponse<MonthlySnapshot> = await response.json();
@@ -340,8 +337,8 @@ export async function copyCategoryBudgetsFromMonth(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to copy category budgets: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to copy category budgets');
   }
 
   const result: ApiResponse<CategoryBudget[]> = await response.json();
@@ -379,8 +376,8 @@ export async function getPlannedEntries(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch planned entries: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch planned entries');
   }
 
   const result: ApiResponse<PlannedEntry[]> = await response.json();
@@ -405,8 +402,8 @@ export async function getSavedPatterns(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch saved patterns: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch saved patterns');
   }
 
   const result: ApiResponse<PlannedEntry[]> = await response.json();
@@ -430,8 +427,8 @@ export async function createPlannedEntry(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to create planned entry: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create planned entry');
   }
 
   const result: ApiResponse<PlannedEntry> = await response.json();
@@ -456,8 +453,8 @@ export async function updatePlannedEntry(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to update planned entry: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to update planned entry');
   }
 
   const result: ApiResponse<PlannedEntry> = await response.json();
@@ -480,8 +477,8 @@ export async function deletePlannedEntry(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to delete planned entry: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to delete planned entry');
   }
 }
 
@@ -503,8 +500,8 @@ export async function generateMonthlyInstances(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to generate monthly instances: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to generate monthly instances');
   }
 
   const result: ApiResponse<PlannedEntry[]> = await response.json();
@@ -536,8 +533,8 @@ export async function getPlannedEntriesForMonth(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch planned entries for month: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch planned entries for month');
   }
 
   const result: ApiResponse<PlannedEntryWithStatus[]> = await response.json();
@@ -562,8 +559,8 @@ export async function matchPlannedEntry(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to match planned entry: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to match planned entry');
   }
 
   const result: ApiResponse<PlannedEntryStatus> = await response.json();
@@ -592,8 +589,8 @@ export async function unmatchPlannedEntry(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to unmatch planned entry: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to unmatch planned entry');
   }
 }
 
@@ -615,8 +612,8 @@ export async function dismissPlannedEntry(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to dismiss planned entry: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to dismiss planned entry');
   }
 
   const result: ApiResponse<PlannedEntryStatus> = await response.json();
@@ -645,8 +642,8 @@ export async function undismissPlannedEntry(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to undismiss planned entry: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to undismiss planned entry');
   }
 
   const result: ApiResponse<PlannedEntryStatus> = await response.json();
@@ -677,8 +674,8 @@ export async function getMonthlySnapshots(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch monthly snapshots: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch monthly snapshots');
   }
 
   const result: ApiResponse<MonthlySnapshot[]> = await response.json();
@@ -701,8 +698,8 @@ export async function getMonthlySnapshot(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch monthly snapshot: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch monthly snapshot');
   }
 
   const result: ApiResponse<MonthlySnapshot> = await response.json();
@@ -729,8 +726,8 @@ export async function getPlannedEntryForTransaction(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to get planned entry for transaction: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to get planned entry for transaction');
   }
 
   const result: ApiResponse<PlannedEntryWithStatus | Record<string, never>> = await response.json();
@@ -767,8 +764,8 @@ export async function getIncomePlanning(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch income planning: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch income planning');
   }
 
   const result: ApiResponse<IncomePlanningReport> = await response.json();

@@ -105,8 +105,6 @@ func (a *service) RequestMagicLinkViaEmail(ctx context.Context, input RequestMag
 		return RequestMagicLinkViaEmailOutput{}, err
 	}
 
-	// Log the magic code for easy development access
-	a.logger.Info(ctx, "🔑 MAGIC CODE", "email", input.Email, "code", code)
 
 	if err := a.sendMagicLinkEmail(ctx, sendMagicLinkEmailInput{
 		Email: input.Email,
