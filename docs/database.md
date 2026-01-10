@@ -1,5 +1,28 @@
 # Database Schema
 
+## Quick Reference (AI)
+
+**Primary tables by domain:**
+
+| Domain | Tables |
+|--------|--------|
+| Auth | `users`, `organizations`, `user_organizations`, `roles` |
+| Accounts | `accounts` |
+| Transactions | `transactions`, `transaction_tags` |
+| Categories | `categories` |
+| Budgets | `category_budgets` (current), `monthly_snapshots` |
+| Planning | `planned_entries`, `planned_entry_statuses` |
+| Patterns | `advanced_patterns`, `classification_rules` |
+| Savings | `savings_goals` |
+| Tags | `tags`, `transaction_tags` |
+
+**Deprecated tables:** `budgets`, `budget_items` (use `category_budgets` instead)
+
+**Key constraints:**
+- `(account_id, ofx_fitid)` unique - prevents OFX duplicates
+- All financial tables scoped by `user_id` + `organization_id`
+- `original_description` immutable - use for pattern matching
+
 ## Entity Relationships
 
 ```mermaid

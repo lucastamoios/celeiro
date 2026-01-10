@@ -1,5 +1,20 @@
 # Key Files
 
+## Quick Lookup (AI Reference)
+
+| If you need to... | Look in... |
+|-------------------|------------|
+| Add API route | `backend/internal/web/router.go` |
+| Handle HTTP request | `backend/internal/web/{domain}/handler.go` |
+| Add business logic | `backend/internal/application/{domain}/service.go` |
+| Query database | `backend/internal/application/{domain}/repository.go` |
+| Add migration | `backend/internal/migrations/` (use `goose create`) |
+| Add React page | `frontend/src/components/` + update `App.tsx` |
+| Add API client | `frontend/src/api/` |
+| Modify auth flow | `backend/internal/application/accounts/auth.go` |
+| Parse OFX files | `backend/internal/application/financial/ofx_parser.go` |
+| Pattern matching | `backend/internal/application/financial/matching.go` |
+
 ## Backend Structure
 
 ```
@@ -90,3 +105,40 @@ frontend/src/
 | Add API endpoint | router.go → handler → service → repository |
 | Add database table | migrations/ → models.go → dto.go → repository |
 | Add React component | components/ + App.tsx (if page) |
+
+## Key Service Methods (AI Reference)
+
+### Financial Service (`financial/service.go`)
+
+| Method | Purpose |
+|--------|---------|
+| CreateCategory | Add new category |
+| ListCategories | Get all categories for org |
+| ImportTransactionsFromOFX | Parse OFX and insert transactions |
+| UpdateTransaction | Modify transaction (category, description, etc.) |
+| GetUncategorizedTransactions | Get transactions needing classification |
+| CreateCategoryBudget | Set monthly budget for category |
+| CreatePlannedEntry | Add expected expense/income |
+| MatchTransactionToEntry | Link transaction to planned entry |
+| CreateAdvancedPattern | Add regex-based categorization rule |
+| CreateSavingsGoal | Create savings target |
+
+### Accounts Service (`accounts/service.go`)
+
+| Method | Purpose |
+|--------|---------|
+| RequestMagicCode | Send 4-digit auth code via email |
+| Authenticate | Validate code and create session |
+| GetByID | Get user with org memberships |
+| CreateOrganization | Create new org for user |
+| InviteMember | Send org invitation |
+| AcceptInvite | Join organization |
+
+### Repository Naming Pattern
+
+| Prefix | Use |
+|--------|-----|
+| Fetch* | SELECT queries (one or many) |
+| Insert* | INSERT queries |
+| Modify* | UPDATE queries |
+| Remove* | DELETE queries |
