@@ -23,9 +23,9 @@ celeiro/
 ├── backend/           Go API (Chi router, SQLX, PostgreSQL)
 │   └── internal/
 │       ├── application/   Business logic (services, repos)
-│       │   ├── accounts/  Auth domain
-│       │   └── financial/ Core financial domain
-│       ├── web/           HTTP handlers
+│       │   ├── accounts/  Auth, users, organizations
+│       │   └── financial/ All financial features
+│       ├── web/           HTTP handlers, middlewares
 │       └── migrations/    SQL migrations (Goose)
 ├── frontend/          React 19 + Vite + Tailwind
 ├── backoffice/        Admin panel (React)
@@ -46,12 +46,16 @@ celeiro/
 
 | Domain | Description |
 |--------|-------------|
-| Auth | Passwordless magic link authentication |
-| Accounts | Bank accounts (checking, savings, credit) |
+| Auth | Magic link, password, Google OAuth authentication |
+| Organizations | Multi-tenant user groups with invitations |
+| Accounts | Bank accounts (checking, savings, credit, investment) |
 | Transactions | Financial transactions, OFX import |
-| Categories | Transaction classification with icons |
-| Budgets | Category-centric budgeting |
-| Patterns | Regex-based automatic categorization |
+| Categories | Transaction classification with icons/colors |
+| Category Budgets | Monthly budgets per category (fixed/calculated/maior) |
+| Planned Entries | Expected expenses/income with monthly tracking |
+| Advanced Patterns | Regex-based automatic categorization |
+| Savings Goals | Long-term savings targets (reserva/investimento) |
+| Tags | User-defined transaction labels |
 
 ## Key Commands
 
@@ -69,5 +73,6 @@ celeiro/
 1. **Service Boundaries**: Each repository only accesses its own domain table. No cross-domain JOINs.
 2. **Timezone**: Always use `time.Now().UTC()` for timestamps.
 3. **Headers**: Financial endpoints require `Authorization` and `X-Active-Organization` headers.
+4. **Pattern Matching**: Use `original_description` (immutable) not `description` (user-editable).
 
 See [conventions.md](./conventions.md) for detailed rules.
