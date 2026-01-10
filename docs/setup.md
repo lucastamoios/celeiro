@@ -1,95 +1,82 @@
-# Setup Guide
-
-Quick setup instructions for running Celeiro locally.
+# Development Setup
 
 ## Prerequisites
 
 - Go 1.24+
 - Node.js 20+
 - Docker + Docker Compose
-- PostgreSQL 16 (via Docker)
 
-## Recommended: Docker (Full Stack)
+## Quick Start
 
-This is the main dev workflow for this repo (backend + frontend + Postgres + Redis + Grafana).
-
-```bash
+```
 make up
 ```
 
-Services:
-- Frontend: http://localhost:13000
-- Backend API: http://localhost:9090
-- Postgres: localhost:54330
-- Redis: localhost:63800
+## Services
 
-### Verify Backend is Running
+| Service | URL/Port |
+|---------|----------|
+| Frontend | http://localhost:13000 |
+| Backend API | http://localhost:9090 |
+| PostgreSQL | localhost:54330 |
+| Redis | localhost:63800 |
 
-There is currently no `/health` endpoint. A quick “is the server up?” check is:
+## Commands
 
-```bash
+| Command | Action |
+|---------|--------|
+| `make up` | Start all services |
+| `make down` | Stop all services |
+| `make restart` | Rebuild and restart |
+| `make full-restart` | Rebuild without cache |
+| `make migrate` | Run migrations |
+| `make migrate.rollback` | Rollback last migration |
+| `make migrate.reset` | Reset all migrations |
+| `make test` | Run tests |
+| `make dbshell` | Database shell |
+| `make env` | Create .env.dev if missing |
+| `make gentypes` | Generate TypeScript types |
+
+## Environment Variables
+
+### Backend (.env.dev)
+
+| Variable | Purpose | Required |
+|----------|---------|----------|
+| DATABASE_URL | PostgreSQL connection | Yes |
+| REDIS_URL | Redis connection | Yes |
+| ENVIRONMENT | development/production | Yes |
+| FRONTEND_URL | For email links | Production |
+| RESEND_API_KEY | Email sending | Production |
+| RESEND_WEBHOOK_SECRET | Email webhook auth | Production |
+| GOOGLE_CLIENT_ID | Google OAuth | Optional |
+| OTEL_ENABLED | OpenTelemetry toggle | Optional |
+
+### Frontend (.env)
+
+| Variable | Purpose |
+|----------|---------|
+| VITE_API_URL | Backend URL (http://localhost:9090) |
+
+## Verify Backend
+
+```
 curl -i http://localhost:9090/accounts/me/
-# Expect: HTTP/1.1 401 Unauthorized (this is OK; it means the server is reachable)
+# Expected: 401 Unauthorized (server is reachable)
 ```
 
-## Optional: Local (Non-Docker) Development
+## Local (Non-Docker)
 
-If you want to run pieces locally, make sure your environment variables match `backend/.envrc`.
-
-```bash
+```
 make setup
 make migrate
 cd backend && go run ./cmd/web/main.go
 ```
 
-## Frontend Setup
+## Frontend Only
 
-```bash
+```
 cd frontend
 npm install
 npm run dev
 ```
-
-## Troubleshooting
-
-### Backend won't start
-
-```bash
-# Verify PostgreSQL is running
-docker ps | grep postgres
-
-# View container logs
-docker logs celeiro-postgres
-
-# Reset database (nukes containers/volumes)
-make down
-docker volume prune  # Careful: removes all unused volumes
-make up
-```
-
-### Migrations fail
-
-```bash
-# Rollback last migration
-make migrate.rollback
-
-# Apply manually
-cd backend
-goose -dir ./internal/migrations postgres "$DATABASE_URL" up
-```
-
-### Frontend won't load data
-
-1. Check backend is running: `curl -i localhost:9090/accounts/me/`
-2. Verify API URL in `frontend/.env`
-3. Open DevTools Network tab to inspect requests
-
-## Environment Variables
-
-### Frontend (.env)
-
-```bash
-VITE_API_URL=http://localhost:9090
-```
-
-In Docker production, the frontend is typically reverse-proxied to the backend, so this may differ.
