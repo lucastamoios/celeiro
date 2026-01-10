@@ -8,6 +8,7 @@ flowchart TD
         User
         Organization
         Session
+        Invite
     end
 
     subgraph financial["Financial Domain"]
@@ -16,7 +17,10 @@ flowchart TD
         Category
         CategoryBudget
         PlannedEntry
+        PlannedEntryStatus
         AdvancedPattern
+        SavingsGoal
+        Tag
     end
 
     User --> Organization
@@ -25,7 +29,11 @@ flowchart TD
     Category --> Transaction
     Category --> CategoryBudget
     Category --> PlannedEntry
+    PlannedEntry --> PlannedEntryStatus
     AdvancedPattern --> Category
+    SavingsGoal --> Transaction
+    SavingsGoal --> PlannedEntry
+    Tag --> Transaction
 ```
 
 ## Accounts Domain
@@ -34,17 +42,21 @@ flowchart TD
 
 | Entity | Purpose |
 |--------|---------|
-| User | Authenticated user with email |
-| Organization | Multi-tenant container (1:1 with user currently) |
+| User | Authenticated user with email, optional password |
+| Organization | Multi-tenant container |
 | Session | Redis-backed authentication token |
+| OrganizationInvite | Pending member invitation |
+| SystemInvite | System-wide admin invitation |
 
 ### Key Operations
 
 | Operation | Description |
 |-----------|-------------|
 | RequestMagicCode | Sends 4-digit code via email |
-| Authenticate | Validates code, creates user if new |
+| Authenticate | Validates code/password/Google, creates user if new |
 | GetByID | Returns user with org memberships |
+| InviteMember | Creates org invitation |
+| AcceptInvite | Joins organization |
 
 ## Financial Domain
 
@@ -59,6 +71,7 @@ Transaction classifier with visual identity.
 | name | Display name |
 | icon | Emoji icon |
 | color | Hex color code |
+| category_type | expense or income |
 | is_system | System-provided vs user-created |
 
 ### Account
@@ -81,6 +94,7 @@ Individual financial transaction.
 | original_description | Immutable OFX value (for pattern matching) |
 | amount | Transaction amount |
 | category_id | Optional classification |
+| savings_goal_id | Optional savings goal contribution |
 | is_classified | Has been categorized |
 | is_ignored | Soft delete flag |
 | ofx_fitid | OFX unique identifier |
@@ -103,16 +117,28 @@ Monthly budget for a specific category.
 
 ### PlannedEntry
 
-Expected expense or income.
+Expected expense or income ("Entrada Planejada").
 
 | Field | Purpose |
 |-------|---------|
 | description | Expected description |
-| amount | Expected amount |
+| amount_min / amount_max | Expected amount range |
+| expected_day_start / end | Day range (1-31) |
 | is_recurrent | Repeats monthly |
-| expected_day | Day of month (1-31) |
-| parent_entry_id | For generated monthly instances |
-| is_saved_pattern | Used for transaction matching |
+| entry_type | expense or income |
+| category_id | Target category |
+| savings_goal_id | Optional linked goal |
+
+### PlannedEntryStatus
+
+Monthly tracking for planned entries.
+
+| Field | Purpose |
+|-------|---------|
+| planned_entry_id | Parent entry |
+| month / year | Period |
+| status | pending, matched, dismissed, missing |
+| matched_transaction_id | Linked transaction when matched |
 
 ### AdvancedPattern
 
@@ -120,11 +146,32 @@ Regex-based automatic categorization rule.
 
 | Field | Purpose |
 |-------|---------|
-| description_pattern | Regex to match transaction description |
+| description_pattern | Regex to match original_description |
 | weekday_pattern | Regex for day of week (0-6) |
-| amount_min/max | Amount range filter |
+| amount_min / amount_max | Amount range filter |
 | target_category_id | Category to assign |
 | target_description | Description to set |
+
+### SavingsGoal
+
+Long-term savings target ("Reserva" or "Investimento").
+
+| Field | Purpose |
+|-------|---------|
+| name | Goal name |
+| target_amount | Target to save |
+| current_amount | Current progress |
+| goal_type | reserva (short-term) or investimento (long-term) |
+| status | active, completed, cancelled |
+
+### Tag
+
+User-defined transaction label.
+
+| Field | Purpose |
+|-------|---------|
+| name | Tag name |
+| color | Hex color code |
 
 ## Transaction Categorization Flow
 
@@ -133,22 +180,36 @@ sequenceDiagram
     participant U as User
     participant TX as Transaction
     participant AP as AdvancedPattern
-    participant SP as SavedPattern
+    participant PE as PlannedEntry
     participant CAT as Category
 
     U->>TX: Import OFX
-    TX->>AP: Check patterns
+    TX->>AP: Check regex patterns
     alt Pattern matches
-        AP->>CAT: Auto-assign
+        AP->>CAT: Auto-assign category
+        AP->>TX: Set target_description
     else No match
         TX->>TX: Stays uncategorized
     end
 
     U->>TX: View uncategorized
-    TX->>SP: Get suggestions
-    SP-->>U: Show matches
-    U->>TX: Apply suggestion
-    TX->>CAT: Assign category
+    TX->>PE: Get planned entry suggestions
+    PE-->>U: Show matches by description/amount
+    U->>TX: Link to planned entry
+    TX->>CAT: Assign category from entry
+```
+
+## Planned Entry Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: Month starts
+    Pending --> Matched: Transaction linked
+    Pending --> Dismissed: User dismisses
+    Pending --> Missing: Month ends unmatched
+    Matched --> [*]
+    Dismissed --> [*]
+    Missing --> [*]
 ```
 
 ## Tables by Domain
@@ -156,8 +217,13 @@ sequenceDiagram
 ### Accounts Domain
 - users, organizations, user_organizations
 - roles, permissions, role_permissions
+- organization_invites, system_invites
 
 ### Financial Domain
-- accounts, transactions, categories
-- category_budgets, planned_entries
-- advanced_patterns, monthly_snapshots
+- accounts, transactions, transaction_tags
+- categories, tags
+- budgets, budget_items (legacy)
+- category_budgets, monthly_snapshots
+- planned_entries, planned_entry_statuses
+- advanced_patterns, classification_rules
+- savings_goals

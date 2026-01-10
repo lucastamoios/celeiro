@@ -7,25 +7,34 @@ Quick reference for locating files by feature.
 ```
 backend/internal/
 ├── application/
-│   ├── accounts/           Auth domain
+│   ├── accounts/           Auth & user domain
 │   │   ├── service.go      User/org business logic
-│   │   ├── auth.go         Magic link authentication
-│   │   └── session.go      Redis session management
-│   └── financial/          Main domain (most code here)
-│       ├── service.go      Business logic
+│   │   ├── auth.go         Magic link, password, OAuth
+│   │   ├── session.go      Redis session management
+│   │   ├── invites.go      Organization invitations
+│   │   └── repository.go   User/org data access
+│   └── financial/          Main domain
+│       ├── service.go      Core business logic
 │       ├── repository.go   Data access
 │       ├── models.go       Domain models
 │       ├── dto.go          Data transfer objects
 │       ├── matching.go     Pattern matching core
 │       ├── budget_progress.go
 │       ├── ofx_parser.go   OFX file parsing
-│       └── income_planning.go
+│       ├── income_planning.go
+│       ├── savings_goals.go
+│       └── tags.go
 ├── web/
 │   ├── router.go           All route definitions
-│   ├── accounts/           Auth handlers
+│   ├── accounts/           Auth, org, invite handlers
 │   ├── financial/          Financial handlers
-│   └── middlewares/        Session, logging
-└── migrations/             SQL migrations (Goose)
+│   ├── webhooks/           Email inbound webhook
+│   ├── middlewares/        Session, auth, logging
+│   ├── validators/         Input validation
+│   └── responses/          Response formatting
+├── migrations/             SQL migrations (Goose)
+├── config/                 Configuration
+└── tests/                  Integration tests
 ```
 
 ## Frontend Structure
@@ -33,18 +42,34 @@ backend/internal/
 ```
 frontend/src/
 ├── App.tsx                 Main routing
-├── api/                    API client functions
+├── api/                    API client modules
+│   ├── auth.ts
+│   ├── budget.ts
+│   ├── transactions.ts
+│   ├── savingsGoals.ts
+│   └── tags.ts
 ├── components/
 │   ├── Dashboard.tsx
 │   ├── CategoryManager.tsx
 │   ├── CategoryBudgetDashboard.tsx
 │   ├── TransactionList.tsx
 │   ├── TransactionEditModal.tsx
+│   ├── PlannedEntryCard.tsx
+│   ├── PlannedEntryForm.tsx
 │   ├── AdvancedPatternCreator.tsx
 │   ├── PatternManager.tsx
-│   └── Login.tsx
+│   ├── SavingsGoalsPage.tsx
+│   ├── TagManager.tsx
+│   ├── Login.tsx
+│   └── ui/                 Reusable components
 ├── contexts/
-│   └── AuthContext.tsx     Auth state
+│   ├── AuthContext.tsx     Auth state
+│   └── OrganizationContext.tsx
+├── hooks/
+│   ├── useSelectedMonth.ts
+│   ├── usePersistedState.ts
+│   ├── useModalDismiss.ts
+│   └── useDropdownClose.ts
 └── types/                  TypeScript interfaces
 ```
 
@@ -66,7 +91,7 @@ frontend/src/
 | Model | financial/models.go | - |
 | Service | financial/service.go | - |
 | OFX Parser | financial/ofx_parser.go | - |
-| UI | - | TransactionList.tsx |
+| UI | - | TransactionList.tsx, TransactionEditModal.tsx |
 
 ### Budgets
 
@@ -74,16 +99,41 @@ frontend/src/
 |---------|---------|----------|
 | Model | financial/models.go | - |
 | Progress | financial/budget_progress.go | - |
-| UI | - | CategoryBudgetDashboard.tsx |
+| UI | - | CategoryBudgetDashboard.tsx, BudgetProgressCard.tsx |
+
+### Planned Entries
+
+| Purpose | Backend | Frontend |
+|---------|---------|----------|
+| Model | financial/models.go | - |
+| Service | financial/service.go | - |
+| UI | - | PlannedEntryCard.tsx, PlannedEntryForm.tsx |
 
 ### Pattern Matching
 
 | Purpose | Backend | Frontend |
 |---------|---------|----------|
 | Core | financial/matching.go | - |
-| Service | financial/matching_service.go | - |
-| Advanced | financial/advanced_patterns_service.go | - |
+| Service | financial/service.go | - |
 | UI | - | AdvancedPatternCreator.tsx, PatternManager.tsx |
+
+### Savings Goals
+
+| Purpose | Backend | Frontend |
+|---------|---------|----------|
+| Model | financial/models.go | - |
+| Service | financial/savings_goals.go | - |
+| API | - | api/savingsGoals.ts |
+| UI | - | SavingsGoalsPage.tsx, SavingsGoalCard.tsx |
+
+### Tags
+
+| Purpose | Backend | Frontend |
+|---------|---------|----------|
+| Model | financial/models.go | - |
+| Service | financial/tags.go | - |
+| API | - | api/tags.ts |
+| UI | - | TagManager.tsx, TagSelector.tsx |
 
 ### Authentication
 
@@ -104,6 +154,7 @@ frontend/src/
 | Frontend env | frontend/.env |
 | Docker compose | backend/docker-compose.yml |
 | Makefile | Makefile (root) |
+| GitHub Actions | .github/workflows/docker-publish.yml |
 
 ## Common Tasks
 
@@ -112,3 +163,4 @@ frontend/src/
 | Add API endpoint | router.go, handler.go, service.go, repository.go |
 | Add database table | migrations/, models.go, dto.go, repository.go |
 | Add React component | components/, App.tsx (routing) |
+| Add new domain feature | models.go, service.go, repository.go, handler.go, frontend component |
