@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -169,7 +170,7 @@ func (h *handler) Authenticate(w http.ResponseWriter, r *http.Request) {
 		userID := authResult.Session.Info.User.ID
 		orgID := authResult.Session.Info.Organizations[0].OrganizationID
 
-		_, _ = h.financialService.CreateAccount(r.Context(), financial.CreateAccountInput{
+		if _, err := h.financialService.CreateAccount(r.Context(), financial.CreateAccountInput{
 			UserID:         userID,
 			OrganizationID: orgID,
 			Name:           "Conta Principal",
@@ -177,8 +178,10 @@ func (h *handler) Authenticate(w http.ResponseWriter, r *http.Request) {
 			BankName:       "Meu Banco",
 			Balance:        decimal.Zero,
 			Currency:       "BRL",
-		})
-		// Best-effort: don't fail auth if account creation fails (user can create manually)
+		}); err != nil {
+			// Best-effort: log the error but don't fail auth (user can create manually)
+			log.Printf("[WARN] failed to create default account for new user: user_id=%d org_id=%d error=%v", userID, orgID, err)
+		}
 	}
 
 	response := AuthenticateResponse{}.FromDTO(authResult)
@@ -223,7 +226,7 @@ func (h *handler) AuthenticateWithGoogle(w http.ResponseWriter, r *http.Request)
 		userID := authResult.Session.Info.User.ID
 		orgID := authResult.Session.Info.Organizations[0].OrganizationID
 
-		_, _ = h.financialService.CreateAccount(r.Context(), financial.CreateAccountInput{
+		if _, err := h.financialService.CreateAccount(r.Context(), financial.CreateAccountInput{
 			UserID:         userID,
 			OrganizationID: orgID,
 			Name:           "Conta Principal",
@@ -231,7 +234,10 @@ func (h *handler) AuthenticateWithGoogle(w http.ResponseWriter, r *http.Request)
 			BankName:       "Meu Banco",
 			Balance:        decimal.Zero,
 			Currency:       "BRL",
-		})
+		}); err != nil {
+			// Best-effort: log the error but don't fail auth (user can create manually)
+			log.Printf("[WARN] failed to create default account for new user (Google auth): user_id=%d org_id=%d error=%v", userID, orgID, err)
+		}
 	}
 
 	response := AuthenticateResponse{}.FromDTO(authResult)

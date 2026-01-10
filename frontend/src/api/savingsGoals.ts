@@ -19,9 +19,12 @@ interface RequestOptions {
  * Helper function to create headers for API requests
  */
 function createHeaders(options: RequestOptions): HeadersInit {
+  if (!options.organizationId) {
+    throw new Error('Organization ID is required - ensure activeOrganization is set');
+  }
   return {
     'Authorization': `Bearer ${options.token}`,
-    'X-Active-Organization': options.organizationId || '1',
+    'X-Active-Organization': options.organizationId,
     'Content-Type': 'application/json',
   };
 }
@@ -58,8 +61,8 @@ export async function listSavingsGoals(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to list savings goals: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to list savings goals');
   }
 
   const result: ApiResponse<SavingsGoal[]> = await response.json();
@@ -82,8 +85,8 @@ export async function getSavingsGoal(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to get savings goal: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to get savings goal');
   }
 
   const result: ApiResponse<SavingsGoal> = await response.json();
@@ -106,8 +109,8 @@ export async function getSavingsGoalProgress(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to get savings goal progress: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to get savings goal progress');
   }
 
   const result: ApiResponse<SavingsGoalProgress> = await response.json();
@@ -130,8 +133,8 @@ export async function getSavingsGoalSummary(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to get savings goal summary: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to get savings goal summary');
   }
 
   const result: ApiResponse<SavingsGoalDetail> = await response.json();
@@ -155,8 +158,8 @@ export async function createSavingsGoal(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to create savings goal: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create savings goal');
   }
 
   const result: ApiResponse<SavingsGoal> = await response.json();
@@ -181,8 +184,8 @@ export async function updateSavingsGoal(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to update savings goal: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to update savings goal');
   }
 
   const result: ApiResponse<SavingsGoal> = await response.json();
@@ -205,8 +208,8 @@ export async function deleteSavingsGoal(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to delete savings goal: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to delete savings goal');
   }
 }
 
@@ -226,8 +229,8 @@ export async function completeSavingsGoal(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to complete savings goal: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to complete savings goal');
   }
 
   const result: ApiResponse<SavingsGoal> = await response.json();
@@ -250,8 +253,8 @@ export async function reopenSavingsGoal(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to reopen savings goal: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to reopen savings goal');
   }
 
   const result: ApiResponse<SavingsGoal> = await response.json();
@@ -277,8 +280,8 @@ export async function addContribution(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to add contribution: ${error}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to add contribution');
   }
 
   const result: ApiResponse<SavingsGoalProgress> = await response.json();

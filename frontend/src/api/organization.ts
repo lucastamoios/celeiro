@@ -7,9 +7,12 @@ interface RequestOptions {
 }
 
 function createHeaders(options: RequestOptions): HeadersInit {
+  if (!options.organizationId) {
+    throw new Error('Organization ID is required - ensure activeOrganization is set');
+  }
   return {
     'Authorization': `Bearer ${options.token}`,
-    'X-Active-Organization': String(options.organizationId || 1),
+    'X-Active-Organization': String(options.organizationId),
     'Content-Type': 'application/json',
   };
 }
