@@ -59,14 +59,16 @@ erDiagram
 |-------|---------|------------|
 | categories | Transaction classifiers | name, icon, color, category_type, is_system, user_id |
 
-### Budgets (Dual Models)
+### Budgets
 
-| Table | Purpose | Key Fields |
-|-------|---------|------------|
-| budgets | Monthly budgets (legacy) | month, year, budget_type, amount |
-| budget_items | Items in legacy budget | budget_id, category_id, planned_amount |
-| category_budgets | Category-centric budgets (current) | category_id, month, year, budget_type, planned_amount |
-| monthly_snapshots | Historical budget records | month, year, total_planned, total_spent |
+**Use `category_budgets` for new code. Legacy tables exist but are deprecated.**
+
+| Table | Status | Purpose |
+|-------|--------|---------|
+| category_budgets | **Current** | Budget per category per month |
+| monthly_snapshots | Current | Historical budget records |
+| budgets | Deprecated | Old monthly budget model |
+| budget_items | Deprecated | Items in old budget model |
 
 ### Planned Entries
 

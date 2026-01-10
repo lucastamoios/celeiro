@@ -55,53 +55,41 @@ flowchart TB
 
 ## API Routes
 
-### Public Endpoints
+### Public
 
-| Path | Method | Purpose |
-|------|--------|---------|
-| /auth/request/ | POST | Request magic code |
-| /auth/validate/ | POST | Validate magic code |
-| /auth/google/ | POST | Google OAuth |
-| /auth/password/ | POST | Password login |
-| /invites/accept | POST | Accept org invite |
-| /system-invites/accept | POST | Accept system invite |
-| /webhooks/email/inbound | POST | Resend email webhook |
+| Pattern | Purpose |
+|---------|---------|
+| POST /auth/* | Authentication (request, validate, google, password) |
+| POST /invites/accept | Accept org invite |
+| POST /system-invites/accept | Accept system invite |
+| POST /webhooks/email/inbound | Email webhook (Resend) |
 
-### Protected Endpoints (require Authorization header)
+### Protected (Authorization header)
 
-| Resource | Methods | Path |
-|----------|---------|------|
-| User | GET | /accounts/me/ |
-| Organizations | PATCH | /organizations/{id} |
-| Org Members | GET | /organizations/{id}/members |
-| Org Invites | GET, POST, DELETE | /organizations/{id}/invites |
+| Pattern | Purpose |
+|---------|---------|
+| GET /accounts/me/ | Current user info |
+| /organizations/{id}/* | Org settings, members, invites |
+| /backoffice/* | Admin panel (super admin only) |
 
-### Financial Endpoints (require Authorization + X-Active-Organization)
+### Financial (Authorization + X-Active-Organization)
 
-| Resource | Methods | Path |
-|----------|---------|------|
-| Categories | GET, POST | /financial/categories |
-| Category | PATCH, DELETE | /financial/categories/{id} |
-| Accounts | GET, POST | /financial/accounts |
-| Transactions | GET, POST | /financial/accounts/{id}/transactions |
-| Transaction | PATCH | /financial/accounts/{id}/transactions/{txId} |
-| Uncategorized | GET | /financial/transactions/uncategorized |
-| Category Budgets | GET, POST | /financial/budgets/categories |
-| Category Budget | GET, PUT, DELETE | /financial/budgets/categories/{id} |
-| Budget Copy | POST | /financial/budgets/categories/copy |
-| Planned Entries | GET, POST | /financial/planned-entries |
-| Planned Entry | GET, PUT, DELETE | /financial/planned-entries/{id} |
-| Entry Status | POST (match/dismiss) | /financial/planned-entries/{id}/* |
-| Patterns | GET, POST | /financial/patterns |
-| Pattern | GET, PUT, DELETE | /financial/patterns/{id} |
-| Savings Goals | GET, POST | /financial/savings-goals |
-| Savings Goal | GET, PUT, DELETE | /financial/savings-goals/{id} |
-| Goal Actions | POST | /financial/savings-goals/{id}/(complete/reopen/contribute) |
-| Tags | GET, POST | /financial/tags |
-| Tag | GET, PATCH, DELETE | /financial/tags/{id} |
-| Transaction Tags | GET, PUT | /financial/transactions/{id}/tags |
-| Income Planning | GET | /financial/income-planning |
-| Amazon Sync | POST | /financial/amazon/sync |
+| Resource | Pattern | Operations |
+|----------|---------|------------|
+| Categories | /financial/categories/* | CRUD |
+| Accounts | /financial/accounts/* | List, create, get details |
+| Transactions | /financial/accounts/{id}/transactions/* | List, create, import OFX, update |
+| Uncategorized | /financial/transactions/uncategorized | List needing classification |
+| Category Budgets | /financial/budgets/categories/* | CRUD, copy, consolidate |
+| Legacy Budgets | /financial/budgets/* | CRUD with items (deprecated) |
+| Snapshots | /financial/snapshots/* | Historical budget data |
+| Planned Entries | /financial/planned-entries/* | CRUD, patterns, match, dismiss |
+| Patterns | /financial/patterns/* | CRUD, apply retroactively |
+| Savings Goals | /financial/savings-goals/* | CRUD, complete, reopen, contribute |
+| Tags | /financial/tags/* | CRUD |
+| Transaction Tags | /financial/transactions/{id}/tags | Get, set |
+| Income Planning | /financial/income-planning | Report |
+| Amazon Sync | /financial/amazon/sync | Chrome extension sync |
 
 ## Data Flow: OFX Import
 
@@ -131,19 +119,6 @@ flowchart LR
     AP -->|no match| PE[Planned Entries]
     PE -->|description/amount match| LINK[Link Entry]
     PE -->|no match| UC[Uncategorized]
-```
-
-## Planned Entry Matching
-
-```mermaid
-flowchart TD
-    TX[Transaction] --> CHECK{Has linked entry?}
-    CHECK -->|Yes| MATCHED[Status: Matched]
-    CHECK -->|No| SUGGEST[Suggest from entries]
-    SUGGEST --> USER{User action}
-    USER -->|Link| MATCHED
-    USER -->|Dismiss| DISMISSED[Status: Dismissed]
-    USER -->|Ignore| PENDING[Status: Pending]
 ```
 
 ## Security
