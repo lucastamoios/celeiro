@@ -41,6 +41,7 @@ Personal finance management system with Go backend, React frontend, PostgreSQL d
 | Database schema | [database.md](./database.md) |
 | Domain entities | [domains.md](./domains.md) |
 | Authentication | [auth.md](./auth.md) |
+| **Frontend screens** | [screens/index.md](./screens/index.md) |
 | Project conventions | [conventions.md](./conventions.md) |
 | Key files location | [files.md](./files.md) |
 | Development setup | [setup.md](./setup.md) |
