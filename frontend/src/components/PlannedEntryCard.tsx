@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { PlannedEntryWithStatus, PlannedEntryStatusType } from '../types/budget';
 import { getStatusBadgeClasses, getStatusLabel } from '../types/budget';
 import { useDropdownClose } from '../hooks/useDropdownClose';
+import { parseTransactionDate } from '../utils/date';
 
 interface PlannedEntryCardProps {
   entry: PlannedEntryWithStatus;
@@ -64,8 +65,7 @@ export default function PlannedEntryCard({
   };
 
   const formatDate = (dateStr: string) => {
-    // Append T00:00:00 to parse as local time, not UTC
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR');
+    return parseTransactionDate(dateStr).toLocaleDateString('pt-BR');
   };
 
   const getExpectedDayRange = () => {

@@ -4,6 +4,7 @@ import { financialUrl } from '../config/api';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import TransactionEditModal from './TransactionEditModal';
+import { parseTransactionDate } from '../utils/date';
 
 export default function UncategorizedTransactions() {
   const { token } = useAuth();
@@ -86,8 +87,7 @@ export default function UncategorizedTransactions() {
   };
 
   const formatDate = (dateString: string) => {
-    // Append T00:00:00 to parse as local time, not UTC
-    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
+    return parseTransactionDate(dateString).toLocaleDateString('pt-BR');
   };
 
   if (loading) {
