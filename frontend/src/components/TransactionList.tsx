@@ -7,6 +7,7 @@ import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import { usePersistedFilters } from '../hooks/usePersistedState';
 import { useSelectedMonth } from '../hooks/useSelectedMonth';
+import { parseTransactionDate, formatDateBR } from '../utils/date';
 import TransactionEditModal from './TransactionEditModal';
 import TransactionCreateModal from './TransactionCreateModal';
 // Simple patterns have been removed - unified pattern system now in PatternManager
@@ -245,12 +246,8 @@ export default function TransactionList() {
     }).format(parseFloat(amount));
   };
 
-  const formatDate = (dateString: string) => {
-    // Append T00:00:00 to parse as local time, not UTC
-    // Without this, "2026-01-12" is parsed as UTC midnight, which becomes
-    // the previous day in timezones west of UTC (like Brazil UTC-3)
-    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
-  };
+  // Use utility function for consistent date formatting
+  const formatDate = formatDateBR;
 
   // Upload multiple OFX files
   const uploadFiles = useCallback(async (files: File[]) => {
@@ -485,8 +482,8 @@ export default function TransactionList() {
 
   // Filter transactions by selected month
   const selectedMonthTransactions = transactions.filter(t => {
-    // Parse as local time to avoid timezone shift
-    const txDate = new Date(t.transaction_date + 'T00:00:00');
+    // Parse as local time to avoid timezone shift (handles both ISO and date-only formats)
+    const txDate = parseTransactionDate(t.transaction_date);
     // selectedMonth is 1-12, getMonth() is 0-11
     return txDate.getMonth() + 1 === selectedMonth && txDate.getFullYear() === selectedYear;
   });

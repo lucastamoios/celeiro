@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
 import { getStatusIndicator, getProgressBarClasses } from '../utils/colors';
+import { parseTransactionDate } from '../utils/date';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import type { PlannedEntryWithStatus } from '../types/budget';
@@ -181,10 +182,10 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
       if (allTransactions.length > 0) {
         const sortedTx = [...allTransactions].sort((a, b) =>
-          new Date(b.transaction_date + 'T00:00:00').getTime() - new Date(a.transaction_date + 'T00:00:00').getTime()
+          parseTransactionDate(b.transaction_date).getTime() - parseTransactionDate(a.transaction_date).getTime()
         );
         // Parse as local time to avoid timezone shift
-        const mostRecentDate = new Date(sortedTx[0].transaction_date + 'T00:00:00');
+        const mostRecentDate = parseTransactionDate(sortedTx[0].transaction_date);
         targetMonth = mostRecentDate.getMonth();
         targetYear = mostRecentDate.getFullYear();
       }
@@ -195,7 +196,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       // Filter current month transactions (excluding ignored ones)
       const currentMonthTx = allTransactions.filter(tx => {
         // Parse as local time to avoid timezone shift
-        const txDate = new Date(tx.transaction_date + 'T00:00:00');
+        const txDate = parseTransactionDate(tx.transaction_date);
         return txDate >= firstDay && txDate <= lastDay && !tx.is_ignored;
       });
 
@@ -251,7 +252,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         const allUncategorized = uncatData.data || [];
         const filteredUncategorized = allUncategorized.filter((tx: { transaction_date: string }) => {
           // Parse as local time to avoid timezone shift
-          const txDate = new Date(tx.transaction_date + 'T00:00:00');
+          const txDate = parseTransactionDate(tx.transaction_date);
           return txDate.getMonth() === targetMonth && txDate.getFullYear() === targetYear;
         });
         uncategorizedCount = filteredUncategorized.length;

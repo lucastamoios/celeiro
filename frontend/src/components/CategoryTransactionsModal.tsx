@@ -3,6 +3,7 @@ import type { Transaction } from '../types/transaction';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import { useModalDismiss } from '../hooks/useModalDismiss';
+import { parseTransactionDate } from '../utils/date';
 
 interface CategoryTransactionsModalProps {
   categoryId: number;
@@ -74,14 +75,14 @@ export default function CategoryTransactionsModal({
       if (tx.is_ignored) return false;
 
       // Parse as local time to avoid timezone shift
-      const txDate = new Date(tx.transaction_date + 'T00:00:00');
+      const txDate = parseTransactionDate(tx.transaction_date);
       const txMonth = txDate.getMonth() + 1;
       const txYear = txDate.getFullYear();
 
       return txMonth === month && txYear === year;
     }).sort((a, b) => {
       // Sort by date descending (most recent first)
-      return new Date(b.transaction_date + 'T00:00:00').getTime() - new Date(a.transaction_date + 'T00:00:00').getTime();
+      return parseTransactionDate(b.transaction_date).getTime() - parseTransactionDate(a.transaction_date).getTime();
     });
   }, [transactions, categoryId, month, year]);
 
