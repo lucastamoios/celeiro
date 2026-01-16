@@ -28,6 +28,7 @@ import { financialUrl } from '../config/api';
 import PlannedEntryForm from './PlannedEntryForm';
 import MonthlyBudgetCard from './MonthlyBudgetCard';
 import { generateBudgetExportText, copyToClipboard } from '../utils/budgetExport';
+import { parseTransactionDate } from '../utils/date';
 import TransactionMatcherModal from './TransactionMatcherModal';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
 import TransactionEditModal from './TransactionEditModal';
@@ -417,8 +418,8 @@ export default function CategoryBudgetDashboard() {
           return;
         }
 
-        // Parse as local time to avoid timezone shift
-        const txDate = new Date(tx.transaction_date + 'T00:00:00');
+        // Parse as local time to avoid timezone shift (handles both ISO and date-only formats)
+        const txDate = parseTransactionDate(tx.transaction_date);
         const month = txDate.getMonth() + 1;
         const year = txDate.getFullYear();
         const key = `${month}-${year}`;
@@ -444,8 +445,8 @@ export default function CategoryBudgetDashboard() {
           return;
         }
 
-        // Parse as local time to avoid timezone shift
-        const txDate = new Date(tx.transaction_date + 'T00:00:00');
+        // Parse as local time to avoid timezone shift (handles both ISO and date-only formats)
+        const txDate = parseTransactionDate(tx.transaction_date);
         const month = txDate.getMonth() + 1;
         const year = txDate.getFullYear();
         const key = `${month}-${year}`;

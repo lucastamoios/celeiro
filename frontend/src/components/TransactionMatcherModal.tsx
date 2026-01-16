@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import type { Transaction } from '../types/transaction';
 import { useModalDismiss } from '../hooks/useModalDismiss';
+import { parseTransactionDate } from '../utils/date';
 
 interface TransactionMatcherModalProps {
   isOpen: boolean;
@@ -59,7 +60,7 @@ export default function TransactionMatcherModal({
   const monthTransactions = useMemo(() => {
     return transactions.filter((tx) => {
       // Parse as local time to avoid timezone shift
-      const txDate = new Date(tx.transaction_date + 'T00:00:00');
+      const txDate = parseTransactionDate(tx.transaction_date);
       return txDate.getMonth() + 1 === month && txDate.getFullYear() === year;
     });
   }, [transactions, month, year]);
@@ -83,12 +84,12 @@ export default function TransactionMatcherModal({
 
     // Date range match (if expected days are set)
     if (plannedEntry.ExpectedDayStart && plannedEntry.ExpectedDayEnd) {
-      const txDay = new Date(tx.transaction_date + 'T00:00:00').getDate();
+      const txDay = parseTransactionDate(tx.transaction_date).getDate();
       if (txDay >= plannedEntry.ExpectedDayStart && txDay <= plannedEntry.ExpectedDayEnd) {
         score += 25;
       }
     } else if (plannedEntry.ExpectedDay) {
-      const txDay = new Date(tx.transaction_date + 'T00:00:00').getDate();
+      const txDay = parseTransactionDate(tx.transaction_date).getDate();
       if (Math.abs(txDay - plannedEntry.ExpectedDay) <= 3) {
         score += 25;
       }

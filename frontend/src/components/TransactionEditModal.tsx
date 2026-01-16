@@ -5,6 +5,7 @@ import type { PlannedEntryWithStatus } from '../types/budget';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { CATEGORY_COLORS } from '../utils/colors';
+import { parseTransactionDate } from '../utils/date';
 import { getPlannedEntryForTransaction, unmatchPlannedEntry, updatePlannedEntry } from '../api/budget';
 import { getTransactionTags, setTransactionTags } from '../api/tags';
 import { useModalDismiss } from '../hooks/useModalDismiss';
@@ -112,7 +113,7 @@ export default function TransactionEditModal({
     if (!token || !linkedPlannedEntry) return;
 
     // Parse as local time to avoid timezone shift
-    const txDate = new Date(transaction.transaction_date + 'T00:00:00');
+    const txDate = parseTransactionDate(transaction.transaction_date);
     const month = txDate.getMonth() + 1;
     const year = txDate.getFullYear();
 
@@ -739,7 +740,7 @@ export default function TransactionEditModal({
             description: transaction.original_description || description,
             categoryId: categoryId ?? undefined,
             amount: transaction.amount,
-            expectedDay: new Date(transaction.transaction_date + 'T00:00:00').getDate(),
+            expectedDay: parseTransactionDate(transaction.transaction_date).getDate(),
           }}
         />
       )}
