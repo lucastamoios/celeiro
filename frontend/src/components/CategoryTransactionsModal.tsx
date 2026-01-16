@@ -47,8 +47,7 @@ export default function CategoryTransactionsModal({
   };
 
   const formatDate = (dateString: string) => {
-    // Append T00:00:00 to parse as local time, not UTC
-    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR', {
+    return parseTransactionDate(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'short',
     });

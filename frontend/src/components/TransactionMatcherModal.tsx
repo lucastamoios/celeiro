@@ -43,8 +43,7 @@ export default function TransactionMatcherModal({
   };
 
   const formatDate = (dateStr: string) => {
-    // Append T00:00:00 to parse as local time, not UTC
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', {
+    return parseTransactionDate(dateStr).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
     });
