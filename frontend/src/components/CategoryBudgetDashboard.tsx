@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BarChart3, Copy } from 'lucide-react';
+import { BarChart3, Copy, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useSelectedMonth } from '../hooks/useSelectedMonth';
@@ -27,6 +27,7 @@ import { listSavingsGoals } from '../api/savingsGoals';
 import { financialUrl } from '../config/api';
 import PlannedEntryForm from './PlannedEntryForm';
 import MonthlyBudgetCard from './MonthlyBudgetCard';
+import { generateBudgetExportText, copyToClipboard } from '../utils/budgetExport';
 import TransactionMatcherModal from './TransactionMatcherModal';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
 import TransactionEditModal from './TransactionEditModal';
@@ -1164,6 +1165,26 @@ export default function CategoryBudgetDashboard() {
     }
   };
 
+  // Export budget data for AI planning
+  const handleExportBudget = async () => {
+    const exportText = generateBudgetExportText({
+      month: selectedMonth,
+      year: selectedYear,
+      budgets: selectedMonthBudgets,
+      plannedEntries: selectedMonthEntries,
+      categories,
+      actualSpending: selectedMonthSpending,
+    });
+
+    try {
+      await copyToClipboard(exportText);
+      setSuccessMessage('Orçamento copiado para a área de transferência!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError('Falha ao copiar orçamento');
+    }
+  };
+
   const resetBudgetForm = () => {
     setSelectedCategoryId('');
     setBudgetType('fixed');
@@ -1320,6 +1341,14 @@ export default function CategoryBudgetDashboard() {
 
             {/* Action Buttons */}
             <div className="flex gap-2 justify-center sm:justify-end">
+              <button
+                onClick={handleExportBudget}
+                className="btn-secondary text-sm inline-flex items-center gap-1"
+                title="Exportar orçamento para AI"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Exportar</span>
+              </button>
               <button
                 onClick={() => setShowCreateEntryModal(true)}
                 className="btn-secondary text-sm"
