@@ -96,6 +96,18 @@ function AppContent() {
     );
   }
 
+  // Handler for middle-click (auxiliary click) to open in new tab
+  // NOTE: All hooks must be declared before any conditional returns
+  const handleAuxClick = useCallback((view: View) => (e: React.MouseEvent) => {
+    // Middle-click (button 1) or Ctrl/Cmd+click
+    if (e.button === 1 || e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      window.open(`${window.location.origin}${window.location.pathname}?view=${view}`, '_blank');
+    }
+  }, []);
+
+  // === CONDITIONAL RETURNS (after all hooks) ===
+
   if (!isAuthenticated) {
     return <Login />;
   }
@@ -112,15 +124,6 @@ function AppContent() {
       </div>
     );
   }
-
-  // Handler for middle-click (auxiliary click) to open in new tab
-  const handleAuxClick = useCallback((view: View) => (e: React.MouseEvent) => {
-    // Middle-click (button 1) or Ctrl/Cmd+click
-    if (e.button === 1 || e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      window.open(`${window.location.origin}${window.location.pathname}?view=${view}`, '_blank');
-    }
-  }, []);
 
   const navButtonClass = (view: View) =>
     `px-3 py-2 text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-2 ${
