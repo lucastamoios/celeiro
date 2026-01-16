@@ -34,6 +34,7 @@ export default function PlannedEntryForm({
     initialEntry?.PatternID || null
   );
   const [linkedPatternName, setLinkedPatternName] = useState<string>('');
+  const [isCreatingQuickPattern, setIsCreatingQuickPattern] = useState(false);
 
   const [categoryId, setCategoryId] = useState<string>(
     initialEntry?.CategoryID.toString() || ''
@@ -209,6 +210,50 @@ export default function PlannedEntryForm({
     setLinkedPatternId(createdPattern.pattern_id);
     setLinkedPatternName(createdPattern.target_description || pattern.target_description);
     setShowAdvancedPatternModal(false);
+  };
+
+  // Quick pattern creation - creates a simple "contains" pattern with one click
+  const handleQuickPatternCreate = async () => {
+    if (!token || !description.trim() || !categoryId) return;
+
+    setIsCreatingQuickPattern(true);
+    try {
+      // Escape special regex characters in the description
+      const escapedDescription = description.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const response = await fetch(financialUrl('patterns'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Active-Organization': organizationId,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description_pattern: `(?i).*${escapedDescription}.*`, // Case-insensitive contains match
+          target_description: description.trim(),
+          target_category_id: parseInt(categoryId),
+          apply_retroactively: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || 'Failed to create pattern');
+      }
+
+      const result = await response.json();
+      const createdPattern = result.data;
+
+      // Store the pattern info
+      setLinkedPatternId(createdPattern.pattern_id);
+      setLinkedPatternName(description.trim());
+    } catch (err) {
+      console.error('Failed to create quick pattern:', err);
+      // Show error to user via alert for now (could be improved with toast)
+      alert(err instanceof Error ? err.message : 'Erro ao criar padrão');
+    } finally {
+      setIsCreatingQuickPattern(false);
+    }
   };
 
   // Clear linked pattern
@@ -565,21 +610,45 @@ export default function PlannedEntryForm({
           </div>
         )}
 
-        {/* Advanced Pattern Creation - available in both create and edit mode when no pattern is linked */}
+        {/* Pattern Creation - available when no pattern is linked */}
         {!linkedPatternId && (
-          <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-sm font-medium text-stone-700">Padrão de Auto-Matching</span>
-                <p className="text-xs text-stone-500">Vincular transações automaticamente</p>
-              </div>
+          <div className="p-3 bg-stone-50 rounded-lg border border-stone-200 space-y-3">
+            <div>
+              <span className="text-sm font-medium text-stone-700">Padrão de Auto-Matching</span>
+              <p className="text-xs text-stone-500">Vincular transações automaticamente quando a descrição contiver "{description || '...'}"</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleQuickPatternCreate}
+                disabled={isLoading || isCreatingQuickPattern || !categoryId || !description}
+                className="flex-1 px-3 py-2 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                {isCreatingQuickPattern ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Criar Padrão Rápido
+                  </>
+                )}
+              </button>
               <button
                 type="button"
                 onClick={() => setShowAdvancedPatternModal(true)}
                 disabled={isLoading || !categoryId || !description}
-                className="px-3 py-1.5 text-xs font-medium text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-2 text-sm font-medium text-stone-600 bg-white border border-stone-300 rounded-lg hover:bg-stone-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Configurações avançadas como regex, dia da semana, faixa de valor"
               >
-                Criar Padrão
+                Avançado
               </button>
             </div>
           </div>

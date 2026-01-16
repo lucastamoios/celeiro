@@ -422,12 +422,40 @@ func (s *service) matchesAdvancedPattern(ctx context.Context, tx *TransactionMod
 
 // applyAdvancedPatternToTransaction applies a pattern's target description and category to a transaction
 // It also checks if any planned entry is linked to this pattern and updates its status to "matched"
+// If a planned entry is linked, its description takes precedence over the pattern's description
 func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *TransactionModel, pattern *AdvancedPatternModel, userID, organizationID int) error {
-	// Update transaction with pattern's target
+	// Start with pattern's target values
 	description := pattern.TargetDescription
 	categoryID := pattern.TargetCategoryID
 
-	_, err := s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
+	// Check if any planned entry is linked to this pattern FIRST
+	// If linked, use the planned entry's description instead of pattern's
+	linkedEntries, err := s.Repository.FetchPlannedEntriesByPatternIDs(ctx, fetchPlannedEntriesByPatternIDsParams{
+		PatternIDs:     []int{pattern.PatternID},
+		UserID:         userID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		// Log warning but continue with pattern's values
+		s.logger.Warn(ctx, "Failed to fetch linked planned entries for pattern",
+			"pattern_id", pattern.PatternID,
+			"error", err.Error(),
+		)
+	}
+
+	// If there are linked entries, use the first one's description
+	// This makes the planned entry the "source of truth" for the description
+	if len(linkedEntries) > 0 {
+		description = linkedEntries[0].Description
+		s.logger.Info(ctx, "Using planned entry description instead of pattern's",
+			"pattern_id", pattern.PatternID,
+			"planned_entry_id", linkedEntries[0].PlannedEntryID,
+			"description", description,
+		)
+	}
+
+	// Update transaction with the determined values
+	_, err = s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
 		TransactionID:  tx.TransactionID,
 		UserID:         userID,
 		OrganizationID: organizationID,
@@ -436,21 +464,6 @@ func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *Tra
 	})
 	if err != nil {
 		return err
-	}
-
-	// Check if any planned entry is linked to this pattern
-	linkedEntries, err := s.Repository.FetchPlannedEntriesByPatternIDs(ctx, fetchPlannedEntriesByPatternIDsParams{
-		PatternIDs:     []int{pattern.PatternID},
-		UserID:         userID,
-		OrganizationID: organizationID,
-	})
-	if err != nil {
-		// Log warning but don't fail - the transaction was already categorized
-		s.logger.Warn(ctx, "Failed to fetch linked planned entries for pattern",
-			"pattern_id", pattern.PatternID,
-			"error", err.Error(),
-		)
-		return nil
 	}
 
 	// If any planned entry is linked, update its status to "matched" for the transaction's month/year
