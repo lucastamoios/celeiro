@@ -111,7 +111,8 @@ export default function TransactionEditModal({
   const handleUnlinkPlannedEntry = async () => {
     if (!token || !linkedPlannedEntry) return;
 
-    const txDate = new Date(transaction.transaction_date);
+    // Parse as local time to avoid timezone shift
+    const txDate = new Date(transaction.transaction_date + 'T00:00:00');
     const month = txDate.getMonth() + 1;
     const year = txDate.getFullYear();
 
@@ -299,7 +300,8 @@ export default function TransactionEditModal({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    // Append T00:00:00 to parse as local time, not UTC
+    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
   };
 
   // Check if any sub-modal is open (for stack behavior)
@@ -737,7 +739,7 @@ export default function TransactionEditModal({
             description: transaction.original_description || description,
             categoryId: categoryId ?? undefined,
             amount: transaction.amount,
-            expectedDay: new Date(transaction.transaction_date).getDate(),
+            expectedDay: new Date(transaction.transaction_date + 'T00:00:00').getDate(),
           }}
         />
       )}

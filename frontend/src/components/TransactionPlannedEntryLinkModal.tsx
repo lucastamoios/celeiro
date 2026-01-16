@@ -34,8 +34,8 @@ export default function TransactionPlannedEntryLinkModal({
 
   const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
-  // Get month/year from transaction date
-  const txDate = new Date(transaction.transaction_date);
+  // Get month/year from transaction date (parse as local time)
+  const txDate = new Date(transaction.transaction_date + 'T00:00:00');
   const txMonth = txDate.getMonth() + 1;
   const txYear = txDate.getFullYear();
 
@@ -155,7 +155,7 @@ export default function TransactionPlannedEntryLinkModal({
             <span className="tabular-nums">{formatCurrency(transaction.amount)}</span>
             {' • '}
             <span className="capitalize">
-              {new Date(transaction.transaction_date).toLocaleDateString('pt-BR', {
+              {new Date(transaction.transaction_date + 'T00:00:00').toLocaleDateString('pt-BR', {
                 month: 'long',
                 year: 'numeric',
               })}
@@ -212,7 +212,7 @@ export default function TransactionPlannedEntryLinkModal({
               <p className="text-sm text-stone-400">
                 {entries.length > 0
                   ? 'Todas as entradas já estão vinculadas ou foram filtradas'
-                  : `Nenhuma entrada planejada para ${new Date(transaction.transaction_date).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`}
+                  : `Nenhuma entrada planejada para ${new Date(transaction.transaction_date + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`}
               </p>
             </div>
           ) : (

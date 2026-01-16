@@ -42,7 +42,8 @@ export default function TransactionMatcherModal({
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
+    // Append T00:00:00 to parse as local time, not UTC
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
     });
@@ -57,7 +58,8 @@ export default function TransactionMatcherModal({
   // Filter transactions for the selected month/year
   const monthTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      const txDate = new Date(tx.transaction_date);
+      // Parse as local time to avoid timezone shift
+      const txDate = new Date(tx.transaction_date + 'T00:00:00');
       return txDate.getMonth() + 1 === month && txDate.getFullYear() === year;
     });
   }, [transactions, month, year]);
@@ -81,12 +83,12 @@ export default function TransactionMatcherModal({
 
     // Date range match (if expected days are set)
     if (plannedEntry.ExpectedDayStart && plannedEntry.ExpectedDayEnd) {
-      const txDay = new Date(tx.transaction_date).getDate();
+      const txDay = new Date(tx.transaction_date + 'T00:00:00').getDate();
       if (txDay >= plannedEntry.ExpectedDayStart && txDay <= plannedEntry.ExpectedDayEnd) {
         score += 25;
       }
     } else if (plannedEntry.ExpectedDay) {
-      const txDay = new Date(tx.transaction_date).getDate();
+      const txDay = new Date(tx.transaction_date + 'T00:00:00').getDate();
       if (Math.abs(txDay - plannedEntry.ExpectedDay) <= 3) {
         score += 25;
       }

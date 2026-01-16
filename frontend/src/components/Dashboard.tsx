@@ -181,9 +181,10 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
       if (allTransactions.length > 0) {
         const sortedTx = [...allTransactions].sort((a, b) =>
-          new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+          new Date(b.transaction_date + 'T00:00:00').getTime() - new Date(a.transaction_date + 'T00:00:00').getTime()
         );
-        const mostRecentDate = new Date(sortedTx[0].transaction_date);
+        // Parse as local time to avoid timezone shift
+        const mostRecentDate = new Date(sortedTx[0].transaction_date + 'T00:00:00');
         targetMonth = mostRecentDate.getMonth();
         targetYear = mostRecentDate.getFullYear();
       }
@@ -193,7 +194,8 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
       // Filter current month transactions (excluding ignored ones)
       const currentMonthTx = allTransactions.filter(tx => {
-        const txDate = new Date(tx.transaction_date);
+        // Parse as local time to avoid timezone shift
+        const txDate = new Date(tx.transaction_date + 'T00:00:00');
         return txDate >= firstDay && txDate <= lastDay && !tx.is_ignored;
       });
 
@@ -248,7 +250,8 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         const uncatData = await uncatResponse.json();
         const allUncategorized = uncatData.data || [];
         const filteredUncategorized = allUncategorized.filter((tx: { transaction_date: string }) => {
-          const txDate = new Date(tx.transaction_date);
+          // Parse as local time to avoid timezone shift
+          const txDate = new Date(tx.transaction_date + 'T00:00:00');
           return txDate.getMonth() === targetMonth && txDate.getFullYear() === targetYear;
         });
         uncategorizedCount = filteredUncategorized.length;

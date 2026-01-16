@@ -416,7 +416,8 @@ export default function CategoryBudgetDashboard() {
           return;
         }
 
-        const txDate = new Date(tx.transaction_date);
+        // Parse as local time to avoid timezone shift
+        const txDate = new Date(tx.transaction_date + 'T00:00:00');
         const month = txDate.getMonth() + 1;
         const year = txDate.getFullYear();
         const key = `${month}-${year}`;
@@ -442,7 +443,8 @@ export default function CategoryBudgetDashboard() {
           return;
         }
 
-        const txDate = new Date(tx.transaction_date);
+        // Parse as local time to avoid timezone shift
+        const txDate = new Date(tx.transaction_date + 'T00:00:00');
         const month = txDate.getMonth() + 1;
         const year = txDate.getFullYear();
         const key = `${month}-${year}`;

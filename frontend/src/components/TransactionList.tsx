@@ -246,7 +246,10 @@ export default function TransactionList() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    // Append T00:00:00 to parse as local time, not UTC
+    // Without this, "2026-01-12" is parsed as UTC midnight, which becomes
+    // the previous day in timezones west of UTC (like Brazil UTC-3)
+    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
   };
 
   // Upload multiple OFX files
@@ -482,7 +485,8 @@ export default function TransactionList() {
 
   // Filter transactions by selected month
   const selectedMonthTransactions = transactions.filter(t => {
-    const txDate = new Date(t.transaction_date);
+    // Parse as local time to avoid timezone shift
+    const txDate = new Date(t.transaction_date + 'T00:00:00');
     // selectedMonth is 1-12, getMonth() is 0-11
     return txDate.getMonth() + 1 === selectedMonth && txDate.getFullYear() === selectedYear;
   });
