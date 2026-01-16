@@ -1818,21 +1818,25 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 		return PlannedEntryStatus{}, errors.Wrap(err, "failed to update status with match details")
 	}
 
-	// 5. Update the transaction with the category from the planned entry
+	// 5. Update the transaction with data from the planned entry
+	// Always copy the description; copy category if it exists
+	modifyParams := modifyTransactionParams{
+		TransactionID:  params.TransactionID,
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Description:    &entry.Description,
+	}
 	if entry.CategoryID > 0 {
-		_, err = s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
-			TransactionID:  params.TransactionID,
-			UserID:         params.UserID,
-			OrganizationID: params.OrganizationID,
-			CategoryID:     &entry.CategoryID,
-		})
-		if err != nil {
-			s.logger.Warn(ctx, "failed to update transaction category",
-				"transaction_id", params.TransactionID,
-				"category_id", entry.CategoryID,
-				"error", err.Error(),
-			)
-		}
+		modifyParams.CategoryID = &entry.CategoryID
+	}
+	_, err = s.Repository.ModifyTransaction(ctx, modifyParams)
+	if err != nil {
+		s.logger.Warn(ctx, "failed to update transaction from planned entry",
+			"transaction_id", params.TransactionID,
+			"category_id", entry.CategoryID,
+			"description", entry.Description,
+			"error", err.Error(),
+		)
 	}
 
 	return PlannedEntryStatus{}.FromModel(&statusModel), nil
