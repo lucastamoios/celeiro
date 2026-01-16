@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Target } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import type {
   SavingsGoal,
   SavingsGoalProgress,
@@ -29,6 +30,8 @@ import SavingsGoalCard from './SavingsGoalCard';
 
 export default function SavingsGoalsPage() {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const organizationId = activeOrganization?.organization_id?.toString() || '';
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [progressMap, setProgressMap] = useState<Record<number, SavingsGoalProgress>>({});
   const [loading, setLoading] = useState(true);
@@ -98,7 +101,7 @@ export default function SavingsGoalsPage() {
   }, []);
 
   const fetchGoals = useCallback(async () => {
-    if (!token) {
+    if (!token || !organizationId) {
       setLoading(false);
       return;
     }
@@ -112,7 +115,7 @@ export default function SavingsGoalsPage() {
           is_completed: showCompleted ? undefined : false,
           goal_type: filterType === 'all' ? undefined : filterType,
         },
-        { token }
+        { token, organizationId }
       );
 
       const safeGoals = fetchedGoals || [];
@@ -121,7 +124,7 @@ export default function SavingsGoalsPage() {
       // Fetch progress for each goal
       if (safeGoals.length > 0) {
         const progressPromises = safeGoals.map((goal) =>
-          getSavingsGoalProgress(goal.savings_goal_id, { token })
+          getSavingsGoalProgress(goal.savings_goal_id, { token, organizationId })
             .then((progress) => ({ id: goal.savings_goal_id, progress }))
             .catch(() => null)
         );
@@ -141,7 +144,7 @@ export default function SavingsGoalsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, showCompleted, filterType]);
+  }, [token, organizationId, showCompleted, filterType]);
 
   useEffect(() => {
     fetchGoals();
@@ -215,7 +218,7 @@ export default function SavingsGoalsPage() {
           color: formData.color,
           notes: formData.notes || undefined,
         };
-        await updateSavingsGoal(editingGoal.savings_goal_id, updateData, { token });
+        await updateSavingsGoal(editingGoal.savings_goal_id, updateData, { token, organizationId });
       } else {
         // Create new goal
         const createData: CreateSavingsGoalRequest = {
@@ -227,7 +230,7 @@ export default function SavingsGoalsPage() {
           color: formData.color,
           notes: formData.notes || undefined,
         };
-        await createSavingsGoal(createData, { token });
+        await createSavingsGoal(createData, { token, organizationId });
       }
 
       setShowForm(false);
@@ -245,7 +248,7 @@ export default function SavingsGoalsPage() {
     if (!confirm('Tem certeza que deseja excluir esta meta?')) return;
 
     try {
-      await deleteSavingsGoal(goalId, { token });
+      await deleteSavingsGoal(goalId, { token, organizationId });
       fetchGoals();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete goal');
@@ -257,7 +260,7 @@ export default function SavingsGoalsPage() {
     if (!confirm('Marcar esta meta como concluída?')) return;
 
     try {
-      await completeSavingsGoal(goalId, { token });
+      await completeSavingsGoal(goalId, { token, organizationId });
       fetchGoals();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to complete goal');
@@ -268,7 +271,7 @@ export default function SavingsGoalsPage() {
     if (!token) return;
 
     try {
-      await reopenSavingsGoal(goalId, { token });
+      await reopenSavingsGoal(goalId, { token, organizationId });
       fetchGoals();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reopen goal');
@@ -300,7 +303,7 @@ export default function SavingsGoalsPage() {
     try {
       setSubmittingContribution(true);
       setContributionError(null);
-      await addContribution(contributingGoalId, { amount }, { token });
+      await addContribution(contributingGoalId, { amount }, { token, organizationId });
       closeContributionModal();
       fetchGoals();
     } catch (err) {

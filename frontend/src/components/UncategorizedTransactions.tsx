@@ -86,7 +86,8 @@ export default function UncategorizedTransactions() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    // Append T00:00:00 to parse as local time, not UTC
+    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
   };
 
   if (loading) {

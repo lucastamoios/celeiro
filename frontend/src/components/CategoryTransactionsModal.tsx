@@ -46,7 +46,8 @@ export default function CategoryTransactionsModal({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
+    // Append T00:00:00 to parse as local time, not UTC
+    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'short',
     });
@@ -72,14 +73,15 @@ export default function CategoryTransactionsModal({
       if (tx.category_id !== categoryId) return false;
       if (tx.is_ignored) return false;
 
-      const txDate = new Date(tx.transaction_date);
+      // Parse as local time to avoid timezone shift
+      const txDate = new Date(tx.transaction_date + 'T00:00:00');
       const txMonth = txDate.getMonth() + 1;
       const txYear = txDate.getFullYear();
 
       return txMonth === month && txYear === year;
     }).sort((a, b) => {
       // Sort by date descending (most recent first)
-      return new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime();
+      return new Date(b.transaction_date + 'T00:00:00').getTime() - new Date(a.transaction_date + 'T00:00:00').getTime();
     });
   }, [transactions, categoryId, month, year]);
 

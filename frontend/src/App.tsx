@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { OrganizationProvider } from './contexts/OrganizationContext'
+import { OrganizationProvider, useOrganization } from './contexts/OrganizationContext'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import TransactionList from './components/TransactionList'
@@ -60,6 +60,7 @@ function getInitialView(): View {
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
+  const { isLoading: isOrgLoading, activeOrganization } = useOrganization();
   const [currentView, setCurrentViewState] = useState<View>(getInitialView);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('conta');
@@ -97,6 +98,19 @@ function AppContent() {
 
   if (!isAuthenticated) {
     return <Login />;
+  }
+
+  // Wait for organization data to be loaded before rendering main content
+  // This prevents race condition where components try to access activeOrganization before it's set
+  if (isOrgLoading || !activeOrganization) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-wheat-200 border-t-wheat-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-stone-600">Carregando...</p>
+        </div>
+      </div>
+    );
   }
 
   // Handler for middle-click (auxiliary click) to open in new tab
