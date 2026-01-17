@@ -615,7 +615,10 @@ export default function PlannedEntryForm({
           <div className="p-3 bg-stone-50 rounded-lg border border-stone-200 space-y-3">
             <div>
               <span className="text-sm font-medium text-stone-700">Padrão de Auto-Matching</span>
-              <p className="text-xs text-stone-500">Vincular transações automaticamente quando a descrição contiver "{description || '...'}"</p>
+              <p className="text-xs text-stone-500">
+                Transações do banco que contenham "<span className="font-medium">{description || '...'}</span>" serão
+                renomeadas para "<span className="font-medium">{description || '...'}</span>" e categorizadas automaticamente
+              </p>
             </div>
             <div className="flex gap-2">
               <button

@@ -1379,7 +1379,15 @@ export default function CategoryBudgetDashboard() {
 
             {/* Spent */}
             <div className="text-center">
-              <p className="text-sm text-stone-500 mb-1">Gasto</p>
+              <p
+                className="text-sm text-stone-500 mb-1 cursor-help inline-flex items-center gap-1"
+                title="Soma das transações já registradas neste mês para categorias de despesa"
+              >
+                Gasto
+                <svg className="w-3.5 h-3.5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </p>
               <p className={`text-xl sm:text-2xl font-bold tabular-nums ${spentPercentage > 100 ? 'text-rust-600' : 'text-stone-900'}`}>
                 R$ {totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
@@ -1637,6 +1645,7 @@ export default function CategoryBudgetDashboard() {
               IsActive: true,
               ParentEntryID: editingEntry.ParentEntryID,
               PatternID: editingEntry.PatternID,
+              SavingsGoalID: editingEntry.SavingsGoalID,
               CreatedAt: '',
               UpdatedAt: '',
             } : undefined}
@@ -1727,6 +1736,7 @@ export default function CategoryBudgetDashboard() {
                 IsActive: true,
                 ParentEntryID: editingPlannedEntryFromBudget.ParentEntryID,
                 PatternID: editingPlannedEntryFromBudget.PatternID,
+                SavingsGoalID: editingPlannedEntryFromBudget.SavingsGoalID,
                 CreatedAt: '',
                 UpdatedAt: '',
               }}
