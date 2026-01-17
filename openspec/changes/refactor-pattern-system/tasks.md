@@ -55,11 +55,11 @@
   - [x] 6.2.3 Update API calls to new endpoints
   - [x] 6.2.4 Add "Apply to existing" button on each pattern card
   - [x] 6.2.5 Show confirmation dialog and result count after retroactive apply
-- [ ] 6.3 Update `AdvancedPatternCreator.tsx`:
-  - [ ] 6.3.1 Rename component to `PatternCreator.tsx`
-  - [ ] 6.3.2 Update imports and references
-  - [ ] 6.3.3 Add "Apply to existing transactions" checkbox (default: checked)
-  - [ ] 6.3.4 Show result count after pattern creation if retroactive was enabled
+- [x] 6.3 Update `AdvancedPatternCreator.tsx`:
+  - [x] 6.3.1 Rename component to `PatternCreator.tsx`
+  - [x] 6.3.2 Update imports and references
+  - [x] 6.3.3 Add "Apply to existing transactions" checkbox (default: checked)
+  - [x] 6.3.4 Show result count after pattern creation if retroactive was enabled
 
 ## 7. Testing & Documentation
 - [ ] 7.1 Update existing pattern matching tests

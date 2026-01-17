@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Category } from '../types/category';
 import type { PlannedEntry, CreatePlannedEntryRequest } from '../types/budget';
 import type { SavingsGoal } from '../types/savingsGoals';
-import AdvancedPatternCreator, { type AdvancedPattern as AdvancedPatternInput } from './AdvancedPatternCreator';
+import PatternCreator, { type AdvancedPattern as AdvancedPatternInput } from './PatternCreator';
 import TagSelector from './TagSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -701,7 +701,7 @@ export default function PlannedEntryForm({
 
       {/* Advanced Pattern Creator Modal */}
       {showAdvancedPatternModal && (
-        <AdvancedPatternCreator
+        <PatternCreator
           categories={new Map(categories.map(c => [c.category_id, c]))}
           onClose={() => setShowAdvancedPatternModal(false)}
           onSave={handleSaveAdvancedPattern}

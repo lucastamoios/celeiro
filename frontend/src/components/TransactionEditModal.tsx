@@ -9,7 +9,7 @@ import { parseTransactionDate } from '../utils/date';
 import { getPlannedEntryForTransaction, unmatchPlannedEntry, updatePlannedEntry } from '../api/budget';
 import { getTransactionTags, setTransactionTags } from '../api/tags';
 import { useModalDismiss } from '../hooks/useModalDismiss';
-import AdvancedPatternCreator, { type AdvancedPattern } from './AdvancedPatternCreator';
+import PatternCreator, { type AdvancedPattern } from './PatternCreator';
 import TagSelector from './TagSelector';
 import TransactionPlannedEntryLinkModal from './TransactionPlannedEntryLinkModal';
 
@@ -35,9 +35,11 @@ export default function TransactionEditModal({
   const [isIgnored, setIsIgnored] = useState(transaction.is_ignored);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [patternCreateSuccess, setPatternCreateSuccess] = useState<string | null>(null);
   
   // Pattern creator
   const [showAdvancedPatternCreator, setShowAdvancedPatternCreator] = useState(false);
+  const [applyRetroactivelyOnCreate, setApplyRetroactivelyOnCreate] = useState(true);
   const [patternDraft, setPatternDraft] = useState<{
     description: string;
     category_id: number;
@@ -231,7 +233,7 @@ export default function TransactionEditModal({
           'X-Active-Organization': '1',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...patternData, apply_retroactively: true }),
+        body: JSON.stringify({ ...patternData, apply_retroactively: applyRetroactivelyOnCreate }),
       });
 
       if (!response.ok) {
@@ -250,12 +252,27 @@ export default function TransactionEditModal({
         );
       }
 
+      // Optional: show retroactive application count if backend returned it
+      const updatedCount = result?.data?.updated_count;
+      const totalChecked = result?.data?.total_checked;
+      if (applyRetroactivelyOnCreate && typeof updatedCount === 'number') {
+        setPatternCreateSuccess(
+          typeof totalChecked === 'number'
+            ? `✅ Padrão aplicado a ${updatedCount}/${totalChecked} transação(ões)`
+            : `✅ Padrão aplicado a ${updatedCount} transação(ões)`
+        );
+      } else {
+        setPatternCreateSuccess('✅ Padrão criado com sucesso');
+      }
+      setTimeout(() => setPatternCreateSuccess(null), 4000);
+
       // Close modal and notify parent to refresh data
       setShowAdvancedPatternCreator(false);
+      setApplyRetroactivelyOnCreate(true);
       onSave(); // This will refresh the transaction list
       onClose(); // Close the edit modal
     } catch (err) {
-      throw err; // Let AdvancedPatternCreator handle the error
+      throw err; // Let PatternCreator handle the error
     }
   };
 
@@ -349,6 +366,12 @@ export default function TransactionEditModal({
           {error && (
             <div className="bg-rust-50 border border-rust-200 text-rust-700 px-4 py-3 rounded-lg">
               {error}
+            </div>
+          )}
+
+          {patternCreateSuccess && (
+            <div className="bg-sage-50 border border-sage-200 text-sage-700 px-4 py-3 rounded-lg">
+              {patternCreateSuccess}
             </div>
           )}
 
@@ -708,6 +731,16 @@ export default function TransactionEditModal({
 
           {/* Create Pattern Section */}
           <div className="border-t border-stone-200 pt-6">
+            <label className="flex items-center justify-center gap-2 text-xs text-stone-600 mb-3 select-none">
+              <input
+                type="checkbox"
+                className="rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
+                checked={applyRetroactivelyOnCreate}
+                onChange={(e) => setApplyRetroactivelyOnCreate(e.target.checked)}
+              />
+              Aplicar em transações existentes
+            </label>
+
             <button
               onClick={async () => {
                 if (!token) return;
@@ -763,7 +796,7 @@ export default function TransactionEditModal({
 
       {/* Sub-modals - rendered outside parent for stack behavior */}
       {showAdvancedPatternCreator && (
-        <AdvancedPatternCreator
+        <PatternCreator
           categories={categories}
           onClose={() => setShowAdvancedPatternCreator(false)}
           onSave={handleSavePattern}
