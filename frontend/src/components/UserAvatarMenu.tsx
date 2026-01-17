@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import OrganizationSwitcher from './OrganizationSwitcher';
-import { User, FolderOpen, Workflow, Tag, LogOut, ChevronDown, Building2 } from 'lucide-react';
+import { User, LogOut, ChevronDown, Building2, Settings } from 'lucide-react';
 
 type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
 
@@ -129,38 +129,20 @@ export default function UserAvatarMenu({ onNavigateToSettings }: UserAvatarMenuP
           <div className="py-2">
             <button
               role="menuitem"
+              onClick={() => handleMenuItemClick('categorias')}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
+            >
+              <Settings className="w-4 h-4 text-stone-500" />
+              <span>Configurações</span>
+            </button>
+
+            <button
+              role="menuitem"
               onClick={() => handleMenuItemClick('conta')}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
             >
               <User className="w-4 h-4 text-stone-500" />
               <span>Sua Conta</span>
-            </button>
-
-            <button
-              role="menuitem"
-              onClick={() => handleMenuItemClick('categorias')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
-            >
-              <FolderOpen className="w-4 h-4 text-stone-500" />
-              <span>Categorias</span>
-            </button>
-
-            <button
-              role="menuitem"
-              onClick={() => handleMenuItemClick('padroes')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
-            >
-              <Workflow className="w-4 h-4 text-stone-500" />
-              <span>Padrões</span>
-            </button>
-
-            <button
-              role="menuitem"
-              onClick={() => handleMenuItemClick('tags')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
-            >
-              <Tag className="w-4 h-4 text-stone-500" />
-              <span>Tags</span>
             </button>
 
             <button

@@ -419,7 +419,7 @@ export default function PatternManager() {
   const totalPatterns = patterns.length;
 
   return (
-    <div className="min-h-screen bg-stone-50 p-4 md:p-8">
+    <div className="p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>

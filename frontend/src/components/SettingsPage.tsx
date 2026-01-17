@@ -15,10 +15,10 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { id: 'conta', label: 'Sua Conta', icon: User },
   { id: 'categorias', label: 'Categorias', icon: FolderOpen },
   { id: 'padroes', label: 'Padrões', icon: Workflow },
   { id: 'tags', label: 'Tags', icon: Tag },
+  { id: 'conta', label: 'Conta', icon: User },
   { id: 'organizacao', label: 'Organização', icon: Building2 },
 ];
 
@@ -26,7 +26,7 @@ interface SettingsPageProps {
   initialTab?: SettingsTab;
 }
 
-export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps) {
+export default function SettingsPage({ initialTab = 'categorias' }: SettingsPageProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
 
   // Update active tab when initialTab changes (from avatar menu navigation)
@@ -60,7 +60,7 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
           Configurações
         </h1>
         <p className="text-stone-600 mt-1">
-          Gerencie sua conta, categorias, padrões e tags
+          Gerencie categorias, padrões, tags e sua conta
         </p>
       </div>
 
