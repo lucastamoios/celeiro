@@ -19,7 +19,7 @@ flowchart TD
          PlannedEntry
          PlannedEntryStatus
          PlannedEntryTag
-         AdvancedPattern
+         Pattern
          SavingsGoal
          Tag
 
@@ -34,7 +34,7 @@ flowchart TD
      PlannedEntry --> PlannedEntryStatus
      PlannedEntry --> PlannedEntryTag
      PlannedEntryTag --> Tag
-     AdvancedPattern --> Category
+     Pattern --> Category
      SavingsGoal --> Transaction
      SavingsGoal --> PlannedEntry
      Tag --> Transaction
@@ -145,7 +145,7 @@ Monthly tracking for planned entries.
 | status | pending, matched, dismissed, missing |
 | matched_transaction_id | Linked transaction when matched |
 
-### AdvancedPattern
+### Pattern
 
 Regex-based automatic categorization rule.
 
@@ -193,12 +193,12 @@ User-defined transaction label.
 sequenceDiagram
     participant U as User
     participant TX as Transaction
-    participant AP as AdvancedPattern
+    participant AP as Pattern
     participant PE as PlannedEntry
     participant CAT as Category
 
     U->>TX: Import OFX
-    TX->>AP: Check regex patterns
+    TX->>AP: Check patterns
     alt Pattern matches
         AP->>CAT: Auto-assign category
         AP->>TX: Set target_description

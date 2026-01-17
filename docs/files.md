@@ -67,7 +67,7 @@ frontend/src/
 | Categories | CategoryManager, CategoryBudgetDashboard, CategoryTransactionsModal |
 | Budgets | MonthlyBudgetCard, BudgetItemForm, CategoryBudgetCard |
 | Planned Entries | PlannedEntryCard, PlannedEntryForm, PlannedEntryLinkModal |
-| Patterns | AdvancedPatternCreator, PatternManager, TransactionMatcherModal |
+| Patterns | PatternCreator, PatternManager, TransactionMatcherModal |
 | Savings | SavingsGoalsPage, SavingsGoalCard |
 | Tags | TagManager, TagSelector |
 | Auth | Login, AcceptInvite |
@@ -120,7 +120,7 @@ frontend/src/
 | CreateCategoryBudget | Set monthly budget for category |
 | CreatePlannedEntry | Add expected expense/income |
 | MatchTransactionToEntry | Link transaction to planned entry |
-| CreateAdvancedPattern | Add regex-based categorization rule |
+| CreatePattern | Add regex-based categorization rule |
 | CreateSavingsGoal | Create savings target |
 
 ### Accounts Service (`accounts/service.go`)

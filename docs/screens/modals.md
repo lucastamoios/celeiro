@@ -54,7 +54,7 @@ Edit existing transaction with full feature access.
 ### Actions
 
 - **Save**: Updates transaction via PATCH
-- **Create Pattern**: Opens AdvancedPatternCreator
+- **Create Pattern**: Opens PatternCreator
 - **Ignore/Restore**: Toggles `is_ignored`
 - **Link/Unlink Planned Entry**: Opens TransactionPlannedEntryLinkModal
 
@@ -192,9 +192,9 @@ Toggle between:
 
 ---
 
-## AdvancedPatternCreator
+## PatternCreator
 
-**File:** `frontend/src/components/AdvancedPatternCreator.tsx`
+**File:** `frontend/src/components/PatternCreator.tsx`
 
 ### Purpose
 
@@ -246,7 +246,7 @@ Multiple modals can be open simultaneously (nested):
 
 1. CategoryTransactionsModal (parent)
 2. → TransactionEditModal (child)
-3. → → AdvancedPatternCreator (grandchild)
+3. → → PatternCreator (grandchild)
 
 ESC key closes innermost modal first. Each modal manages its own state.
 

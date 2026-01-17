@@ -99,13 +99,13 @@ sequenceDiagram
     participant FE as Frontend
     participant H as Handler
     participant S as Service
-    participant AP as AdvancedPattern
+    participant AP as Pattern
     participant DB as PostgreSQL
 
     FE->>H: POST /import (OFX file)
     H->>S: ImportTransactionsFromOFX
     S->>S: Parse OFX
-    S->>AP: Apply regex patterns
+    S->>AP: Apply patterns
     AP-->>S: Assign categories
     S->>DB: INSERT ON CONFLICT DO NOTHING
     DB-->>FE: {inserted, skipped}
@@ -115,7 +115,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    TX[New Transaction] --> AP[Advanced Patterns]
+    TX[New Transaction] --> AP[Patterns]
     AP -->|regex match| CAT[Assign Category + Description]
     AP -->|no match| PE[Planned Entries]
     PE -->|description/amount match| LINK[Link Entry]

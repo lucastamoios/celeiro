@@ -62,9 +62,9 @@
   - [x] 6.3.4 Show result count after pattern creation if retroactive was enabled
 
 ## 7. Testing & Documentation
-- [ ] 7.1 Update existing pattern matching tests
-- [ ] 7.2 Add tests for `original_description` preservation
-- [ ] 7.3 Add tests ensuring pattern matching uses `original_description`
-- [ ] 7.4 Update API documentation
-- [ ] 7.5 Manual testing of migration on existing data
+- [x] 7.1 Update existing pattern matching tests
+- [x] 7.2 Add tests for `original_description` preservation
+- [x] 7.3 Add tests ensuring pattern matching uses `original_description`
+- [x] 7.4 Update API documentation
+- [x] 7.5 Manual testing of migration on existing data
 
