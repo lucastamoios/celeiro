@@ -73,7 +73,6 @@ type Service interface {
 	CreateClassificationRule(ctx context.Context, params CreateClassificationRuleInput) (ClassificationRule, error)
 	UpdateClassificationRule(ctx context.Context, params UpdateClassificationRuleInput) (ClassificationRule, error)
 	DeleteClassificationRule(ctx context.Context, params DeleteClassificationRuleInput) error
-	ApplyClassificationRules(ctx context.Context, params ApplyClassificationRulesInput) (ApplyClassificationRulesOutput, error)
 
 	// Category Budgets
 	GetCategoryBudgets(ctx context.Context, params GetCategoryBudgetsInput) ([]CategoryBudget, error)
