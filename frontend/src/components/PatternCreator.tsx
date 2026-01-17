@@ -86,13 +86,12 @@ export default function PatternCreator({
   const [simpleDescriptionText, setSimpleDescriptionText] = useState(
     existingPattern
       ? extractSimpleText(existingDescPattern) || ''
-      : initialData?.description || ''
+      : '' // Start empty - user types the bank transaction keyword
   );
 
   // Advanced mode: full regex pattern
   const [descriptionPattern, setDescriptionPattern] = useState(
-    existingPattern?.description_pattern ||
-    (initialData?.description ? `.*${initialData.description}.*` : '')
+    existingPattern?.description_pattern || '' // Start empty - user types the pattern
   );
 
   // Track if user is in advanced mode
