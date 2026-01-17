@@ -1,8 +1,34 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import type React from 'react';
 import { BarChart3, Copy, Check, AlertTriangle, Calendar, Archive } from 'lucide-react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import type { CategoryBudget, PlannedEntryWithStatus } from '../types/budget';
 import CategoryBudgetCard from './CategoryBudgetCard';
 import PlannedEntryCard from './PlannedEntryCard';
+
+function CategoryDropZone({
+  id,
+  children,
+}: {
+  id: string;
+  children: (state: { isOver: boolean }) => React.ReactNode;
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className="relative">
+      {children({ isOver })}
+    </div>
+  );
+}
 
 interface MonthlyBudgetCardProps {
   month: number;
@@ -34,6 +60,10 @@ interface MonthlyBudgetCardProps {
   onEditEntry?: (entry: PlannedEntryWithStatus) => void;
   onDeleteEntry?: (entryId: number) => void;
   onCategoryCardClick?: (categoryId: number) => void; // Click handler to open transactions modal
+
+  // Drag & Drop Planned Entries
+  onMovePlannedEntry?: (entryId: number, toCategoryId: number) => void | Promise<void>;
+  onInvalidPlannedEntryDrop?: (message: string) => void;
 }
 
 export default function MonthlyBudgetCard({
@@ -65,10 +95,20 @@ export default function MonthlyBudgetCard({
   onEditEntry,
   onDeleteEntry,
   onCategoryCardClick,
+  onMovePlannedEntry,
+  onInvalidPlannedEntryDrop,
 }: MonthlyBudgetCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isConsolidating, setIsConsolidating] = useState(false);
+
+  const [activeDraggedEntry, setActiveDraggedEntry] = useState<PlannedEntryWithStatus | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget && !isDeleting) {
@@ -152,6 +192,58 @@ export default function MonthlyBudgetCard({
     return acc;
   }, {} as Record<number, PlannedEntryWithStatus[]>);
 
+  const categoriesById = useMemo(() => {
+    const map = new Map<number, { category_id: number; name: string; category_type?: 'expense' | 'income' }>();
+    categories.forEach((c) => map.set(c.category_id, c));
+    return map;
+  }, [categories]);
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const entryId = event.active.id;
+    if (typeof entryId !== 'number') return;
+
+    const entry = plannedEntries.find((e) => e.PlannedEntryID === entryId);
+    setActiveDraggedEntry(entry || null);
+  }, [plannedEntries]);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDraggedEntry(null);
+
+    if (!over) return;
+
+    const entryId = active.id;
+    const dropId = over.id;
+
+    if (typeof entryId !== 'number' || typeof dropId !== 'string') return;
+    if (!dropId.startsWith('category-')) return;
+
+    const toCategoryId = Number(dropId.replace('category-', ''));
+    if (Number.isNaN(toCategoryId)) return;
+
+    const entry = plannedEntries.find((e) => e.PlannedEntryID === entryId);
+    if (!entry) return;
+
+    if (entry.CategoryID === toCategoryId) return;
+
+    const toCategory = categoriesById.get(toCategoryId);
+    if (!toCategory) {
+      onInvalidPlannedEntryDrop?.('Categoria de destino não encontrada');
+      return;
+    }
+
+    const entryTypeMatchesCategoryType =
+      (entry.EntryType === 'expense' && toCategory.category_type !== 'income') ||
+      (entry.EntryType === 'income' && toCategory.category_type === 'income');
+
+    if (!entryTypeMatchesCategoryType) {
+      onInvalidPlannedEntryDrop?.('Entradas de receita só podem ser movidas para categorias de receita (e vice-versa).');
+      return;
+    }
+
+    void onMovePlannedEntry?.(entry.PlannedEntryID, toCategoryId);
+  }, [plannedEntries, categoriesById, onMovePlannedEntry, onInvalidPlannedEntryDrop]);
+
   // Get set of category IDs that have budgets
   const budgetCategoryIds = new Set(budgetArray.map(b => b.CategoryID));
 
@@ -159,12 +251,17 @@ export default function MonthlyBudgetCard({
   const orphanEntries = plannedEntries.filter(entry => !budgetCategoryIds.has(entry.CategoryID));
 
   return (
-    <div
-      id={isCurrent ? 'current-month-budget' : undefined}
-      className={`bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden ${
-        !hideHeader && isCurrent ? 'ring-2 ring-wheat-500' : ''
-      }`}
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
     >
+      <div
+        id={isCurrent ? 'current-month-budget' : undefined}
+        className={`bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden ${
+          !hideHeader && isCurrent ? 'ring-2 ring-wheat-500' : ''
+        }`}
+      >
       {/* Header - Clickable to expand (hidden when hideHeader is true) */}
       {!hideHeader && (
         <div
@@ -443,26 +540,37 @@ export default function MonthlyBudgetCard({
 
               return (
                 <div key={budget.CategoryBudgetID} className="break-inside-avoid mb-6">
-                  <CategoryBudgetCard
-                    budget={budget}
-                    categoryName={getCategoryName(budget.CategoryID)}
-                    actualSpent={actualSpending[budget.CategoryID] || '0.00'}
-                    isIncome={isIncomeCategory(budget.CategoryID)}
-                    canConsolidate={monthHasEnded}
-                    plannedEntries={categoryEntries}
-                    month={month}
-                    year={year}
-                    onEdit={onEditBudget}
-                    onDelete={onDeleteBudget}
-                    onConsolidate={onConsolidate}
-                    onMatchEntry={onMatchEntry}
-                    onUnmatchEntry={onUnmatchEntry}
-                    onDismissEntry={onDismissEntry}
-                    onUndismissEntry={onUndismissEntry}
-                    onEditEntry={onEditEntry}
-                    onDeleteEntry={onDeleteEntry}
-                    onCardClick={onCategoryCardClick ? () => onCategoryCardClick(budget.CategoryID) : undefined}
-                  />
+                  <CategoryDropZone id={`category-${budget.CategoryID}`}>
+                    {({ isOver }) => (
+                      <CategoryBudgetCard
+                        budget={budget}
+                        categoryName={getCategoryName(budget.CategoryID)}
+                        actualSpent={actualSpending[budget.CategoryID] || '0.00'}
+                        isIncome={isIncomeCategory(budget.CategoryID)}
+                        canConsolidate={monthHasEnded}
+                        plannedEntries={categoryEntries}
+                        month={month}
+                        year={year}
+                        onEdit={onEditBudget}
+                        onDelete={onDeleteBudget}
+                        onConsolidate={onConsolidate}
+                        onMatchEntry={onMatchEntry}
+                        onUnmatchEntry={onUnmatchEntry}
+                        onDismissEntry={onDismissEntry}
+                        onUndismissEntry={onUndismissEntry}
+                        onEditEntry={onEditEntry}
+                        onDeleteEntry={onDeleteEntry}
+                        onCardClick={onCategoryCardClick ? () => onCategoryCardClick(budget.CategoryID) : undefined}
+                        dndDropId={`category-${budget.CategoryID}`}
+                        isDropTargetDisabled={
+                          !!activeDraggedEntry &&
+                          ((activeDraggedEntry.EntryType === 'income' && !isIncomeCategory(budget.CategoryID)) ||
+                            (activeDraggedEntry.EntryType === 'expense' && isIncomeCategory(budget.CategoryID)))
+                        }
+                        isDropTargetHighlighted={!!activeDraggedEntry && isOver}
+                      />
+                    )}
+                  </CategoryDropZone>
                 </div>
               );
             })}
@@ -575,6 +683,26 @@ export default function MonthlyBudgetCard({
           </div>
         </div>
       )}
-    </div>
+      </div>
+
+      <DragOverlay>
+        {activeDraggedEntry ? (
+          <div className="max-w-[380px] opacity-95">
+            <PlannedEntryCard
+              entry={activeDraggedEntry}
+              categoryName={getCategoryName(activeDraggedEntry.CategoryID)}
+              month={month}
+              year={year}
+              onMatch={undefined}
+              onUnmatch={undefined}
+              onDismiss={undefined}
+              onUndismiss={undefined}
+              onEdit={undefined}
+              onDelete={undefined}
+            />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }

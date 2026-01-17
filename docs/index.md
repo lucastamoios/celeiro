@@ -44,6 +44,9 @@ Personal finance management system with Go backend, React frontend, PostgreSQL d
 | **Frontend screens** | [screens/index.md](./screens/index.md) |
 | Project conventions | [conventions.md](./conventions.md) |
 | Key files location | [files.md](./files.md) |
+| Feature specs | [specs/budget-planned-entries/spec.md](./specs/budget-planned-entries/spec.md) |
+| Budget pacing | [budget-pacing.md](./budget-pacing.md) |
+| Planned entry drag & drop | [planned-entry-organization.md](./planned-entry-organization.md) |
 | Development setup | [setup.md](./setup.md) |
 | Deployment | [deployment.md](./deployment.md) |
 | Troubleshooting | [troubleshooting.md](./troubleshooting.md) |

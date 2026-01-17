@@ -5,6 +5,7 @@ export interface Category {
   color: string;
   category_type: 'expense' | 'income';
   is_system: boolean;
+  is_controllable: boolean;
   user_id: number | null;
   created_at: string;
   updated_at: string;

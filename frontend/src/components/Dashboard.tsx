@@ -8,6 +8,7 @@ import { parseTransactionDate } from '../utils/date';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import type { PlannedEntryWithStatus } from '../types/budget';
+import BudgetPacingWidget from './BudgetPacingWidget';
 
 interface Account {
   AccountID: number;
@@ -591,6 +592,9 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           </div>
         </div>
       </div>
+
+      {/* Budget Pacing Widget */}
+      <BudgetPacingWidget month={stats.month + 1} year={stats.year} />
 
       {/* Category Expenses */}
       {stats.categoryExpenses.length > 0 && (

@@ -65,6 +65,7 @@ type Service interface {
 
 	// Budget Progress
 	CalculateBudgetProgress(ctx context.Context, input CalculateBudgetProgressInput) (*BudgetProgress, error)
+	GetControllableCategoryPacing(ctx context.Context, input GetControllableCategoryPacingInput) (*ControllableCategoryPacing, error)
 
 	// Classification Rules
 	GetClassificationRules(ctx context.Context, params GetClassificationRulesInput) ([]ClassificationRule, error)
@@ -241,6 +242,7 @@ type UpdateCategoryInput struct {
 	Icon           *string
 	Color          *string
 	CategoryType   *string
+	IsControllable *bool
 }
 
 func (s *service) UpdateCategory(ctx context.Context, params UpdateCategoryInput) (Category, error) {
@@ -251,6 +253,7 @@ func (s *service) UpdateCategory(ctx context.Context, params UpdateCategoryInput
 		Icon:           params.Icon,
 		Color:          params.Color,
 		CategoryType:   params.CategoryType,
+		IsControllable: params.IsControllable,
 	})
 	if err != nil {
 		return Category{}, errors.Wrap(err, "failed to update category")

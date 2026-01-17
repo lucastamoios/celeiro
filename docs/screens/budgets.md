@@ -52,6 +52,13 @@ Renders via `MonthlyBudgetCard.tsx`. Shows:
 - Amount or amount range
 - Linked savings goal indicator
 - Actions: match, unmatch, dismiss, undismiss, edit, delete
+- Drag & drop: entries can be moved between category cards
+
+#### Drag & Drop Rules
+- Drag handle appears on each planned entry row (dismissed entries are not draggable)
+- Drop targets are category cards
+- Validation: income entries can only be dropped on income categories (and expense entries only on expense categories)
+- On drop: updates planned entry `category_id` and refreshes month data
 
 ### Empty State
 
@@ -136,7 +143,9 @@ Locks a budget to prevent changes. Used for closing past months.
 | Element | Action |
 |---------|--------|
 | Category budget card | Opens CategoryTransactionsModal |
+| Drag planned entry to category card | Moves entry to target category (updates `category_id`) |
 | "+ Orçamento" | Opens create budget modal |
+
 | "+ Entrada" | Opens create planned entry modal |
 | Edit budget icon | Opens edit budget modal |
 | Delete budget icon | Deletes budget (with confirmation in delete month) |
@@ -153,3 +162,7 @@ Locks a budget to prevent changes. Used for closing past months.
 - **Savings Goals**: Linked to planned entries
 - **Patterns**: Advanced patterns can auto-create planned entries
 - **Dashboard**: Budget data displayed on dashboard
+
+## Related Docs
+
+- `docs/planned-entry-organization.md`

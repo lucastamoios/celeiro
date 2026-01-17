@@ -156,6 +156,7 @@ const fetchCategoriesQuery = `
 		icon,
 		color,
 		is_system,
+		is_controllable,
 		user_id,
 		organization_id,
 		category_type
@@ -188,6 +189,7 @@ const fetchCategoryByIDQuery = `
 		icon,
 		color,
 		is_system,
+		is_controllable,
 		user_id,
 		organization_id,
 		category_type
@@ -218,7 +220,7 @@ const insertCategoryQuery = `
 	-- financial.insertCategoryQuery
 	INSERT INTO categories (name, icon, color, user_id, organization_id, category_type)
 	VALUES ($1, $2, $3, $4, $5, $6)
-	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id, organization_id, category_type;
+	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, is_controllable, user_id, organization_id, category_type;
 `
 
 func (r *repository) InsertCategory(ctx context.Context, params insertCategoryParams) (CategoryModel, error) {
@@ -241,6 +243,7 @@ type modifyCategoryParams struct {
 	Icon           *string
 	Color          *string
 	CategoryType   *string
+	IsControllable *bool
 }
 
 const modifyCategoryQuery = `
@@ -250,14 +253,15 @@ const modifyCategoryQuery = `
 		icon = COALESCE($4, icon),
 		color = COALESCE($5, color),
 		category_type = COALESCE($6, category_type),
+		is_controllable = COALESCE($7, is_controllable),
 		updated_at = NOW()
 	WHERE category_id = $1 AND organization_id = $2 AND is_system = false
-	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, user_id, organization_id, category_type;
+	RETURNING category_id, created_at, updated_at, name, icon, color, is_system, is_controllable, user_id, organization_id, category_type;
 `
 
 func (r *repository) ModifyCategory(ctx context.Context, params modifyCategoryParams) (CategoryModel, error) {
 	var result CategoryModel
-	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.OrganizationID, params.Name, params.Icon, params.Color, params.CategoryType)
+	err := r.db.Query(ctx, &result, modifyCategoryQuery, params.CategoryID, params.OrganizationID, params.Name, params.Icon, params.Color, params.CategoryType, params.IsControllable)
 	if err != nil {
 		return CategoryModel{}, err
 	}

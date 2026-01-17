@@ -9,10 +9,11 @@
 | Auth | `users`, `organizations`, `user_organizations`, `roles` |
 | Accounts | `accounts` |
 | Transactions | `transactions`, `transaction_tags` |
-| Categories | `categories` |
+| Categories | `categories` (includes `is_controllable`) |
 | Budgets | `category_budgets` (current), `monthly_snapshots` |
-| Planning | `planned_entries`, `planned_entry_statuses` |
+| Planning | `planned_entries`, `planned_entry_statuses`, `planned_entry_tags` |
 | Patterns | `advanced_patterns`, `classification_rules` |
+| Tags | `tags`, `transaction_tags`, `planned_entry_tags` |
 | Savings | `savings_goals` |
 | Tags | `tags`, `transaction_tags` |
 
@@ -80,7 +81,9 @@ erDiagram
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| categories | Transaction classifiers | name, icon, color, category_type, is_system, user_id |
+| categories | Transaction classifiers | name, icon, color, category_type, is_system, user_id, is_controllable |
+
+`is_controllable` enables budget pacing for a category. See `docs/budget-pacing.md`.
 
 ### Budgets
 
@@ -99,6 +102,7 @@ erDiagram
 |-------|---------|------------|
 | planned_entries | Expected expenses/income | description, amount_min, amount_max, expected_day_start, expected_day_end, is_recurrent, entry_type, category_id, savings_goal_id |
 | planned_entry_statuses | Monthly tracking | planned_entry_id, month, year, status, matched_transaction_id |
+| planned_entry_tags | Planned entry-tag mapping | planned_entry_id, tag_id |
 
 ### Pattern Matching
 
