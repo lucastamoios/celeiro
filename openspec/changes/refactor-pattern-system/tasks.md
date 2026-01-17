@@ -11,15 +11,15 @@
 - [x] 2.1 Update `TransactionModel` to include `original_description`
 - [x] 2.2 Update `Transaction` DTO to include `original_description`
 - [x] 2.3 Rename `AdvancedPatternModel` to `PatternModel`
-- [ ] 2.4 Rename `AdvancedPattern` DTO to `Pattern`
+- [x] 2.4 Rename `AdvancedPattern` DTO to `Pattern`
 - [x] 2.5 Update repository queries to use new table name `patterns`
 - [x] 2.6 Update `insertTransactionQuery` to populate `original_description`
 
 ## 3. Backend - Services
-- [ ] 3.1 Rename `advanced_patterns_service.go` to `patterns_service.go`
+- [x] 3.1 Rename `advanced_patterns_service.go` to `patterns_service.go`
 - [x] 3.2 Update `matchesPattern` to use `original_description` for regex matching
-- [ ] 3.3 Remove all `is_saved_pattern` related service methods
-- [ ] 3.4 Remove `SaveTransactionAsPattern` method (simple pattern creation)
+- [x] 3.3 Remove all `is_saved_pattern` related service methods
+- [x] 3.4 Remove `SaveTransactionAsPattern` method (simple pattern creation)
 - [x] 3.5 Update OFX parser to set `original_description` during import
 - [ ] 3.6 **Fix auto-apply during import**: Update OFX import to apply regex patterns to new transactions
 - [ ] 3.7 Create unified `AutoApplyPatterns(transactionID)` that checks all active patterns
@@ -31,8 +31,8 @@
 
 ## 4. Backend - API Handlers
 - [x] 4.1 Rename `/financial/advanced-patterns/` endpoints to `/financial/patterns/`
-- [ ] 4.2 Remove `/financial/transactions/{id}/save-as-pattern` endpoint
-- [ ] 4.3 Remove `/financial/planned-entries?is_saved_pattern=true` endpoint
+- [x] 4.2 Remove `/financial/transactions/{id}/save-as-pattern` endpoint
+- [x] 4.3 Remove `/financial/planned-entries?is_saved_pattern=true` endpoint
 - [x] 4.4 Update router to reflect new endpoint paths
 - [ ] 4.5 Add new endpoint to create pattern from transaction (opens pattern form pre-filled)
 - [x] 4.6 Add `POST /financial/patterns/{id}/apply-retroactively` endpoint
@@ -40,8 +40,8 @@
 
 ## 5. Frontend - Types & API
 - [x] 5.1 Update `frontend/src/types/transaction.ts` to include `original_description`
-- [ ] 5.2 Remove `PlannedEntry` pattern-related types from `budget.ts`
-- [ ] 5.3 Remove `saveTransactionAsPattern`, `getSavedPatterns` from `api/budget.ts`
+- [x] 5.2 Remove `PlannedEntry` pattern-related types from `budget.ts`
+- [x] 5.3 Remove `saveTransactionAsPattern`, `getSavedPatterns` from `api/budget.ts`
 - [x] 5.4 Update pattern API calls to use `/patterns/` instead of `/advanced-patterns/`
 
 ## 6. Frontend - Components
