@@ -189,6 +189,6 @@ Uses `InviteMemberModal.tsx` for invitation form.
 |-----|---------------|
 | Conta | User data from context, password change API |
 | Categorias | `GET/POST/PATCH/DELETE /financial/categories` |
-| Padrões | Advanced patterns API |
+| Padrões | Patterns API (`/financial/patterns`) |
 | Tags | `GET/POST/PATCH/DELETE /financial/tags` |
 | Organização | Organization and invitations API |

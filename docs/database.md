@@ -12,7 +12,7 @@
 | Categories | `categories` (includes `is_controllable`) |
 | Budgets | `category_budgets` (current), `monthly_snapshots` |
 | Planning | `planned_entries`, `planned_entry_statuses`, `planned_entry_tags` |
-| Patterns | `advanced_patterns`, `classification_rules` |
+| Patterns | `patterns` |
 | Tags | `tags`, `transaction_tags`, `planned_entry_tags` |
 | Savings | `savings_goals` |
 | Tags | `tags`, `transaction_tags` |
@@ -44,7 +44,7 @@ erDiagram
 
     categories ||--o{ category_budgets : "budgeted per month"
     categories ||--o{ planned_entries : "expected expenses"
-    categories ||--o{ advanced_patterns : "matched by"
+    categories ||--o{ patterns : "matched by"
 
     planned_entries ||--o{ planned_entry_statuses : "monthly status"
     savings_goals ||--o{ planned_entries : "funding source"
@@ -108,8 +108,7 @@ erDiagram
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| advanced_patterns | Regex-based auto-categorization | description_pattern, weekday_pattern, amount_min, amount_max, target_category_id, target_description |
-| classification_rules | Simple auto-categorization | description_pattern, amount_min, amount_max, category_id |
+| patterns | Regex-based auto-categorization | description_pattern, weekday_pattern, amount_min, amount_max, target_category_id, target_description |
 
 ### Savings & Tags
 
