@@ -16,11 +16,13 @@ flowchart TD
         Transaction
         Category
         CategoryBudget
-        PlannedEntry
-        PlannedEntryStatus
-        AdvancedPattern
-        SavingsGoal
-        Tag
+         PlannedEntry
+         PlannedEntryStatus
+         PlannedEntryTag
+         AdvancedPattern
+         SavingsGoal
+         Tag
+
     end
 
     User --> Organization
@@ -29,11 +31,13 @@ flowchart TD
     Category --> Transaction
     Category --> CategoryBudget
     Category --> PlannedEntry
-    PlannedEntry --> PlannedEntryStatus
-    AdvancedPattern --> Category
-    SavingsGoal --> Transaction
-    SavingsGoal --> PlannedEntry
-    Tag --> Transaction
+     PlannedEntry --> PlannedEntryStatus
+     PlannedEntry --> PlannedEntryTag
+     PlannedEntryTag --> Tag
+     AdvancedPattern --> Category
+     SavingsGoal --> Transaction
+     SavingsGoal --> PlannedEntry
+     Tag --> Transaction
 ```
 
 ## Accounts Domain
@@ -73,6 +77,7 @@ Transaction classifier with visual identity.
 | color | Hex color code |
 | category_type | expense or income |
 | is_system | System-provided vs user-created |
+| is_controllable | Whether category shows pacing widgets (see `docs/budget-pacing.md`) |
 
 ### Account
 
@@ -164,6 +169,15 @@ Long-term savings target ("Reserva" or "Investimento").
 | goal_type | reserva (short-term) or investimento (long-term) |
 | status | active, completed, cancelled |
 
+### PlannedEntryTag
+
+Junction entity linking planned entries to tags.
+
+| Field | Purpose |
+|-------|---------|
+| planned_entry_id | Planned entry |
+| tag_id | Tag |
+
 ### Tag
 
 User-defined transaction label.
@@ -224,6 +238,6 @@ stateDiagram-v2
 - categories, tags
 - budgets, budget_items (legacy)
 - category_budgets, monthly_snapshots
-- planned_entries, planned_entry_statuses
+- planned_entries, planned_entry_statuses, planned_entry_tags
 - advanced_patterns, classification_rules
 - savings_goals

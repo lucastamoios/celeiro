@@ -62,7 +62,7 @@ frontend/src/
 
 | Category | Components |
 |----------|------------|
-| Dashboard | Dashboard, BudgetProgressCard, IncomePlanningAlert |
+| Dashboard | Dashboard, BudgetProgressCard, BudgetPacingWidget, IncomePlanningAlert |
 | Transactions | TransactionList, TransactionEditModal, TransactionCreateModal, UncategorizedTransactions |
 | Categories | CategoryManager, CategoryBudgetDashboard, CategoryTransactionsModal |
 | Budgets | MonthlyBudgetCard, BudgetItemForm, CategoryBudgetCard |
@@ -81,7 +81,7 @@ frontend/src/
 |---------|---------|----------|
 | Categories | financial/models.go, service.go | CategoryManager.tsx |
 | Transactions | financial/service.go, ofx_parser.go | TransactionList.tsx |
-| Budgets | financial/budget_progress.go | CategoryBudgetDashboard.tsx |
+| Budgets | financial/budget_progress.go (includes controllable pacing) | CategoryBudgetDashboard.tsx |
 | Planned Entries | financial/service.go | PlannedEntryCard.tsx |
 | Patterns | financial/matching.go | PatternManager.tsx |
 | Savings Goals | financial/savings_goals.go | SavingsGoalsPage.tsx |

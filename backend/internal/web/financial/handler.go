@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/catrutech/celeiro/internal/application"
 	financialApp "github.com/catrutech/celeiro/internal/application/financial"
@@ -146,10 +147,11 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name         *string `json:"name,omitempty"`
-		Icon         *string `json:"icon,omitempty"`
-		Color        *string `json:"color,omitempty"`
-		CategoryType *string `json:"category_type,omitempty"`
+		Name           *string `json:"name,omitempty"`
+		Icon           *string `json:"icon,omitempty"`
+		Color          *string `json:"color,omitempty"`
+		CategoryType   *string `json:"category_type,omitempty"`
+		IsControllable *bool   `json:"is_controllable,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -164,6 +166,7 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		Icon:           req.Icon,
 		Color:          req.Color,
 		CategoryType:   req.CategoryType,
+		IsControllable: req.IsControllable,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -642,6 +645,52 @@ func (h *Handler) GetBudgetProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.NewSuccess(progress, w)
+}
+
+// GetControllableCategoryPacing returns budget pacing data for controllable categories.
+// Query params: month (1-12), year (YYYY). Defaults to current month if not provided.
+func (h *Handler) GetControllableCategoryPacing(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	// Parse optional month/year query params, default to current month
+	now := time.Now()
+	month := now.Month()
+	year := now.Year()
+
+	if monthParam := r.URL.Query().Get("month"); monthParam != "" {
+		m, err := strconv.Atoi(monthParam)
+		if err != nil || m < 1 || m > 12 {
+			responses.NewError(w, errors.ErrInvalidRequestBody)
+			return
+		}
+		month = time.Month(m)
+	}
+
+	if yearParam := r.URL.Query().Get("year"); yearParam != "" {
+		y, err := strconv.Atoi(yearParam)
+		if err != nil || y < 2000 || y > 2100 {
+			responses.NewError(w, errors.ErrInvalidRequestBody)
+			return
+		}
+		year = y
+	}
+
+	pacing, err := h.app.FinancialService.GetControllableCategoryPacing(r.Context(), financialApp.GetControllableCategoryPacingInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Month:          int(month),
+		Year:           year,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(pacing, w)
 }
 
 // ============================================================================

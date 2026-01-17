@@ -44,6 +44,13 @@ Three cards showing current month totals:
 - **Despesas** (Expenses): Sum of debit transactions
 - **Saldo** (Balance): Income - Expenses (green if positive, red if negative)
 
+### Budget Pacing (Controllable Categories)
+
+If categories are marked as controllable (`is_controllable=true`), the dashboard shows a pacing widget with:
+- Expected spend at current day (`budget * day_of_month / days_in_month`)
+- Actual spent
+- Status: under pace / on pace / over pace
+
 ### Category Expenses Section
 
 Shows top 8 expense categories with:
@@ -77,6 +84,7 @@ Shows green "Tudo Organizado!" card when:
 | Uncategorized | `GET /financial/transactions/uncategorized` |
 | Category budgets | `getCategoryBudgets()` |
 | Planned entries | `getPlannedEntriesForMonth()` |
+| Budget pacing (controllable categories) | `GET /financial/budgets/categories/pacing` |
 
 ## Business Rules
 
@@ -99,3 +107,7 @@ Shows green "Tudo Organizado!" card when:
 - **Uncategorized Transactions**: Via "Categorizar" button
 - **Budgets**: Budget data displayed but no direct navigation
 - **Planned Entries**: Status shown in summary
+
+## Related Docs
+
+- `docs/budget-pacing.md`

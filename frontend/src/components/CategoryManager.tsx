@@ -70,6 +70,7 @@ export default function CategoryManager() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editName, setEditName] = useState('');
   const [editIcon, setEditIcon] = useState('');
+  const [editControllable, setEditControllable] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
 
   // Delete category state
@@ -211,6 +212,7 @@ export default function CategoryManager() {
     setEditingCategory(category);
     setEditName(category.name);
     setEditIcon(category.icon);
+    setEditControllable(category.is_controllable || false);
     setShowEditModal(true);
   };
 
@@ -226,7 +228,11 @@ export default function CategoryManager() {
           'Content-Type': 'application/json',
           'X-Active-Organization': '1',
         },
-        body: JSON.stringify({ name: editName.trim(), icon: editIcon }),
+        body: JSON.stringify({
+          name: editName.trim(),
+          icon: editIcon,
+          is_controllable: editControllable,
+        }),
       });
 
       if (!response.ok) {
@@ -250,6 +256,7 @@ export default function CategoryManager() {
     setEditingCategory(null);
     setEditName('');
     setEditIcon('');
+    setEditControllable(false);
   };
 
   const handleDeleteCategory = async (categoryId: number) => {
@@ -432,7 +439,7 @@ export default function CategoryManager() {
                       </div>
                       <div>
                         <h3 className="font-semibold text-stone-900">{category.name}</h3>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           <span className="text-xs text-stone-500">Personalizada</span>
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                             category.category_type === 'income'
@@ -441,6 +448,11 @@ export default function CategoryManager() {
                           }`}>
                             {category.category_type === 'income' ? '📈 Receita' : '📉 Despesa'}
                           </span>
+                          {category.is_controllable && category.category_type === 'expense' && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-wheat-100 text-wheat-700 border border-wheat-300">
+                              🎯 Controlável
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -781,6 +793,42 @@ export default function CategoryManager() {
                   />
                 </div>
               </div>
+
+              {/* Controllable Toggle - Only for expense categories */}
+              {editingCategory.category_type === 'expense' && (
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">
+                    Controle de gastos
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setEditControllable(!editControllable)}
+                    className={`w-full py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-3 ${
+                      editControllable
+                        ? 'border-sage-500 bg-sage-50'
+                        : 'border-stone-200 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    <div className={`w-12 h-6 rounded-full transition-colors duration-200 flex items-center p-1 ${
+                      editControllable ? 'bg-sage-500' : 'bg-stone-300'
+                    }`}>
+                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                        editControllable ? 'translate-x-6' : 'translate-x-0'
+                      }`} />
+                    </div>
+                    <div className="text-left">
+                      <span className={`font-medium ${editControllable ? 'text-sage-700' : 'text-stone-600'}`}>
+                        {editControllable ? 'Controlável' : 'Não controlável'}
+                      </span>
+                      <p className="text-xs text-stone-500 mt-0.5">
+                        {editControllable
+                          ? 'Gastos serão monitorados com metas diárias de pacing'
+                          : 'Categoria não aparecerá no widget de pacing'}
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="px-6 py-4 bg-stone-50 flex items-center justify-end gap-3">

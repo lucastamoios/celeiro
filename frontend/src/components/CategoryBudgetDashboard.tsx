@@ -1506,40 +1506,55 @@ export default function CategoryBudgetDashboard() {
             </div>
           </div>
         ) : (
-          <MonthlyBudgetCard
-            month={selectedMonth}
-            year={selectedYear}
-            budgets={selectedMonthBudgets}
-            categories={categories}
-            actualSpending={selectedMonthSpending}
-            isCurrent={isCurrentMonth}
-            isConsolidated={selectedMonthData?.isConsolidated || false}
-            isExpanded={expandedMonths.has(selectedMonthKey)}
-            plannedEntries={selectedMonthEntries}
-            plannedEntriesLoading={selectedMonthEntriesLoading}
-            hasPreviousMonthBudgets={hasPreviousMonthBudgets}
-            totalPlannedIncome={totalPlannedIncome}
-            totalActualIncome={totalActualIncome}
-            onEditBudget={handleEditBudget}
-            onDeleteBudget={handleDeleteBudget}
-            onDeleteMonth={async () => {
-              const budgetIds = selectedMonthBudgets.map((b) => b.CategoryBudgetID);
-              const plannedEntryIds = selectedMonthEntries.map((e) => e.PlannedEntryID);
-              await handleDeleteMonth(selectedMonth, selectedYear, budgetIds, plannedEntryIds);
-            }}
-            onConsolidate={handleConsolidateBudget}
-            onConsolidateAll={handleConsolidateAllBudgets}
-            onToggleExpand={() => handleToggleMonthExpand(selectedMonth, selectedYear)}
-            onCopyFromPreviousMonth={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
-            onMatchEntry={(entryId) => handleMatchExpandedEntry(entryId, selectedMonth, selectedYear)}
-            onUnmatchEntry={(entryId) => handleUnmatchExpandedEntry(entryId, selectedMonth, selectedYear)}
-            onDismissEntry={(entryId, reason) => handleDismissExpandedEntry(entryId, selectedMonth, selectedYear, reason)}
-            onUndismissEntry={(entryId) => handleUndismissExpandedEntry(entryId, selectedMonth, selectedYear)}
-            onEditEntry={(entry) => handleEditPlannedEntry(entry, selectedMonth, selectedYear)}
-            onDeleteEntry={(entryId) => handleDeletePlannedEntry(entryId, selectedMonth, selectedYear)}
-            onCategoryCardClick={handleCategoryCardClick}
-            hideHeader={true}
-          />
+            <MonthlyBudgetCard
+              month={selectedMonth}
+              year={selectedYear}
+              budgets={selectedMonthBudgets}
+              categories={categories}
+              actualSpending={selectedMonthSpending}
+              isCurrent={isCurrentMonth}
+              isConsolidated={selectedMonthData?.isConsolidated || false}
+              isExpanded={expandedMonths.has(selectedMonthKey)}
+              plannedEntries={selectedMonthEntries}
+              plannedEntriesLoading={selectedMonthEntriesLoading}
+              hasPreviousMonthBudgets={hasPreviousMonthBudgets}
+              totalPlannedIncome={totalPlannedIncome}
+              totalActualIncome={totalActualIncome}
+              onEditBudget={handleEditBudget}
+              onDeleteBudget={handleDeleteBudget}
+              onDeleteMonth={async () => {
+                const budgetIds = selectedMonthBudgets.map((b) => b.CategoryBudgetID);
+                const plannedEntryIds = selectedMonthEntries.map((e) => e.PlannedEntryID);
+                await handleDeleteMonth(selectedMonth, selectedYear, budgetIds, plannedEntryIds);
+              }}
+              onConsolidate={handleConsolidateBudget}
+              onConsolidateAll={handleConsolidateAllBudgets}
+              onToggleExpand={() => handleToggleMonthExpand(selectedMonth, selectedYear)}
+              onCopyFromPreviousMonth={() => handleCopyFromPreviousMonth(selectedMonth, selectedYear)}
+              onMatchEntry={(entryId) => handleMatchExpandedEntry(entryId, selectedMonth, selectedYear)}
+              onUnmatchEntry={(entryId) => handleUnmatchExpandedEntry(entryId, selectedMonth, selectedYear)}
+              onDismissEntry={(entryId, reason) => handleDismissExpandedEntry(entryId, selectedMonth, selectedYear, reason)}
+              onUndismissEntry={(entryId) => handleUndismissExpandedEntry(entryId, selectedMonth, selectedYear)}
+              onEditEntry={(entry) => handleEditPlannedEntry(entry, selectedMonth, selectedYear)}
+              onDeleteEntry={(entryId) => handleDeletePlannedEntry(entryId, selectedMonth, selectedYear)}
+              onCategoryCardClick={handleCategoryCardClick}
+              onMovePlannedEntry={async (entryId, toCategoryId) => {
+                if (!token) return;
+                try {
+                  await updatePlannedEntry(entryId, { category_id: toCategoryId }, { token, organizationId });
+                  setSuccessMessage('Entrada movida com sucesso!');
+                  await fetchAllData();
+                  setTimeout(() => setSuccessMessage(null), 2500);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Falha ao mover entrada');
+                }
+              }}
+              onInvalidPlannedEntryDrop={(message) => {
+                setError(message);
+                setTimeout(() => setError(null), 2500);
+              }}
+              hideHeader={true}
+            />
         )}
 
         {/* Create/Edit Budget Modal */}

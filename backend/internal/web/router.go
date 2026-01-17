@@ -108,6 +108,7 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 		r.Delete("/budgets/categories/{id}", mw.RequireSession(fh.DeleteCategoryBudget, []accounts.Permission{}))
 		r.Post("/budgets/categories/{id}/consolidate", mw.RequireSession(fh.ConsolidateCategoryBudget, []accounts.Permission{}))
 		r.Post("/budgets/categories/copy", mw.RequireSession(fh.CopyCategoryBudgetsFromMonth, []accounts.Permission{}))
+		r.Get("/budgets/categories/pacing", mw.RequireSession(fh.GetControllableCategoryPacing, []accounts.Permission{}))
 
 		// Planned Entries
 		r.Get("/planned-entries", mw.RequireSession(fh.ListPlannedEntries, []accounts.Permission{}))

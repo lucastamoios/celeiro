@@ -81,6 +81,7 @@ flowchart TB
 | Transactions | /financial/accounts/{id}/transactions/* | List, create, import OFX, update |
 | Uncategorized | /financial/transactions/uncategorized | List needing classification |
 | Category Budgets | /financial/budgets/categories/* | CRUD, copy, consolidate |
+| Budget Pacing | /financial/budgets/categories/pacing | Read pacing data for controllable categories |
 | Legacy Budgets | /financial/budgets/* | CRUD with items (deprecated) |
 | Snapshots | /financial/snapshots/* | Historical budget data |
 | Planned Entries | /financial/planned-entries/* | CRUD, patterns, match, dismiss |

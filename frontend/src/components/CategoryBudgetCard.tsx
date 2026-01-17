@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import type { CategoryBudget, PlannedEntryWithStatus, PlannedEntryStatusType } from '../types/budget';
 import { getVarianceStatus, VARIANCE_THRESHOLDS, getStatusBadgeClasses, getStatusLabel } from '../types/budget';
 import { useDropdownClose } from '../hooks/useDropdownClose';
@@ -22,6 +24,163 @@ interface CategoryBudgetCardProps {
   onEditEntry?: (entry: PlannedEntryWithStatus) => void;
   onDeleteEntry?: (entryId: number) => void;
   onCardClick?: () => void; // Click handler to open transactions modal
+
+  // Drag & Drop Planned Entries
+  dndDropId?: string;
+  isDropTargetDisabled?: boolean;
+  isDropTargetHighlighted?: boolean;
+}
+
+function formatCurrencyBRL(amount: string | number) {
+  const num = typeof amount === 'number' ? amount : parseFloat(amount);
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(isNaN(num) ? 0 : num);
+}
+
+function getStatusIcon(status: PlannedEntryStatusType) {
+  switch (status) {
+    case 'matched':
+      return (
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+      );
+    case 'pending':
+      return (
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+        </svg>
+      );
+    case 'missed':
+      return (
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+      );
+    case 'dismissed':
+      return (
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+        </svg>
+      );
+  }
+}
+
+function getExpectedDayRange(entry: PlannedEntryWithStatus) {
+  if (entry.ExpectedDayStart && entry.ExpectedDayEnd) {
+    if (entry.ExpectedDayStart === entry.ExpectedDayEnd) {
+      return `Dia ${entry.ExpectedDayStart}`;
+    }
+    return `${entry.ExpectedDayStart}-${entry.ExpectedDayEnd}`;
+  }
+  if (entry.ExpectedDay) {
+    return `Dia ${entry.ExpectedDay}`;
+  }
+  return null;
+}
+
+function getEntryAmountRange(entry: PlannedEntryWithStatus) {
+  if (entry.AmountMin && entry.AmountMax) {
+    const min = formatCurrencyBRL(entry.AmountMin);
+    const max = formatCurrencyBRL(entry.AmountMax);
+    if (entry.AmountMin === entry.AmountMax) {
+      return max;
+    }
+    return `${min} - ${max}`;
+  }
+  return formatCurrencyBRL(entry.Amount);
+}
+
+function DraggablePlannedEntryRow({
+  entry,
+  onEditEntry,
+  actions,
+}: {
+  entry: PlannedEntryWithStatus;
+  onEditEntry?: (entry: PlannedEntryWithStatus) => void;
+  actions?: React.ReactNode;
+}) {
+  const dragDisabled = entry.Status === 'dismissed';
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: entry.PlannedEntryID,
+    disabled: dragDisabled,
+  });
+
+  const expectedDayRange = getExpectedDayRange(entry);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        opacity: isDragging ? 0.5 : 1,
+      }}
+      className={`bg-white rounded-lg border-l-4 p-3 shadow-warm-sm transition-all ${
+        entry.Status === 'matched' ? 'border-sage-500' :
+        entry.Status === 'pending' ? 'border-terra-500' :
+        entry.Status === 'missed' ? 'border-rust-500' :
+        'border-stone-400'
+      } ${onEditEntry ? 'cursor-pointer hover:shadow-warm-md hover:bg-stone-50' : ''}`}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('button') && !target.closest('[data-dnd-handle]') && onEditEntry) {
+          onEditEntry(entry);
+        }
+      }}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-stone-900 truncate">{entry.Description}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-1 ${getStatusBadgeClasses(entry.Status)}`}>
+              {getStatusIcon(entry.Status)}
+              {getStatusLabel(entry.Status)}
+            </span>
+            {entry.IsRecurrent && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-wheat-100 text-wheat-700">🔄</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-1 text-sm text-stone-600">
+            <span className="tabular-nums">{getEntryAmountRange(entry)}</span>
+            {expectedDayRange && (
+              <>
+                <span className="text-stone-300">•</span>
+                <span>{expectedDayRange}</span>
+              </>
+            )}
+            {entry.Status === 'matched' && entry.MatchedAmount && (
+              <>
+                <span className="text-stone-300">•</span>
+                <span className="text-sage-600 font-medium tabular-nums">Recebido: {formatCurrencyBRL(entry.MatchedAmount)}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 ml-2">
+          <button
+            type="button"
+            data-dnd-handle
+            className={`p-1 rounded-md ${dragDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-grab hover:bg-stone-100'} transition-colors`}
+            aria-label="Arrastar entrada"
+            {...listeners}
+            {...attributes}
+            disabled={dragDisabled}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6h.01M14 6h.01M10 12h.01M14 12h.01M10 18h.01M14 18h.01" />
+            </svg>
+          </button>
+
+          <div className="relative">{actions}</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CategoryBudgetCard({
@@ -43,6 +202,9 @@ export default function CategoryBudgetCard({
   onEditEntry,
   onDeleteEntry,
   onCardClick,
+  dndDropId,
+  isDropTargetDisabled = false,
+  isDropTargetHighlighted = false,
 }: CategoryBudgetCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -85,13 +247,7 @@ export default function CategoryBudgetCard({
     }
   };
 
-  const formatCurrency = (amount: string | number) => {
-    const num = typeof amount === 'number' ? amount : parseFloat(amount);
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(isNaN(num) ? 0 : num);
-  };
+
 
   // Calculate variance (with safety checks for NaN)
   const plannedNum = parseFloat(budget.PlannedAmount || '0') || 0;
@@ -159,59 +315,6 @@ export default function CategoryBudgetCard({
     }
   };
 
-  const getStatusIcon = (status: PlannedEntryStatusType) => {
-    switch (status) {
-      case 'matched':
-        return (
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-        );
-      case 'pending':
-        return (
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-          </svg>
-        );
-      case 'missed':
-        return (
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-        );
-      case 'dismissed':
-        return (
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-        );
-    }
-  };
-
-  const getEntryAmountRange = (entry: PlannedEntryWithStatus) => {
-    if (entry.AmountMin && entry.AmountMax) {
-      const min = formatCurrency(entry.AmountMin);
-      const max = formatCurrency(entry.AmountMax);
-      if (entry.AmountMin === entry.AmountMax) {
-        return max;
-      }
-      return `${min} - ${max}`;
-    }
-    return formatCurrency(entry.Amount);
-  };
-
-  const getExpectedDayRange = (entry: PlannedEntryWithStatus) => {
-    if (entry.ExpectedDayStart && entry.ExpectedDayEnd) {
-      if (entry.ExpectedDayStart === entry.ExpectedDayEnd) {
-        return `Dia ${entry.ExpectedDayStart}`;
-      }
-      return `${entry.ExpectedDayStart}-${entry.ExpectedDayEnd}`;
-    }
-    if (entry.ExpectedDay) {
-      return `Dia ${entry.ExpectedDay}`;
-    }
-    return null;
-  };
 
   // Count entries by status
   const entryStats = {
@@ -228,7 +331,16 @@ export default function CategoryBudgetCard({
     } hover:shadow-warm-md`}>
       {/* Main Card Content - Clickable area */}
       <div
-        className={`p-4 ${onCardClick ? 'cursor-pointer hover:bg-stone-50 transition-colors' : ''}`}
+        className={`p-4 ${onCardClick ? 'cursor-pointer hover:bg-stone-50 transition-colors' : ''} ${
+          isDropTargetDisabled ? 'opacity-70' : ''
+        } ${
+          isDropTargetHighlighted
+            ? isDropTargetDisabled
+              ? 'ring-2 ring-rust-500 ring-offset-2'
+              : 'ring-2 ring-sage-500 ring-offset-2'
+            : ''
+        }`}
+        data-dnd-drop-id={dndDropId}
         onClick={() => {
           // Only trigger card click if not clicking on interactive elements
           if (onCardClick && !showActions) {
@@ -338,13 +450,13 @@ export default function CategoryBudgetCard({
         <div>
           <div className="text-sm text-stone-600">Planejado</div>
           <div className="text-lg font-semibold text-stone-900 tabular-nums">
-            {formatCurrency(budget.PlannedAmount)}
+            {formatCurrencyBRL(budget.PlannedAmount)}
           </div>
         </div>
         <div>
           <div className="text-sm text-stone-600">{isIncome ? 'Ganho' : 'Gasto'}</div>
           <div className="text-lg font-semibold text-stone-900 tabular-nums">
-            {formatCurrency(actualSpent)}
+            {formatCurrencyBRL(actualSpent)}
           </div>
         </div>
       </div>
@@ -356,7 +468,7 @@ export default function CategoryBudgetCard({
             <div className="text-sm text-stone-600">Variação</div>
             <div className={`text-lg font-medium tabular-nums ${getVarianceColor()}`}>
               {variance >= 0 ? '+' : ''}
-              {formatCurrency(variance.toFixed(2))}
+              {formatCurrencyBRL(variance.toFixed(2))}
               <span className="text-sm ml-1">
                 ({variancePercent >= 0 ? '+' : ''}
                 {variancePercent.toFixed(1)}%)
@@ -429,59 +541,19 @@ export default function CategoryBudgetCard({
       {isExpanded && entryStats.total > 0 && (
         <div className="border-t border-stone-200 bg-stone-50 p-3 space-y-2">
           {plannedEntries.map((entry) => (
-            <div
+            <DraggablePlannedEntryRow
               key={entry.PlannedEntryID}
-              className={`bg-white rounded-lg border-l-4 p-3 shadow-warm-sm transition-all ${
-                entry.Status === 'matched' ? 'border-sage-500' :
-                entry.Status === 'pending' ? 'border-terra-500' :
-                entry.Status === 'missed' ? 'border-rust-500' :
-                'border-stone-400'
-              } ${onEditEntry ? 'cursor-pointer hover:shadow-warm-md hover:bg-stone-50' : ''}`}
-              onClick={(e) => {
-                // Only trigger edit if clicking on the main content area (not action buttons)
-                const target = e.target as HTMLElement;
-                if (!target.closest('button') && onEditEntry) {
-                  onEditEntry(entry);
-                }
-              }}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-stone-900 truncate">{entry.Description}</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-1 ${getStatusBadgeClasses(entry.Status)}`}>
-                      {getStatusIcon(entry.Status)}
-                      {getStatusLabel(entry.Status)}
-                    </span>
-                    {entry.IsRecurrent && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-wheat-100 text-wheat-700">🔄</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-1 text-sm text-stone-600">
-                    <span className="tabular-nums">{getEntryAmountRange(entry)}</span>
-                    {getExpectedDayRange(entry) && (
-                      <>
-                        <span className="text-stone-300">•</span>
-                        <span>{getExpectedDayRange(entry)}</span>
-                      </>
-                    )}
-                    {entry.Status === 'matched' && entry.MatchedAmount && (
-                      <>
-                        <span className="text-stone-300">•</span>
-                        <span className="text-sage-600 font-medium tabular-nums">Recebido: {formatCurrency(entry.MatchedAmount)}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Entry Actions */}
-                <div className="relative ml-2">
+              entry={entry}
+              onEditEntry={onEditEntry}
+              actions={
+                <>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setExpandedEntryActions(expandedEntryActions === entry.PlannedEntryID ? null : entry.PlannedEntryID);
                     }}
                     className="p-1 hover:bg-stone-100 rounded-full transition-colors"
+                    aria-label="Ações"
                   >
                     <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -561,9 +633,9 @@ export default function CategoryBudgetCard({
                       )}
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
+                </>
+              }
+            />
           ))}
         </div>
       )}
