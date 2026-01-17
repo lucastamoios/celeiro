@@ -14,11 +14,11 @@
 - [x] 1.2 Add warm shadow utilities to Tailwind config
   - `shadow-warm-sm`, `shadow-warm-md`, `shadow-warm-lg`, `shadow-warm-xl`
 - [x] 1.3 Add Inter font
+  - Note: Inter is loaded via `frontend/index.html` (not CSS @import) for better performance.
   - Add Google Fonts link to `index.html`
   - Configure font-family in Tailwind
   - Add `tabular-nums` utility class
-- [ ] 1.4 Add typography scale to Tailwind config
-  - Note: Tailwind config currently defines `text-h1`..`text-caption` but is missing `text-display`, `text-body-sm`, `text-tiny`, and `tabular-nums` utility is implemented in `frontend/src/index.css`.
+- [x] 1.4 Add typography scale to Tailwind config
   - `text-display`, `text-h1`, `text-h2`, `text-h3`, `text-h4`
   - `text-body`, `text-body-sm`, `text-caption`, `text-tiny`
 - [x] 1.5 Update `src/utils/colors.ts`

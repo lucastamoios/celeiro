@@ -43,7 +43,11 @@ function getTagColor(tag: Tag) {
   };
 }
 
-export default function TagManager() {
+interface TagManagerProps {
+  embedded?: boolean;
+}
+
+export default function TagManager({ embedded = false }: TagManagerProps) {
   const { token } = useAuth();
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,7 +209,7 @@ export default function TagManager() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
+      <div className={`${embedded ? '' : 'min-h-screen bg-stone-50'} ${embedded ? '' : 'max-w-5xl mx-auto'} px-4 py-6 sm:px-6 sm:py-8`}>
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-stone-200 rounded w-32"></div>
           <div className="h-4 bg-stone-200 rounded w-64"></div>
@@ -220,8 +224,8 @@ export default function TagManager() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
+    <div className={embedded ? '' : 'min-h-screen bg-stone-50'}>
+      <div className={`${embedded ? '' : 'max-w-5xl mx-auto'} px-4 py-6 sm:px-6 sm:py-8`}>
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-stone-900 mb-2">Tags</h1>

@@ -6,7 +6,7 @@ import TagManager from './TagManager';
 import AccountSettings from './AccountSettings';
 import OrganizationSettings from './OrganizationSettings';
 
-type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
+export type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
 
 interface TabConfig {
   id: SettingsTab;
@@ -15,10 +15,10 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { id: 'conta', label: 'Sua Conta', icon: User },
   { id: 'categorias', label: 'Categorias', icon: FolderOpen },
   { id: 'padroes', label: 'Padrões', icon: Workflow },
   { id: 'tags', label: 'Tags', icon: Tag },
+  { id: 'conta', label: 'Sua Conta', icon: User },
   { id: 'organizacao', label: 'Organização', icon: Building2 },
 ];
 
@@ -39,9 +39,9 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
       case 'categorias':
         return <CategoryManager />;
       case 'padroes':
-        return <PatternManager />;
+        return <PatternManager embedded />;
       case 'tags':
-        return <TagManager />;
+        return <TagManager embedded />;
       case 'conta':
         return <AccountSettings />;
       case 'organizacao':
@@ -60,13 +60,13 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
           Configurações
         </h1>
         <p className="text-stone-600 mt-1">
-          Gerencie sua conta, categorias, padrões e tags
+          Gerencie categorias, padrões, tags e sua conta
         </p>
       </div>
 
       {/* Tab Navigation */}
       <div className="border-b border-stone-200 mb-6">
-        <nav className="flex space-x-1 -mb-px" aria-label="Tabs">
+        <nav className="flex gap-1 -mb-px overflow-x-auto" aria-label="Tabs">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -75,7 +75,7 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
+                  shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
                   ${isActive
                     ? 'border-wheat-500 text-wheat-700'
                     : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'

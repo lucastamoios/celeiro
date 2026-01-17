@@ -3,8 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import OrganizationSwitcher from './OrganizationSwitcher';
 import { User, FolderOpen, Workflow, Tag, LogOut, ChevronDown, Building2 } from 'lucide-react';
-
-type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
+import type { SettingsTab } from './SettingsPage';
 
 interface UserAvatarMenuProps {
   onNavigateToSettings: (tab?: SettingsTab) => void;

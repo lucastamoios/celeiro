@@ -7,7 +7,7 @@ import TransactionList from './components/TransactionList'
 import CategoryBudgetDashboard from './components/CategoryBudgetDashboard'
 import UncategorizedTransactions from './components/UncategorizedTransactions'
 import SavingsGoalsPage from './components/SavingsGoalsPage'
-import SettingsPage from './components/SettingsPage'
+import SettingsPage, { type SettingsTab } from './components/SettingsPage'
 import UserAvatarMenu from './components/UserAvatarMenu'
 import AcceptInvite from './components/AcceptInvite'
 import {
@@ -16,12 +16,11 @@ import {
   PieChart,
   Target,
   Calendar,
-   Menu,
-   X,
+  Menu,
+  X,
 } from 'lucide-react'
 
 type View = 'dashboard' | 'transactions' | 'budgets' | 'goals' | 'settings' | 'uncategorized';
-type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
 
 // Helper to get invite token from URL
 function getInviteToken(): string | null {

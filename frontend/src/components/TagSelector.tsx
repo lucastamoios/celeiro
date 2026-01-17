@@ -78,7 +78,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
       <div className="text-sm text-stone-500 flex items-center gap-2 p-3 bg-stone-50 rounded-lg">
         <span>🏷️</span>
         <span>Nenhuma tag criada ainda.</span>
-        <span className="text-stone-400">Crie tags no menu "Tags".</span>
+        <span className="text-stone-400">Crie tags em Configurações → Tags.</span>
       </div>
     );
   }

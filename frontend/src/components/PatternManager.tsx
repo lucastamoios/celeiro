@@ -31,7 +31,11 @@ interface AdvancedPattern {
   linked_planned_entries?: LinkedPlannedEntry[];
 }
 
-export default function PatternManager() {
+interface PatternManagerProps {
+  embedded?: boolean;
+}
+
+export default function PatternManager({ embedded = false }: PatternManagerProps) {
   const { token } = useAuth();
   const [patterns, setPatterns] = useState<AdvancedPattern[]>([]);
   const [categories, setCategories] = useState<Map<number, Category>>(new Map());
@@ -400,7 +404,7 @@ export default function PatternManager() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 p-4 md:p-8 animate-pulse">
+      <div className={`${embedded ? '' : 'min-h-screen bg-stone-50'} p-4 md:p-8 animate-pulse`}>
         <div className="max-w-7xl mx-auto">
           <div className="h-9 bg-stone-200 rounded w-1/4 mb-8"></div>
           <div className="grid gap-4">
@@ -419,7 +423,7 @@ export default function PatternManager() {
   const totalPatterns = patterns.length;
 
   return (
-    <div className="min-h-screen bg-stone-50 p-4 md:p-8">
+    <div className={`${embedded ? '' : 'min-h-screen bg-stone-50'} p-4 md:p-8`}>
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
