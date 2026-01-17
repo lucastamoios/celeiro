@@ -13,7 +13,7 @@
 | Add API client | `frontend/src/api/` |
 | Modify auth flow | `backend/internal/application/accounts/auth.go` |
 | Parse OFX files | `backend/internal/application/financial/ofx_parser.go` |
-| Pattern matching | `backend/internal/application/financial/matching.go` |
+| Pattern matching | `backend/internal/application/financial/patterns_service.go` |
 
 ## Backend Structure
 
@@ -31,7 +31,7 @@ backend/internal/
 │       ├── repository.go   Data access
 │       ├── models.go       Domain models
 │       ├── dto.go          Data transfer objects
-│       ├── matching.go     Pattern matching
+│       ├── patterns_service.go  Pattern matching
 │       ├── budget_progress.go
 │       ├── ofx_parser.go
 │       ├── savings_goals.go
@@ -83,7 +83,7 @@ frontend/src/
 | Transactions | financial/service.go, ofx_parser.go | TransactionList.tsx |
 | Budgets | financial/budget_progress.go (includes controllable pacing) | CategoryBudgetDashboard.tsx |
 | Planned Entries | financial/service.go | PlannedEntryCard.tsx |
-| Patterns | financial/matching.go | PatternManager.tsx |
+| Patterns | financial/patterns_service.go | PatternCreator.tsx, PatternManager.tsx |
 | Savings Goals | financial/savings_goals.go | SavingsGoalsPage.tsx |
 | Tags | financial/tags.go | TagManager.tsx |
 | Auth | accounts/auth.go, session.go | Login.tsx, AuthContext.tsx |
