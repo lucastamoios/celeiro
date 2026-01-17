@@ -16,9 +16,8 @@ import {
   PieChart,
   Target,
   Calendar,
-  Menu,
-  X,
-  Wheat,
+   Menu,
+   X,
 } from 'lucide-react'
 
 type View = 'dashboard' | 'transactions' | 'budgets' | 'goals' | 'settings' | 'uncategorized';
@@ -158,8 +157,8 @@ function AppContent() {
                 onAuxClick={handleAuxClick('dashboard')}
                 className="flex items-center gap-2 text-xl font-bold text-stone-900 hover:text-wheat-600 transition-colors"
               >
-                <Wheat className="w-6 h-6 text-wheat-600" />
-                <span>Celeiro</span>
+                <span className="text-2xl leading-none">🌾</span>
+                <span className="tracking-tight">Celeiro</span>
               </button>
               {/* Desktop Navigation - Hidden on mobile/tablet */}
               <div className="hidden lg:flex space-x-1">

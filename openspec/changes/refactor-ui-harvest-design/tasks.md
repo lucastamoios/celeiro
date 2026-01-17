@@ -5,22 +5,23 @@
 ## 1. Foundation: Design Tokens
 **Reference**: `docs/improved-ui/02-color-palette.md`, `docs/improved-ui/03-typography-spacing.md`
 
-- [ ] 1.1 Update `tailwind.config.js` with Harvest color palette
+- [x] 1.1 Update `tailwind.config.js` with Harvest color palette
   - Add `wheat` color scale (50-900)
   - Add `sage` color scale (50-900)
   - Add `terra` color scale (50-900)
   - Add `rust` color scale (50-900)
   - Override default `gray` with warm `stone` values
-- [ ] 1.2 Add warm shadow utilities to Tailwind config
+- [x] 1.2 Add warm shadow utilities to Tailwind config
   - `shadow-warm-sm`, `shadow-warm-md`, `shadow-warm-lg`, `shadow-warm-xl`
-- [ ] 1.3 Add Inter font
+- [x] 1.3 Add Inter font
   - Add Google Fonts link to `index.html`
   - Configure font-family in Tailwind
   - Add `tabular-nums` utility class
 - [ ] 1.4 Add typography scale to Tailwind config
+  - Note: Tailwind config currently defines `text-h1`..`text-caption` but is missing `text-display`, `text-body-sm`, `text-tiny`, and `tabular-nums` utility is implemented in `frontend/src/index.css`.
   - `text-display`, `text-h1`, `text-h2`, `text-h3`, `text-h4`
   - `text-body`, `text-body-sm`, `text-caption`, `text-tiny`
-- [ ] 1.5 Update `src/utils/colors.ts`
+- [x] 1.5 Update `src/utils/colors.ts`
   - Reduce `CATEGORY_COLORS` to 6 muted tones
   - Update `getCategoryColorStyle()` for new palette
   - Add semantic status color utilities
@@ -39,7 +40,7 @@
   - Base card (white, rounded-xl, shadow-warm-sm)
   - Interactive card (hover states)
   - Status card (border-l-4 with semantic color)
-- [ ] 2.3 Standardize Modal component
+- [x] 2.3 Standardize Modal component
   - Consistent header with close button
   - Scrollable body (max-h-[60vh])
   - Footer with bg-stone-50
@@ -102,7 +103,7 @@
   - For dashboard goal summary
   - Progress ring/bar
   - Current/target amounts
-- [ ] 4.6 Integrate new components into Dashboard.tsx
+- [x] 4.6 Integrate new components into Dashboard.tsx
   - Replace current layout with Hero → Metrics → Attention → Categories → Goals
   - Remove rainbow category colors
   - Add month navigation
@@ -136,6 +137,7 @@
   - Fixed bottom bar when items selected
   - Categorize, Ignore, Delete actions
 - [ ] 5.7 Update TransactionList.tsx with new components
+  - Note: Transaction list currently uses month navigation, bulk selection, and card/table views, but does not implement date-grouped sections or inline QuickCategorySelect.
   - Group transactions by date
   - Replace table with card-based rows
   - Add bulk selection logic
@@ -162,6 +164,7 @@
   - Description and expected info
   - Status badge
 - [ ] 6.5 Update CategoryBudgetDashboard.tsx
+  - Note: CategoryBudgetDashboard currently supports shared month selection but still maintains multi-month state (`monthlyBudgets`, `expandedMonths`). Needs simplification to single-month focus per spec.
   - Single month focus (remove multi-month view)
   - Replace rainbow category cards with rows
   - Add status indicators
@@ -191,6 +194,7 @@
   - Achievement message
   - Total saved display
 - [ ] 7.6 Update SavingsGoalsPage.tsx with new components
+  - Note: Goals page uses existing cards and modals; missing milestone markers and goal completion celebration modal.
   - Summary header at top
   - Filter tabs
   - Grid of enhanced goal cards
