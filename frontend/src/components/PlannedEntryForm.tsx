@@ -182,7 +182,6 @@ export default function PlannedEntryForm({
       expected_day_end: parsedDayEnd || parsedDayStart,
       entry_type: entryType,
       is_recurrent: isRecurrent,
-      is_saved_pattern: false,
       pattern_id: linkedPatternId || undefined,
       savings_goal_id: savingsGoalId ? parseInt(savingsGoalId) : undefined,
       tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,

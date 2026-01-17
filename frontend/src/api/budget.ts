@@ -357,7 +357,6 @@ export async function getPlannedEntries(
   filters: {
     category_id?: number;
     is_recurrent?: boolean;
-    is_saved_pattern?: boolean;
     is_active?: boolean;
   },
   options: RequestOptions
@@ -365,7 +364,6 @@ export async function getPlannedEntries(
   const params = new URLSearchParams();
   if (filters.category_id !== undefined) params.append('category_id', filters.category_id.toString());
   if (filters.is_recurrent !== undefined) params.append('is_recurrent', filters.is_recurrent.toString());
-  if (filters.is_saved_pattern !== undefined) params.append('is_saved_pattern', filters.is_saved_pattern.toString());
   if (filters.is_active !== undefined) params.append('is_active', filters.is_active.toString());
 
   const url = `${API_CONFIG.baseURL}/financial/planned-entries${params.toString() ? `?${params.toString()}` : ''}`;
@@ -378,32 +376,6 @@ export async function getPlannedEntries(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || 'Failed to fetch planned entries');
-  }
-
-  const result: ApiResponse<PlannedEntry[]> = await response.json();
-  return result.data;
-}
-
-/**
- * Get saved transaction patterns
- */
-export async function getSavedPatterns(
-  categoryId: number | undefined,
-  options: RequestOptions
-): Promise<PlannedEntry[]> {
-  const params = new URLSearchParams();
-  if (categoryId !== undefined) params.append('category_id', categoryId.toString());
-
-  const url = `${API_CONFIG.baseURL}/financial/planned-entries/patterns${params.toString() ? `?${params.toString()}` : ''}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: createHeaders(options),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to fetch saved patterns');
   }
 
   const result: ApiResponse<PlannedEntry[]> = await response.json();

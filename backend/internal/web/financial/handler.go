@@ -428,12 +428,12 @@ func (h *Handler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Description     string   `json:"description"`
-		Amount          float64  `json:"amount"`
-		TransactionDate string   `json:"transaction_date"`
-		TransactionType string   `json:"transaction_type"`
-		CategoryID      *int     `json:"category_id,omitempty"`
-		Notes           *string  `json:"notes,omitempty"`
+		Description     string  `json:"description"`
+		Amount          float64 `json:"amount"`
+		TransactionDate string  `json:"transaction_date"`
+		TransactionType string  `json:"transaction_type"`
+		CategoryID      *int    `json:"category_id,omitempty"`
+		Notes           *string `json:"notes,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -498,11 +498,11 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		CategoryID  *int               `json:"category_id"`
-		Description *string            `json:"description"`
-		Amount      *float64           `json:"amount"`
-		Notes       *string            `json:"notes"`
-		IsIgnored   *bool              `json:"is_ignored"`
+		CategoryID  *int     `json:"category_id"`
+		Description *string  `json:"description"`
+		Amount      *float64 `json:"amount"`
+		Notes       *string  `json:"notes"`
+		IsIgnored   *bool    `json:"is_ignored"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1178,34 +1178,6 @@ func (h *Handler) GetPlannedEntry(w http.ResponseWriter, r *http.Request) {
 	responses.NewSuccess(entry, w)
 }
 
-func (h *Handler) GetSavedPatterns(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	var categoryID *int
-	if catStr := r.URL.Query().Get("category_id"); catStr != "" {
-		c, err := strconv.Atoi(catStr)
-		if err == nil {
-			categoryID = &c
-		}
-	}
-
-	patterns, err := h.app.FinancialService.GetSavedPatterns(r.Context(), financialApp.GetSavedPatternsInput{
-		UserID:         userID,
-		OrganizationID: organizationID,
-		CategoryID:     categoryID,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(patterns, w)
-}
-
 func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
@@ -1250,7 +1222,7 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 	// If a description pattern is provided, create an Advanced Pattern first
 	var patternID *int
 	if req.DescriptionPattern != nil && *req.DescriptionPattern != "" {
-		pattern, err := h.app.FinancialService.CreateAdvancedPattern(r.Context(), financialApp.CreateAdvancedPatternInput{
+		pattern, err := h.app.FinancialService.CreatePattern(r.Context(), financialApp.CreatePatternInput{
 			UserID:             userID,
 			OrganizationID:     organizationID,
 			DescriptionPattern: *req.DescriptionPattern,
@@ -1309,7 +1281,7 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Description      *string `json:"description,omitempty"`
+		Description      *string  `json:"description,omitempty"`
 		Amount           *float64 `json:"amount,omitempty"`
 		AmountMin        *float64 `json:"amount_min,omitempty"`
 		AmountMax        *float64 `json:"amount_max,omitempty"`
@@ -1545,10 +1517,10 @@ func (h *Handler) GetTransactionPlannedEntry(w http.ResponseWriter, r *http.Requ
 }
 
 // ============================================================================
-// Advanced Patterns
+// Patterns
 // ============================================================================
 
-func (h *Handler) CreateAdvancedPattern(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreatePattern(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
@@ -1591,7 +1563,7 @@ func (h *Handler) CreateAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 		amountMax = &req.AmountRange.Max
 	}
 
-	pattern, err := h.app.FinancialService.CreateAdvancedPattern(r.Context(), financialApp.CreateAdvancedPatternInput{
+	pattern, err := h.app.FinancialService.CreatePattern(r.Context(), financialApp.CreatePatternInput{
 		UserID:             userID,
 		OrganizationID:     organizationID,
 		DescriptionPattern: req.DescriptionPattern,
@@ -1611,7 +1583,7 @@ func (h *Handler) CreateAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 	responses.NewSuccess(pattern, w)
 }
 
-func (h *Handler) GetAdvancedPatterns(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetPatterns(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
@@ -1634,7 +1606,7 @@ func (h *Handler) GetAdvancedPatterns(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	patterns, err := h.app.FinancialService.GetAdvancedPatterns(r.Context(), financialApp.GetAdvancedPatternsInput{
+	patterns, err := h.app.FinancialService.GetPatterns(r.Context(), financialApp.GetPatternsInput{
 		UserID:         userID,
 		OrganizationID: organizationID,
 		IsActive:       isActive,
@@ -1648,7 +1620,7 @@ func (h *Handler) GetAdvancedPatterns(w http.ResponseWriter, r *http.Request) {
 	responses.NewSuccess(patterns, w)
 }
 
-func (h *Handler) GetAdvancedPattern(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetPattern(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
@@ -1661,7 +1633,7 @@ func (h *Handler) GetAdvancedPattern(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pattern, err := h.app.FinancialService.GetAdvancedPatternByID(r.Context(), financialApp.GetAdvancedPatternByIDInput{
+	pattern, err := h.app.FinancialService.GetPatternByID(r.Context(), financialApp.GetPatternByIDInput{
 		PatternID:      patternID,
 		UserID:         userID,
 		OrganizationID: organizationID,
@@ -1674,7 +1646,7 @@ func (h *Handler) GetAdvancedPattern(w http.ResponseWriter, r *http.Request) {
 	responses.NewSuccess(pattern, w)
 }
 
-func (h *Handler) UpdateAdvancedPattern(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdatePattern(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
@@ -1688,11 +1660,11 @@ func (h *Handler) UpdateAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var req struct {
-		IsActive          *bool   `json:"is_active,omitempty"`
+		IsActive           *bool   `json:"is_active,omitempty"`
 		DescriptionPattern *string `json:"description_pattern,omitempty"`
-		DatePattern       *string `json:"date_pattern,omitempty"`
-		WeekdayPattern    *string `json:"weekday_pattern,omitempty"`
-		AmountRange       *struct {
+		DatePattern        *string `json:"date_pattern,omitempty"`
+		WeekdayPattern     *string `json:"weekday_pattern,omitempty"`
+		AmountRange        *struct {
 			Min float64 `json:"min"`
 			Max float64 `json:"max"`
 		} `json:"amount_range,omitempty"`
@@ -1714,7 +1686,7 @@ func (h *Handler) UpdateAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 		amountMax = &maxStr
 	}
 
-	pattern, err := h.app.FinancialService.UpdateAdvancedPattern(r.Context(), financialApp.UpdateAdvancedPatternInput{
+	pattern, err := h.app.FinancialService.UpdatePattern(r.Context(), financialApp.UpdatePatternInput{
 		PatternID:          patternID,
 		UserID:             userID,
 		OrganizationID:     organizationID,
@@ -1735,7 +1707,7 @@ func (h *Handler) UpdateAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 	responses.NewSuccess(pattern, w)
 }
 
-func (h *Handler) DeleteAdvancedPattern(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeletePattern(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
@@ -1748,7 +1720,7 @@ func (h *Handler) DeleteAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = h.app.FinancialService.DeleteAdvancedPattern(r.Context(), financialApp.DeleteAdvancedPatternInput{
+	err = h.app.FinancialService.DeletePattern(r.Context(), financialApp.DeletePatternInput{
 		PatternID:      patternID,
 		UserID:         userID,
 		OrganizationID: organizationID,
@@ -1758,7 +1730,7 @@ func (h *Handler) DeleteAdvancedPattern(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	responses.NewSuccess(map[string]string{"message": "advanced pattern deleted successfully"}, w)
+	responses.NewSuccess(map[string]string{"message": "pattern deleted successfully"}, w)
 }
 
 // ApplyPatternRetroactively applies a pattern to all existing uncategorized transactions
@@ -2429,9 +2401,9 @@ func (h *Handler) AddContribution(w http.ResponseWriter, r *http.Request) {
 
 // AmazonOrder represents an order extracted from Amazon by the Chrome extension
 type AmazonOrder struct {
-	OrderID     string `json:"order_id"`
-	Date        string `json:"date"`
-	ParsedDate  *struct {
+	OrderID    string `json:"order_id"`
+	Date       string `json:"date"`
+	ParsedDate *struct {
 		Day   int    `json:"day"`
 		Month int    `json:"month"`
 		Year  int    `json:"year"`
@@ -2469,9 +2441,9 @@ func (h *Handler) SyncAmazonOrders(w http.ResponseWriter, r *http.Request) {
 	// Validation
 	if len(req.Orders) == 0 {
 		responses.NewSuccess(map[string]interface{}{
-			"matched_count":   0,
-			"total_orders":    0,
-			"message":         "Nenhum pedido enviado",
+			"matched_count": 0,
+			"total_orders":  0,
+			"message":       "Nenhum pedido enviado",
 		}, w)
 		return
 	}

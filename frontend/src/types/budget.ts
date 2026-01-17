@@ -192,7 +192,6 @@ export interface CreatePlannedEntryRequest {
   is_recurrent: boolean;
   parent_entry_id?: number;
   expected_day?: number;
-  is_saved_pattern: boolean;
   pattern_id?: number;
   description_pattern?: string; // Pattern for auto-matching transaction descriptions
   savings_goal_id?: number; // Link to savings goal - matched transactions inherit this

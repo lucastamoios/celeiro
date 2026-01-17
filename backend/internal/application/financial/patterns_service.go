@@ -14,7 +14,7 @@ import (
 // Input/Output Structures
 // ============================================================================
 
-type CreateAdvancedPatternInput struct {
+type CreatePatternInput struct {
 	UserID             int
 	OrganizationID     int
 	DescriptionPattern string
@@ -27,20 +27,20 @@ type CreateAdvancedPatternInput struct {
 	ApplyRetroactively bool
 }
 
-type GetAdvancedPatternsInput struct {
+type GetPatternsInput struct {
 	UserID         int
 	OrganizationID int
 	IsActive       *bool
 	CategoryID     *int
 }
 
-type GetAdvancedPatternByIDInput struct {
+type GetPatternByIDInput struct {
 	PatternID      int
 	UserID         int
 	OrganizationID int
 }
 
-type UpdateAdvancedPatternInput struct {
+type UpdatePatternInput struct {
 	PatternID          int
 	UserID             int
 	OrganizationID     int
@@ -54,15 +54,15 @@ type UpdateAdvancedPatternInput struct {
 	TargetCategoryID   *int
 }
 
-type DeleteAdvancedPatternInput struct {
+type DeletePatternInput struct {
 	PatternID      int
 	UserID         int
 	OrganizationID int
 }
 
-type ApplyAdvancedPatternOutput struct {
-	MatchedCount  int
-	UpdatedCount  int
+type ApplyPatternOutput struct {
+	MatchedCount   int
+	UpdatedCount   int
 	TransactionIDs []int
 }
 
@@ -70,38 +70,38 @@ type ApplyAdvancedPatternOutput struct {
 // Service Implementation
 // ============================================================================
 
-func (s *service) CreateAdvancedPattern(ctx context.Context, input CreateAdvancedPatternInput) (AdvancedPattern, error) {
+func (s *service) CreatePattern(ctx context.Context, input CreatePatternInput) (Pattern, error) {
 	// Validate regex patterns
 	if input.DescriptionPattern == "" {
-		return AdvancedPattern{}, fmt.Errorf("description_pattern is required")
+		return Pattern{}, fmt.Errorf("description_pattern is required")
 	}
 
 	// Test description pattern is valid regex
 	if _, err := regexp.Compile(input.DescriptionPattern); err != nil {
-		return AdvancedPattern{}, fmt.Errorf("invalid description_pattern regex: %w", err)
+		return Pattern{}, fmt.Errorf("invalid description_pattern regex: %w", err)
 	}
 
 	// Test date pattern if provided
 	if input.DatePattern != nil && *input.DatePattern != "" {
 		if _, err := regexp.Compile(*input.DatePattern); err != nil {
-			return AdvancedPattern{}, fmt.Errorf("invalid date_pattern regex: %w", err)
+			return Pattern{}, fmt.Errorf("invalid date_pattern regex: %w", err)
 		}
 	}
 
 	// Test weekday pattern if provided
 	if input.WeekdayPattern != nil && *input.WeekdayPattern != "" {
 		if _, err := regexp.Compile(*input.WeekdayPattern); err != nil {
-			return AdvancedPattern{}, fmt.Errorf("invalid weekday_pattern regex: %w", err)
+			return Pattern{}, fmt.Errorf("invalid weekday_pattern regex: %w", err)
 		}
 	}
 
 	// Validate amount range
 	if (input.AmountMin != nil && input.AmountMax == nil) || (input.AmountMin == nil && input.AmountMax != nil) {
-		return AdvancedPattern{}, fmt.Errorf("amount_min and amount_max must both be provided or both be null")
+		return Pattern{}, fmt.Errorf("amount_min and amount_max must both be provided or both be null")
 	}
 
 	if input.AmountMin != nil && input.AmountMax != nil && *input.AmountMin > *input.AmountMax {
-		return AdvancedPattern{}, fmt.Errorf("amount_min must be less than or equal to amount_max")
+		return Pattern{}, fmt.Errorf("amount_min must be less than or equal to amount_max")
 	}
 
 	// Convert amount range to decimal
@@ -129,10 +129,10 @@ func (s *service) CreateAdvancedPattern(ctx context.Context, input CreateAdvance
 		ApplyRetroactively: input.ApplyRetroactively,
 	})
 	if err != nil {
-		return AdvancedPattern{}, fmt.Errorf("failed to create advanced pattern: %w", err)
+		return Pattern{}, fmt.Errorf("failed to create pattern: %w", err)
 	}
 
-	pattern := AdvancedPattern{}.FromModel(&patternModel)
+	pattern := Pattern{}.FromModel(&patternModel)
 
 	// If apply_retroactively is true, apply the pattern to existing transactions
 	if input.ApplyRetroactively {
@@ -142,7 +142,7 @@ func (s *service) CreateAdvancedPattern(ctx context.Context, input CreateAdvance
 	return pattern, nil
 }
 
-func (s *service) GetAdvancedPatterns(ctx context.Context, input GetAdvancedPatternsInput) ([]AdvancedPattern, error) {
+func (s *service) GetPatterns(ctx context.Context, input GetPatternsInput) ([]Pattern, error) {
 	patterns, err := s.Repository.FetchAdvancedPatterns(ctx, fetchAdvancedPatternsParams{
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
@@ -150,10 +150,10 @@ func (s *service) GetAdvancedPatterns(ctx context.Context, input GetAdvancedPatt
 		CategoryID:     input.CategoryID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch advanced patterns: %w", err)
+		return nil, fmt.Errorf("failed to fetch patterns: %w", err)
 	}
 
-	result := AdvancedPatterns{}.FromModel(patterns)
+	result := Patterns{}.FromModel(patterns)
 
 	// Fetch linked planned entries for all patterns
 	if len(patterns) > 0 {
@@ -192,20 +192,20 @@ func (s *service) GetAdvancedPatterns(ctx context.Context, input GetAdvancedPatt
 	return result, nil
 }
 
-func (s *service) GetAdvancedPatternByID(ctx context.Context, input GetAdvancedPatternByIDInput) (AdvancedPattern, error) {
+func (s *service) GetPatternByID(ctx context.Context, input GetPatternByIDInput) (Pattern, error) {
 	pattern, err := s.Repository.FetchAdvancedPatternByID(ctx, fetchAdvancedPatternByIDParams{
 		PatternID:      input.PatternID,
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
 	})
 	if err != nil {
-		return AdvancedPattern{}, fmt.Errorf("failed to fetch advanced pattern: %w", err)
+		return Pattern{}, fmt.Errorf("failed to fetch pattern: %w", err)
 	}
 
-	return AdvancedPattern{}.FromModel(&pattern), nil
+	return Pattern{}.FromModel(&pattern), nil
 }
 
-func (s *service) UpdateAdvancedPattern(ctx context.Context, input UpdateAdvancedPatternInput) (AdvancedPattern, error) {
+func (s *service) UpdatePattern(ctx context.Context, input UpdatePatternInput) (Pattern, error) {
 	pattern, err := s.Repository.ModifyAdvancedPattern(ctx, modifyAdvancedPatternParams{
 		PatternID:          input.PatternID,
 		UserID:             input.UserID,
@@ -220,20 +220,20 @@ func (s *service) UpdateAdvancedPattern(ctx context.Context, input UpdateAdvance
 		TargetCategoryID:   input.TargetCategoryID,
 	})
 	if err != nil {
-		return AdvancedPattern{}, fmt.Errorf("failed to update advanced pattern: %w", err)
+		return Pattern{}, fmt.Errorf("failed to update pattern: %w", err)
 	}
 
-	return AdvancedPattern{}.FromModel(&pattern), nil
+	return Pattern{}.FromModel(&pattern), nil
 }
 
-func (s *service) DeleteAdvancedPattern(ctx context.Context, input DeleteAdvancedPatternInput) error {
+func (s *service) DeletePattern(ctx context.Context, input DeletePatternInput) error {
 	err := s.Repository.RemoveAdvancedPattern(ctx, removeAdvancedPatternParams{
 		PatternID:      input.PatternID,
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to delete advanced pattern: %w", err)
+		return fmt.Errorf("failed to delete pattern: %w", err)
 	}
 
 	return nil
@@ -256,7 +256,7 @@ type ApplyPatternRetroactivelyOutput struct {
 // This is a synchronous version that returns the count of updated transactions
 func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input ApplyPatternRetroactivelyInput) (ApplyPatternRetroactivelyOutput, error) {
 	// 1. Fetch the pattern
-	pattern, err := s.GetAdvancedPatternByID(ctx, GetAdvancedPatternByIDInput{
+	pattern, err := s.GetPatternByID(ctx, GetPatternByIDInput{
 		PatternID:      input.PatternID,
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
@@ -289,8 +289,8 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 	matchedCount := 0
 	for i := range transactions {
 		tx := &transactions[i]
-		if s.matchesAdvancedPattern(ctx, tx, patternModel) {
-			err := s.applyAdvancedPatternToTransaction(ctx, tx, patternModel, input.UserID, input.OrganizationID)
+		if s.matchesPattern(ctx, tx, patternModel) {
+			err := s.applyPatternToTransaction(ctx, tx, patternModel, input.UserID, input.OrganizationID)
 			if err != nil {
 				s.logger.Warn(ctx, fmt.Sprintf("Failed to apply pattern to transaction %d: %v", tx.TransactionID, err))
 				continue
@@ -314,7 +314,7 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 
 // applyPatternRetroactively applies a pattern to all existing transactions that match (including already categorized ones)
 // This runs in a goroutine to avoid blocking the API response
-func (s *service) applyPatternRetroactively(ctx context.Context, pattern AdvancedPattern, userID, organizationID int) {
+func (s *service) applyPatternRetroactively(ctx context.Context, pattern Pattern, userID, organizationID int) {
 	s.logger.Info(ctx, fmt.Sprintf("Starting retroactive application of pattern %d", pattern.PatternID))
 
 	// 1. Fetch all transactions for organization (including already categorized ones)
@@ -342,8 +342,8 @@ func (s *service) applyPatternRetroactively(ctx context.Context, pattern Advance
 	matchedCount := 0
 	for i := range transactions {
 		tx := &transactions[i]
-		if s.matchesAdvancedPattern(ctx, tx, patternModel) {
-			err := s.applyAdvancedPatternToTransaction(ctx, tx, patternModel, userID, organizationID)
+		if s.matchesPattern(ctx, tx, patternModel) {
+			err := s.applyPatternToTransaction(ctx, tx, patternModel, userID, organizationID)
 			if err != nil {
 				s.logger.Warn(ctx, fmt.Sprintf("Failed to apply pattern to transaction %d: %v", tx.TransactionID, err))
 				continue
@@ -356,9 +356,9 @@ func (s *service) applyPatternRetroactively(ctx context.Context, pattern Advance
 		pattern.PatternID, matchedCount, len(transactions)))
 }
 
-// matchesAdvancedPattern checks if a transaction matches an advanced pattern
+// matchesPattern checks if a transaction matches an advanced pattern
 // Note: Uses original_description for regex matching (not user-edited description)
-func (s *service) matchesAdvancedPattern(ctx context.Context, tx *TransactionModel, pattern *AdvancedPatternModel) bool {
+func (s *service) matchesPattern(ctx context.Context, tx *TransactionModel, pattern *PatternModel) bool {
 	// 1. Check description pattern (required) - uses original_description for consistent matching
 	if pattern.DescriptionPattern != nil {
 		descRegex, err := regexp.Compile(*pattern.DescriptionPattern)
@@ -420,10 +420,10 @@ func (s *service) matchesAdvancedPattern(ctx context.Context, tx *TransactionMod
 	return true
 }
 
-// applyAdvancedPatternToTransaction applies a pattern's target description and category to a transaction
+// applyPatternToTransaction applies a pattern's target description and category to a transaction
 // It also checks if any planned entry is linked to this pattern and updates its status to "matched"
 // If a planned entry is linked, its description takes precedence over the pattern's description
-func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *TransactionModel, pattern *AdvancedPatternModel, userID, organizationID int) error {
+func (s *service) applyPatternToTransaction(ctx context.Context, tx *TransactionModel, pattern *PatternModel, userID, organizationID int) error {
 	// Start with pattern's target values
 	description := pattern.TargetDescription
 	categoryID := pattern.TargetCategoryID
@@ -545,17 +545,17 @@ func (s *service) applyAdvancedPatternToTransaction(ctx context.Context, tx *Tra
 	return nil
 }
 
-// ApplyAdvancedPatternsToTransactionInput contains parameters for applying patterns to a transaction
-type ApplyAdvancedPatternsToTransactionInput struct {
+// ApplyPatternsToTransactionInput contains parameters for applying patterns to a transaction
+type ApplyPatternsToTransactionInput struct {
 	TransactionID  int
 	UserID         int
 	OrganizationID int
 }
 
-// ApplyAdvancedPatternsToTransaction applies all active advanced patterns to a single transaction
+// ApplyPatternsToTransaction applies all active advanced patterns to a single transaction
 // Returns true if any pattern was applied, false otherwise
 // This is called during import to auto-categorize new transactions
-func (s *service) ApplyAdvancedPatternsToTransaction(ctx context.Context, input ApplyAdvancedPatternsToTransactionInput) (bool, error) {
+func (s *service) ApplyPatternsToTransaction(ctx context.Context, input ApplyPatternsToTransactionInput) (bool, error) {
 	// 1. Fetch the transaction
 	tx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
 		TransactionID:  input.TransactionID,
@@ -593,8 +593,8 @@ func (s *service) ApplyAdvancedPatternsToTransaction(ctx context.Context, input 
 			TargetCategoryID:   patterns[i].TargetCategoryID,
 		}
 
-		if s.matchesAdvancedPattern(ctx, &tx, patternModel) {
-			err := s.applyAdvancedPatternToTransaction(ctx, &tx, patternModel, input.UserID, input.OrganizationID)
+		if s.matchesPattern(ctx, &tx, patternModel) {
+			err := s.applyPatternToTransaction(ctx, &tx, patternModel, input.UserID, input.OrganizationID)
 			if err != nil {
 				s.logger.Warn(ctx, fmt.Sprintf("Failed to apply pattern %d to transaction %d: %v",
 					patterns[i].PatternID, tx.TransactionID, err))

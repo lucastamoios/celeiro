@@ -113,7 +113,6 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 		// Planned Entries
 		r.Get("/planned-entries", mw.RequireSession(fh.ListPlannedEntries, []accounts.Permission{}))
 		r.Post("/planned-entries", mw.RequireSession(fh.CreatePlannedEntry, []accounts.Permission{}))
-		r.Get("/planned-entries/patterns", mw.RequireSession(fh.GetSavedPatterns, []accounts.Permission{}))
 		r.Get("/planned-entries/month", mw.RequireSession(fh.GetPlannedEntriesForMonth, []accounts.Permission{}))
 		r.Get("/planned-entries/{id}", mw.RequireSession(fh.GetPlannedEntry, []accounts.Permission{}))
 		r.Put("/planned-entries/{id}", mw.RequireSession(fh.UpdatePlannedEntry, []accounts.Permission{}))
@@ -134,12 +133,12 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 		// Income Planning
 		r.Get("/income-planning", mw.RequireSession(fh.GetIncomePlanning, []accounts.Permission{}))
 
-		// Patterns (formerly Advanced Patterns)
-		r.Post("/patterns", mw.RequireSession(fh.CreateAdvancedPattern, []accounts.Permission{}))
-		r.Get("/patterns", mw.RequireSession(fh.GetAdvancedPatterns, []accounts.Permission{}))
-		r.Get("/patterns/{id}", mw.RequireSession(fh.GetAdvancedPattern, []accounts.Permission{}))
-		r.Put("/patterns/{id}", mw.RequireSession(fh.UpdateAdvancedPattern, []accounts.Permission{}))
-		r.Delete("/patterns/{id}", mw.RequireSession(fh.DeleteAdvancedPattern, []accounts.Permission{}))
+		// Patterns
+		r.Post("/patterns", mw.RequireSession(fh.CreatePattern, []accounts.Permission{}))
+		r.Get("/patterns", mw.RequireSession(fh.GetPatterns, []accounts.Permission{}))
+		r.Get("/patterns/{id}", mw.RequireSession(fh.GetPattern, []accounts.Permission{}))
+		r.Put("/patterns/{id}", mw.RequireSession(fh.UpdatePattern, []accounts.Permission{}))
+		r.Delete("/patterns/{id}", mw.RequireSession(fh.DeletePattern, []accounts.Permission{}))
 		r.Post("/patterns/{id}/apply-retroactively", mw.RequireSession(fh.ApplyPatternRetroactively, []accounts.Permission{}))
 
 		// Savings Goals

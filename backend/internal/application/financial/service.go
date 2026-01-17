@@ -87,7 +87,6 @@ type Service interface {
 	// Planned Entries
 	GetPlannedEntries(ctx context.Context, params GetPlannedEntriesInput) ([]PlannedEntry, error)
 	GetPlannedEntryByID(ctx context.Context, params GetPlannedEntryByIDInput) (PlannedEntry, error)
-	GetSavedPatterns(ctx context.Context, params GetSavedPatternsInput) ([]PlannedEntry, error)
 	CreatePlannedEntry(ctx context.Context, params CreatePlannedEntryInput) (PlannedEntry, error)
 	UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEntryInput) (PlannedEntry, error)
 	DeletePlannedEntry(ctx context.Context, params DeletePlannedEntryInput) error
@@ -108,14 +107,14 @@ type Service interface {
 	// Income Planning
 	GetIncomePlanning(ctx context.Context, input GetIncomePlanningInput) (*IncomePlanningReport, error)
 
-	// Advanced Patterns
-	CreateAdvancedPattern(ctx context.Context, input CreateAdvancedPatternInput) (AdvancedPattern, error)
-	GetAdvancedPatterns(ctx context.Context, input GetAdvancedPatternsInput) ([]AdvancedPattern, error)
-	GetAdvancedPatternByID(ctx context.Context, input GetAdvancedPatternByIDInput) (AdvancedPattern, error)
-	UpdateAdvancedPattern(ctx context.Context, input UpdateAdvancedPatternInput) (AdvancedPattern, error)
-	DeleteAdvancedPattern(ctx context.Context, input DeleteAdvancedPatternInput) error
+	// Patterns
+	CreatePattern(ctx context.Context, input CreatePatternInput) (Pattern, error)
+	GetPatterns(ctx context.Context, input GetPatternsInput) ([]Pattern, error)
+	GetPatternByID(ctx context.Context, input GetPatternByIDInput) (Pattern, error)
+	UpdatePattern(ctx context.Context, input UpdatePatternInput) (Pattern, error)
+	DeletePattern(ctx context.Context, input DeletePatternInput) error
 	ApplyPatternRetroactivelySync(ctx context.Context, input ApplyPatternRetroactivelyInput) (ApplyPatternRetroactivelyOutput, error)
-	ApplyAdvancedPatternsToTransaction(ctx context.Context, input ApplyAdvancedPatternsToTransactionInput) (bool, error)
+	ApplyPatternsToTransaction(ctx context.Context, input ApplyPatternsToTransactionInput) (bool, error)
 
 	// Savings Goals
 	GetSavingsGoals(ctx context.Context, input GetSavingsGoalsInput) ([]SavingsGoal, error)
@@ -618,7 +617,7 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 	// Auto-match imported transactions using advanced patterns (regex-based)
 	matchedCount := 0
 	for _, tx := range inserted {
-		matched, err := s.ApplyAdvancedPatternsToTransaction(ctx, ApplyAdvancedPatternsToTransactionInput{
+		matched, err := s.ApplyPatternsToTransaction(ctx, ApplyPatternsToTransactionInput{
 			TransactionID:  tx.TransactionID,
 			UserID:         params.UserID,
 			OrganizationID: params.OrganizationID,
@@ -1400,28 +1399,6 @@ func (s *service) GetPlannedEntryByID(ctx context.Context, params GetPlannedEntr
 	return PlannedEntry{}.FromModel(&model), nil
 }
 
-type GetSavedPatternsInput struct {
-	UserID         int
-	OrganizationID int
-	CategoryID     *int
-}
-
-// GetSavedPatterns returns planned entries that have a linked pattern
-// This is the new approach - patterns are entries with pattern_id != NULL
-func (s *service) GetSavedPatterns(ctx context.Context, params GetSavedPatternsInput) ([]PlannedEntry, error) {
-	isActiveTrue := true
-	models, err := s.Repository.FetchPlannedEntriesWithPattern(ctx, fetchPlannedEntriesWithPatternParams{
-		UserID:         params.UserID,
-		OrganizationID: params.OrganizationID,
-		IsActive:       &isActiveTrue,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to fetch saved patterns")
-	}
-
-	return PlannedEntries{}.FromModel(models), nil
-}
-
 type CreatePlannedEntryInput struct {
 	UserID           int
 	OrganizationID   int
@@ -1499,7 +1476,7 @@ type UpdatePlannedEntryInput struct {
 	ExpectedDay      *int
 	EntryType        *string
 	IsActive         *bool
-	SavingsGoalID    *int   // Use -1 to clear
+	SavingsGoalID    *int // Use -1 to clear
 	CategoryID       *int
 	TagIDs           *[]int // Tags to assign - nil means no change, empty array clears tags
 }
@@ -1763,7 +1740,7 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 		// Add linked pattern if available
 		if entry.PatternID != nil {
 			if pattern, exists := patternMap[*entry.PatternID]; exists {
-				patternDTO := AdvancedPattern{}.FromModel(&pattern)
+				patternDTO := Pattern{}.FromModel(&pattern)
 				statusDTO.LinkedPattern = &patternDTO
 			}
 		}
@@ -1970,12 +1947,12 @@ func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlanned
 }
 
 type DismissPlannedEntryInput struct {
-	PlannedEntryID  int
-	Month           int
-	Year            int
-	Reason          string
-	UserID          int
-	OrganizationID  int
+	PlannedEntryID int
+	Month          int
+	Year           int
+	Reason         string
+	UserID         int
+	OrganizationID int
 }
 
 // DismissPlannedEntry dismisses a planned entry for a specific month
@@ -2130,8 +2107,8 @@ func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersI
 	)
 
 	result := &SyncAmazonOrdersResult{
-		TotalOrders:    len(params.Orders),
-		MatchedOrders:  make([]AmazonMatchedOrder, 0),
+		TotalOrders:     len(params.Orders),
+		MatchedOrders:   make([]AmazonMatchedOrder, 0),
 		UnmatchedOrders: make([]AmazonUnmatchedOrder, 0),
 	}
 
