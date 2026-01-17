@@ -88,7 +88,7 @@ celeiro/
 | Categories | Transaction classification with icons/colors |
 | Category Budgets | Monthly budgets per category (fixed/calculated/maior) |
 | Planned Entries | Expected expenses/income with monthly tracking |
-| Advanced Patterns | Regex-based automatic categorization |
+| Patterns | Regex-based automatic categorization |
 | Savings Goals | Long-term savings targets (reserva/investimento) |
 | Tags | User-defined transaction labels |
 

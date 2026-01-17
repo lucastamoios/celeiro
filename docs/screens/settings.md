@@ -115,7 +115,7 @@ Fields:
 
 ### Related Component
 
-Uses `AdvancedPatternCreator.tsx` for pattern form.
+Uses `PatternCreator.tsx` for pattern form.
 
 ---
 
