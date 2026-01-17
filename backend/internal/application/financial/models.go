@@ -17,6 +17,7 @@ type CategoryModel struct {
 	Icon           string `db:"icon"`
 	Color          string `db:"color"`
 	IsSystem       bool   `db:"is_system"`
+	IsControllable bool   `db:"is_controllable"` // Controllable categories show budget pacing info
 	UserID         *int   `db:"user_id"`         // NULL for system categories
 	OrganizationID *int   `db:"organization_id"` // NULL for system categories
 	CategoryType   string `db:"category_type"`   // 'expense' or 'income'
@@ -378,6 +379,16 @@ type TransactionTagModel struct {
 }
 
 type TransactionTagsModel []TransactionTagModel
+
+// PlannedEntryTagModel represents the many-to-many relationship between planned entries and tags
+type PlannedEntryTagModel struct {
+	PlannedEntryTagID int       `db:"planned_entry_tag_id"`
+	PlannedEntryID    int       `db:"planned_entry_id"`
+	TagID             int       `db:"tag_id"`
+	CreatedAt         time.Time `db:"created_at"`
+}
+
+type PlannedEntryTagsModel []PlannedEntryTagModel
 
 // GoalMonthlyContributionModel represents aggregated contributions to a goal for a month
 type GoalMonthlyContributionModel struct {

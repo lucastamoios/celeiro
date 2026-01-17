@@ -4,7 +4,7 @@
 
 ## Progress
 - Total: 23 tasks
-- Completed: 7
+- Completed: 9
 
 ---
 
@@ -66,21 +66,22 @@ These are simple UI fixes that can be deployed immediately.
 
 ---
 
-## Phase 4: Database Migrations
+## Phase 4: Database Migrations ✅
 
-### 4.1 Add Controllable Flag to Categories
-- [ ] Create migration: `ALTER TABLE categories ADD COLUMN is_controllable BOOLEAN DEFAULT FALSE`
-- [ ] Update Category domain model
+### 4.1 Add Controllable Flag to Categories ✅
+- [x] Create migration: `ALTER TABLE categories ADD COLUMN is_controllable BOOLEAN DEFAULT FALSE`
+- [x] Update Category domain model (CategoryModel and Category DTO)
 - **Files**:
-  - `backend/internal/database/migrations/XXX_add_controllable_categories.sql`
-  - `backend/internal/application/financial/domain.go`
+  - `backend/internal/migrations/00038_add_controllable_flag_to_categories.sql`
+  - `backend/internal/application/financial/models.go`
+  - `backend/internal/application/financial/dto.go`
 
-### 4.2 Create Planned Entry Tags Junction Table
-- [ ] Create migration for `planned_entry_tags` table
-- [ ] Add PlannedEntryTag domain model
+### 4.2 Create Planned Entry Tags Junction Table ✅
+- [x] Create migration for `planned_entry_tags` table
+- [x] Add PlannedEntryTagModel domain model
 - **Files**:
-  - `backend/internal/database/migrations/XXX_add_planned_entry_tags.sql`
-  - `backend/internal/application/financial/domain.go`
+  - `backend/internal/migrations/00039_add_planned_entry_tags.sql`
+  - `backend/internal/application/financial/models.go`
 
 ---
 
