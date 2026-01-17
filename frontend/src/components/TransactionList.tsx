@@ -806,7 +806,7 @@ export default function TransactionList() {
                     <p className={`text-sm font-medium text-stone-900 line-clamp-2 flex-1 ${
                       transaction.is_ignored ? 'line-through' : ''
                     }`}>
-                      {transaction.description}
+                      {transaction.description || transaction.original_description || ''}
                     </p>
                     <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
                       transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
@@ -908,7 +908,7 @@ export default function TransactionList() {
                         onClick={() => handleOpenEditModal(transaction)}
                       >
                         <div className={`truncate flex items-center gap-2 ${transaction.is_ignored ? 'line-through' : ''}`}>
-                          {transaction.description}
+                          {transaction.description || transaction.original_description || ''}
                           {transaction.is_ignored && (
                             <span className="text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">IGNORADA</span>
                           )}

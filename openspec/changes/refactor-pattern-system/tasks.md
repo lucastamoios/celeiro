@@ -46,7 +46,7 @@
 
 ## 6. Frontend - Components
 - [x] 6.1 Update `TransactionList.tsx`:
-  - [ ] 6.1.1 Display `original_description` when `description` is empty
+  - [x] 6.1.1 Display `original_description` when `description` is empty
   - [x] 6.1.2 Remove "Save as Pattern" button
   - [ ] 6.1.3 Add "Create Pattern" button that opens pattern form pre-filled
 - [x] 6.2 Update `PatternManager.tsx`:
