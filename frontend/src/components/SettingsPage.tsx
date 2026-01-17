@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Settings, FolderOpen, Workflow, Tag, User, Building2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Settings, FolderOpen, Workflow, Tag, User } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import PatternManager from './PatternManager';
 import TagManager from './TagManager';
 import AccountSettings from './AccountSettings';
-import OrganizationSettings from './OrganizationSettings';
 
-export type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
+export type SettingsTab = 'categorias' | 'padroes' | 'tags' | 'conta';
 
 interface TabConfig {
   id: SettingsTab;
@@ -19,20 +18,52 @@ const TABS: TabConfig[] = [
   { id: 'padroes', label: 'Padrões', icon: Workflow },
   { id: 'tags', label: 'Tags', icon: Tag },
   { id: 'conta', label: 'Sua Conta', icon: User },
-  { id: 'organizacao', label: 'Organização', icon: Building2 },
 ];
+
+function isSettingsTab(tab: string): tab is SettingsTab {
+  return tab === 'categorias' || tab === 'padroes' || tab === 'tags' || tab === 'conta';
+}
+
+function getSettingsTabFromUrl(): SettingsTab | null {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab');
+  if (!tab) return null;
+  return isSettingsTab(tab) ? tab : null;
+}
 
 interface SettingsPageProps {
   initialTab?: SettingsTab;
 }
 
-export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+export default function SettingsPage({ initialTab = 'categorias' }: SettingsPageProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => getSettingsTabFromUrl() ?? initialTab);
 
   // Update active tab when initialTab changes (from avatar menu navigation)
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  // Keep tab in URL (and support reload / direct URL access)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const current = params.get('tab');
+    if (current !== activeTab) {
+      params.set('tab', activeTab);
+      const nextUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState(null, '', nextUrl);
+    }
+  }, [activeTab, initialTab]);
+
+  // Support back/forward button
+  useEffect(() => {
+    const handlePopState = () => {
+      const tab = getSettingsTabFromUrl();
+      if (tab) setActiveTab(tab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -44,8 +75,6 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
         return <TagManager embedded />;
       case 'conta':
         return <AccountSettings />;
-      case 'organizacao':
-        return <OrganizationSettings />;
       default:
         return null;
     }
@@ -59,9 +88,7 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
           <Settings className="w-7 h-7 text-wheat-600" />
           Configurações
         </h1>
-        <p className="text-stone-600 mt-1">
-          Gerencie categorias, padrões, tags e sua conta
-        </p>
+        <p className="text-stone-600 mt-1">Gerencie categorias, padrões, tags e sua conta</p>
       </div>
 
       {/* Tab Navigation */}
@@ -73,12 +100,19 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  const params = new URLSearchParams(window.location.search);
+                  params.set('tab', tab.id);
+                  const nextUrl = `${window.location.pathname}?${params.toString()}`;
+                  window.history.pushState(null, '', nextUrl);
+                  setActiveTab(tab.id);
+                }}
                 className={`
                   shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
-                  ${isActive
-                    ? 'border-wheat-500 text-wheat-700'
-                    : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'
+                  ${
+                    isActive
+                      ? 'border-wheat-500 text-wheat-700'
+                      : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'
                   }
                 `}
                 aria-current={isActive ? 'page' : undefined}
@@ -92,9 +126,7 @@ export default function SettingsPage({ initialTab = 'conta' }: SettingsPageProps
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-[400px]">
-        {renderTabContent()}
-      </div>
+      <div className="min-h-[400px]">{renderTabContent()}</div>
     </div>
   );
 }

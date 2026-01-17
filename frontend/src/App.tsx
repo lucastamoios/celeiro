@@ -16,6 +16,7 @@ import {
   PieChart,
   Target,
   Calendar,
+  Settings,
   Menu,
   X,
 } from 'lucide-react'
@@ -38,6 +39,19 @@ function getViewFromUrl(): View | null {
   return null;
 }
 
+function replaceViewInUrl(view: View) {
+  const params = new URLSearchParams(window.location.search);
+  params.set('view', view);
+  const nextUrl = `${window.location.pathname}?${params.toString()}`;
+  window.history.replaceState(null, '', nextUrl);
+}
+
+function pushViewInUrl(view: View) {
+  const params = new URLSearchParams(window.location.search);
+  params.set('view', view);
+  const nextUrl = `${window.location.pathname}?${params.toString()}`;
+  window.history.pushState(null, '', nextUrl);
+}
 const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'goals', 'settings', 'uncategorized'];
 const VIEW_STORAGE_KEY = 'celeiro_current_view';
 
@@ -61,12 +75,13 @@ function AppContent() {
   const { isLoading: isOrgLoading, activeOrganization } = useOrganization();
   const [currentView, setCurrentViewState] = useState<View>(getInitialView);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('conta');
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('categorias');
   const [inviteToken, setInviteToken] = useState<string | null>(getInviteToken);
 
   const setCurrentView = useCallback((view: View) => {
     setCurrentViewState(view);
     sessionStorage.setItem(VIEW_STORAGE_KEY, view);
+    pushViewInUrl(view);
     setIsMobileMenuOpen(false); // Close mobile menu when navigating
   }, []);
 
@@ -82,6 +97,38 @@ function AppContent() {
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  // Keep view in sync with browser history
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlView = getViewFromUrl();
+      if (urlView) {
+        setCurrentViewState(urlView);
+        sessionStorage.setItem(VIEW_STORAGE_KEY, urlView);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Ensure view is present for direct URL access and reloads
+  useEffect(() => {
+    const urlView = getViewFromUrl();
+    if (urlView) {
+      setCurrentViewState(urlView);
+      sessionStorage.setItem(VIEW_STORAGE_KEY, urlView);
+      return;
+    }
+
+    const stored = sessionStorage.getItem(VIEW_STORAGE_KEY);
+    if (stored && VALID_VIEWS.includes(stored as View)) {
+      replaceViewInUrl(stored as View);
+      return;
+    }
+
+    replaceViewInUrl('dashboard');
   }, []);
 
   // Handle invite acceptance flow
@@ -203,6 +250,20 @@ function AppContent() {
                   <Target className="w-4 h-4" />
                   <span>Metas</span>
                 </button>
+                <button
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                      handleAuxClick('settings')(e);
+                    } else {
+                      setCurrentView('settings');
+                    }
+                  }}
+                  onAuxClick={handleAuxClick('settings')}
+                  className={navButtonClass('settings')}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Configurações</span>
+                </button>
                 {currentView === 'budgets' && (
                   <button
                     onClick={() => {
@@ -308,6 +369,20 @@ function AppContent() {
               >
                 <Target className="w-5 h-5" />
                 <span>Metas</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    handleAuxClick('settings')(e);
+                  } else {
+                    setCurrentView('settings');
+                  }
+                }}
+                onAuxClick={handleAuxClick('settings')}
+                className={mobileNavButtonClass('settings')}
+              >
+                <Settings className="w-5 h-5" />
+                <span>Configurações</span>
               </button>
             </div>
           </div>

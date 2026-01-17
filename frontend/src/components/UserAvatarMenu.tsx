@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import OrganizationSwitcher from './OrganizationSwitcher';
-import { User, FolderOpen, Workflow, Tag, LogOut, ChevronDown, Building2 } from 'lucide-react';
+import { User, FolderOpen, Workflow, Tag, LogOut, ChevronDown } from 'lucide-react';
 import type { SettingsTab } from './SettingsPage';
 
 interface UserAvatarMenuProps {
@@ -162,14 +162,7 @@ export default function UserAvatarMenu({ onNavigateToSettings }: UserAvatarMenuP
               <span>Tags</span>
             </button>
 
-            <button
-              role="menuitem"
-              onClick={() => handleMenuItemClick('organizacao')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
-            >
-              <Building2 className="w-4 h-4 text-stone-500" />
-              <span>Organização</span>
-            </button>
+
           </div>
 
           {/* Logout Section */}
