@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Wheat,
+  Settings,
 } from 'lucide-react'
 
 type View = 'dashboard' | 'transactions' | 'budgets' | 'goals' | 'settings' | 'uncategorized';
@@ -63,7 +64,7 @@ function AppContent() {
   const { isLoading: isOrgLoading, activeOrganization } = useOrganization();
   const [currentView, setCurrentViewState] = useState<View>(getInitialView);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('conta');
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('categorias');
   const [inviteToken, setInviteToken] = useState<string | null>(getInviteToken);
 
   const setCurrentView = useCallback((view: View) => {
@@ -205,6 +206,20 @@ function AppContent() {
                   <Target className="w-4 h-4" />
                   <span>Metas</span>
                 </button>
+                <button
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                      handleAuxClick('settings')(e);
+                    } else {
+                      setCurrentView('settings');
+                    }
+                  }}
+                  onAuxClick={handleAuxClick('settings')}
+                  className={navButtonClass('settings')}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Configurações</span>
+                </button>
                 {currentView === 'budgets' && (
                   <button
                     onClick={() => {
@@ -310,6 +325,20 @@ function AppContent() {
               >
                 <Target className="w-5 h-5" />
                 <span>Metas</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    handleAuxClick('settings')(e);
+                  } else {
+                    setCurrentView('settings');
+                  }
+                }}
+                onAuxClick={handleAuxClick('settings')}
+                className={mobileNavButtonClass('settings')}
+              >
+                <Settings className="w-5 h-5" />
+                <span>Configurações</span>
               </button>
             </div>
           </div>
