@@ -21,8 +21,8 @@
 - [x] 3.3 Remove all `is_saved_pattern` related service methods
 - [x] 3.4 Remove `SaveTransactionAsPattern` method (simple pattern creation)
 - [x] 3.5 Update OFX parser to set `original_description` during import
-- [ ] 3.6 **Fix auto-apply during import**: Update OFX import to apply regex patterns to new transactions
-- [ ] 3.7 Create unified `AutoApplyPatterns(transactionID)` that checks all active patterns
+- [x] 3.6 **Fix auto-apply during import**: Update OFX import to apply regex patterns to new transactions
+- [x] 3.7 Create unified `AutoApplyPatterns(transactionID)` that checks all active patterns
 - [x] 3.8 **Implement retroactive application**: Complete `applyPatternRetroactively()` method
   - [x] 3.8.1 Fetch all uncategorized transactions for user/organization
   - [x] 3.8.2 Evaluate pattern against each transaction using `original_description`

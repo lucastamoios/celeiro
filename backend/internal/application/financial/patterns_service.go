@@ -545,17 +545,17 @@ func (s *service) applyPatternToTransaction(ctx context.Context, tx *Transaction
 	return nil
 }
 
-// ApplyPatternsToTransactionInput contains parameters for applying patterns to a transaction
+// ApplyPatternsToTransactionInput contains parameters for applying patterns to a transaction.
 type ApplyPatternsToTransactionInput struct {
 	TransactionID  int
 	UserID         int
 	OrganizationID int
 }
 
-// ApplyPatternsToTransaction applies all active advanced patterns to a single transaction
-// Returns true if any pattern was applied, false otherwise
-// This is called during import to auto-categorize new transactions
-func (s *service) ApplyPatternsToTransaction(ctx context.Context, input ApplyPatternsToTransactionInput) (bool, error) {
+// AutoApplyPatterns evaluates all active patterns against a transaction and applies the first match.
+//
+// It exists so OFX import and any other ingestion path can share the exact same behavior.
+func (s *service) AutoApplyPatterns(ctx context.Context, input ApplyPatternsToTransactionInput) (bool, error) {
 	// 1. Fetch the transaction
 	tx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
 		TransactionID:  input.TransactionID,
@@ -565,7 +565,7 @@ func (s *service) ApplyPatternsToTransaction(ctx context.Context, input ApplyPat
 		return false, fmt.Errorf("failed to fetch transaction: %w", err)
 	}
 
-	// 2. Fetch all active advanced patterns
+	// 2. Fetch all active patterns
 	isActive := true
 	patterns, err := s.Repository.FetchAdvancedPatterns(ctx, fetchAdvancedPatternsParams{
 		UserID:         input.UserID,
@@ -575,7 +575,6 @@ func (s *service) ApplyPatternsToTransaction(ctx context.Context, input ApplyPat
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch patterns: %w", err)
 	}
-
 	if len(patterns) == 0 {
 		return false, nil
 	}
@@ -600,11 +599,17 @@ func (s *service) ApplyPatternsToTransaction(ctx context.Context, input ApplyPat
 					patterns[i].PatternID, tx.TransactionID, err))
 				continue
 			}
-			s.logger.Info(ctx, fmt.Sprintf("Applied advanced pattern %d to transaction %d",
+			s.logger.Info(ctx, fmt.Sprintf("Applied pattern %d to transaction %d",
 				patterns[i].PatternID, tx.TransactionID))
 			return true, nil
 		}
 	}
 
 	return false, nil
+}
+
+// ApplyPatternsToTransaction is kept for backward compatibility within the application layer.
+// Prefer AutoApplyPatterns for new call-sites.
+func (s *service) ApplyPatternsToTransaction(ctx context.Context, input ApplyPatternsToTransactionInput) (bool, error) {
+	return s.AutoApplyPatterns(ctx, input)
 }
