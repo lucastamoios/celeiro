@@ -23,7 +23,7 @@ export interface ExistingPattern {
   linked_planned_entry_id?: number;
 }
 
-interface AdvancedPatternCreatorProps {
+interface PatternCreatorProps {
   categories: Map<number, Category>;
   onClose: () => void;
   onSave: (pattern: AdvancedPattern) => Promise<void>;
@@ -69,13 +69,13 @@ function isAdvancedPattern(pattern: string): boolean {
   return /[\\^$*+?.()|[\]{}]/.test(inner);
 }
 
-export default function AdvancedPatternCreator({
+export default function PatternCreator({
   categories,
   onClose,
   onSave,
   initialData,
   existingPattern
-}: AdvancedPatternCreatorProps) {
+}: PatternCreatorProps) {
   const { token } = useAuth();
 
   // Determine initial values

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import type { Category } from '../types/category';
 import type { ApiResponse } from '../types/transaction';
-import AdvancedPatternCreator, { type AdvancedPattern as AdvancedPatternInput, type InitialPatternData } from './AdvancedPatternCreator';
+import PatternCreator, { type AdvancedPattern as AdvancedPatternInput, type InitialPatternData } from './PatternCreator';
 import PlannedEntryLinkModal from './PlannedEntryLinkModal';
 import { updatePlannedEntry, createPlannedEntry, getPlannedEntries } from '../api/budget';
 
@@ -38,6 +38,7 @@ export default function PatternManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreator, setShowCreator] = useState(false);
+  const [applyRetroactivelyOnCreate, setApplyRetroactivelyOnCreate] = useState(true);
   const [editingPattern, setEditingPattern] = useState<AdvancedPattern | null>(null);
   const [deletingPattern, setDeletingPattern] = useState<number | null>(null);
   const [togglingPattern, setTogglingPattern] = useState<number | null>(null);
@@ -146,7 +147,7 @@ export default function PatternManager() {
       // When creating a new pattern (not editing), automatically apply to existing transactions
       const requestBody = isEditing
         ? pattern
-        : { ...pattern, apply_retroactively: true };
+        : { ...pattern, apply_retroactively: applyRetroactivelyOnCreate };
 
       const response = await fetch(url, {
         method,
@@ -169,10 +170,24 @@ export default function PatternManager() {
       const result = await response.json();
       console.log('Success result:', result);
 
-      setSuccess(isEditing ? '✅ Padrão atualizado com sucesso!' : '✅ Padrão criado e aplicado às transações existentes!');
+      const createdUpdatedCount = result?.data?.updated_count;
+      const createdTotalChecked = result?.data?.total_checked;
+
+      setSuccess(
+        isEditing
+          ? '✅ Padrão atualizado com sucesso!'
+          : applyRetroactivelyOnCreate && typeof createdUpdatedCount === 'number'
+            ? typeof createdTotalChecked === 'number'
+              ? `✅ Padrão aplicado a ${createdUpdatedCount}/${createdTotalChecked} transação(ões)`
+              : `✅ Padrão aplicado a ${createdUpdatedCount} transação(ões)`
+            : applyRetroactivelyOnCreate
+              ? '✅ Padrão criado e aplicado às transações existentes!'
+              : '✅ Padrão criado com sucesso!'
+      );
       setTimeout(() => setSuccess(null), 3000);
       setShowCreator(false);
       setEditingPattern(null);
+      setApplyRetroactivelyOnCreate(true);
       fetchData();
     } catch (err) {
       console.error('Save pattern error:', err);
@@ -415,13 +430,25 @@ export default function PatternManager() {
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <button
-              onClick={() => setShowCreator(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all"
-            >
-              <Plus className="w-4 h-4 inline mr-1" />
-              Criar Padrão
-            </button>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-stone-600 select-none">
+                <input
+                  type="checkbox"
+                  className="rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
+                  checked={applyRetroactivelyOnCreate}
+                  onChange={(e) => setApplyRetroactivelyOnCreate(e.target.checked)}
+                />
+                Aplicar em transações existentes
+              </label>
+
+              <button
+                onClick={() => setShowCreator(true)}
+                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all"
+              >
+                <Plus className="w-4 h-4 inline mr-1" />
+                Criar Padrão
+              </button>
+            </div>
 
             {success && (
               <p className="text-sm text-sage-600 font-medium">{success}</p>
@@ -658,7 +685,7 @@ export default function PatternManager() {
 
         {/* Advanced Pattern Creator Modal */}
         {showCreator && (
-          <AdvancedPatternCreator
+          <PatternCreator
             categories={categories}
             onClose={handleCloseCreator}
             onSave={handleSavePattern}
