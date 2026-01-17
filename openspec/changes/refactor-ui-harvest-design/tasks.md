@@ -29,14 +29,16 @@
 ## 2. Foundation: Base Components
 **Reference**: `docs/improved-ui/04-components.md`
 
-- [ ] 2.1 Create/update Button component variants
+- [~] 2.1 Create/update Button component variants
+  - Note: Project currently uses CSS utility classes (`.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger`) in `frontend/src/index.css` instead of a React `Button` component.
   - Primary (wheat-500)
   - Secondary (stone-100)
   - Ghost (transparent)
   - Danger (rust-500)
   - Icon button
   - Loading state
-- [ ] 2.2 Create/update Card component variants
+- [~] 2.2 Create/update Card component variants
+  - Note: Project uses `.card` and `.card-compact` in `frontend/src/index.css`. No dedicated React Card component.
   - Base card (white, rounded-xl, shadow-warm-sm)
   - Interactive card (hover states)
   - Status card (border-l-4 with semantic color)
@@ -45,20 +47,24 @@
   - Scrollable body (max-h-[60vh])
   - Footer with bg-stone-50
   - ESC and backdrop dismiss
-- [ ] 2.4 Standardize Form inputs
+- [~] 2.4 Standardize Form inputs
+  - Note: `.input` exists in `frontend/src/index.css` but many forms still use inline Tailwind classes; requires follow-up sweep.
   - Text input with consistent focus ring (wheat-500)
   - Select dropdown
   - Checkbox and Toggle
   - Currency input with R$ prefix
-- [ ] 2.5 Create Progress Bar components
+- [~] 2.5 Create Progress Bar components
+  - Note: `.progress-bar` exists in `frontend/src/index.css` and is used in dashboard/budgets; no reusable React component yet.
   - Basic progress bar
   - Budget progress bar (auto-color based on %)
   - Progress bar with label
-- [ ] 2.6 Create Badge components
+- [~] 2.6 Create Badge components
+  - Note: `.badge-success|warning|error|neutral` exist in `frontend/src/index.css`. Category badges are still ad-hoc in some pages.
   - Status badge (default, success, warning, error)
   - Category badge (icon + name)
   - Count badge
 - [ ] 2.7 Create Toast/Notification component
+  - Note: Most pages still use inline success/error banners; toast system not implemented.
   - Success, error, warning, info variants
 
 ## 3. Navigation Update
