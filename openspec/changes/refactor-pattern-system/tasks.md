@@ -34,7 +34,7 @@
 - [x] 4.2 Remove `/financial/transactions/{id}/save-as-pattern` endpoint
 - [x] 4.3 Remove `/financial/planned-entries?is_saved_pattern=true` endpoint
 - [x] 4.4 Update router to reflect new endpoint paths
-- [ ] 4.5 Add new endpoint to create pattern from transaction (opens pattern form pre-filled)
+- [x] 4.5 Add new endpoint to create pattern from transaction (opens pattern form pre-filled)
 - [x] 4.6 Add `POST /financial/patterns/{id}/apply-retroactively` endpoint
   - [x] 4.6.1 Returns `{ "updated_count": N }` with number of transactions updated
 

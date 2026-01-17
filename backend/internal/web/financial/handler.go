@@ -6,7 +6,9 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/catrutech/celeiro/internal/application"
@@ -1514,6 +1516,60 @@ func (h *Handler) GetTransactionPlannedEntry(w http.ResponseWriter, r *http.Requ
 	}
 
 	responses.NewSuccess(entry, w)
+}
+
+// ============================================================================
+// Transaction -> Pattern Draft
+// ============================================================================
+
+// GetTransactionPatternDraft returns suggested PatternCreator initial data derived from a transaction.
+// GET /financial/transactions/{id}/pattern-draft
+func (h *Handler) GetTransactionPatternDraft(w http.ResponseWriter, r *http.Request) {
+	_, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	transactionID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	tx, err := h.app.FinancialService.GetTransactionByID(r.Context(), financialApp.GetTransactionByIDInput{
+		TransactionID:  transactionID,
+		OrganizationID: organizationID,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	if tx.CategoryID == nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	baseText := tx.Description
+	if baseText == "" && tx.OriginalDescription != nil {
+		baseText = *tx.OriginalDescription
+	}
+
+	escaped := regexp.QuoteMeta(strings.TrimSpace(baseText))
+	descriptionPattern := ""
+	if escaped != "" {
+		descriptionPattern = `(?i).*` + escaped + `.*`
+	}
+
+	responses.NewSuccess(map[string]any{
+		"description":         baseText,
+		"category_id":         *tx.CategoryID,
+		"description_pattern": descriptionPattern,
+		"target_description":  baseText,
+		"target_category_id":  *tx.CategoryID,
+		"apply_retroactively": true,
+	}, w)
 }
 
 // ============================================================================
