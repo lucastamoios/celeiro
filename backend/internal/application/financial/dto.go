@@ -8,28 +8,30 @@ import (
 
 // Category DTO
 type Category struct {
-	CategoryID   int       `json:"category_id"`
-	Name         string    `json:"name"`
-	Icon         string    `json:"icon"`
-	Color        string    `json:"color"`
-	IsSystem     bool      `json:"is_system"`
-	CategoryType string    `json:"category_type"` // 'expense' or 'income'
-	UserID       *int      `json:"user_id,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	CategoryID     int       `json:"category_id"`
+	Name           string    `json:"name"`
+	Icon           string    `json:"icon"`
+	Color          string    `json:"color"`
+	IsSystem       bool      `json:"is_system"`
+	IsControllable bool      `json:"is_controllable"` // Controllable categories show budget pacing info
+	CategoryType   string    `json:"category_type"`   // 'expense' or 'income'
+	UserID         *int      `json:"user_id,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 func (c Category) FromModel(model *CategoryModel) Category {
 	return Category{
-		CategoryID:   model.CategoryID,
-		Name:         model.Name,
-		Icon:         model.Icon,
-		Color:        model.Color,
-		IsSystem:     model.IsSystem,
-		CategoryType: model.CategoryType,
-		UserID:       model.UserID,
-		CreatedAt:    model.CreatedAt,
-		UpdatedAt:    model.UpdatedAt,
+		CategoryID:     model.CategoryID,
+		Name:           model.Name,
+		Icon:           model.Icon,
+		Color:          model.Color,
+		IsSystem:       model.IsSystem,
+		IsControllable: model.IsControllable,
+		CategoryType:   model.CategoryType,
+		UserID:         model.UserID,
+		CreatedAt:      model.CreatedAt,
+		UpdatedAt:      model.UpdatedAt,
 	}
 }
 
