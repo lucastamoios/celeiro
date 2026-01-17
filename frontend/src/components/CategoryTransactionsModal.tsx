@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Transaction } from '../types/transaction';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
@@ -19,6 +19,8 @@ interface CategoryTransactionsModalProps {
   onClose: () => void;
   onTransactionClick?: (transaction: Transaction) => void;
   onPlannedEntryClick?: (entry: PlannedEntryWithStatus) => void;
+  onAddPlannedEntry?: () => void;
+  onUpdatePlannedEntryAmount?: (entryId: number, newAmount: number) => Promise<void>;
 }
 
 export default function CategoryTransactionsModal({
@@ -35,8 +37,14 @@ export default function CategoryTransactionsModal({
   onClose,
   onTransactionClick,
   onPlannedEntryClick,
+  onAddPlannedEntry,
+  onUpdatePlannedEntryAmount,
 }: CategoryTransactionsModalProps) {
   const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
+
+  // Inline editing state
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [editingAmount, setEditingAmount] = useState<string>('');
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'number' ? amount : parseFloat(amount);
@@ -85,13 +93,40 @@ export default function CategoryTransactionsModal({
     });
   }, [transactions, categoryId, month, year]);
 
-  // Get unmatched planned entries (pending/missed) for this category
-  const unmatchedEntries = useMemo(() => {
-    return plannedEntries.filter(entry =>
-      entry.CategoryID === categoryId &&
-      (entry.Status === 'pending' || entry.Status === 'missed')
-    );
+  // Get ALL planned entries for this category (for the new "All Entries" section)
+  const allCategoryEntries = useMemo(() => {
+    return plannedEntries.filter(entry => entry.CategoryID === categoryId);
   }, [plannedEntries, categoryId]);
+
+  // Inline editing handlers
+  const handleStartEdit = (entry: PlannedEntryWithStatus) => {
+    setEditingEntryId(entry.PlannedEntryID);
+    setEditingAmount(entry.Amount.toString());
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEntryId(null);
+    setEditingAmount('');
+  };
+
+  const handleSaveEdit = async (entryId: number) => {
+    if (!onUpdatePlannedEntryAmount) return;
+
+    const newAmount = parseFloat(editingAmount);
+    if (isNaN(newAmount) || newAmount < 0) return;
+
+    await onUpdatePlannedEntryAmount(entryId, newAmount);
+    setEditingEntryId(null);
+    setEditingAmount('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, entryId: number) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit(entryId);
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
 
   // Calculate totals
   const totalFromTransactions = useMemo(() => {
@@ -161,58 +196,155 @@ export default function CategoryTransactionsModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Unmatched Planned Entries Section */}
-          {unmatchedEntries.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
+          {/* All Planned Entries Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-stone-700 flex items-center gap-2">
                 <span className="text-terra-600">📋</span>
-                Entradas Planejadas Pendentes
+                Entradas Planejadas
+                <span className="text-xs font-normal text-stone-500">
+                  ({allCategoryEntries.length})
+                </span>
               </h3>
-              <div className="space-y-2">
-                {unmatchedEntries.map(entry => (
-                  <div
-                    key={entry.PlannedEntryID}
-                    onClick={() => onPlannedEntryClick?.(entry)}
-                    className={`p-3 rounded-lg border-l-4 transition-colors group ${
-                      entry.Status === 'missed'
-                        ? 'bg-rust-50 border-rust-400 hover:bg-rust-100'
-                        : 'bg-terra-50 border-terra-400 hover:bg-terra-100'
-                    } ${onPlannedEntryClick ? 'cursor-pointer' : ''}`}
+              {onAddPlannedEntry && (
+                <button
+                  onClick={onAddPlannedEntry}
+                  className="text-xs px-2 py-1 rounded-lg bg-terra-100 text-terra-700 hover:bg-terra-200 transition-colors flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Adicionar
+                </button>
+              )}
+            </div>
+
+            {allCategoryEntries.length === 0 ? (
+              <div className="text-center py-4 text-stone-500 bg-stone-50 rounded-lg">
+                <p className="text-sm">Nenhuma entrada planejada nesta categoria</p>
+                {onAddPlannedEntry && (
+                  <button
+                    onClick={onAddPlannedEntry}
+                    className="mt-2 text-xs text-terra-600 hover:text-terra-700 underline"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-stone-900 truncate">
-                            {entry.Description}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            entry.Status === 'missed'
-                              ? 'bg-rust-100 text-rust-700'
-                              : 'bg-terra-100 text-terra-700'
-                          }`}>
-                            {entry.Status === 'missed' ? '⚠️ Atrasado' : '⏳ Pendente'}
-                          </span>
-                        </div>
-                        <div className="text-sm text-stone-500 mt-1 tabular-nums">
-                          Esperado: {formatCurrency(entry.Amount)}
+                    Criar primeira entrada
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {allCategoryEntries.map(entry => {
+                  const isEditing = editingEntryId === entry.PlannedEntryID;
+                  const statusColors: Record<string, string> = {
+                    matched: 'bg-sage-50 border-sage-200',
+                    pending: 'bg-terra-50 border-terra-300',
+                    missed: 'bg-rust-50 border-rust-300',
+                    scheduled: 'bg-stone-50 border-stone-300',
+                    dismissed: 'bg-stone-100 border-stone-300',
+                  };
+                  const statusBadges: Record<string, { bg: string; text: string; label: string }> = {
+                    matched: { bg: 'bg-sage-100', text: 'text-sage-700', label: '✓ Vinculado' },
+                    pending: { bg: 'bg-terra-100', text: 'text-terra-700', label: '⏳ Pendente' },
+                    missed: { bg: 'bg-rust-100', text: 'text-rust-700', label: '⚠️ Atrasado' },
+                    scheduled: { bg: 'bg-stone-100', text: 'text-stone-700', label: '📅 Agendado' },
+                    dismissed: { bg: 'bg-stone-200', text: 'text-stone-500', label: '✕ Dispensado' },
+                  };
+                  const badge = statusBadges[entry.Status] || statusBadges.pending;
+
+                  return (
+                    <div
+                      key={entry.PlannedEntryID}
+                      className={`p-3 rounded-lg border transition-colors ${statusColors[entry.Status] || statusColors.pending}`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={`font-medium text-stone-900 truncate ${onPlannedEntryClick ? 'cursor-pointer hover:underline' : ''}`}
+                              onClick={() => onPlannedEntryClick?.(entry)}
+                            >
+                              {entry.Description}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
+                              {badge.label}
+                            </span>
+                          </div>
                           {entry.ExpectedDay && (
-                            <span className="ml-2">• Dia {entry.ExpectedDay}</span>
+                            <p className="text-xs text-stone-500 mt-1">
+                              Dia {entry.ExpectedDay} do mês
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Amount - inline editable */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={editingAmount}
+                                onChange={(e) => setEditingAmount(e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, entry.PlannedEntryID)}
+                                onBlur={() => handleSaveEdit(entry.PlannedEntryID)}
+                                autoFocus
+                                className="w-24 px-2 py-1 text-sm border border-terra-300 rounded focus:outline-none focus:ring-2 focus:ring-terra-500 tabular-nums"
+                                min="0"
+                                step="0.01"
+                              />
+                              <button
+                                onClick={() => handleSaveEdit(entry.PlannedEntryID)}
+                                className="p-1 text-sage-600 hover:text-sage-700"
+                                title="Salvar"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="p-1 text-stone-400 hover:text-stone-600"
+                                title="Cancelar"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              className={`font-semibold tabular-nums ${onUpdatePlannedEntryAmount ? 'cursor-pointer hover:bg-white/50 px-2 py-1 rounded' : ''}`}
+                              onClick={(e) => {
+                                if (onUpdatePlannedEntryAmount) {
+                                  e.stopPropagation();
+                                  handleStartEdit(entry);
+                                }
+                              }}
+                              title={onUpdatePlannedEntryAmount ? 'Clique para editar' : undefined}
+                            >
+                              {formatCurrency(entry.Amount)}
+                            </span>
+                          )}
+
+                          {/* Edit button for full entry */}
+                          {onPlannedEntryClick && !isEditing && (
+                            <button
+                              onClick={() => onPlannedEntryClick(entry)}
+                              className="p-1 text-stone-400 hover:text-stone-600"
+                              title="Editar entrada"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
                           )}
                         </div>
                       </div>
-                      {onPlannedEntryClick && (
-                        <div className="flex-shrink-0 text-stone-400 group-hover:text-stone-600">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Transactions List */}
           <div>

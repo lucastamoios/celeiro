@@ -87,6 +87,7 @@ export default function CategoryBudgetDashboard() {
   const [matchingMonthYear, setMatchingMonthYear] = useState<{ month: number; year: number } | null>(null);
   const [editingTransactionFromBudget, setEditingTransactionFromBudget] = useState<Transaction | null>(null);
   const [editingPlannedEntryFromBudget, setEditingPlannedEntryFromBudget] = useState<PlannedEntryWithStatus | null>(null);
+  const [preselectedCategoryForEntry, setPreselectedCategoryForEntry] = useState<number | null>(null);
 
   // Form states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -840,6 +841,7 @@ export default function CategoryBudgetDashboard() {
 
       setSuccessMessage('Entrada planejada criada com sucesso!');
       setShowCreateEntryModal(false);
+      setPreselectedCategoryForEntry(null);
       await fetchAllData();
 
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -1093,6 +1095,33 @@ export default function CategoryBudgetDashboard() {
       setError(err instanceof Error ? err.message : 'Falha ao atualizar entrada planejada');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Handler for adding a new planned entry from the category modal
+  const handleAddPlannedEntryFromModal = () => {
+    if (selectedCategoryForTransactions) {
+      setPreselectedCategoryForEntry(selectedCategoryForTransactions);
+      setShowCategoryTransactionsModal(false);
+      setShowCreateEntryModal(true);
+    }
+  };
+
+  // Handler for inline editing planned entry amount
+  const handleUpdatePlannedEntryAmountInline = async (entryId: number, newAmount: number) => {
+    if (!token) return;
+
+    try {
+      await updatePlannedEntry(entryId, { amount: newAmount }, {
+        token,
+        organizationId,
+      });
+
+      await fetchAllData();
+      setSuccessMessage('Valor atualizado com sucesso!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao atualizar valor');
     }
   };
 
@@ -1612,6 +1641,7 @@ export default function CategoryBudgetDashboard() {
             setShowCreateEntryModal(false);
             setEditingEntry(null);
             setSelectedEntryMonth(null);
+            setPreselectedCategoryForEntry(null);
           }}
           title={editingEntry ? 'Editar Entrada Planejada' : 'Criar Entrada Planejada'}
           subtitle={!editingEntry ? `Para ${getMonthName(selectedMonth)} ${selectedYear}` : undefined}
@@ -1626,6 +1656,7 @@ export default function CategoryBudgetDashboard() {
               setShowCreateEntryModal(false);
               setEditingEntry(null);
               setSelectedEntryMonth(null);
+              setPreselectedCategoryForEntry(null);
             }}
             initialEntry={editingEntry ? {
               PlannedEntryID: editingEntry.PlannedEntryID,
@@ -1646,6 +1677,20 @@ export default function CategoryBudgetDashboard() {
               ParentEntryID: editingEntry.ParentEntryID,
               PatternID: editingEntry.PatternID,
               SavingsGoalID: editingEntry.SavingsGoalID,
+              CreatedAt: '',
+              UpdatedAt: '',
+            } : preselectedCategoryForEntry ? {
+              // Preselected category from modal "Add Entry" button
+              PlannedEntryID: 0,
+              UserID: 0,
+              OrganizationID: 0,
+              CategoryID: preselectedCategoryForEntry,
+              Description: '',
+              Amount: '0',
+              EntryType: categories.find(c => c.category_id === preselectedCategoryForEntry)?.category_type === 'income' ? 'income' : 'expense',
+              IsRecurrent: false,
+              IsSavedPattern: false,
+              IsActive: true,
               CreatedAt: '',
               UpdatedAt: '',
             } : undefined}
@@ -1690,6 +1735,8 @@ export default function CategoryBudgetDashboard() {
               onClose={handleCloseCategoryTransactionsModal}
               onTransactionClick={handleTransactionClickInBudget}
               onPlannedEntryClick={handlePlannedEntryClickInBudget}
+              onAddPlannedEntry={handleAddPlannedEntryFromModal}
+              onUpdatePlannedEntryAmount={handleUpdatePlannedEntryAmountInline}
             />
           );
         })()}
