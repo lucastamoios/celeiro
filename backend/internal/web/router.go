@@ -130,6 +130,9 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 		// Transaction Planned Entry
 		r.Get("/transactions/{id}/planned-entry", mw.RequireSession(fh.GetTransactionPlannedEntry, []accounts.Permission{}))
 
+		// Pattern Draft (prefill PatternCreator from a transaction)
+		r.Get("/transactions/{id}/pattern-draft", mw.RequireSession(fh.GetTransactionPatternDraft, []accounts.Permission{}))
+
 		// Income Planning
 		r.Get("/income-planning", mw.RequireSession(fh.GetIncomePlanning, []accounts.Permission{}))
 
