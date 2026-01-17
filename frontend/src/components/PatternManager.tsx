@@ -105,8 +105,8 @@ export default function PatternManager() {
       const categoryMap = new Map<number, Category>();
       (categoriesData.data || []).forEach(cat => categoryMap.set(cat.category_id, cat));
 
-      // Attach linked planned entries to each pattern (client-side) so we can drop the old
-      // /planned-entries/patterns endpoint and the is_saved_pattern flag.
+      // Attach linked planned entries to each pattern (client-side) so we can avoid
+      // a dedicated endpoint for "planned entries with pattern".
       const entriesByPatternId = new Map<number, LinkedPlannedEntry[]>();
       plannedEntries
         .filter((e) => e.PatternID)
