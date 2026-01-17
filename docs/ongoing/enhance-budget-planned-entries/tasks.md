@@ -4,7 +4,7 @@
 
 ## Progress
 - Total: 23 tasks
-- Completed: 9
+- Completed: 12
 
 ---
 
@@ -85,28 +85,31 @@ These are simple UI fixes that can be deployed immediately.
 
 ---
 
-## Phase 5: Tags for Planned Entries
+## Phase 5: Tags for Planned Entries ✅
 
-### 5.1 Backend: CRUD for Planned Entry Tags
-- [ ] Add repository methods for planned entry tags
-- [ ] Update CreatePlannedEntry to accept tags
-- [ ] Update UpdatePlannedEntry to manage tags
+### 5.1 Backend: CRUD for Planned Entry Tags ✅
+- [x] Add repository methods for planned entry tags (FetchTagsByPlannedEntryID, SetPlannedEntryTags)
+- [x] Update CreatePlannedEntry to accept tags
+- [x] Update UpdatePlannedEntry to manage tags
 - **Files**:
   - `backend/internal/application/financial/repository.go`
   - `backend/internal/application/financial/service.go`
+  - `backend/internal/web/financial/handler.go`
 - **Depends on**: 4.2
 
-### 5.2 Backend: Transfer Tags on Match
-- [ ] In MatchPlannedEntryToTransaction, copy entry tags to transaction
-- [ ] Merge with existing transaction tags (no duplicates)
+### 5.2 Backend: Transfer Tags on Match ✅
+- [x] In MatchPlannedEntryToTransaction, copy entry tags to transaction
+- [x] Merge with existing transaction tags (no duplicates)
 - **Files**: `backend/internal/application/financial/service.go`
 - **Depends on**: 5.1
 
-### 5.3 Frontend: Tag Selection in PlannedEntryForm
-- [ ] Add tag multi-select component (reuse from TransactionTagSelect if exists)
-- [ ] Load existing tags on edit
-- [ ] Save tags with entry
-- **Files**: `frontend/src/components/PlannedEntryForm.tsx`
+### 5.3 Frontend: Tag Selection in PlannedEntryForm ✅
+- [x] Add TagSelector component (reused existing component)
+- [x] Load existing tags on edit
+- [x] Save tags with entry
+- **Files**:
+  - `frontend/src/components/PlannedEntryForm.tsx`
+  - `frontend/src/types/budget.ts`
 - **Depends on**: 5.1
 
 ---

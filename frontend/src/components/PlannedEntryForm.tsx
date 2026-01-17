@@ -3,6 +3,7 @@ import type { Category } from '../types/category';
 import type { PlannedEntry, CreatePlannedEntryRequest } from '../types/budget';
 import type { SavingsGoal } from '../types/savingsGoals';
 import AdvancedPatternCreator, { type AdvancedPattern as AdvancedPatternInput } from './AdvancedPatternCreator';
+import TagSelector from './TagSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
@@ -77,6 +78,11 @@ export default function PlannedEntryForm({
     initialEntry?.SavingsGoalID?.toString() || ''
   );
 
+  // Tags state
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
+    initialEntry?.TagIDs || []
+  );
+
   const [errors, setErrors] = useState<{
     categoryId?: string;
     description?: string;
@@ -99,6 +105,7 @@ export default function PlannedEntryForm({
       setUseSingleDay(!initialEntry.ExpectedDayStart || initialEntry.ExpectedDayStart === initialEntry.ExpectedDayEnd);
       setIsRecurrent(initialEntry.IsRecurrent);
       setSavingsGoalId(initialEntry.SavingsGoalID?.toString() || '');
+      setSelectedTagIds(initialEntry.TagIDs || []);
     }
   }, [initialEntry]);
 
@@ -178,6 +185,7 @@ export default function PlannedEntryForm({
       is_saved_pattern: false,
       pattern_id: linkedPatternId || undefined,
       savings_goal_id: savingsGoalId ? parseInt(savingsGoalId) : undefined,
+      tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
     });
   };
 
@@ -581,6 +589,21 @@ export default function PlannedEntryForm({
             </p>
           </div>
         )}
+
+        {/* Tag Selector */}
+        <div className="p-3 bg-stone-50 rounded-lg">
+          <label className="block text-sm font-medium text-stone-700 mb-2">
+            🏷️ Tags
+          </label>
+          <TagSelector
+            selectedTagIds={selectedTagIds}
+            onChange={setSelectedTagIds}
+            disabled={isLoading}
+          />
+          <p className="text-xs text-stone-500 mt-2">
+            Tags serão automaticamente aplicadas às transações que corresponderem a esta entrada
+          </p>
+        </div>
 
         {/* Linked Advanced Pattern indicator - shown when we have a linked pattern (both create and edit mode) */}
         {linkedPatternId && (

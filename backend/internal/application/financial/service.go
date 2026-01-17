@@ -1435,6 +1435,7 @@ type CreatePlannedEntryInput struct {
 	IsRecurrent      bool
 	ParentEntryID    *int
 	SavingsGoalID    *int
+	TagIDs           []int // Tags to assign - will transfer to matched transactions
 }
 
 func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEntryInput) (PlannedEntry, error) {
@@ -1464,6 +1465,20 @@ func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEn
 		return PlannedEntry{}, errors.Wrap(err, "failed to create planned entry")
 	}
 
+	// Set tags if provided
+	if len(params.TagIDs) > 0 {
+		err = s.Repository.SetPlannedEntryTags(ctx, setPlannedEntryTagsParams{
+			PlannedEntryID: model.PlannedEntryID,
+			TagIDs:         params.TagIDs,
+		})
+		if err != nil {
+			s.logger.Warn(ctx, "failed to set planned entry tags",
+				"planned_entry_id", model.PlannedEntryID,
+				"error", err)
+			// Continue - entry was created successfully, tags are optional
+		}
+	}
+
 	return PlannedEntry{}.FromModel(&model), nil
 }
 
@@ -1481,8 +1496,9 @@ type UpdatePlannedEntryInput struct {
 	ExpectedDay      *int
 	EntryType        *string
 	IsActive         *bool
-	SavingsGoalID    *int // Use -1 to clear
+	SavingsGoalID    *int   // Use -1 to clear
 	CategoryID       *int
+	TagIDs           *[]int // Tags to assign - nil means no change, empty array clears tags
 }
 
 func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEntryInput) (PlannedEntry, error) {
@@ -1505,6 +1521,20 @@ func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEn
 	})
 	if err != nil {
 		return PlannedEntry{}, errors.Wrap(err, "failed to update planned entry")
+	}
+
+	// Update tags if provided (nil means no change)
+	if params.TagIDs != nil {
+		err = s.Repository.SetPlannedEntryTags(ctx, setPlannedEntryTagsParams{
+			PlannedEntryID: params.PlannedEntryID,
+			TagIDs:         *params.TagIDs,
+		})
+		if err != nil {
+			s.logger.Warn(ctx, "failed to update planned entry tags",
+				"planned_entry_id", params.PlannedEntryID,
+				"error", err)
+			// Continue - entry was updated successfully, tags are optional
+		}
 	}
 
 	return PlannedEntry{}.FromModel(&model), nil
