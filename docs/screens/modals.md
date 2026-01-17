@@ -144,13 +144,21 @@ View all transactions and planned entries for a specific category in a month.
 ### Sections
 
 1. **Header**: Category name with icon/color, actual vs planned
-2. **Transactions List**: All transactions in category for month
-3. **Planned Entries List**: All planned entries in category for month
+2. **Planned Entries Section**: All planned entries in category
+   - "+ Entrada Planejada" button to create new entry
+   - Inline amount editing (click amount to edit)
+   - Status badges (pending, matched, dismissed, missed)
+   - Click entry name to open full edit modal
+3. **Transactions Section**: All transactions in category for month
+   - Shows linked planned entry badge if matched
+   - Click to open TransactionEditModal
 
 ### Click-Through
 
 - Transaction row → Opens TransactionEditModal (nested)
-- Planned entry row → Opens PlannedEntryForm modal (nested)
+- Planned entry amount → Inline edit mode (saves on blur/Enter)
+- Planned entry name → Opens PlannedEntryForm modal (nested)
+- "+ Entrada Planejada" → Opens PlannedEntryForm pre-filled with category
 
 ---
 

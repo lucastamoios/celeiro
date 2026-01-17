@@ -56,6 +56,15 @@ Planned entries SHALL support tags and transfer them to matched transactions.
 - THEN the transaction receives the entry tags
 - AND existing transaction tags are preserved
 
+### Requirement: Link Planned Entries to Savings Goals
+Planned entries SHALL optionally link to savings goals to track contributions.
+
+#### Scenario: Link planned entry to goal
+- GIVEN I create or edit a planned entry
+- WHEN I select a savings goal from the dropdown
+- THEN the entry is linked to that goal
+- AND matched transactions inherit the goal link
+
 ### Requirement: Controllable Categories
 Categories SHALL support an optional controllable flag to enable pacing.
 
@@ -93,6 +102,7 @@ See `docs/database.md` for schema references.
 
 - `categories.is_controllable` (boolean)
 - `planned_entry_tags(planned_entry_id, tag_id)`
+- `planned_entries.savings_goal_id` (foreign key to savings_goals)
 
 ## Related Documentation
 
