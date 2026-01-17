@@ -48,7 +48,7 @@
 - [x] 6.1 Update `TransactionList.tsx`:
   - [x] 6.1.1 Display `original_description` when `description` is empty
   - [x] 6.1.2 Remove "Save as Pattern" button
-  - [ ] 6.1.3 Add "Create Pattern" button that opens pattern form pre-filled
+  - [x] 6.1.3 Add "Create Pattern" button that opens pattern form pre-filled
 - [x] 6.2 Update `PatternManager.tsx`:
   - [x] 6.2.1 Remove "Simple Patterns" section entirely
   - [x] 6.2.2 Rename "Advanced Patterns" section to just "Patterns"
