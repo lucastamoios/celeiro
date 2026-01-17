@@ -36,8 +36,16 @@ export default function TransactionEditModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Advanced pattern creator
+  // Pattern creator
   const [showAdvancedPatternCreator, setShowAdvancedPatternCreator] = useState(false);
+  const [patternDraft, setPatternDraft] = useState<{
+    description: string;
+    category_id: number;
+    description_pattern: string;
+    target_description: string;
+    target_category_id: number;
+    apply_retroactively: boolean;
+  } | null>(null);
 
   // Linked planned entry
   const [linkedPlannedEntry, setLinkedPlannedEntry] = useState<PlannedEntryWithStatus | null>(null);
@@ -201,6 +209,12 @@ export default function TransactionEditModal({
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!showAdvancedPatternCreator) {
+      setPatternDraft(null);
+    }
+  }, [showAdvancedPatternCreator]);
 
   const handleSavePattern = async (pattern: AdvancedPattern) => {
     if (!token) return;
@@ -695,16 +709,34 @@ export default function TransactionEditModal({
           {/* Create Pattern Section */}
           <div className="border-t border-stone-200 pt-6">
             <button
-              onClick={() => setShowAdvancedPatternCreator(true)}
+              onClick={async () => {
+                if (!token) return;
+                try {
+                  const res = await fetch(financialUrl(`transactions/${transaction.transaction_id}/pattern-draft`), {
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'X-Active-Organization': '1',
+                    },
+                  });
+                  if (!res.ok) {
+                    throw new Error('Falha ao gerar sugestao de padrao');
+                  }
+                  const json = await res.json();
+                  setPatternDraft(json.data);
+                  setShowAdvancedPatternCreator(true);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Falha ao gerar sugestao de padrao');
+                }
+              }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-stone-300 text-stone-600 rounded-lg hover:border-stone-400 hover:text-stone-700 hover:bg-stone-50 transition-all text-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Criar Padrão Avançado
+              Criar Padrão
             </button>
             <p className="text-xs text-stone-400 mt-2 text-center">
-              Crie regras inteligentes com regex, dias da semana, valores e mais
+              Gere um padrao a partir desta transacao e ajuste antes de salvar
             </p>
           </div>
         </div>
@@ -736,8 +768,8 @@ export default function TransactionEditModal({
           onClose={() => setShowAdvancedPatternCreator(false)}
           onSave={handleSavePattern}
           initialData={{
-            description: transaction.original_description || description,
-            categoryId: categoryId ?? undefined,
+            description: patternDraft?.description || transaction.original_description || description,
+            categoryId: patternDraft?.category_id ?? categoryId ?? undefined,
             amount: transaction.amount,
             expectedDay: parseTransactionDate(transaction.transaction_date).getDate(),
           }}
