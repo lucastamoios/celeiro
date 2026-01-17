@@ -84,7 +84,7 @@ flowchart TB
 | Budget Pacing | /financial/budgets/categories/pacing | Read pacing data for controllable categories |
 | Legacy Budgets | /financial/budgets/* | CRUD with items (deprecated) |
 | Snapshots | /financial/snapshots/* | Historical budget data |
-| Planned Entries | /financial/planned-entries/* | CRUD, patterns, match, dismiss |
+| Planned Entries | /financial/planned-entries/* | CRUD, match to transactions, dismiss |
 | Patterns | /financial/patterns/* | CRUD, apply retroactively |
 | Savings Goals | /financial/savings-goals/* | CRUD, complete, reopen, contribute |
 | Tags | /financial/tags/* | CRUD |

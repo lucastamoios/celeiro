@@ -111,12 +111,14 @@ PostgreSQL TIMESTAMP has no timezone info. Local time stored as-is causes bugs w
 | Recurrent | Template that repeats monthly |
 | One-time | Single occurrence |
 | Monthly Instance | Generated from recurrent (has parent_entry_id) |
-| Pattern-linked entry | Planned entry that references a regex pattern (pattern_id != NULL) |
 
 ## Pattern System
 
-One pattern system:
-- **Patterns**: Regex-based rules (see `patterns` table). Planned entries can reference a pattern via `planned_entries.pattern_id`.
+Unified regex-based pattern system:
+- **Patterns**: Regex rules stored in `patterns` table
+- Match against `original_description` (immutable) not `description` (user-editable)
+- Auto-apply on OFX import and retroactively to existing transactions
+- Can set both category and description on matching transactions
 
 ### Match Confidence
 
