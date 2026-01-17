@@ -237,11 +237,6 @@ func (m *MockRepository) FetchPlannedEntriesByParent(ctx context.Context, params
 	return args.Get(0).([]PlannedEntryModel), args.Error(1)
 }
 
-func (m *MockRepository) FetchPlannedEntriesWithPattern(ctx context.Context, params fetchPlannedEntriesWithPatternParams) ([]PlannedEntryModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).([]PlannedEntryModel), args.Error(1)
-}
-
 func (m *MockRepository) InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(PlannedEntryModel), args.Error(1)
