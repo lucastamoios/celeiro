@@ -1179,6 +1179,7 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		IsRecurrent        bool     `json:"is_recurrent"`
 		ParentEntryID      *int     `json:"parent_entry_id,omitempty"`
 		SavingsGoalID      *int     `json:"savings_goal_id,omitempty"`
+		TagIDs             []int    `json:"tag_ids,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1235,6 +1236,7 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		IsRecurrent:      req.IsRecurrent,
 		ParentEntryID:    req.ParentEntryID,
 		SavingsGoalID:    req.SavingsGoalID,
+		TagIDs:           req.TagIDs,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -1258,7 +1260,7 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Description      *string  `json:"description,omitempty"`
+		Description      *string `json:"description,omitempty"`
 		Amount           *float64 `json:"amount,omitempty"`
 		AmountMin        *float64 `json:"amount_min,omitempty"`
 		AmountMax        *float64 `json:"amount_max,omitempty"`
@@ -1270,6 +1272,7 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		PatternID        *int     `json:"pattern_id,omitempty"`
 		SavingsGoalID    *int     `json:"savings_goal_id,omitempty"`
 		CategoryID       *int     `json:"category_id,omitempty"`
+		TagIDs           *[]int   `json:"tag_ids,omitempty"` // nil = no change, [] = clear tags
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1311,6 +1314,7 @@ func (h *Handler) UpdatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		PatternID:        req.PatternID,
 		SavingsGoalID:    req.SavingsGoalID,
 		CategoryID:       req.CategoryID,
+		TagIDs:           req.TagIDs,
 	})
 	if err != nil {
 		responses.NewError(w, err)

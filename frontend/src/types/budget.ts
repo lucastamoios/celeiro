@@ -129,6 +129,7 @@ export interface PlannedEntry {
   ParentEntryID?: number;
   IsActive: boolean;
   IsSavedPattern: boolean;
+  TagIDs?: number[]; // Tags assigned to this entry - transfer to matched transactions
   CreatedAt: string;
   UpdatedAt: string;
 }
@@ -195,6 +196,7 @@ export interface CreatePlannedEntryRequest {
   pattern_id?: number;
   description_pattern?: string; // Pattern for auto-matching transaction descriptions
   savings_goal_id?: number; // Link to savings goal - matched transactions inherit this
+  tag_ids?: number[]; // Tags to assign - will transfer to matched transactions
 }
 
 export interface UpdatePlannedEntryRequest {
@@ -210,6 +212,7 @@ export interface UpdatePlannedEntryRequest {
   pattern_id?: number;
   savings_goal_id?: number; // Link to savings goal - matched transactions inherit this
   category_id?: number;
+  tag_ids?: number[]; // Tags to assign - will transfer to matched transactions
 }
 
 export interface GenerateMonthlyInstancesRequest {
