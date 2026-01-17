@@ -112,6 +112,10 @@ type Repository interface {
 	// Transaction Tags (junction table)
 	FetchTagsByTransactionID(ctx context.Context, params fetchTagsByTransactionIDParams) ([]TagModel, error)
 	SetTransactionTags(ctx context.Context, params setTransactionTagsParams) error
+
+	// Planned Entry Tags (junction table)
+	FetchTagsByPlannedEntryID(ctx context.Context, params fetchTagsByPlannedEntryIDParams) ([]TagModel, error)
+	SetPlannedEntryTags(ctx context.Context, params setPlannedEntryTagsParams) error
 }
 
 type repository struct {
@@ -2884,6 +2888,64 @@ func (r *repository) SetTransactionTags(ctx context.Context, params setTransacti
 	// Then, insert all new tags
 	for _, tagID := range params.TagIDs {
 		err = r.db.Run(ctx, insertTransactionTagQuery, params.TransactionID, tagID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// =============================================================================
+// Planned Entry Tags (junction table)
+// =============================================================================
+
+type fetchTagsByPlannedEntryIDParams struct {
+	PlannedEntryID int
+}
+
+const fetchTagsByPlannedEntryIDQuery = `
+	-- financial.fetchTagsByPlannedEntryIDQuery
+	SELECT t.tag_id, t.created_at, t.updated_at, t.user_id, t.organization_id, t.name, t.icon, t.color
+	FROM tags t
+	JOIN planned_entry_tags pet ON pet.tag_id = t.tag_id
+	WHERE pet.planned_entry_id = $1
+	ORDER BY t.name ASC;
+`
+
+func (r *repository) FetchTagsByPlannedEntryID(ctx context.Context, params fetchTagsByPlannedEntryIDParams) ([]TagModel, error) {
+	var tags []TagModel
+	err := r.db.Query(ctx, &tags, fetchTagsByPlannedEntryIDQuery, params.PlannedEntryID)
+	return tags, err
+}
+
+type setPlannedEntryTagsParams struct {
+	PlannedEntryID int
+	TagIDs         []int
+}
+
+const deletePlannedEntryTagsQuery = `
+	-- financial.deletePlannedEntryTagsQuery
+	DELETE FROM planned_entry_tags WHERE planned_entry_id = $1;
+`
+
+const insertPlannedEntryTagQuery = `
+	-- financial.insertPlannedEntryTagQuery
+	INSERT INTO planned_entry_tags (planned_entry_id, tag_id)
+	VALUES ($1, $2)
+	ON CONFLICT (planned_entry_id, tag_id) DO NOTHING;
+`
+
+func (r *repository) SetPlannedEntryTags(ctx context.Context, params setPlannedEntryTagsParams) error {
+	// First, delete all existing tags for this planned entry
+	err := r.db.Run(ctx, deletePlannedEntryTagsQuery, params.PlannedEntryID)
+	if err != nil {
+		return err
+	}
+
+	// Then, insert all new tags
+	for _, tagID := range params.TagIDs {
+		err = r.db.Run(ctx, insertPlannedEntryTagQuery, params.PlannedEntryID, tagID)
 		if err != nil {
 			return err
 		}

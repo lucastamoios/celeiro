@@ -141,6 +141,10 @@ type Service interface {
 	// Transaction Tags
 	GetTransactionTags(ctx context.Context, input GetTransactionTagsInput) ([]Tag, error)
 	SetTransactionTags(ctx context.Context, input SetTransactionTagsInput) error
+
+	// Planned Entry Tags
+	GetPlannedEntryTags(ctx context.Context, input GetPlannedEntryTagsInput) ([]Tag, error)
+	SetPlannedEntryTags(ctx context.Context, input SetPlannedEntryTagsInput) error
 }
 
 type service struct {
@@ -1839,6 +1843,63 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 		)
 	}
 
+	// 6. Transfer tags from planned entry to transaction (merge with existing)
+	entryTags, err := s.Repository.FetchTagsByPlannedEntryID(ctx, fetchTagsByPlannedEntryIDParams{
+		PlannedEntryID: params.PlannedEntryID,
+	})
+	if err != nil {
+		s.logger.Warn(ctx, "failed to fetch planned entry tags for transfer",
+			"planned_entry_id", params.PlannedEntryID,
+			"error", err.Error(),
+		)
+	} else if len(entryTags) > 0 {
+		// Get existing transaction tags
+		existingTags, err := s.Repository.FetchTagsByTransactionID(ctx, fetchTagsByTransactionIDParams{
+			TransactionID: params.TransactionID,
+		})
+		if err != nil {
+			s.logger.Warn(ctx, "failed to fetch existing transaction tags",
+				"transaction_id", params.TransactionID,
+				"error", err.Error(),
+			)
+		} else {
+			// Merge tags (entry tags + existing tags, no duplicates)
+			tagIDSet := make(map[int]bool)
+			for _, tag := range existingTags {
+				tagIDSet[tag.TagID] = true
+			}
+			for _, tag := range entryTags {
+				tagIDSet[tag.TagID] = true
+			}
+
+			// Convert to slice
+			mergedTagIDs := make([]int, 0, len(tagIDSet))
+			for tagID := range tagIDSet {
+				mergedTagIDs = append(mergedTagIDs, tagID)
+			}
+
+			// Set merged tags on transaction
+			err = s.Repository.SetTransactionTags(ctx, setTransactionTagsParams{
+				TransactionID: params.TransactionID,
+				TagIDs:        mergedTagIDs,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "failed to transfer tags to transaction",
+					"transaction_id", params.TransactionID,
+					"tag_count", len(mergedTagIDs),
+					"error", err.Error(),
+				)
+			} else {
+				s.logger.Info(ctx, "transferred tags from planned entry to transaction",
+					"planned_entry_id", params.PlannedEntryID,
+					"transaction_id", params.TransactionID,
+					"tags_transferred", len(entryTags),
+					"total_tags", len(mergedTagIDs),
+				)
+			}
+		}
+	}
+
 	return PlannedEntryStatus{}.FromModel(&statusModel), nil
 }
 
@@ -2409,5 +2470,35 @@ func (s *service) SetTransactionTags(ctx context.Context, input SetTransactionTa
 	return s.Repository.SetTransactionTags(ctx, setTransactionTagsParams{
 		TransactionID: input.TransactionID,
 		TagIDs:        input.TagIDs,
+	})
+}
+
+// ============================================================================
+// Planned Entry Tags
+// ============================================================================
+
+type GetPlannedEntryTagsInput struct {
+	PlannedEntryID int
+}
+
+func (s *service) GetPlannedEntryTags(ctx context.Context, input GetPlannedEntryTagsInput) ([]Tag, error) {
+	models, err := s.Repository.FetchTagsByPlannedEntryID(ctx, fetchTagsByPlannedEntryIDParams{
+		PlannedEntryID: input.PlannedEntryID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return Tags{}.FromModel(models), nil
+}
+
+type SetPlannedEntryTagsInput struct {
+	PlannedEntryID int
+	TagIDs         []int
+}
+
+func (s *service) SetPlannedEntryTags(ctx context.Context, input SetPlannedEntryTagsInput) error {
+	return s.Repository.SetPlannedEntryTags(ctx, setPlannedEntryTagsParams{
+		PlannedEntryID: input.PlannedEntryID,
+		TagIDs:         input.TagIDs,
 	})
 }

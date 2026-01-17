@@ -413,6 +413,17 @@ func (m *MockRepository) SetTransactionTags(ctx context.Context, params setTrans
 	return args.Error(0)
 }
 
+// Planned Entry Tags (junction table)
+func (m *MockRepository) FetchTagsByPlannedEntryID(ctx context.Context, params fetchTagsByPlannedEntryIDParams) ([]TagModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagModel), args.Error(1)
+}
+
+func (m *MockRepository) SetPlannedEntryTags(ctx context.Context, params setPlannedEntryTagsParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
 // ============================================================================
 // Service Tests
 // ============================================================================
