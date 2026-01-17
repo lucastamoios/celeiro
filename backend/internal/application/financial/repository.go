@@ -66,7 +66,6 @@ type Repository interface {
 	FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error)
 	FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error)
 	FetchPlannedEntriesByParent(ctx context.Context, params fetchPlannedEntriesByParentParams) ([]PlannedEntryModel, error)
-	FetchPlannedEntriesWithPattern(ctx context.Context, params fetchPlannedEntriesWithPatternParams) ([]PlannedEntryModel, error)
 	InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error)
 	ModifyPlannedEntry(ctx context.Context, params modifyPlannedEntryParams) (PlannedEntryModel, error)
 	RemovePlannedEntry(ctx context.Context, params removePlannedEntryParams) error
@@ -2117,52 +2116,6 @@ func (r *repository) FetchPlannedEntriesByPatternIDs(ctx context.Context, params
 		return nil, err
 	}
 	return result, nil
-}
-
-// ============================================================================
-// Planned Entries With Pattern (for Entrada Planejada feature)
-// ============================================================================
-
-type fetchPlannedEntriesWithPatternParams struct {
-	UserID         int
-	OrganizationID int
-	IsActive       *bool
-}
-
-const fetchPlannedEntriesWithPatternQuery = `
-	-- financial.fetchPlannedEntriesWithPatternQuery
-	SELECT
-		planned_entry_id,
-		created_at,
-		updated_at,
-		user_id,
-		organization_id,
-		category_id,
-		pattern_id,
-		savings_goal_id,
-		description,
-		amount,
-		amount_min,
-		amount_max,
-		expected_day_start,
-		expected_day_end,
-		expected_day,
-		entry_type,
-		is_recurrent,
-		parent_entry_id,
-		is_active
-	FROM planned_entries
-	WHERE organization_id = $1
-		AND pattern_id IS NOT NULL
-		AND ($2::bool IS NULL OR is_active = $2)
-	ORDER BY entry_type ASC, description ASC;
-`
-
-func (r *repository) FetchPlannedEntriesWithPattern(ctx context.Context, params fetchPlannedEntriesWithPatternParams) ([]PlannedEntryModel, error) {
-	var entries []PlannedEntryModel
-	err := r.db.Query(ctx, &entries, fetchPlannedEntriesWithPatternQuery,
-		params.OrganizationID, params.IsActive)
-	return entries, err
 }
 
 // ============================================================================

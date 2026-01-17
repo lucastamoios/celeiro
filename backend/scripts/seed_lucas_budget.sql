@@ -109,8 +109,7 @@ INSERT INTO planned_entries (
     amount,
     is_recurrent,
     expected_day,
-    is_active,
-    is_saved_pattern
+    is_active
 )
 SELECT
     :user_id,
@@ -120,90 +119,90 @@ SELECT
     entry_data.amount,
     entry_data.is_recurrent,
     entry_data.expected_day,
-    true,
-    entry_data.is_saved_pattern
+    true
 FROM (VALUES
-    -- (category_name, description, amount, is_recurrent, expected_day, is_saved_pattern)
+    -- (category_name, description, amount, is_recurrent, expected_day)
 
     -- Caixa
-    ('Caixa', 'Caixa', 700.00, false, NULL, false),
+    ('Caixa', 'Caixa', 700.00, false, NULL),
 
     -- Cuidados pessoais
-    ('Cuidados pessoais', 'Salão Lucas', 35.00, true, NULL, false),
+    ('Cuidados pessoais', 'Salão Lucas', 35.00, true, NULL),
 
     -- Dívidas
-    ('Dívidas', 'Dinheiro Mãe', 12200.00, false, 3, false),
-    ('Dívidas', 'Cartão Nubank', 8886.13, false, 5, false),
+    ('Dívidas', 'Dinheiro Mãe', 12200.00, false, 3),
+    ('Dívidas', 'Cartão Nubank', 8886.13, false, 5),
 
     -- Economias
-    ('Economias', 'Reserva Emergência', 1000.00, true, NULL, false),
-    ('Economias', 'Investimento', 2000.00, true, NULL, false),
+    ('Economias', 'Reserva Emergência', 1000.00, true, NULL),
+    ('Economias', 'Investimento', 2000.00, true, NULL),
+
 
     -- Educação
-    ('Educação', 'Escola', 2500.00, true, NULL, false),
-    ('Educação', 'Livros', 300.00, false, NULL, false),
+    ('Educação', 'Escola', 2500.00, true, NULL),
+    ('Educação', 'Livros', 300.00, false, NULL),
 
     -- Empresa
-    ('Empresa', 'Reserva', 0.00, true, NULL, false),
-    ('Empresa', 'Férias Dardi', 505.00, false, 5, false),
-    ('Empresa', 'Salário Dardiane', 2300.00, true, NULL, false),
-    ('Empresa', 'Contador', 350.00, true, NULL, false),
-    ('Empresa', 'Coworking', 300.00, true, NULL, false),
-    ('Empresa', 'Impostos FGTS + INSS', 622.56, true, NULL, false),
-    ('Empresa', 'Impostos - Simples', 2259.82, true, NULL, false),
-    ('Empresa', 'MEI', 80.00, true, NULL, false),
+    ('Empresa', 'Reserva', 0.00, true, NULL),
+    ('Empresa', 'Férias Dardi', 505.00, false, 5),
+    ('Empresa', 'Salário Dardiane', 2300.00, true, NULL),
+    ('Empresa', 'Contador', 350.00, true, NULL),
+    ('Empresa', 'Coworking', 300.00, true, NULL),
+    ('Empresa', 'Impostos FGTS + INSS', 622.56, true, NULL),
+    ('Empresa', 'Impostos - Simples', 2259.82, true, NULL),
+    ('Empresa', 'MEI', 80.00, true, NULL),
 
     -- Estilo de vida
-    ('Estilo de vida', 'Seguro de Vida', 235.62, true, NULL, false),
-    ('Estilo de vida', 'Seguro de Vida - NuBank', 23.98, true, NULL, false),
+    ('Estilo de vida', 'Seguro de Vida', 235.62, true, NULL),
+    ('Estilo de vida', 'Seguro de Vida - NuBank', 23.98, true, NULL),
 
     -- Moradia
-    ('Moradia', 'Reserva IPTU', 100.00, true, NULL, false),
-    ('Moradia', 'Parcela da Caixa', 7500.00, true, 5, false),
-    ('Moradia', 'Conta de Energia Elétrica', 485.58, true, NULL, false),
-    ('Moradia', 'Conta de Água', 360.55, true, NULL, false),
-    ('Moradia', 'Condomínio', 310.00, true, NULL, false),
-    ('Moradia', 'Conserto Leds escada', 951.00, false, 4, false),
+    ('Moradia', 'Reserva IPTU', 100.00, true, NULL),
+    ('Moradia', 'Parcela da Caixa', 7500.00, true, 5),
+    ('Moradia', 'Conta de Energia Elétrica', 485.58, true, NULL),
+    ('Moradia', 'Conta de Água', 360.55, true, NULL),
+    ('Moradia', 'Condomínio', 310.00, true, NULL),
+    ('Moradia', 'Conserto Leds escada', 951.00, false, 4),
 
     -- Presentes e doações
-    ('Presentes e doações', 'Dinha', 300.00, true, NULL, false),
-    ('Presentes e doações', 'Arautos', 260.00, true, NULL, false),
-    ('Presentes e doações', 'Opus Dei', 0.00, true, NULL, false),
-    ('Presentes e doações', 'Dízimo Carmelo', 400.00, true, NULL, false),
+    ('Presentes e doações', 'Dinha', 300.00, true, NULL),
+    ('Presentes e doações', 'Arautos', 260.00, true, NULL),
+    ('Presentes e doações', 'Opus Dei', 0.00, true, NULL),
+    ('Presentes e doações', 'Dízimo Carmelo', 400.00, true, NULL),
 
     -- Receita
-    ('Receita', 'Lucros CatruTech', 4100.00, false, 5, false),
-    ('Receita', 'Salário', 45840.25, true, 5, false),
+    ('Receita', 'Lucros CatruTech', 4100.00, false, 5),
+    ('Receita', 'Salário', 45840.25, true, 5),
 
     -- Saúde
-    ('Saúde', 'Plano de saúde (último mês unim)', 1372.70, false, NULL, false),
-    ('Saúde', 'Terapia', 220.00, true, NULL, false),
-    ('Saúde', 'Personal Raquel', 600.00, true, NULL, false),
-    ('Saúde', 'Muay Thai', 390.00, true, NULL, false),
-    ('Saúde', 'Avelar (Seguro)', 123.00, true, NULL, false),
-    ('Saúde', 'Natação Crianças', 611.75, true, NULL, false),
-    ('Saúde', 'Plano Amil', 1200.00, true, NULL, false),
+    ('Saúde', 'Plano de saúde (último mês unim)', 1372.70, false, NULL),
+    ('Saúde', 'Terapia', 220.00, true, NULL),
+    ('Saúde', 'Personal Raquel', 600.00, true, NULL),
+    ('Saúde', 'Muay Thai', 390.00, true, NULL),
+    ('Saúde', 'Avelar (Seguro)', 123.00, true, NULL),
+    ('Saúde', 'Natação Crianças', 611.75, true, NULL),
+    ('Saúde', 'Plano Amil', 1200.00, true, NULL),
 
     -- Transporte
-    ('Transporte', 'IPVA', 500.00, true, NULL, false),
-    ('Transporte', 'Seguro Carro', 500.00, true, NULL, false),
+    ('Transporte', 'IPVA', 500.00, true, NULL),
+    ('Transporte', 'Seguro Carro', 500.00, true, NULL),
 
     -- TV/Internet/Telefone
-    ('TV/Internet/Telefone', 'Google One', 7.99, true, NULL, false),
-    ('TV/Internet/Telefone', 'Conta VIVO Raquel', 95.00, true, NULL, false),
-    ('TV/Internet/Telefone', 'Apple', 14.90, true, NULL, false),
-    ('TV/Internet/Telefone', 'Jetbrains', 138.73, true, NULL, false),
-    ('TV/Internet/Telefone', 'Conta VIVO Lucas', 45.00, true, NULL, false),
-    ('TV/Internet/Telefone', 'Internet', 109.90, true, NULL, false),
-    ('TV/Internet/Telefone', 'ChatGPT', 130.00, true, NULL, false),
-    ('TV/Internet/Telefone', 'Apple iCloud', 49.90, true, NULL, false),
-    ('TV/Internet/Telefone', 'Deezer', 34.90, true, NULL, false),
-    ('TV/Internet/Telefone', 'YouTube', 32.90, true, NULL, false),
-    ('TV/Internet/Telefone', 'Apple storage Lucas', 14.90, true, NULL, false),
-    ('TV/Internet/Telefone', 'Google Photos', 11.99, true, NULL, false),
-    ('TV/Internet/Telefone', 'Amazon Prime', 19.90, true, NULL, false),
-    ('TV/Internet/Telefone', 'Cursor', 120.00, true, NULL, false)
-) AS entry_data(category_name, description, amount, is_recurrent, expected_day, is_saved_pattern)
+    ('TV/Internet/Telefone', 'Google One', 7.99, true, NULL),
+    ('TV/Internet/Telefone', 'Conta VIVO Raquel', 95.00, true, NULL),
+    ('TV/Internet/Telefone', 'Apple', 14.90, true, NULL),
+    ('TV/Internet/Telefone', 'Jetbrains', 138.73, true, NULL),
+    ('TV/Internet/Telefone', 'Conta VIVO Lucas', 45.00, true, NULL),
+    ('TV/Internet/Telefone', 'Internet', 109.90, true, NULL),
+    ('TV/Internet/Telefone', 'ChatGPT', 130.00, true, NULL),
+    ('TV/Internet/Telefone', 'Apple iCloud', 49.90, true, NULL),
+    ('TV/Internet/Telefone', 'Deezer', 34.90, true, NULL),
+    ('TV/Internet/Telefone', 'YouTube', 32.90, true, NULL),
+    ('TV/Internet/Telefone', 'Apple storage Lucas', 14.90, true, NULL),
+    ('TV/Internet/Telefone', 'Google Photos', 11.99, true, NULL),
+    ('TV/Internet/Telefone', 'Amazon Prime', 19.90, true, NULL),
+    ('TV/Internet/Telefone', 'Cursor', 120.00, true, NULL)
+) AS entry_data(category_name, description, amount, is_recurrent, expected_day)
 JOIN category_lookup c ON c.name = entry_data.category_name;
 
 -- ============================================================================

@@ -3,31 +3,17 @@
 ## Purpose
 TBD - created by archiving change add-transaction-matching-system. Update Purpose after archive.
 ## Requirements
-### Requirement: Save transaction as pattern
-Users MUST be able to save categorized transactions as patterns.
+### Requirement: Create pattern from transaction
+Users MUST be able to create a regex-based pattern from an existing transaction.
 
-#### Scenario: POST save transaction as pattern
-GIVEN a categorized transaction with ID=123
-WHEN sending POST /financial/transactions/123/save-as-pattern with:
-```json
-{
-  "saveAsRecurrent": false
-}
-```
-THEN the response MUST be 201 Created
-AND a planned_entry MUST be created with:
-- description = transaction.description
-- amount = transaction.amount
-- category_id = transaction.category_id
-- is_saved_pattern = TRUE
-- is_recurrent = FALSE
-AND the response body MUST contain the created pattern ID
-
-#### Scenario: Save as recurrent pattern
-GIVEN a categorized transaction
-WHEN saving as pattern with saveAsRecurrent=true
-THEN the created pattern MUST have is_recurrent=TRUE
-AND future monthly instances SHOULD be generated
+#### Scenario: Create pattern from transaction
+GIVEN a transaction with ID=123
+WHEN creating a pattern from that transaction (via UI flow)
+THEN the pattern form SHOULD be pre-filled with:
+- target_category_id = transaction.category_id
+- target_description = transaction.description (or original_description when description is empty)
+- description_pattern = an escaped "contains" regex derived from the transaction text
+AND the user can edit and save the pattern
 
 ### Requirement: Get match suggestions
 The system MUST provide match suggestions for uncategorized transactions.
@@ -68,16 +54,13 @@ THEN the response MUST be 200 OK
 AND the transaction category MUST be updated to pattern.category_id
 AND the transaction SHOULD be linked to the pattern (foreign key or metadata)
 
-### Requirement: Planned entries table schema
-The system MUST extend planned_entries to support saved patterns.
+### Requirement: Planned entries can reference patterns
+Planned entries MUST be able to reference a regex-based pattern.
 
-#### Scenario: Add is_saved_pattern column
+#### Scenario: planned_entries supports pattern linkage
 GIVEN the planned_entries table exists
-WHEN applying migration for pattern support
-THEN a new column MUST be added:
-```sql
-ALTER TABLE planned_entries
-ADD COLUMN is_saved_pattern BOOLEAN NOT NULL DEFAULT FALSE;
-```
-AND existing rows MUST have is_saved_pattern=FALSE
+WHEN using pattern-linked planned entries
+THEN planned_entries MUST include:
+- pattern_id (nullable foreign key to patterns)
+AND planned entries with pattern_id != NULL are considered linked to that pattern
 
