@@ -6,7 +6,7 @@ import type { Category } from '../types/category';
 import type { ApiResponse } from '../types/transaction';
 import AdvancedPatternCreator, { type AdvancedPattern as AdvancedPatternInput, type InitialPatternData } from './AdvancedPatternCreator';
 import PlannedEntryLinkModal from './PlannedEntryLinkModal';
-import { updatePlannedEntry, createPlannedEntry } from '../api/budget';
+import { updatePlannedEntry, createPlannedEntry, getPlannedEntries } from '../api/budget';
 
 interface LinkedPlannedEntry {
   planned_entry_id: number;
@@ -89,9 +89,10 @@ export default function PatternManager() {
     };
 
     try {
-      const [categoriesRes, patternsRes] = await Promise.all([
+      const [categoriesRes, patternsRes, plannedEntries] = await Promise.all([
         fetch(financialUrl('categories'), { headers }),
-        fetch(financialUrl('patterns'), { headers })
+        fetch(financialUrl('patterns'), { headers }),
+        getPlannedEntries({ is_active: true }, { token, organizationId: '1' }),
       ]);
 
       if (!categoriesRes.ok || !patternsRes.ok) {
@@ -104,8 +105,25 @@ export default function PatternManager() {
       const categoryMap = new Map<number, Category>();
       (categoriesData.data || []).forEach(cat => categoryMap.set(cat.category_id, cat));
 
+      // Attach linked planned entries to each pattern (client-side) so we can drop the old
+      // /planned-entries/patterns endpoint and the is_saved_pattern flag.
+      const entriesByPatternId = new Map<number, LinkedPlannedEntry[]>();
+      plannedEntries
+        .filter((e) => e.PatternID)
+        .forEach((e) => {
+          const id = e.PatternID as number;
+          const list = entriesByPatternId.get(id) || [];
+          list.push({ planned_entry_id: e.PlannedEntryID, name: e.Description });
+          entriesByPatternId.set(id, list);
+        });
+
+      const patternsWithLinks = (patternsData.data || []).map((p) => ({
+        ...p,
+        linked_planned_entries: entriesByPatternId.get(p.pattern_id) || p.linked_planned_entries,
+      }));
+
       setCategories(categoryMap);
-      setPatterns(patternsData.data || []);
+      setPatterns(patternsWithLinks);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
@@ -292,7 +310,6 @@ export default function PatternManager() {
         amount_max: amountMax,
         entry_type: newEntryType,
         is_recurrent: newEntryIsRecurrent,
-        is_saved_pattern: true,
         pattern_id: linkingPattern.pattern_id,
         description_pattern: linkingPattern.description_pattern,
       }, {

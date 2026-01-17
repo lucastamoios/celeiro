@@ -460,7 +460,7 @@ type PlannedEntryWithStatus struct {
 	MatchedAt            *string `json:",omitempty"` // ISO 8601 format
 
 	// Optional linked pattern info
-	LinkedPattern *AdvancedPattern `json:"linked_pattern,omitempty"`
+	LinkedPattern *Pattern `json:"linked_pattern,omitempty"`
 }
 
 // GetStatusColor returns the appropriate color for a status
@@ -526,8 +526,8 @@ type LinkedPlannedEntrySummary struct {
 	Name           string `json:"name"`
 }
 
-// AdvancedPattern DTO
-type AdvancedPattern struct {
+// Pattern DTO
+type Pattern struct {
 	PatternID          int              `json:"pattern_id"`
 	UserID             int              `json:"user_id"`
 	OrganizationID     int              `json:"organization_id"`
@@ -547,8 +547,8 @@ type AdvancedPattern struct {
 	LinkedPlannedEntries []LinkedPlannedEntrySummary `json:"linked_planned_entries,omitempty"`
 }
 
-func (a AdvancedPattern) FromModel(model *AdvancedPatternModel) AdvancedPattern {
-	return AdvancedPattern{
+func (p Pattern) FromModel(model *AdvancedPatternModel) Pattern {
+	return Pattern{
 		PatternID:          model.PatternID,
 		UserID:             model.UserID,
 		OrganizationID:     model.OrganizationID,
@@ -566,12 +566,12 @@ func (a AdvancedPattern) FromModel(model *AdvancedPatternModel) AdvancedPattern 
 	}
 }
 
-type AdvancedPatterns []AdvancedPattern
+type Patterns []Pattern
 
-func (a AdvancedPatterns) FromModel(models []AdvancedPatternModel) AdvancedPatterns {
-	patterns := make(AdvancedPatterns, len(models))
+func (p Patterns) FromModel(models []AdvancedPatternModel) Patterns {
+	patterns := make(Patterns, len(models))
 	for i, model := range models {
-		patterns[i] = AdvancedPattern{}.FromModel(&model)
+		patterns[i] = Pattern{}.FromModel(&model)
 	}
 	return patterns
 }
@@ -590,7 +590,7 @@ type SavingsGoal struct {
 	Name           string          `json:"name"`
 	GoalType       string          `json:"goal_type"` // reserva, investimento
 	TargetAmount   decimal.Decimal `json:"target_amount"`
-	InitialAmount  decimal.Decimal `json:"initial_amount"` // Pre-existing balance when goal was created
+	InitialAmount  decimal.Decimal `json:"initial_amount"`     // Pre-existing balance when goal was created
 	DueDate        *string         `json:"due_date,omitempty"` // ISO 8601 date format
 	Icon           *string         `json:"icon,omitempty"`
 	Color          *string         `json:"color,omitempty"`
