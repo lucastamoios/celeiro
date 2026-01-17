@@ -239,5 +239,5 @@ stateDiagram-v2
 - budgets, budget_items (legacy)
 - category_budgets, monthly_snapshots
 - planned_entries, planned_entry_statuses, planned_entry_tags
-- advanced_patterns, classification_rules
+- patterns
 - savings_goals

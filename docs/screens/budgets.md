@@ -160,7 +160,7 @@ Locks a budget to prevent changes. Used for closing past months.
 
 - **Transactions**: Via CategoryTransactionsModal click-through
 - **Savings Goals**: Linked to planned entries
-- **Patterns**: Advanced patterns can auto-create planned entries
+- **Patterns**: Regex patterns can auto-categorize transactions
 - **Dashboard**: Budget data displayed on dashboard
 
 ## Related Docs

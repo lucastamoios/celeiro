@@ -1064,30 +1064,6 @@ func (s *service) DeleteClassificationRule(ctx context.Context, params DeleteCla
 	return nil
 }
 
-type ApplyClassificationRulesInput struct {
-	UserID         int
-	OrganizationID int
-	TransactionIDs []int
-}
-
-type ApplyClassificationRulesOutput struct {
-	ClassifiedCount int
-	FailedCount     int
-}
-
-// ApplyClassificationRules applies active rules to unclassified transactions
-// TODO: Implement classification matching logic in Phase 2
-func (s *service) ApplyClassificationRules(ctx context.Context, params ApplyClassificationRulesInput) (ApplyClassificationRulesOutput, error) {
-	// TODO: Fetch active rules
-	// TODO: For each transaction, find first matching rule
-	// TODO: Update transaction category
-
-	return ApplyClassificationRulesOutput{
-		ClassifiedCount: 0,
-		FailedCount:     0,
-	}, errors.New("classification logic not implemented yet")
-}
-
 // ============================================================================
 // Category Budgets
 // ============================================================================
