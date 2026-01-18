@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Coins, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
@@ -80,10 +80,22 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     budgetSummary: null,
   });
   const [loading, setLoading] = useState(true);
+  const [attentionDismissed, setAttentionDismissed] = useState(false);
+  const [dismissedItemsSignature, setDismissedItemsSignature] = useState('');
 
   useEffect(() => {
     fetchStats();
   }, [token]);
+
+  // Load dismissed state from localStorage
+  useEffect(() => {
+    const dismissed = localStorage.getItem('dashboard_attention_dismissed');
+    const signature = localStorage.getItem('dashboard_attention_signature');
+    if (dismissed === 'true' && signature) {
+      setAttentionDismissed(true);
+      setDismissedItemsSignature(signature);
+    }
+  }, []);
 
   const fetchStats = async () => {
     if (!token) return;
@@ -370,6 +382,26 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       return budget && ce.amount > budget.planned;
     });
 
+  // Create a signature of current attention items to detect new ones
+  const overBudgetCount = stats.categoryExpenses.filter(ce => {
+    const budget = stats.budgetSummary?.budgetsByCategory.find(
+      b => b.category.category_id === ce.category.category_id
+    );
+    return budget && ce.amount > budget.planned;
+  }).length;
+
+  const currentItemsSignature = `${stats.uncategorizedCount}-${stats.budgetSummary?.plannedEntries.missed || 0}-${overBudgetCount}`;
+
+  // Check if we should show attention (has items AND (not dismissed OR new items appeared))
+  const shouldShowAttention = hasAttentionItems && (!attentionDismissed || currentItemsSignature !== dismissedItemsSignature);
+
+  const handleDismissAttention = () => {
+    setAttentionDismissed(true);
+    setDismissedItemsSignature(currentItemsSignature);
+    localStorage.setItem('dashboard_attention_dismissed', 'true');
+    localStorage.setItem('dashboard_attention_signature', currentItemsSignature);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8">
       {/* Header */}
@@ -497,11 +529,20 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       </div>
 
       {/* Attention Section - Only show if there are items */}
-      {hasAttentionItems && (
+      {shouldShowAttention && (
         <div className="card mb-8 border-terra-200 border-2 bg-terra-50/50">
-          <h2 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
-            <span className="text-terra-500">⚠</span> Requer Atenção
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+              <span className="text-terra-500">⚠</span> Requer Atenção
+            </h2>
+            <button
+              onClick={handleDismissAttention}
+              className="p-1 hover:bg-terra-100 rounded-lg transition-colors"
+              title="Dispensar aviso"
+            >
+              <X className="w-5 h-5 text-stone-500" />
+            </button>
+          </div>
 
           <div className="space-y-3">
             {stats.uncategorizedCount > 0 && (
@@ -563,62 +604,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           </div>
         </div>
       )}
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        {/* Income */}
-        <div className="card-compact">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sage-100 rounded-lg flex items-center justify-center">
-              <Coins className="w-5 h-5 text-sage-600" />
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase tracking-wide">Receitas</p>
-              <p className="text-lg font-bold text-sage-600 tabular-nums">
-                {formatCurrency(stats.totalIncome)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Expenses */}
-        <div className="card-compact">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-rust-100 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-rust-600" />
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase tracking-wide">Despesas</p>
-              <p className="text-lg font-bold text-rust-600 tabular-nums">
-                {formatCurrency(stats.totalExpenses)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Balance */}
-        <div className="card-compact">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              stats.balance >= 0 ? 'bg-sage-100' : 'bg-rust-100'
-            }`}>
-              {stats.balance >= 0 ? (
-                <TrendingUp className="w-5 h-5 text-sage-600" />
-              ) : (
-                <TrendingDown className="w-5 h-5 text-rust-600" />
-              )}
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase tracking-wide">Saldo</p>
-              <p className={`text-lg font-bold tabular-nums ${
-                stats.balance >= 0 ? 'text-sage-600' : 'text-rust-600'
-              }`}>
-                {formatCurrency(stats.balance)}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Budget Pacing Widget */}
       <BudgetPacingWidget month={stats.month + 1} year={stats.year} />
