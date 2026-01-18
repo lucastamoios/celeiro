@@ -144,7 +144,7 @@ export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetPr
   };
 
   return (
-    <div className="card">
+    <div className="card mb-8">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">

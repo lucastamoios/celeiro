@@ -3,7 +3,6 @@ import { Coins, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
-import { getStatusIndicator, getProgressBarClasses } from '../utils/colors';
 import { parseTransactionDate } from '../utils/date';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
@@ -28,6 +27,7 @@ interface CategoryExpense {
 interface BudgetSummary {
   totalPlanned: number;
   totalActual: number;
+  totalPlannedIncome: number;
   variance: number;
   variancePercent: number;
   budgetsByCategory: {
@@ -59,57 +59,6 @@ interface DashboardProps {
 }
 
 // Calculate budget status for hero card
-function getBudgetStatus(totalActual: number, totalPlanned: number): {
-  status: 'on-track' | 'warning' | 'over-budget';
-  message: string;
-  icon: string;
-  bgClass: string;
-  textClass: string;
-  borderClass: string;
-} {
-  if (totalPlanned === 0) {
-    return {
-      status: 'on-track',
-      message: 'Configure seu orçamento',
-      icon: '📋',
-      bgClass: 'bg-stone-50',
-      textClass: 'text-stone-600',
-      borderClass: 'border-stone-200',
-    };
-  }
-
-  const percentSpent = (totalActual / totalPlanned) * 100;
-
-  if (percentSpent > 100) {
-    return {
-      status: 'over-budget',
-      message: 'Orçamento excedido',
-      icon: '⚠️',
-      bgClass: 'bg-rust-50',
-      textClass: 'text-rust-700',
-      borderClass: 'border-rust-200',
-    };
-  }
-  if (percentSpent >= 80) {
-    return {
-      status: 'warning',
-      message: 'Atenção ao orçamento',
-      icon: '📊',
-      bgClass: 'bg-terra-50',
-      textClass: 'text-terra-700',
-      borderClass: 'border-terra-200',
-    };
-  }
-  return {
-    status: 'on-track',
-    message: 'Você está no caminho certo!',
-    icon: '✓',
-    bgClass: 'bg-sage-50',
-    textClass: 'text-sage-700',
-    borderClass: 'border-sage-200',
-  };
-}
-
 export default function Dashboard({ onNavigateToUncategorized }: DashboardProps) {
   const { token } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
@@ -273,6 +222,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           const budgetsByCategory: BudgetSummary['budgetsByCategory'] = [];
           let totalPlanned = 0;
           let totalActual = 0;
+          let totalPlannedIncome = 0;
 
           for (const budget of categoryBudgets) {
             const category = categories.find(c => c.category_id === budget.CategoryID);
@@ -287,6 +237,8 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             if (category.category_type === 'expense') {
               totalPlanned += planned;
               totalActual += actual;
+            } else if (category.category_type === 'income') {
+              totalPlannedIncome += planned;
             }
 
             budgetsByCategory.push({ category, planned, actual });
@@ -307,6 +259,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           budgetSummary = {
             totalPlanned,
             totalActual,
+            totalPlannedIncome,
             variance,
             variancePercent,
             budgetsByCategory: budgetsByCategory.slice(0, 5),
@@ -352,18 +305,8 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     );
   }
 
-  // Calculate budget status for hero card
-  const budgetStatus = getBudgetStatus(
-    stats.budgetSummary?.totalActual || 0,
-    stats.budgetSummary?.totalPlanned || 0
-  );
-
   const percentSpent = stats.budgetSummary && stats.budgetSummary.totalPlanned > 0
     ? Math.round((stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100)
-    : 0;
-
-  const available = stats.budgetSummary
-    ? stats.budgetSummary.totalPlanned - stats.budgetSummary.totalActual
     : 0;
 
   // Calculate day progress for the current month marker
@@ -381,9 +324,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     ? ((stats.budgetSummary.totalActual - expectedSpentByNow) / expectedSpentByNow) * 100
     : 0;
   const isAheadOfPace = stats.budgetSummary ? stats.budgetSummary.totalActual > expectedSpentByNow : false;
-  const projectedMonthEnd = stats.budgetSummary && dayProgressPercent > 0
-    ? (stats.budgetSummary.totalActual / dayProgressPercent) * 100
-    : 0;
 
   // Check if there are attention items
   const hasAttentionItems = stats.uncategorizedCount > 0 ||
@@ -404,69 +344,121 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         </p>
       </div>
 
-      {/* Hero Status Card */}
-      <div className={`card mb-8 ${budgetStatus.borderClass} border-2`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 sm:w-14 sm:h-14 ${budgetStatus.bgClass} rounded-xl flex items-center justify-center text-xl sm:text-2xl flex-shrink-0`}>
-              {budgetStatus.icon}
-            </div>
-            <div>
-              <p className={`text-sm font-medium ${budgetStatus.textClass}`}>
-                {budgetStatus.message}
-              </p>
-              <p className="text-stone-900 text-2xl sm:text-3xl font-bold tabular-nums">
-                {formatCurrency(Math.abs(available))}
-                <span className="text-stone-500 text-sm sm:text-lg font-normal ml-2">
-                  {available >= 0 ? 'disponível' : 'acima do limite'}
-                </span>
-              </p>
-            </div>
-          </div>
+      {/* Financial Overview Card */}
+      <div className="card mb-8">
+        <h2 className="text-lg font-semibold text-stone-900 mb-6">Resumo Financeiro</h2>
 
-          {stats.budgetSummary && (
-            <div className="text-left sm:text-right pl-16 sm:pl-0">
-              <p className="text-stone-500 text-sm">
-                {formatCurrency(stats.budgetSummary.totalActual)} de {formatCurrency(stats.budgetSummary.totalPlanned)}
-              </p>
-              <p className={`text-lg font-bold ${budgetStatus.textClass}`}>
-                {percentSpent}% usado
-              </p>
-              {isCurrentMonth && (
-                <p className={`text-xs ${isAheadOfPace ? 'text-terra-600' : 'text-sage-600'}`}>
-                  {isAheadOfPace
-                    ? `${Math.abs(Math.round(spendingPace))}% acima do ritmo`
-                    : `${Math.abs(Math.round(spendingPace))}% abaixo do ritmo`}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Income Section */}
+          <div className="p-4 bg-sage-50 rounded-xl border border-sage-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-sage-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-sage-600" />
+              </div>
+              <div>
+                <p className="text-xs text-sage-600 uppercase tracking-wide font-medium">Receitas</p>
+                <p className="text-2xl font-bold text-sage-700 tabular-nums">
+                  {formatCurrency(stats.totalIncome)}
                 </p>
-              )}
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        {stats.budgetSummary && (
-          <div className="mt-6">
-            <div className="progress-bar h-3 relative">
-              <div
-                className={`h-3 rounded-full transition-all duration-500 ${getProgressBarClasses(percentSpent)}`}
-                style={{ width: `${Math.min(100, percentSpent)}%` }}
-              />
-              {/* Day progress marker */}
-              {isCurrentMonth && (
-                <div
-                  className="absolute top-0 w-0.5 h-3 bg-stone-800 opacity-60"
-                  style={{ left: `${dayProgressPercent}%` }}
-                  title={`Dia ${currentDay} de ${daysInMonth}`}
-                />
-              )}
-            </div>
-            {isCurrentMonth && projectedMonthEnd > 0 && (
-              <p className="text-xs text-stone-500 mt-1 text-right">
-                Projeção fim do mês: {formatCurrency(projectedMonthEnd)}
-              </p>
+            {stats.budgetSummary && stats.budgetSummary.totalPlannedIncome > 0 && (
+              <div className="pt-3 border-t border-sage-200">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-sage-600">Planejado:</span>
+                  <span className="font-semibold text-sage-700 tabular-nums">
+                    {formatCurrency(stats.budgetSummary.totalPlannedIncome)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <span className="text-sage-600">Diferença:</span>
+                  <span className={`font-semibold tabular-nums ${
+                    stats.totalIncome >= stats.budgetSummary.totalPlannedIncome ? 'text-sage-700' : 'text-terra-600'
+                  }`}>
+                    {stats.totalIncome >= stats.budgetSummary.totalPlannedIncome ? '+' : ''}
+                    {formatCurrency(stats.totalIncome - stats.budgetSummary.totalPlannedIncome)}
+                  </span>
+                </div>
+              </div>
             )}
           </div>
-        )}
+
+          {/* Expenses Section */}
+          <div className="p-4 bg-rust-50 rounded-xl border border-rust-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-rust-100 rounded-lg flex items-center justify-center">
+                <TrendingDown className="w-5 h-5 text-rust-600" />
+              </div>
+              <div>
+                <p className="text-xs text-rust-600 uppercase tracking-wide font-medium">Despesas</p>
+                <p className="text-2xl font-bold text-rust-700 tabular-nums">
+                  {formatCurrency(stats.totalExpenses)}
+                </p>
+              </div>
+            </div>
+            {stats.budgetSummary && stats.budgetSummary.totalPlanned > 0 && (
+              <div className="pt-3 border-t border-rust-200">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-rust-600">Planejado:</span>
+                  <span className="font-semibold text-rust-700 tabular-nums">
+                    {formatCurrency(stats.budgetSummary.totalPlanned)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <span className="text-rust-600">Diferença:</span>
+                  <span className={`font-semibold tabular-nums ${
+                    stats.totalExpenses <= stats.budgetSummary.totalPlanned ? 'text-sage-700' : 'text-rust-700'
+                  }`}>
+                    {stats.totalExpenses <= stats.budgetSummary.totalPlanned ? '' : '+'}
+                    {formatCurrency(stats.totalExpenses - stats.budgetSummary.totalPlanned)}
+                  </span>
+                </div>
+                {/* Progress bar */}
+                <div className="mt-3">
+                  <div className="h-2 bg-rust-200 rounded-full relative overflow-hidden">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        percentSpent > 100 ? 'bg-rust-600' : percentSpent > 80 ? 'bg-terra-500' : 'bg-sage-500'
+                      }`}
+                      style={{ width: `${Math.min(100, percentSpent)}%` }}
+                    />
+                    {isCurrentMonth && (
+                      <div
+                        className="absolute top-0 w-0.5 h-2 bg-stone-900 opacity-60"
+                        style={{ left: `${dayProgressPercent}%` }}
+                        title={`Dia ${currentDay} de ${daysInMonth}`}
+                      />
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-rust-600">
+                      {percentSpent}% usado
+                    </p>
+                    {isCurrentMonth && (
+                      <p className={`text-xs ${isAheadOfPace ? 'text-rust-600' : 'text-sage-600'}`}>
+                        {isAheadOfPace
+                          ? `${Math.abs(Math.round(spendingPace))}% acima do ritmo`
+                          : `${Math.abs(Math.round(spendingPace))}% abaixo`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Balance */}
+        <div className="mt-6 pt-6 border-t border-stone-200">
+          <div className="flex items-center justify-between">
+            <span className="text-stone-600 font-medium">Saldo do Mês:</span>
+            <span className={`text-2xl font-bold tabular-nums ${
+              stats.balance >= 0 ? 'text-sage-600' : 'text-rust-600'
+            }`}>
+              {formatCurrency(stats.balance)}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Attention Section - Only show if there are items */}
@@ -603,64 +595,116 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             Gastos por Categoria
           </h2>
 
-          <div className="space-y-4">
-            {stats.categoryExpenses.map(({ category, amount, percentage }) => {
-              const budget = stats.budgetSummary?.budgetsByCategory.find(
-                b => b.category.category_id === category.category_id
-              );
-              const budgetPercent = budget && budget.planned > 0
-                ? (amount / budget.planned) * 100
-                : 0;
-              const statusIndicator = budget ? getStatusIndicator(budgetPercent) : null;
-              const hasBudget = budget && budget.planned > 0;
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Pie Chart */}
+            <div className="flex items-center justify-center">
+              <svg viewBox="0 0 200 200" className="w-full max-w-[280px]">
+                {(() => {
+                  const colors = [
+                    '#8b5a3c', '#d4a574', '#c97d60', '#a68572', '#b8956a',
+                    '#9d7a5e', '#c89f7e', '#b07d62', '#a68a76', '#c6906e'
+                  ];
+                  let currentAngle = -90; // Start at top
 
-              // For categories with budget, calculate expected spending by now
-              const expectedByNow = hasBudget
-                ? (budget.planned * dayProgressPercent) / 100
-                : 0;
-              const categoryPacePercent = expectedByNow > 0
-                ? ((amount - expectedByNow) / expectedByNow) * 100
-                : 0;
-              const isCategoryAhead = amount > expectedByNow;
+                  return stats.categoryExpenses.map(({ category, percentage }, index) => {
+                    const sliceAngle = (percentage / 100) * 360;
+                    const startAngle = currentAngle;
+                    const endAngle = currentAngle + sliceAngle;
 
-              return (
-                <div key={category.category_id} className="flex items-center gap-4">
-                  {/* Status indicator */}
-                  {statusIndicator && (
-                    <div className={`status-indicator ${statusIndicator.bgClass} ${statusIndicator.colorClass}`}>
-                      {statusIndicator.icon}
-                    </div>
-                  )}
+                    // Calculate path for pie slice
+                    const startRad = (startAngle * Math.PI) / 180;
+                    const endRad = (endAngle * Math.PI) / 180;
+                    const x1 = 100 + 80 * Math.cos(startRad);
+                    const y1 = 100 + 80 * Math.sin(startRad);
+                    const x2 = 100 + 80 * Math.cos(endRad);
+                    const y2 = 100 + 80 * Math.sin(endRad);
+                    const largeArc = sliceAngle > 180 ? 1 : 0;
 
-                  {/* Category info */}
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <span className="text-xl flex-shrink-0">{category.icon || '📦'}</span>
+                    const path = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+                    currentAngle = endAngle;
+
+                    return (
+                      <path
+                        key={category.category_id}
+                        d={path}
+                        fill={colors[index % colors.length]}
+                        stroke="white"
+                        strokeWidth="2"
+                        className="transition-opacity hover:opacity-80 cursor-pointer"
+                      />
+                    );
+                  });
+                })()}
+                {/* Center hole for donut effect */}
+                <circle cx="100" cy="100" r="50" fill="white" />
+                <text
+                  x="100"
+                  y="95"
+                  textAnchor="middle"
+                  className="text-xs fill-stone-500"
+                  style={{ fontSize: '10px' }}
+                >
+                  Total
+                </text>
+                <text
+                  x="100"
+                  y="110"
+                  textAnchor="middle"
+                  className="text-sm font-bold fill-stone-900"
+                  style={{ fontSize: '14px' }}
+                >
+                  {formatCurrency(stats.totalExpenses)}
+                </text>
+              </svg>
+            </div>
+
+            {/* Legend */}
+            <div className="space-y-3">
+              {stats.categoryExpenses.map(({ category, amount, percentage }, index) => {
+                const colors = [
+                  '#8b5a3c', '#d4a574', '#c97d60', '#a68572', '#b8956a',
+                  '#9d7a5e', '#c89f7e', '#b07d62', '#a68a76', '#c6906e'
+                ];
+                const budget = stats.budgetSummary?.budgetsByCategory.find(
+                  b => b.category.category_id === category.category_id
+                );
+                const budgetPercent = budget && budget.planned > 0
+                  ? (amount / budget.planned) * 100
+                  : 0;
+                const hasBudget = budget && budget.planned > 0;
+
+                // For categories with budget, calculate expected spending by now
+                const expectedByNow = hasBudget
+                  ? (budget.planned * dayProgressPercent) / 100
+                  : 0;
+                const categoryPacePercent = expectedByNow > 0
+                  ? ((amount - expectedByNow) / expectedByNow) * 100
+                  : 0;
+                const isCategoryAhead = amount > expectedByNow;
+
+                return (
+                  <div key={category.category_id} className="flex items-start gap-3">
+                    {/* Color indicator */}
+                    <div
+                      className="w-4 h-4 rounded flex-shrink-0 mt-0.5"
+                      style={{ backgroundColor: colors[index % colors.length] }}
+                    />
+
+                    {/* Category info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-stone-900 truncate">
-                          {category.name}
-                        </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-base flex-shrink-0">{category.icon || '📦'}</span>
+                          <span className="text-sm font-medium text-stone-900 truncate">
+                            {category.name}
+                          </span>
+                        </div>
                         <span className="text-sm font-bold text-stone-900 tabular-nums ml-2">
                           {formatCurrency(amount)}
                         </span>
                       </div>
-                      <div className="progress-bar relative">
-                        <div
-                          className={`h-2 rounded-full transition-all duration-500 ${
-                            hasBudget ? getProgressBarClasses(budgetPercent) : 'bg-stone-400'
-                          }`}
-                          style={{ width: `${Math.min(100, hasBudget ? budgetPercent : percentage)}%` }}
-                        />
-                        {/* Day progress marker - only for budgeted categories in current month */}
-                        {hasBudget && isCurrentMonth && (
-                          <div
-                            className="absolute top-0 w-0.5 h-2 bg-stone-700 opacity-50"
-                            style={{ left: `${dayProgressPercent}%` }}
-                            title={`Esperado até dia ${currentDay}: ${formatCurrency(expectedByNow)}`}
-                          />
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
+                      <div className="flex items-center justify-between">
                         {hasBudget ? (
                           <>
                             <span className={`text-xs ${
@@ -685,9 +729,9 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           {/* Planned entries summary */}
