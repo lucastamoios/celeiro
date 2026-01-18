@@ -744,10 +744,6 @@ export default function TransactionEditModal({
             <button
               onClick={async () => {
                 if (!token) return;
-                if (!transaction.category_id) {
-                  setError('Salve a transação com uma categoria antes de criar um padrão');
-                  return;
-                }
                 try {
                   const res = await fetch(financialUrl(`transactions/${transaction.transaction_id}/pattern-draft`), {
                     headers: {
@@ -756,6 +752,10 @@ export default function TransactionEditModal({
                     },
                   });
                   if (!res.ok) {
+                    // 400 usually means transaction has no category saved
+                    if (res.status === 400) {
+                      throw new Error('Salve a transação com uma categoria primeiro');
+                    }
                     throw new Error('Falha ao gerar sugestao de padrao');
                   }
                   const json = await res.json();
