@@ -24,6 +24,12 @@ interface CategoryExpense {
   percentage: number;
 }
 
+interface TagExpense {
+  tag: string;
+  amount: number;
+  percentage: number;
+}
+
 interface BudgetSummary {
   totalPlanned: number;
   totalActual: number;
@@ -51,6 +57,7 @@ interface DashboardStats {
   month: number;
   year: number;
   categoryExpenses: CategoryExpense[];
+  tagExpenses: TagExpense[];
   budgetSummary: BudgetSummary | null;
 }
 
@@ -69,6 +76,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
     categoryExpenses: [],
+    tagExpenses: [],
     budgetSummary: null,
   });
   const [loading, setLoading] = useState(true);
@@ -188,6 +196,32 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 8);
 
+      // Calculate expenses by tag
+      const tagMap = new Map<string, number>();
+
+      currentMonthTx
+        .filter(tx => tx.transaction_type === 'debit' && tx.tags && tx.tags.length > 0)
+        .forEach(tx => {
+          const amount = parseFloat(tx.amount.toString());
+          tx.tags!.forEach(tag => {
+            if (tagMap.has(tag)) {
+              tagMap.set(tag, tagMap.get(tag)! + amount);
+            } else {
+              tagMap.set(tag, amount);
+            }
+          });
+        });
+
+      // Convert to array and calculate percentages
+      const tagExpenses: TagExpense[] = Array.from(tagMap.entries())
+        .map(([tag, amount]) => ({
+          tag,
+          amount,
+          percentage: expenses > 0 ? (amount / expenses) * 100 : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 10);
+
       // Fetch uncategorized count
       const uncatResponse = await fetch(financialUrl('transactions/uncategorized'), {
         headers: {
@@ -278,6 +312,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         month: targetMonth,
         year: targetYear,
         categoryExpenses,
+        tagExpenses,
         budgetSummary,
       });
     } catch (err) {
@@ -758,6 +793,120 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
               </div>
             </div>
           ) : null}
+        </div>
+      )}
+
+      {/* Tag Expenses */}
+      {stats.tagExpenses.length > 0 && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-stone-900 mb-4">
+            Gastos por Tag
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Pie Chart */}
+            <div className="flex items-center justify-center">
+              <svg viewBox="0 0 200 200" className="w-full max-w-[280px]">
+                {(() => {
+                  const colors = [
+                    '#6b7280', '#78716c', '#57534e', '#a8a29e', '#d6d3d1',
+                    '#737373', '#525252', '#404040', '#a3a3a3', '#d4d4d4'
+                  ];
+                  let currentAngle = -90; // Start at top
+
+                  return stats.tagExpenses.map(({ tag, percentage }, index) => {
+                    const sliceAngle = (percentage / 100) * 360;
+                    const startAngle = currentAngle;
+                    const endAngle = currentAngle + sliceAngle;
+
+                    // Calculate path for pie slice
+                    const startRad = (startAngle * Math.PI) / 180;
+                    const endRad = (endAngle * Math.PI) / 180;
+                    const x1 = 100 + 80 * Math.cos(startRad);
+                    const y1 = 100 + 80 * Math.sin(startRad);
+                    const x2 = 100 + 80 * Math.cos(endRad);
+                    const y2 = 100 + 80 * Math.sin(endRad);
+                    const largeArc = sliceAngle > 180 ? 1 : 0;
+
+                    const path = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+                    currentAngle = endAngle;
+
+                    return (
+                      <path
+                        key={tag}
+                        d={path}
+                        fill={colors[index % colors.length]}
+                        stroke="white"
+                        strokeWidth="2"
+                        className="transition-opacity hover:opacity-80 cursor-pointer"
+                      />
+                    );
+                  });
+                })()}
+                {/* Center hole for donut effect */}
+                <circle cx="100" cy="100" r="50" fill="white" />
+                <text
+                  x="100"
+                  y="95"
+                  textAnchor="middle"
+                  className="text-xs fill-stone-500"
+                  style={{ fontSize: '10px' }}
+                >
+                  Tags
+                </text>
+                <text
+                  x="100"
+                  y="110"
+                  textAnchor="middle"
+                  className="text-sm font-bold fill-stone-900"
+                  style={{ fontSize: '14px' }}
+                >
+                  {stats.tagExpenses.length}
+                </text>
+              </svg>
+            </div>
+
+            {/* Legend */}
+            <div className="space-y-3">
+              {stats.tagExpenses.map(({ tag, amount, percentage }, index) => {
+                const colors = [
+                  '#6b7280', '#78716c', '#57534e', '#a8a29e', '#d6d3d1',
+                  '#737373', '#525252', '#404040', '#a3a3a3', '#d4d4d4'
+                ];
+
+                return (
+                  <div key={tag} className="flex items-start gap-3">
+                    {/* Color indicator */}
+                    <div
+                      className="w-4 h-4 rounded flex-shrink-0 mt-0.5"
+                      style={{ backgroundColor: colors[index % colors.length] }}
+                    />
+
+                    {/* Tag info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-base flex-shrink-0">🏷️</span>
+                          <span className="text-sm font-medium text-stone-900 truncate">
+                            {tag}
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-stone-900 tabular-nums ml-2">
+                          {formatCurrency(amount)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-stone-500">
+                          {percentage.toFixed(1)}% do total
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
