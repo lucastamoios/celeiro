@@ -264,12 +264,13 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           getPlannedEntriesForMonth(apiMonth, targetYear, { token }),
         ]);
 
-        if (categoryBudgets && categoryBudgets.length > 0) {
-          const budgetsByCategory: BudgetSummary['budgetsByCategory'] = [];
-          let totalPlanned = 0;
-          let totalActual = 0;
-          let totalPlannedIncome = 0;
+        const budgetsByCategory: BudgetSummary['budgetsByCategory'] = [];
+        let totalPlanned = 0;
+        let totalActual = 0;
+        let totalPlannedIncome = 0;
 
+        // Process category budgets if available
+        if (categoryBudgets && categoryBudgets.length > 0) {
           for (const budget of categoryBudgets) {
             const category = categories.find(c => c.category_id === budget.CategoryID);
             if (!category) continue;
@@ -289,40 +290,41 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
             budgetsByCategory.push({ category, planned, actual });
           }
-
-          budgetsByCategory.sort((a, b) => b.planned - a.planned);
-
-          const plannedEntriesStats = {
-            total: plannedEntriesData?.length || 0,
-            matched: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'matched').length || 0,
-            pending: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'pending').length || 0,
-            missed: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'missed').length || 0,
-          };
-
-          // Add planned income entries to totalPlannedIncome
-          if (plannedEntriesData && plannedEntriesData.length > 0) {
-            plannedEntriesData
-              .filter((e: PlannedEntryWithStatus) => e.EntryType === 'income')
-              .forEach((e: PlannedEntryWithStatus) => {
-                // Use AmountMax if available (range), otherwise Amount
-                const plannedAmount = parseFloat(e.AmountMax || e.Amount || '0');
-                totalPlannedIncome += plannedAmount;
-              });
-          }
-
-          const variance = totalPlanned - totalActual;
-          const variancePercent = totalPlanned > 0 ? (variance / totalPlanned) * 100 : 0;
-
-          budgetSummary = {
-            totalPlanned,
-            totalActual,
-            totalPlannedIncome,
-            variance,
-            variancePercent,
-            budgetsByCategory: budgetsByCategory.slice(0, 5),
-            plannedEntries: plannedEntriesStats,
-          };
         }
+
+        budgetsByCategory.sort((a, b) => b.planned - a.planned);
+
+        const plannedEntriesStats = {
+          total: plannedEntriesData?.length || 0,
+          matched: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'matched').length || 0,
+          pending: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'pending').length || 0,
+          missed: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'missed').length || 0,
+        };
+
+        // Add planned income entries to totalPlannedIncome
+        if (plannedEntriesData && plannedEntriesData.length > 0) {
+          plannedEntriesData
+            .filter((e: PlannedEntryWithStatus) => e.EntryType === 'income')
+            .forEach((e: PlannedEntryWithStatus) => {
+              // Use AmountMax if available (range), otherwise Amount
+              const plannedAmount = parseFloat(e.AmountMax || e.Amount || '0');
+              totalPlannedIncome += plannedAmount;
+            });
+        }
+
+        const variance = totalPlanned - totalActual;
+        const variancePercent = totalPlanned > 0 ? (variance / totalPlanned) * 100 : 0;
+
+        // Always create budget summary if we have any data
+        budgetSummary = {
+          totalPlanned,
+          totalActual,
+          totalPlannedIncome,
+          variance,
+          variancePercent,
+          budgetsByCategory: budgetsByCategory.slice(0, 5),
+          plannedEntries: plannedEntriesStats,
+        };
       } catch (budgetErr) {
         console.warn('Failed to fetch budget data:', budgetErr);
       }
