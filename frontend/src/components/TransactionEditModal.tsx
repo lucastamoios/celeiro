@@ -743,7 +743,7 @@ export default function TransactionEditModal({
 
             <button
               onClick={async () => {
-                if (!token) return;
+                if (!token || !categoryId) return;
                 try {
                   const res = await fetch(financialUrl(`transactions/${transaction.transaction_id}/pattern-draft`), {
                     headers: {
@@ -761,7 +761,12 @@ export default function TransactionEditModal({
                   setError(err instanceof Error ? err.message : 'Falha ao gerar sugestao de padrao');
                 }
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-stone-300 text-stone-600 rounded-lg hover:border-stone-400 hover:text-stone-700 hover:bg-stone-50 transition-all text-sm"
+              disabled={!categoryId}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 border rounded-lg transition-all text-sm ${
+                categoryId
+                  ? 'border-stone-300 text-stone-600 hover:border-stone-400 hover:text-stone-700 hover:bg-stone-50 cursor-pointer'
+                  : 'border-stone-200 text-stone-400 bg-stone-50 cursor-not-allowed'
+              }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -769,7 +774,10 @@ export default function TransactionEditModal({
               Criar Padrão
             </button>
             <p className="text-xs text-stone-400 mt-2 text-center">
-              Gere um padrao a partir desta transacao e ajuste antes de salvar
+              {categoryId
+                ? 'Gere um padrao a partir desta transacao e ajuste antes de salvar'
+                : 'Selecione uma categoria primeiro para criar um padrão'
+              }
             </p>
           </div>
         </div>
