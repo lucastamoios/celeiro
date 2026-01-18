@@ -1546,11 +1546,6 @@ func (h *Handler) GetTransactionPatternDraft(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if tx.CategoryID == nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
 	baseText := tx.Description
 	if baseText == "" && tx.OriginalDescription != nil {
 		baseText = *tx.OriginalDescription
@@ -1562,12 +1557,18 @@ func (h *Handler) GetTransactionPatternDraft(w http.ResponseWriter, r *http.Requ
 		descriptionPattern = `(?i).*` + escaped + `.*`
 	}
 
+	// Use category if available, otherwise return null (user will select in PatternCreator)
+	var categoryID any = nil
+	if tx.CategoryID != nil {
+		categoryID = *tx.CategoryID
+	}
+
 	responses.NewSuccess(map[string]any{
 		"description":         baseText,
-		"category_id":         *tx.CategoryID,
+		"category_id":         categoryID,
 		"description_pattern": descriptionPattern,
 		"target_description":  baseText,
-		"target_category_id":  *tx.CategoryID,
+		"target_category_id":  categoryID,
 		"apply_retroactively": true,
 	}, w)
 }
