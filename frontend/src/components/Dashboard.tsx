@@ -372,9 +372,24 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     : 0;
   const isAheadOfPace = stats.budgetSummary ? stats.budgetSummary.totalActual > expectedSpentByNow : false;
 
+  // Check if there are categories with spending but no budget
+  const categoriesWithoutBudget = stats.categoryExpenses.filter(ce => {
+    const budget = stats.budgetSummary?.budgetsByCategory.find(
+      b => b.category.category_id === ce.category.category_id
+    );
+    return !budget || budget.planned === 0;
+  });
+
+  // Check if planned expenses exceed planned income
+  const plannedExpensesExceedIncome = stats.budgetSummary &&
+    stats.budgetSummary.totalPlannedIncome > 0 &&
+    stats.budgetSummary.totalPlanned > stats.budgetSummary.totalPlannedIncome;
+
   // Check if there are attention items
   const hasAttentionItems = stats.uncategorizedCount > 0 ||
     (stats.budgetSummary?.plannedEntries.missed || 0) > 0 ||
+    categoriesWithoutBudget.length > 0 ||
+    plannedExpensesExceedIncome ||
     stats.categoryExpenses.some(ce => {
       const budget = stats.budgetSummary?.budgetsByCategory.find(
         b => b.category.category_id === ce.category.category_id
@@ -390,7 +405,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     return budget && ce.amount > budget.planned;
   }).length;
 
-  const currentItemsSignature = `${stats.uncategorizedCount}-${stats.budgetSummary?.plannedEntries.missed || 0}-${overBudgetCount}`;
+  const currentItemsSignature = `${stats.uncategorizedCount}-${stats.budgetSummary?.plannedEntries.missed || 0}-${overBudgetCount}-${categoriesWithoutBudget.length}-${plannedExpensesExceedIncome ? '1' : '0'}`;
 
   // Check if we should show attention (has items AND (not dismissed OR new items appeared))
   const shouldShowAttention = hasAttentionItems && (!attentionDismissed || currentItemsSignature !== dismissedItemsSignature);
@@ -601,6 +616,42 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                 <span className="badge-error">Excedido</span>
               </div>
             ))}
+
+            {/* Categories without budget */}
+            {categoriesWithoutBudget.slice(0, 3).map(ce => (
+              <div key={ce.category.category_id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{ce.category.icon || '📦'}</span>
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">
+                      {ce.category.name} sem orçamento
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      {formatCurrency(ce.amount)} gasto este mês
+                    </p>
+                  </div>
+                </div>
+                <span className="badge-warning">Sem orçamento</span>
+              </div>
+            ))}
+
+            {/* Planned expenses exceed income warning */}
+            {plannedExpensesExceedIncome && stats.budgetSummary && (
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">⚖️</span>
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">
+                      Despesas planejadas excedem receitas
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      Planejado: {formatCurrency(stats.budgetSummary.totalPlanned)} despesas vs {formatCurrency(stats.budgetSummary.totalPlannedIncome)} receitas
+                    </p>
+                  </div>
+                </div>
+                <span className="badge-warning">Atenção</span>
+              </div>
+            )}
           </div>
         </div>
       )}
