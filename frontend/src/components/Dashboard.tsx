@@ -299,6 +299,17 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             missed: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'missed').length || 0,
           };
 
+          // Add planned income entries to totalPlannedIncome
+          if (plannedEntriesData && plannedEntriesData.length > 0) {
+            plannedEntriesData
+              .filter((e: PlannedEntryWithStatus) => e.EntryType === 'income')
+              .forEach((e: PlannedEntryWithStatus) => {
+                // Use AmountMax if available (range), otherwise Amount
+                const plannedAmount = parseFloat(e.AmountMax || e.Amount || '0');
+                totalPlannedIncome += plannedAmount;
+              });
+          }
+
           const variance = totalPlanned - totalActual;
           const variancePercent = totalPlanned > 0 ? (variance / totalPlanned) * 100 : 0;
 
