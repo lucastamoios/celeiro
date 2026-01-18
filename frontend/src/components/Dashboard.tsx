@@ -372,14 +372,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     : 0;
   const isAheadOfPace = stats.budgetSummary ? stats.budgetSummary.totalActual > expectedSpentByNow : false;
 
-  // Check if there are categories with spending but no budget
-  const categoriesWithoutBudget = stats.categoryExpenses.filter(ce => {
-    const budget = stats.budgetSummary?.budgetsByCategory.find(
-      b => b.category.category_id === ce.category.category_id
-    );
-    return !budget || budget.planned === 0;
-  });
-
   // Check if planned expenses exceed planned income
   const plannedExpensesExceedIncome = stats.budgetSummary &&
     stats.budgetSummary.totalPlannedIncome > 0 &&
@@ -388,7 +380,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
   // Check if there are attention items
   const hasAttentionItems = stats.uncategorizedCount > 0 ||
     (stats.budgetSummary?.plannedEntries.missed || 0) > 0 ||
-    categoriesWithoutBudget.length > 0 ||
     plannedExpensesExceedIncome ||
     stats.categoryExpenses.some(ce => {
       const budget = stats.budgetSummary?.budgetsByCategory.find(
@@ -405,7 +396,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     return budget && ce.amount > budget.planned;
   }).length;
 
-  const currentItemsSignature = `${stats.uncategorizedCount}-${stats.budgetSummary?.plannedEntries.missed || 0}-${overBudgetCount}-${categoriesWithoutBudget.length}-${plannedExpensesExceedIncome ? '1' : '0'}`;
+  const currentItemsSignature = `${stats.uncategorizedCount}-${stats.budgetSummary?.plannedEntries.missed || 0}-${overBudgetCount}-${plannedExpensesExceedIncome ? '1' : '0'}`;
 
   // Check if we should show attention (has items AND (not dismissed OR new items appeared))
   const shouldShowAttention = hasAttentionItems && (!attentionDismissed || currentItemsSignature !== dismissedItemsSignature);
@@ -460,6 +451,40 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                     {stats.totalIncome >= stats.budgetSummary.totalPlannedIncome ? '+' : ''}
                     {formatCurrency(stats.totalIncome - stats.budgetSummary.totalPlannedIncome)}
                   </span>
+                </div>
+                {/* Progress bar */}
+                <div className="mt-3">
+                  <div className="h-2 bg-sage-200 rounded-full relative overflow-hidden">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        stats.totalIncome >= stats.budgetSummary.totalPlannedIncome ? 'bg-sage-500' : 'bg-terra-500'
+                      }`}
+                      style={{ width: `${Math.min(100, (stats.totalIncome / stats.budgetSummary.totalPlannedIncome) * 100)}%` }}
+                    />
+                    {isCurrentMonth && (
+                      <div
+                        className="absolute top-0 w-0.5 h-2 bg-stone-900 opacity-60"
+                        style={{ left: `${dayProgressPercent}%` }}
+                        title={`Dia ${currentDay} de ${daysInMonth}`}
+                      />
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-sage-600">
+                      {Math.min(100, Math.round((stats.totalIncome / stats.budgetSummary.totalPlannedIncome) * 100))}% recebido
+                    </p>
+                    {isCurrentMonth && (
+                      <p className={`text-xs ${
+                        stats.totalIncome >= (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)
+                          ? 'text-sage-600'
+                          : 'text-terra-600'
+                      }`}>
+                        {stats.totalIncome >= (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)
+                          ? `${Math.abs(Math.round(((stats.totalIncome - (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)) / (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)) * 100))}% acima do esperado`
+                          : `${Math.abs(Math.round(((stats.totalIncome - (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)) / (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)) * 100))}% abaixo do esperado`}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -614,24 +639,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                   </div>
                 </div>
                 <span className="badge-error">Excedido</span>
-              </div>
-            ))}
-
-            {/* Categories without budget */}
-            {categoriesWithoutBudget.slice(0, 3).map(ce => (
-              <div key={ce.category.category_id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{ce.category.icon || '📦'}</span>
-                  <div>
-                    <p className="text-sm font-medium text-stone-900">
-                      {ce.category.name} sem orçamento
-                    </p>
-                    <p className="text-xs text-stone-500">
-                      {formatCurrency(ce.amount)} gasto este mês
-                    </p>
-                  </div>
-                </div>
-                <span className="badge-warning">Sem orçamento</span>
               </div>
             ))}
 
