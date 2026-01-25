@@ -698,9 +698,10 @@ const insertTransactionQuery = `
 	DO UPDATE SET
 		description = EXCLUDED.description,
 		-- Note: original_description is NOT updated on conflict (immutable)
+		-- Note: transaction_type is NOT updated on conflict (immutable after initial import)
+		-- This prevents re-imports from silently changing debit/credit when banks modify their OFX exports
 		amount = EXCLUDED.amount,
 		transaction_date = EXCLUDED.transaction_date,
-		transaction_type = EXCLUDED.transaction_type,
 		ofx_check_number = EXCLUDED.ofx_check_number,
 		ofx_memo = EXCLUDED.ofx_memo,
 		raw_ofx_data = EXCLUDED.raw_ofx_data,

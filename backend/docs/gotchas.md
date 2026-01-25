@@ -92,3 +92,39 @@ UPDATE categories SET is_active = false WHERE category_id = $1
 ```
 
 **Exception:** Transactions are hard deleted (no `is_active` column).
+
+## OFX Import Behavior
+
+### Re-Import Updates vs Preserves
+
+When importing an OFX file with transactions that already exist (same `account_id` + `ofx_fitid`), the system uses UPSERT logic:
+
+**Updated on re-import:**
+- `description` - Bank may change how they describe a transaction
+- `amount` - Rare, but corrections happen
+- `transaction_date` - Date adjustments
+- `ofx_check_number`, `ofx_memo`, `raw_ofx_data` - Raw OFX data
+
+**Preserved (never overwritten):**
+- `transaction_type` - Immutable after initial import (prevents silent debit/credit changes)
+- `original_description` - Immutable for pattern matching
+- `category_id` - User classification preserved
+- `notes`, `tags` - User annotations preserved
+- `is_ignored`, `is_classified` - User flags preserved
+
+**Related Files:**
+- `internal/application/financial/repository.go` - `insertTransactionQuery` ON CONFLICT clause
+
+### Why transaction_type is Immutable
+
+Banks (especially Nubank) sometimes change how they report the same transaction in different OFX exports. For example, a credit card payment might appear as:
+- `TRNTYPE=DEBIT` in checking account OFX (money going out)
+- `TRNTYPE=CREDIT` in credit card OFX (reducing card balance)
+
+If re-importing overwrote `transaction_type`, users would see transactions silently flip between income/expense, breaking budgets and reports. The type is now locked at first import.
+
+### Nubank "Pagamento recebido" Pattern
+
+Nubank credit card OFX files include "Pagamento recebido" entries with `TRNTYPE=CREDIT`. These represent credit card bill payments and typically have a matching "Pagamento de fatura (saldo compartilhado)" debit in the checking account OFX.
+
+When both are imported, they cancel out (credit + debit = 0 net effect). Users should mark these as `is_ignored=true` to exclude from reports.
