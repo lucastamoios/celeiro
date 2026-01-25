@@ -1810,10 +1810,10 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 	// 5. Update the planned entry amount based on the matched transaction amount
 	// - If exact amount (no range): replace amount with transaction amount
 	// - If range: expand range if transaction amount is outside (min if below, max if above)
-	s.updatePlannedEntryAmountFromTransaction(ctx, entry, tx, params)
+	s.updatePlannedEntryAmountFromTransaction(ctx, entry, tx, params.UserID, params.OrganizationID)
 
 	// 6. Update the transaction with data from the planned entry
-	// Always copy the description; copy category if it exists
+	// Always copy the description; copy category and savings_goal if they exist
 	modifyParams := modifyTransactionParams{
 		TransactionID:  params.TransactionID,
 		UserID:         params.UserID,
@@ -1822,6 +1822,10 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 	}
 	if entry.CategoryID > 0 {
 		modifyParams.CategoryID = &entry.CategoryID
+	}
+	// Inherit savings_goal_id from planned entry (consistent with auto-match behavior)
+	if entry.SavingsGoalID != nil && tx.SavingsGoalID == nil {
+		modifyParams.SavingsGoalID = entry.SavingsGoalID
 	}
 	_, err = s.Repository.ModifyTransaction(ctx, modifyParams)
 	if err != nil {
@@ -1897,12 +1901,13 @@ func (s *service) updatePlannedEntryAmountFromTransaction(
 	ctx context.Context,
 	entry PlannedEntryModel,
 	tx TransactionModel,
-	params MatchPlannedEntryInput,
+	userID int,
+	organizationID int,
 ) {
 	var updateParams modifyPlannedEntryParams
 	updateParams.PlannedEntryID = entry.PlannedEntryID
-	updateParams.UserID = params.UserID
-	updateParams.OrganizationID = params.OrganizationID
+	updateParams.UserID = userID
+	updateParams.OrganizationID = organizationID
 
 	hasRange := entry.AmountMin != nil && entry.AmountMax != nil
 
@@ -1940,7 +1945,6 @@ type UnmatchPlannedEntryInput struct {
 
 // UnmatchPlannedEntry removes the link between a transaction and a planned entry
 func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlannedEntryInput) error {
-	// 1. Fetch the status
 	status, err := s.Repository.FetchPlannedEntryStatus(ctx, fetchPlannedEntryStatusParams{
 		PlannedEntryID: params.PlannedEntryID,
 		Month:          params.Month,
@@ -1950,7 +1954,27 @@ func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlanned
 		return errors.Wrap(err, "failed to fetch status")
 	}
 
-	// 2. Update status back to pending
+	if status.MatchedTransactionID != nil {
+		tx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
+			TransactionID:  *status.MatchedTransactionID,
+			OrganizationID: params.OrganizationID,
+		})
+		if err == nil && tx.OriginalDescription != nil {
+			_, err = s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
+				TransactionID:  tx.TransactionID,
+				UserID:         params.UserID,
+				OrganizationID: params.OrganizationID,
+				Description:    tx.OriginalDescription,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "failed to restore transaction description on unmatch",
+					"transaction_id", tx.TransactionID,
+					"error", err.Error(),
+				)
+			}
+		}
+	}
+
 	pendingStatus := PlannedEntryStatusPending
 	_, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
 		StatusID: status.StatusID,

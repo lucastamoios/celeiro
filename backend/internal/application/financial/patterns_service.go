@@ -532,6 +532,15 @@ func (s *service) applyPatternToTransaction(ctx context.Context, tx *Transaction
 				)
 			}
 
+			fullEntry, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
+				PlannedEntryID: entry.PlannedEntryID,
+				UserID:         userID,
+				OrganizationID: organizationID,
+			})
+			if err == nil {
+				s.updatePlannedEntryAmountFromTransaction(ctx, fullEntry, *tx, userID, organizationID)
+			}
+
 			s.logger.Info(ctx, "Auto-matched planned entry via advanced pattern",
 				"planned_entry_id", entry.PlannedEntryID,
 				"pattern_id", pattern.PatternID,
