@@ -2250,6 +2250,8 @@ const upsertPlannedEntryStatusQuery = `
 	ON CONFLICT (planned_entry_id, month, year)
 	DO UPDATE SET
 		status = EXCLUDED.status,
+		dismissed_at = CASE WHEN EXCLUDED.status = 'matched' THEN NULL ELSE planned_entry_statuses.dismissed_at END,
+		dismissal_reason = CASE WHEN EXCLUDED.status = 'matched' THEN NULL ELSE planned_entry_statuses.dismissal_reason END,
 		updated_at = CURRENT_TIMESTAMP
 	RETURNING
 		status_id,
