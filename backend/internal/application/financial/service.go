@@ -1807,7 +1807,12 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 		return PlannedEntryStatus{}, errors.Wrap(err, "failed to update status with match details")
 	}
 
-	// 5. Update the transaction with data from the planned entry
+	// 5. Update the planned entry amount based on the matched transaction amount
+	// - If exact amount (no range): replace amount with transaction amount
+	// - If range: expand range if transaction amount is outside (min if below, max if above)
+	s.updatePlannedEntryAmountFromTransaction(ctx, entry, tx, params)
+
+	// 6. Update the transaction with data from the planned entry
 	// Always copy the description; copy category if it exists
 	modifyParams := modifyTransactionParams{
 		TransactionID:  params.TransactionID,
@@ -1886,6 +1891,43 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 	}
 
 	return PlannedEntryStatus{}.FromModel(&statusModel), nil
+}
+
+func (s *service) updatePlannedEntryAmountFromTransaction(
+	ctx context.Context,
+	entry PlannedEntryModel,
+	tx TransactionModel,
+	params MatchPlannedEntryInput,
+) {
+	var updateParams modifyPlannedEntryParams
+	updateParams.PlannedEntryID = entry.PlannedEntryID
+	updateParams.UserID = params.UserID
+	updateParams.OrganizationID = params.OrganizationID
+
+	hasRange := entry.AmountMin != nil && entry.AmountMax != nil
+
+	if hasRange {
+		if tx.Amount.LessThan(*entry.AmountMin) {
+			updateParams.AmountMin = &tx.Amount
+		} else if tx.Amount.GreaterThan(*entry.AmountMax) {
+			updateParams.AmountMax = &tx.Amount
+		}
+	} else {
+		if !tx.Amount.Equal(entry.Amount) {
+			updateParams.Amount = &tx.Amount
+		}
+	}
+
+	if updateParams.Amount != nil || updateParams.AmountMin != nil || updateParams.AmountMax != nil {
+		_, err := s.Repository.ModifyPlannedEntry(ctx, updateParams)
+		if err != nil {
+			s.logger.Warn(ctx, "failed to update planned entry amount from matched transaction",
+				"planned_entry_id", entry.PlannedEntryID,
+				"transaction_amount", tx.Amount,
+				"error", err.Error(),
+			)
+		}
+	}
 }
 
 type UnmatchPlannedEntryInput struct {
