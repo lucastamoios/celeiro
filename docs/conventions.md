@@ -112,6 +112,23 @@ PostgreSQL TIMESTAMP has no timezone info. Local time stored as-is causes bugs w
 | One-time | Single occurrence |
 | Monthly Instance | Generated from recurrent (has parent_entry_id) |
 
+### Planned Entry Matching
+
+When matching a transaction to a planned entry (`MatchPlannedEntryToTransaction`):
+
+1. **Status update**: Entry status → `matched`, links `matched_transaction_id`
+2. **Amount adjustment**: Entry amount updated based on transaction amount
+3. **Transaction update**: Copies `description` and `category_id` from entry to transaction
+
+**Amount adjustment rules:**
+
+| Entry Type | Behavior |
+|------------|----------|
+| Exact amount (`amount` only) | Replace with transaction amount |
+| Range (`amount_min`/`amount_max`) | Expand range if transaction outside bounds |
+
+This ensures planned entries learn from actual transaction amounts over time.
+
 ## Pattern System
 
 Unified regex-based pattern system:
@@ -131,8 +148,24 @@ Unified regex-based pattern system:
 ## OFX Import
 
 - Duplicate prevention: UNIQUE (account_id, ofx_fitid)
-- Re-importing same file = no duplicates (ON CONFLICT DO NOTHING)
+- Re-importing uses `ON CONFLICT DO UPDATE` with selective field updates
 - Original data preserved in raw_ofx_data JSONB
+
+### Re-Import Behavior
+
+When re-importing an OFX file with existing transactions (same `account_id` + `ofx_fitid`):
+
+| Field | Behavior | Reason |
+|-------|----------|--------|
+| `amount` | Updated | Bank corrections happen |
+| `transaction_date` | Updated | Date adjustments |
+| `ofx_*` fields | Updated | Raw OFX data refresh |
+| `description` | **Preserved** | User edits kept (bank version in `original_description`) |
+| `transaction_type` | **Preserved** | Prevents silent debit/credit flips |
+| `original_description` | **Preserved** | Immutable for pattern matching |
+| `category_id`, `notes`, `tags` | **Preserved** | User annotations kept |
+
+**Why `transaction_type` is immutable**: Banks (especially Nubank) sometimes report the same transaction differently across OFX exports. Locking at first import prevents budgets/reports from breaking.
 
 ## Git Workflow
 

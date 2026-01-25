@@ -226,6 +226,28 @@ stateDiagram-v2
     Missing --> [*]
 ```
 
+### Matching Side Effects
+
+When a transaction is matched to a planned entry:
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant S as Service
+    participant PE as PlannedEntry
+    participant TX as Transaction
+
+    U->>S: Match(transaction_id, planned_entry_id)
+    S->>PE: Update status → matched
+    S->>PE: Adjust amount from TX
+    Note over PE: Exact: replace amount<br/>Range: expand if outside
+    S->>TX: Copy description from PE
+    S->>TX: Copy category_id from PE
+    S-->>U: Success
+```
+
+**Amount adjustment**: Planned entries "learn" from actual transactions. If a bill varies monthly, the entry amount updates to reflect reality.
+
 ## Tables by Domain
 
 ### Accounts Domain
