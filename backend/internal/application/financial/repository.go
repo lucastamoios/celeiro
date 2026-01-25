@@ -696,10 +696,11 @@ const insertTransactionQuery = `
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	ON CONFLICT (account_id, ofx_fitid) WHERE ofx_fitid IS NOT NULL
 	DO UPDATE SET
-		description = EXCLUDED.description,
+		-- Note: description is NOT updated on conflict (preserves user edits)
 		-- Note: original_description is NOT updated on conflict (immutable)
 		-- Note: transaction_type is NOT updated on conflict (immutable after initial import)
-		-- This prevents re-imports from silently changing debit/credit when banks modify their OFX exports
+		-- Note: amount/transaction_date ARE updated (bank corrections should apply)
+		-- This prevents re-imports from overwriting user customizations
 		amount = EXCLUDED.amount,
 		transaction_date = EXCLUDED.transaction_date,
 		ofx_check_number = EXCLUDED.ofx_check_number,

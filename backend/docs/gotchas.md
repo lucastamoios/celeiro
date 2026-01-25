@@ -100,12 +100,12 @@ UPDATE categories SET is_active = false WHERE category_id = $1
 When importing an OFX file with transactions that already exist (same `account_id` + `ofx_fitid`), the system uses UPSERT logic:
 
 **Updated on re-import:**
-- `description` - Bank may change how they describe a transaction
-- `amount` - Rare, but corrections happen
+- `amount` - Rare, but bank corrections happen
 - `transaction_date` - Date adjustments
 - `ofx_check_number`, `ofx_memo`, `raw_ofx_data` - Raw OFX data
 
 **Preserved (never overwritten):**
+- `description` - User edits are preserved (bank version stored in `original_description`)
 - `transaction_type` - Immutable after initial import (prevents silent debit/credit changes)
 - `original_description` - Immutable for pattern matching
 - `category_id` - User classification preserved
