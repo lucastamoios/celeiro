@@ -11,12 +11,14 @@
 ## 📚 Documentação
 
 - **[product.md](./product.md)** - Visão de produto, features e decisões de negócio
+- **[docs/index.md](./docs/index.md)** - Índice da documentação e referência rápida
 - **[docs/setup.md](./docs/setup.md)** - Guia de instalação e configuração
 - **[docs/architecture.md](./docs/architecture.md)** - Arquitetura do sistema e padrões de design
 - **[docs/database.md](./docs/database.md)** - Modelo de dados completo (auth + financeiro)
-- **[docs/auth-system.md](./docs/auth-system.md)** - Sistema de autenticação e RBAC
-- **[docs/development.md](./docs/development.md)** - Workflow de desenvolvimento e convenções
-- **[docs/testing.md](./docs/testing.md)** - Estratégia de testes e exemplos
+- **[docs/domains.md](./docs/domains.md)** - Guia de domínios e entidades
+- **[docs/conventions.md](./docs/conventions.md)** - Convenções de código e padrões
+- **[docs/auth.md](./docs/auth.md)** - Sistema de autenticação
+- **[docs/troubleshooting.md](./docs/troubleshooting.md)** - Solução de problemas
 
 ## 📁 Estrutura do Projeto
 
@@ -88,8 +90,7 @@ make test                         # Rodar testes backend
 npm test                          # Rodar testes frontend
 ```
 
-👉 **Guia completo**: [docs/development.md](./docs/development.md)
-👉 **Convenções**: [CLAUDE.md](./CLAUDE.md)
+👉 **Convenções**: [docs/conventions.md](./docs/conventions.md)
 
 ## 🧪 Testes
 
@@ -103,7 +104,7 @@ npm test            # Jest + React Testing Library
 npm test -- --coverage
 ```
 
-👉 **Estratégia completa**: [docs/testing.md](./docs/testing.md)
+👉 **Backend guide**: [backend/STARTUP-GUIDE.md](./backend/STARTUP-GUIDE.md)
 
 ## 📝 Tech Stack
 
@@ -113,9 +114,8 @@ npm test -- --coverage
 **DevOps:** Docker, GitHub Actions
 **AI Tools:** OpenSpec, Claude Code
 
-👉 **Convenções de código**: [docs/development.md](./docs/development.md)
-👉 **Regras de serviço**: [CLAUDE.md](./CLAUDE.md) - Services Architecture
-👉 **Sistema de auth**: [docs/auth-system.md](./docs/auth-system.md)
+👉 **Convenções de código**: [docs/conventions.md](./docs/conventions.md)
+👉 **Sistema de auth**: [docs/auth.md](./docs/auth.md)
 
 ## 🐛 Troubleshooting
 
@@ -140,7 +140,7 @@ cat frontend/.env  # Verificar VITE_API_URL
 ## 🤝 Contribuindo
 
 1. Criar especificação no OpenSpec
-2. Implementar seguindo [docs/development.md](./docs/development.md)
+2. Implementar seguindo [docs/conventions.md](./docs/conventions.md)
 3. Garantir que testes passam
 4. Criar PR com descrição clara
 

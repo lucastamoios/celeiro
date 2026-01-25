@@ -114,12 +114,13 @@ frontend/src/
 |--------|---------|
 | CreateCategory | Add new category |
 | ListCategories | Get all categories for org |
-| ImportTransactionsFromOFX | Parse OFX and insert transactions |
+| ImportTransactionsFromOFX | Parse OFX and insert transactions (preserves user edits on re-import) |
 | UpdateTransaction | Modify transaction (category, description, etc.) |
 | GetUncategorizedTransactions | Get transactions needing classification |
 | CreateCategoryBudget | Set monthly budget for category |
 | CreatePlannedEntry | Add expected expense/income |
-| MatchTransactionToEntry | Link transaction to planned entry |
+| MatchPlannedEntryToTransaction | Link transaction to planned entry (updates entry amount, copies description/category) |
+| UnmatchPlannedEntry | Remove transaction link from planned entry |
 | CreatePattern | Add regex-based categorization rule |
 | CreateSavingsGoal | Create savings target |
 
