@@ -29,6 +29,10 @@ interface PatternCreatorProps {
   onSave: (pattern: AdvancedPattern) => Promise<void>;
   initialData?: InitialPatternData;
   existingPattern?: ExistingPattern;
+  initialSourceText?: string;
+  initialTargetDescription?: string;
+  initialTargetCategoryId?: number;
+  variant?: 'from_transaction' | 'from_planned_entry' | 'edit';
 }
 
 export interface AdvancedPattern {
@@ -43,30 +47,41 @@ export interface AdvancedPattern {
 
 const WEEKDAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-// Helper to extract simple text from a regex pattern like .*text.*
-function extractSimpleText(pattern: string): string {
-  // Try to extract text from patterns like .*text.* or ^.*text.*$
-  const match = pattern.match(/^\^?\.\*(.+?)\.\*\$?$/);
-  if (match) return match[1];
+// Helper to escape regex special characters (matches Go's regexp.QuoteMeta)
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-  // If it's a simple pattern without .* wrappers, return as is
-  if (!pattern.includes('.*') && !pattern.includes('^') && !pattern.includes('$')) {
-    return pattern;
+// Helper to extract simple text from a regex pattern like .*text.* or (?i).*text.*
+function extractSimpleText(pattern: string): string {
+  let cleanPattern = pattern.replace(/^\(\?i\)/, '');
+  
+  const match = cleanPattern.match(/^\^?\.\*(.+?)\.\*\$?$/);
+  if (match) {
+    return match[1].replace(/\\(.)/g, '$1');
   }
 
-  // Otherwise return empty (user is using advanced regex)
+  if (!cleanPattern.includes('.*') && !cleanPattern.includes('^') && !cleanPattern.includes('$')) {
+    return cleanPattern;
+  }
+
   return '';
 }
 
-// Helper to check if a pattern is "advanced" (not just .*text.*)
+// Helper to check if a pattern is "advanced" (not just (?i).*text.*)
 function isAdvancedPattern(pattern: string): boolean {
   if (!pattern) return false;
+  
+  if (pattern.startsWith('(?i).*') && pattern.endsWith('.*')) {
+    const inner = pattern.slice(6, -3);
+    const hasComplexRegex = /(?<!\\)[\\^$*+?.()|[\]{}]/.test(inner);
+    if (!hasComplexRegex) return false;
+  }
+  
   const simpleText = extractSimpleText(pattern);
-  // If we couldn't extract simple text, it's advanced
   if (!simpleText && pattern) return true;
-  // Check for regex special characters (excluding the .* wrapper)
-  const inner = pattern.replace(/^\^?\.\*/, '').replace(/\.\*\$?$/, '');
-  return /[\\^$*+?.()|[\]{}]/.test(inner);
+  
+  return false;
 }
 
 export default function PatternCreator({
@@ -74,7 +89,11 @@ export default function PatternCreator({
   onClose,
   onSave,
   initialData,
-  existingPattern
+  existingPattern,
+  initialSourceText,
+  initialTargetDescription,
+  initialTargetCategoryId,
+  variant: _variant
 }: PatternCreatorProps) {
   const { token } = useAuth();
 
@@ -86,7 +105,7 @@ export default function PatternCreator({
   const [simpleDescriptionText, setSimpleDescriptionText] = useState(
     existingPattern
       ? extractSimpleText(existingDescPattern) || ''
-      : '' // Start empty - user types the bank transaction keyword
+      : initialSourceText || ''
   );
 
   // Advanced mode: full regex pattern
@@ -107,12 +126,14 @@ export default function PatternCreator({
   // Target fields
   const [targetDescription, setTargetDescription] = useState(
     existingPattern?.target_description ||
+    initialTargetDescription ||
     initialData?.description ||
     ''
   );
   const [targetCategoryId, setTargetCategoryId] = useState(
     existingPattern ? String(existingPattern.target_category_id) :
-    (initialData?.categoryId ? String(initialData.categoryId) : '')
+    (initialTargetCategoryId ? String(initialTargetCategoryId) :
+    (initialData?.categoryId ? String(initialData.categoryId) : ''))
   );
 
   // Planned entry linking
@@ -361,8 +382,7 @@ export default function PatternCreator({
                   onClick={() => {
                     setUseRegex(!useRegex);
                     if (!useRegex && simpleDescriptionText) {
-                      // Switching to regex - initialize with current simple pattern
-                      setDescriptionPattern(`.*${simpleDescriptionText}.*`);
+                      setDescriptionPattern(`(?i).*${escapeRegex(simpleDescriptionText.trim())}.*`);
                     }
                   }}
                   className="text-xs text-wheat-600 hover:text-wheat-700 font-medium"
