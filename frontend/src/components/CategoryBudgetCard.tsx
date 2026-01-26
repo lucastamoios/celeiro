@@ -23,6 +23,7 @@ interface CategoryBudgetCardProps {
   onUndismissEntry?: (entryId: number) => void;
   onEditEntry?: (entry: PlannedEntryWithStatus) => void;
   onDeleteEntry?: (entryId: number) => void;
+  onCreatePatternFromMatch?: (entry: PlannedEntryWithStatus, month: number, year: number) => void;
   onCardClick?: () => void; // Click handler to open transactions modal
 
   // Drag & Drop Planned Entries
@@ -201,6 +202,7 @@ export default function CategoryBudgetCard({
   onUndismissEntry,
   onEditEntry,
   onDeleteEntry,
+  onCreatePatternFromMatch,
   onCardClick,
   dndDropId,
   isDropTargetDisabled = false,
@@ -616,6 +618,19 @@ export default function CategoryBudgetCard({
                           className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
                           Editar
+                        </button>
+                      )}
+                      {entry.Status === 'matched' && entry.MatchedTransactionID && !entry.PatternID && onCreatePatternFromMatch && month && year && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCreatePatternFromMatch(entry, month, year);
+                            setExpandedEntryActions(null);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-sm text-wheat-700 hover:bg-wheat-50 flex items-center gap-2"
+                        >
+                          <span>✨</span>
+                          Criar padrão do vínculo
                         </button>
                       )}
                       {onDeleteEntry && (
