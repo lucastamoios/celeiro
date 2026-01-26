@@ -1975,13 +1975,11 @@ func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlanned
 		}
 	}
 
-	pendingStatus := PlannedEntryStatusPending
-	_, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
+	_, err = s.Repository.ClearPlannedEntryMatch(ctx, clearPlannedEntryMatchParams{
 		StatusID: status.StatusID,
-		Status:   &pendingStatus,
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to update status")
+		return errors.Wrap(err, "failed to clear match")
 	}
 
 	return nil
@@ -2053,14 +2051,12 @@ func (s *service) UndismissPlannedEntry(ctx context.Context, params UndismissPla
 		return PlannedEntryStatus{}, errors.Wrap(err, "failed to fetch status")
 	}
 
-	// 2. Update status back to pending
-	pendingStatus := PlannedEntryStatusPending
-	status, err = s.Repository.ModifyPlannedEntryStatus(ctx, modifyPlannedEntryStatusParams{
+	// 2. Clear dismissal fields and set status to pending
+	status, err = s.Repository.ClearPlannedEntryDismissal(ctx, clearPlannedEntryDismissalParams{
 		StatusID: status.StatusID,
-		Status:   &pendingStatus,
 	})
 	if err != nil {
-		return PlannedEntryStatus{}, errors.Wrap(err, "failed to update status")
+		return PlannedEntryStatus{}, errors.Wrap(err, "failed to clear dismissal")
 	}
 
 	return PlannedEntryStatus{}.FromModel(&status), nil
