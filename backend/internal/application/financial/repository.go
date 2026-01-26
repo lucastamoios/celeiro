@@ -1666,7 +1666,7 @@ type modifyPlannedEntryParams struct {
 	PlannedEntryID   int
 	UserID           int
 	OrganizationID   int
-	PatternID        *int
+	PatternID        *int // Use -1 to clear (set to NULL)
 	SavingsGoalID    *int // Use -1 to clear (set to NULL)
 	Description      *string
 	Amount           *decimal.Decimal
@@ -1684,7 +1684,11 @@ const modifyPlannedEntryQuery = `
 	-- financial.modifyPlannedEntryQuery
 	UPDATE planned_entries
 	SET
-		pattern_id = COALESCE($4, pattern_id),
+		pattern_id = CASE
+			WHEN $4::int = -1 THEN NULL
+			WHEN $4::int IS NOT NULL THEN $4
+			ELSE pattern_id
+		END,
 		savings_goal_id = CASE
 			WHEN $5::int = -1 THEN NULL
 			WHEN $5::int IS NOT NULL THEN $5
