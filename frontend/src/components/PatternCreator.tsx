@@ -331,7 +331,7 @@ export default function PatternCreator({
             {/* Simple description input */}
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">
-                Descrição contém *
+                Texto do banco (para encontrar)
               </label>
               {useRegex ? (
                 <input
@@ -509,7 +509,7 @@ export default function PatternCreator({
                 {/* Target Description */}
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">
-                    Nova descrição *
+                    Como deve aparecer (renomear para)
                   </label>
                   <input
                     type="text"
