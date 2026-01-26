@@ -22,6 +22,10 @@ var (
 	ErrInviteNotFound        = pkgerrors.New("invite not found")
 	ErrInviteExpired         = pkgerrors.New("invite has expired")
 	ErrInviteAlreadyAccepted = pkgerrors.New("invite has already been accepted")
+
+	// Transaction pattern draft errors
+	ErrTransactionCategoryRequired    = pkgerrors.New("transaction has no category")
+	ErrTransactionDescriptionRequired = pkgerrors.New("transaction has no usable description")
 )
 
 func NewInvalidTimeFormatError(field string) error {

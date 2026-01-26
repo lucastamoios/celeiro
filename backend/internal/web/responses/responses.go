@@ -25,18 +25,20 @@ type ErrorMapping struct {
 
 // errorMappings maps specific error values to their HTTP responses
 var errorMappings = map[error]ErrorMapping{
-	errors.ErrEmailRequired:         {Status: http.StatusBadRequest, Code: "EMAIL_REQUIRED"},
-	errors.ErrEmailFormatInvalid:    {Status: http.StatusBadRequest, Code: "EMAIL_FORMAT_INVALID"},
-	errors.ErrCodeRequired:          {Status: http.StatusBadRequest, Code: "CODE_REQUIRED"},
-	errors.ErrCodeFormatInvalid:     {Status: http.StatusBadRequest, Code: "CODE_FORMAT_INVALID"},
-	errors.ErrInvalidJSONSyntax:     {Status: http.StatusBadRequest, Code: "INVALID_JSON_SYNTAX"},
-	errors.ErrInvalidJSONType:       {Status: http.StatusBadRequest, Code: "INVALID_JSON_TYPE"},
-	errors.ErrUnauthorized:          {Status: http.StatusUnauthorized, Code: "UNAUTHORIZED"},
-	errors.ErrMissingRequiredFields: {Status: http.StatusBadRequest, Code: "MISSING_REQUIRED_FIELDS"},
-	errors.ErrInvalidFormat:         {Status: http.StatusBadRequest, Code: "INVALID_FORMAT"},
-	errors.ErrInvalidSession:        {Status: http.StatusUnauthorized, Code: "INVALID_SESSION"},
-	errors.ErrActivationFailed:      {Status: http.StatusUnauthorized, Code: "ACTIVATION_FAILED"},
-	errors.ErrInvalidCode:           {Status: http.StatusUnauthorized, Code: "INVALID_CODE"},
+	errors.ErrEmailRequired:                  {Status: http.StatusBadRequest, Code: "EMAIL_REQUIRED"},
+	errors.ErrEmailFormatInvalid:             {Status: http.StatusBadRequest, Code: "EMAIL_FORMAT_INVALID"},
+	errors.ErrCodeRequired:                   {Status: http.StatusBadRequest, Code: "CODE_REQUIRED"},
+	errors.ErrCodeFormatInvalid:              {Status: http.StatusBadRequest, Code: "CODE_FORMAT_INVALID"},
+	errors.ErrInvalidJSONSyntax:              {Status: http.StatusBadRequest, Code: "INVALID_JSON_SYNTAX"},
+	errors.ErrInvalidJSONType:                {Status: http.StatusBadRequest, Code: "INVALID_JSON_TYPE"},
+	errors.ErrUnauthorized:                   {Status: http.StatusUnauthorized, Code: "UNAUTHORIZED"},
+	errors.ErrMissingRequiredFields:          {Status: http.StatusBadRequest, Code: "MISSING_REQUIRED_FIELDS"},
+	errors.ErrInvalidFormat:                  {Status: http.StatusBadRequest, Code: "INVALID_FORMAT"},
+	errors.ErrInvalidSession:                 {Status: http.StatusUnauthorized, Code: "INVALID_SESSION"},
+	errors.ErrActivationFailed:               {Status: http.StatusUnauthorized, Code: "ACTIVATION_FAILED"},
+	errors.ErrInvalidCode:                    {Status: http.StatusUnauthorized, Code: "INVALID_CODE"},
+	errors.ErrTransactionCategoryRequired:    {Status: http.StatusBadRequest, Code: "TRANSACTION_CATEGORY_REQUIRED"},
+	errors.ErrTransactionDescriptionRequired: {Status: http.StatusBadRequest, Code: "TRANSACTION_DESCRIPTION_REQUIRED"},
 }
 
 func NewSuccess[T any](data T, w http.ResponseWriter, status ...int) {

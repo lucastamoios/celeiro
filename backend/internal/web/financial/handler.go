@@ -1522,8 +1522,6 @@ func (h *Handler) GetTransactionPlannedEntry(w http.ResponseWriter, r *http.Requ
 // Transaction -> Pattern Draft
 // ============================================================================
 
-// GetTransactionPatternDraft returns suggested PatternCreator initial data derived from a transaction.
-// GET /financial/transactions/{id}/pattern-draft
 func (h *Handler) GetTransactionPatternDraft(w http.ResponseWriter, r *http.Request) {
 	_, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
@@ -1546,30 +1544,34 @@ func (h *Handler) GetTransactionPatternDraft(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	baseText := tx.Description
-	if baseText == "" && tx.OriginalDescription != nil {
-		baseText = *tx.OriginalDescription
+	if tx.CategoryID == nil {
+		responses.NewError(w, errors.ErrTransactionCategoryRequired)
+		return
 	}
 
-	escaped := regexp.QuoteMeta(strings.TrimSpace(baseText))
-	descriptionPattern := ""
-	if escaped != "" {
-		descriptionPattern = `(?i).*` + escaped + `.*`
+	sourceText := ""
+	if tx.OriginalDescription != nil && *tx.OriginalDescription != "" {
+		sourceText = *tx.OriginalDescription
+	} else if tx.Description != "" {
+		sourceText = tx.Description
 	}
 
-	// Use category if available, otherwise return null (user will select in PatternCreator)
-	var categoryID any = nil
-	if tx.CategoryID != nil {
-		categoryID = *tx.CategoryID
+	if sourceText == "" {
+		responses.NewError(w, errors.ErrTransactionDescriptionRequired)
+		return
 	}
+
+	escaped := regexp.QuoteMeta(strings.TrimSpace(sourceText))
+	descriptionPattern := `(?i).*` + escaped + `.*`
 
 	responses.NewSuccess(map[string]any{
-		"description":         baseText,
-		"category_id":         categoryID,
+		"source_text":         sourceText,
 		"description_pattern": descriptionPattern,
-		"target_description":  baseText,
-		"target_category_id":  categoryID,
+		"target_description":  "",
+		"target_category_id":  *tx.CategoryID,
 		"apply_retroactively": true,
+		"description":         sourceText,
+		"category_id":         *tx.CategoryID,
 	}, w)
 }
 
