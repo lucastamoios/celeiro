@@ -129,6 +129,17 @@ When matching a transaction to a planned entry (`MatchPlannedEntryToTransaction`
 
 This ensures planned entries learn from actual transaction amounts over time.
 
+### Clearing Status Fields (Unmatch / Reactivate)
+
+The generic `ModifyPlannedEntryStatus` uses `COALESCE` in SQL, which **cannot set fields to NULL**. For operations that need to clear fields:
+
+| Operation | Repository Function | Fields Cleared |
+|-----------|---------------------|----------------|
+| Unmatch | `ClearPlannedEntryMatch` | `matched_transaction_id`, `matched_amount`, `matched_at` |
+| Reactivate | `ClearPlannedEntryDismissal` | `dismissed_at`, `dismissal_reason` |
+
+**Why dedicated functions?** The COALESCE pattern `COALESCE($1, existing_value)` treats Go's `nil` as "don't change" rather than "set to NULL". Dedicated clearing functions use explicit `SET field = NULL` statements.
+
 ## Pattern System
 
 Unified regex-based pattern system:
@@ -189,6 +200,7 @@ Commit format: `<type>: <description>` (types: feat, fix, docs, refactor, test, 
 | Use `budgets` table | Legacy, being deprecated | Use `category_budgets` |
 | Skip `make migrate` after schema change | Table doesn't exist | Run `make migrate` first |
 | Return raw SQL errors to client | Security + UX issue | Wrap in domain error |
+| Use `Modify*` to clear fields to NULL | COALESCE preserves old values | Use dedicated `Clear*` functions (see below) |
 
 ## External APIs
 
