@@ -86,3 +86,30 @@ END
 - Insert test data via raw SQL on `test.DB`
 - Use `financial.PlannedEntryModel` for scanning results
 
+
+## Task 2: PatternCreator Refactor
+
+**Date:** 2026-01-26
+
+**Changes:**
+- Added 4 new props to `PatternCreatorProps`: `initialSourceText`, `initialTargetDescription`, `initialTargetCategoryId`, `variant`
+- Added `escapeRegex()` helper function (matches Go's `regexp.QuoteMeta`)
+- Updated `extractSimpleText()` to handle `(?i).*text.*` patterns (removes `(?i)` prefix, unescapes text)
+- Updated `isAdvancedPattern()` to treat canonical `(?i).*{escaped}.*` format as SIMPLE
+- Updated state initialization to use new props as fallbacks
+- Updated simple-to-regex conversion to use canonical format: `(?i).*${escapeRegex(text.trim())}.*`
+
+**Implementation Approach:**
+- Sub-task 2.1 (props) succeeded via delegation to "quick" category
+- Sub-tasks 2.2-2.6 completed manually by Atlas due to repeated agent failures
+- Agents either refused (interpreted as "multiple tasks") or made zero changes
+
+**Patterns Discovered:**
+- Complex refactors with 5+ changes should be broken into atomic sub-tasks
+- When delegation fails repeatedly, Atlas should implement directly to unblock progress
+- `variant` prop marked as `_variant` to suppress unused warning (will be used in Tasks 3-4)
+
+**Verification:**
+- TypeScript compiles cleanly (`bun x tsc -b`)
+- All new props present in interface and destructured in component
+- Canonical regex format matches backend implementation
