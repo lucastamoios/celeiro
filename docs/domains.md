@@ -144,6 +144,12 @@ Monthly tracking for planned entries.
 | month / year | Period |
 | status | pending, matched, dismissed, missing |
 | matched_transaction_id | Linked transaction when matched |
+| matched_amount | Amount at time of match |
+| matched_at | Timestamp of match |
+| dismissed_at | Timestamp of dismissal |
+| dismissal_reason | Optional reason for dismissal |
+
+**Important**: When changing status back to `pending` (unmatch or reactivate), the related fields must be explicitly cleared. See "Clearing Status Fields" in conventions.md.
 
 ### Pattern
 
@@ -221,10 +227,16 @@ stateDiagram-v2
     Pending --> Matched: Transaction linked
     Pending --> Dismissed: User dismisses
     Pending --> Missing: Month ends unmatched
+    Matched --> Pending: Unmatch
+    Dismissed --> Pending: Reactivate
     Matched --> [*]
     Dismissed --> [*]
     Missing --> [*]
 ```
+
+**Reverse Transitions**:
+- **Unmatch**: Clears `matched_transaction_id`, `matched_amount`, `matched_at`
+- **Reactivate**: Clears `dismissed_at`, `dismissal_reason`
 
 ### Matching Side Effects
 
