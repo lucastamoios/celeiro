@@ -49,3 +49,40 @@
 - Category check happens before description check (fail fast on missing category)
 - Empty string check uses `!= ""` after nil check for OriginalDescription pointer
 
+## Task 5: Backend Support for Clearing pattern_id Using Sentinel Value
+
+**Date:** 2026-01-26
+
+**Changes:**
+- Updated `modifyPlannedEntryQuery` in `backend/internal/application/financial/repository.go`:
+  - Changed `pattern_id = COALESCE($4, pattern_id)` to use CASE statement
+  - New pattern: `CASE WHEN $4::int = -1 THEN NULL WHEN $4::int IS NOT NULL THEN $4 ELSE pattern_id END`
+  - Added comment to `PatternID` field in params struct: `// Use -1 to clear (set to NULL)`
+
+- Created new integration test file `backend/internal/tests/integration/financial_test.go`:
+  - `TestPlannedEntry_ClearPatternID_UsingSentinel`: Verifies sentinel -1 clears pattern_id to NULL
+  - `TestPlannedEntry_UpdatePatternID_PreservesExisting`: Verifies nil preserves existing value
+  - `TestPlannedEntry_SetPatternID_FromNull`: Verifies setting pattern_id from NULL to valid value
+
+**SQL Pattern for Clearing Nullable Fields:**
+```sql
+pattern_id = CASE
+    WHEN $4::int = -1 THEN NULL
+    WHEN $4::int IS NOT NULL THEN $4
+    ELSE pattern_id
+END
+```
+
+**Key Learnings:**
+1. COALESCE cannot set NULL - it treats NULL input as "keep existing value"
+2. Sentinel value -1 is used because pattern_id is always positive (SERIAL)
+3. The same pattern was already used for `savings_goal_id` in the same query
+4. Integration tests use raw SQL for setup since repository params are unexported
+5. The `patterns` table (renamed from `advanced_patterns`) requires `user_id` and `organization_id`
+
+**Test Setup Pattern:**
+- Use `BaseTestSuite` from `base_test_suite.go`
+- Create user/org via `CreateUserAndAuthenticate()`
+- Insert test data via raw SQL on `test.DB`
+- Use `financial.PlannedEntryModel` for scanning results
+
