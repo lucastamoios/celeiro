@@ -278,6 +278,16 @@ func (m *MockRepository) ModifyPlannedEntryStatus(ctx context.Context, params mo
 	return args.Get(0).(PlannedEntryStatusModel), args.Error(1)
 }
 
+func (m *MockRepository) ClearPlannedEntryMatch(ctx context.Context, params clearPlannedEntryMatchParams) (PlannedEntryStatusModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryStatusModel), args.Error(1)
+}
+
+func (m *MockRepository) ClearPlannedEntryDismissal(ctx context.Context, params clearPlannedEntryDismissalParams) (PlannedEntryStatusModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(PlannedEntryStatusModel), args.Error(1)
+}
+
 func (m *MockRepository) RemovePlannedEntryStatus(ctx context.Context, params removePlannedEntryStatusParams) error {
 	args := m.Called(ctx, params)
 	return args.Error(0)

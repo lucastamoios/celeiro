@@ -76,6 +76,8 @@ type Repository interface {
 	FetchPlannedEntryStatusByTransactionID(ctx context.Context, params fetchPlannedEntryStatusByTransactionIDParams) (PlannedEntryStatusModel, error)
 	UpsertPlannedEntryStatus(ctx context.Context, params upsertPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
 	ModifyPlannedEntryStatus(ctx context.Context, params modifyPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
+	ClearPlannedEntryMatch(ctx context.Context, params clearPlannedEntryMatchParams) (PlannedEntryStatusModel, error)
+	ClearPlannedEntryDismissal(ctx context.Context, params clearPlannedEntryDismissalParams) (PlannedEntryStatusModel, error)
 	RemovePlannedEntryStatus(ctx context.Context, params removePlannedEntryStatusParams) error
 
 	// Monthly Snapshots
@@ -2317,6 +2319,79 @@ func (r *repository) ModifyPlannedEntryStatus(ctx context.Context, params modify
 	err := r.db.Query(ctx, &status, modifyPlannedEntryStatusQuery,
 		params.StatusID, params.Status, params.MatchedTransactionID,
 		params.MatchedAmount, params.MatchedAt, params.DismissedAt, params.DismissalReason)
+	return status, err
+}
+
+type clearPlannedEntryMatchParams struct {
+	StatusID int
+}
+
+const clearPlannedEntryMatchQuery = `
+	-- financial.clearPlannedEntryMatchQuery
+	UPDATE planned_entry_statuses
+	SET
+		status = 'pending',
+		matched_transaction_id = NULL,
+		matched_amount = NULL,
+		matched_at = NULL,
+		updated_at = CURRENT_TIMESTAMP
+	WHERE status_id = $1
+	RETURNING
+		status_id,
+		created_at,
+		updated_at,
+		planned_entry_id,
+		month,
+		year,
+		status,
+		matched_transaction_id,
+		matched_amount,
+		matched_at,
+		dismissed_at,
+		dismissal_reason;
+`
+
+// ClearPlannedEntryMatch sets status to pending and clears all match-related fields.
+// Used when unmatching a planned entry from a transaction.
+func (r *repository) ClearPlannedEntryMatch(ctx context.Context, params clearPlannedEntryMatchParams) (PlannedEntryStatusModel, error) {
+	var status PlannedEntryStatusModel
+	err := r.db.Query(ctx, &status, clearPlannedEntryMatchQuery, params.StatusID)
+	return status, err
+}
+
+type clearPlannedEntryDismissalParams struct {
+	StatusID int
+}
+
+const clearPlannedEntryDismissalQuery = `
+	-- financial.clearPlannedEntryDismissalQuery
+	UPDATE planned_entry_statuses
+	SET
+		status = 'pending',
+		dismissed_at = NULL,
+		dismissal_reason = NULL,
+		updated_at = CURRENT_TIMESTAMP
+	WHERE status_id = $1
+	RETURNING
+		status_id,
+		created_at,
+		updated_at,
+		planned_entry_id,
+		month,
+		year,
+		status,
+		matched_transaction_id,
+		matched_amount,
+		matched_at,
+		dismissed_at,
+		dismissal_reason;
+`
+
+// ClearPlannedEntryDismissal sets status to pending and clears all dismissal-related fields.
+// Used when undismissing (reactivating) a planned entry.
+func (r *repository) ClearPlannedEntryDismissal(ctx context.Context, params clearPlannedEntryDismissalParams) (PlannedEntryStatusModel, error) {
+	var status PlannedEntryStatusModel
+	err := r.db.Query(ctx, &status, clearPlannedEntryDismissalQuery, params.StatusID)
 	return status, err
 }
 
