@@ -1,15 +1,26 @@
 # OS
 .DS_Store
+Thumbs.db
 
 # IDE / Editor
 .idea/
 .cursor/
+.vscode/
 
 # AI / Tool artifacts
 .beads/
 .playwright-mcp/
 .sisyphus/
 
+# Environment / Secrets
+.env
+.env.*
+.envrc
+!.env.example
+
 # Sensitive / Banking data
 *.ofx
 *.qfx
+
+# Database backups
+backup_*.sql
