@@ -1,2 +1,15 @@
-# Local/AI artifacts
+# OS
+.DS_Store
+
+# IDE / Editor
+.idea/
+.cursor/
+
+# AI / Tool artifacts
+.beads/
 .playwright-mcp/
+.sisyphus/
+
+# Sensitive / Banking data
+*.ofx
+*.qfx
