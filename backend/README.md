@@ -17,12 +17,12 @@ This project is meant to be used as a model for other projects. We can also just
 - [Background Jobs](https://github.com/hibiken/asynq)
 - Authentication
 - Logs/Metrics/Trace
-- [CLI para o sistema](https://github.com/charmbracelet/bubbletea)
+- [System CLI](https://github.com/charmbracelet/bubbletea)
 - Flags and environment variables
 - Migration System
 - Folder structure (to be clarified when making the first services)
 - Login/Register/Magic Link
-	- Esquema geral do Service/Repository/Handler
+	- General Service/Repository/Handler schema
 - Integration Test (no login)
 - Makefile
 - Testing with testcontainers
@@ -52,7 +52,7 @@ We may follow [this project standard](https://github.com/golang-standards/projec
 
 ### Services
 
-Some services are common enough so we can just create then beforehand.
+Some services are common enough so we can just create them beforehand.
 
 **Account service**
 - Organization
@@ -62,12 +62,12 @@ Some services are common enough so we can just create then beforehand.
 - Authentication
 
 
-### Notas de Estilo
+### Style Notes
 
-- Os verbos Fetch, Insert, Modify, Destroy ficam reservados á métodos de repository e é obrigatório usá-los como prefixo sempre que possível.
+- The verbs Fetch, Insert, Modify, Destroy are reserved for repository methods and must be used as prefixes whenever possible.
 
 
-1. Algo é atualizado na DB que atualiza user (permissions etc.)
-2. NeedsRevalidate = true na Session (InvalidateSession)
-3. Middleware recusa se needsRevalidate = true e retorna 402 + código de erro específico
-4. Front revalida a sessão e continua.
+1. Something is updated in the DB that affects the user (permissions, etc.)
+2. NeedsRevalidate = true on the Session (InvalidateSession)
+3. Middleware rejects if needsRevalidate = true and returns 402 + specific error code
+4. Frontend revalidates the session and continues.

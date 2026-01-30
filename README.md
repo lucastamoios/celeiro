@@ -1,98 +1,98 @@
-# Celeiro - Sistema de Gestão Financeira Pessoal
+# Celeiro - Personal Finance Management System
 
-> Um sistema de controle financeiro pessoal com importação OFX, classificação automática e orçamentos flexíveis.
+> A personal finance management system with OFX import, automatic classification, and flexible budgets.
 
-## 🎯 Visão Rápida
+## Overview
 
-**Problema**: Gerenciar finanças pessoais é tedioso - múltiplas contas, classificação manual, sem controle de orçamento.
+**Problem**: Managing personal finances is tedious — multiple accounts, manual classification, no budget control.
 
-**Solução**: Importa OFX → Classifica automaticamente → Controla orçamentos por categoria.
+**Solution**: Import OFX → Classify automatically → Control budgets by category.
 
-## 📚 Documentação
+## Documentation
 
-- **[product.md](./product.md)** - Visão de produto, features e decisões de negócio
-- **[docs/index.md](./docs/index.md)** - Índice da documentação e referência rápida
-- **[docs/setup.md](./docs/setup.md)** - Guia de instalação e configuração
-- **[docs/architecture.md](./docs/architecture.md)** - Arquitetura do sistema e padrões de design
-- **[docs/database.md](./docs/database.md)** - Modelo de dados completo (auth + financeiro)
-- **[docs/domains.md](./docs/domains.md)** - Guia de domínios e entidades
-- **[docs/conventions.md](./docs/conventions.md)** - Convenções de código e padrões
-- **[docs/auth.md](./docs/auth.md)** - Sistema de autenticação
-- **[docs/troubleshooting.md](./docs/troubleshooting.md)** - Solução de problemas
+- **[product.md](./product.md)** - Product vision, features, and business decisions
+- **[docs/index.md](./docs/index.md)** - Documentation index and quick reference
+- **[docs/setup.md](./docs/setup.md)** - Installation and setup guide
+- **[docs/architecture.md](./docs/architecture.md)** - System architecture and design patterns
+- **[docs/database.md](./docs/database.md)** - Complete data model (auth + financial)
+- **[docs/domains.md](./docs/domains.md)** - Domains and entities guide
+- **[docs/conventions.md](./docs/conventions.md)** - Code conventions and patterns
+- **[docs/auth.md](./docs/auth.md)** - Authentication system
+- **[docs/troubleshooting.md](./docs/troubleshooting.md)** - Troubleshooting
 
-## 📁 Estrutura do Projeto
+## Project Structure
 
 ```
 celeiro/
-├── backend/              # API Go + PostgreSQL
+├── backend/              # Go API + PostgreSQL
 │   ├── cmd/             # Entry points
-│   ├── internal/        # Código privado da aplicação
-│   │   ├── domain/      # Entidades e interfaces
-│   │   ├── repository/  # Acesso a dados
-│   │   ├── service/     # Lógica de negócio
+│   ├── internal/        # Private application code
+│   │   ├── domain/      # Entities and interfaces
+│   │   ├── repository/  # Data access
+│   │   ├── service/     # Business logic
 │   │   └── web/         # HTTP handlers
 │   ├── migrations/      # SQL migrations (Goose)
-│   └── pkg/             # Código reutilizável
-│       └── ofx/         # Parser OFX
+│   └── pkg/             # Reusable code
+│       └── ofx/         # OFX parser
 ├── frontend/            # React + TypeScript + Tailwind
 │   ├── src/
-│   │   ├── components/  # Componentes reutilizáveis
-│   │   ├── pages/       # Páginas da aplicação
+│   │   ├── components/  # Reusable components
+│   │   ├── pages/       # Application pages
 │   │   ├── services/    # API clients
 │   │   └── types/       # TypeScript types
 │   └── public/
-├── docs/                # Documentação
-└── openspec/            # Especificações OpenSpec (mudanças em openspec/changes/)
+├── docs/                # Documentation
+└── openspec/            # OpenSpec specifications (changes in openspec/changes/)
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-Fluxo recomendado (Docker):
+Recommended flow (Docker):
 
 ```bash
 make up
 ```
 
-Acesse http://localhost:13000
+Access http://localhost:13000
 
-👉 **Guia completo**: [docs/setup.md](./docs/setup.md)
+See **[docs/setup.md](./docs/setup.md)** for the full guide.
 
-## 🏗️ Arquitetura
+## Architecture
 
 **Backend:** Repository → Service → Handler (Go + PostgreSQL + SQLX)
 **Frontend:** React + TypeScript + Tailwind CSS
 **DevOps:** Docker + GitHub Actions
 
-👉 **Detalhes completos**: [docs/architecture.md](./docs/architecture.md)
+See **[docs/architecture.md](./docs/architecture.md)** for full details.
 
-## 📊 Modelo de Dados
+## Data Model
 
 ```
 users → accounts → transactions → categories → budgets → budget_items
                                              ↘ classification_rules
 ```
 
-**Principais decisões:**
-- Serial IDs (não UUID) para performance
-- FITID único por conta previne duplicatas
-- Budget com 3 tipos: fixo, calculado, híbrido
-- Raw OFX em JSONB para auditoria
+**Key decisions:**
+- Serial IDs (not UUID) for performance
+- Unique FITID per account prevents duplicates
+- Budget with 3 types: fixed, calculated, hybrid
+- Raw OFX stored in JSONB for auditing
 
-👉 **Schema completo**: [docs/database.md](./docs/database.md)
+See **[docs/database.md](./docs/database.md)** for the full schema.
 
-## 🛠️ Desenvolvimento
+## Development
 
-**Workflow:** OpenSpec (proposal/change) → Implementação → Review
+**Workflow:** OpenSpec (proposal/change) → Implementation → Review
 
 ```bash
-# Comandos principais
-make test                         # Rodar testes backend
-npm test                          # Rodar testes frontend
+# Main commands
+make test                         # Run backend tests
+npm test                          # Run frontend tests
 ```
 
-👉 **Convenções**: [docs/conventions.md](./docs/conventions.md)
+See **[docs/conventions.md](./docs/conventions.md)** for conventions.
 
-## 🧪 Testes
+## Tests
 
 ```bash
 # Backend
@@ -104,9 +104,9 @@ npm test            # Jest + React Testing Library
 npm test -- --coverage
 ```
 
-👉 **Backend guide**: [backend/STARTUP-GUIDE.md](./backend/STARTUP-GUIDE.md)
+See **[backend/STARTUP-GUIDE.md](./backend/STARTUP-GUIDE.md)** for the backend guide.
 
-## 📝 Tech Stack
+## Tech Stack
 
 **Backend:** Go 1.24, Chi, PostgreSQL 16, Redis, SQLX, Goose
 **Frontend:** React 18, TypeScript, Tailwind CSS, Vite
@@ -114,36 +114,36 @@ npm test -- --coverage
 **DevOps:** Docker, GitHub Actions
 **AI Tools:** OpenSpec, Claude Code
 
-👉 **Convenções de código**: [docs/conventions.md](./docs/conventions.md)
-👉 **Sistema de auth**: [docs/auth.md](./docs/auth.md)
+See **[docs/conventions.md](./docs/conventions.md)** for code conventions.
+See **[docs/auth.md](./docs/auth.md)** for the auth system.
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ```bash
-# Backend não inicia
-docker ps | grep postgres  # Verificar PostgreSQL
+# Backend won't start
+docker ps | grep postgres  # Check PostgreSQL
 docker logs celeiro-postgres
 make down
 docker volume prune  # Careful: removes all unused volumes
 make up
 
-# Migrations falham
+# Migrations fail
 make migrate.rollback
 
-# Frontend sem dados
-curl -i localhost:9090/accounts/me/  # Testar backend
-cat frontend/.env  # Verificar VITE_API_URL
+# Frontend has no data
+curl -i localhost:9090/accounts/me/  # Test backend
+cat frontend/.env  # Check VITE_API_URL
 ```
 
-👉 **Mais soluções**: [docs/setup.md#troubleshooting](./docs/setup.md#troubleshooting)
+See **[docs/setup.md#troubleshooting](./docs/setup.md#troubleshooting)** for more solutions.
 
-## 🤝 Contribuindo
+## Contributing
 
-1. Criar especificação no OpenSpec
-2. Implementar seguindo [docs/conventions.md](./docs/conventions.md)
-3. Garantir que testes passam
-4. Criar PR com descrição clara
+1. Create a specification in OpenSpec
+2. Implement following [docs/conventions.md](./docs/conventions.md)
+3. Ensure tests pass
+4. Create a PR with a clear description
 
-## 📄 Licença
+## License
 
-Proprietário - Lucas Tamoios
+Proprietary - Lucas Tamoios

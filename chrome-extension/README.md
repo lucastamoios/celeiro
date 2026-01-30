@@ -1,71 +1,71 @@
 # Celeiro Amazon Sync - Chrome Extension
 
-Extensão do Chrome para sincronizar pedidos da Amazon com o Celeiro, permitindo categorização automática de transações bancárias.
+Chrome extension to sync Amazon orders with Celeiro, enabling automatic categorization of bank transactions.
 
-## Instalação
+## Installation
 
-### 1. Gerar Ícones PNG (necessário)
+### 1. Generate PNG Icons (required)
 
-A extensão precisa de ícones PNG. Converta os SVGs fornecidos:
+The extension needs PNG icons. Convert the provided SVGs:
 
 ```bash
 cd chrome-extension/icons
 
-# Usando ImageMagick (se instalado)
+# Using ImageMagick (if installed)
 convert icon16.svg icon16.png
 convert icon48.svg icon48.png
 convert icon128.svg icon128.png
 
-# Ou usando rsvg-convert (se instalado)
+# Or using rsvg-convert (if installed)
 rsvg-convert -w 16 -h 16 icon16.svg -o icon16.png
 rsvg-convert -w 48 -h 48 icon48.svg -o icon48.png
 rsvg-convert -w 128 -h 128 icon128.svg -o icon128.png
 ```
 
-Ou simplesmente crie os PNGs manualmente com qualquer editor de imagem.
+Or simply create the PNGs manually with any image editor.
 
-### 2. Instalar no Chrome
+### 2. Install in Chrome
 
-1. Abra `chrome://extensions/` no Chrome
-2. Ative o "Modo do desenvolvedor" (canto superior direito)
-3. Clique em "Carregar sem compactação"
-4. Selecione a pasta `chrome-extension`
+1. Open `chrome://extensions/` in Chrome
+2. Enable "Developer mode" (top right corner)
+3. Click "Load unpacked"
+4. Select the `chrome-extension` folder
 
-## Uso
+## Usage
 
-### Configuração Inicial
+### Initial Setup
 
-1. Clique no ícone da extensão na barra do Chrome
+1. Click the extension icon in the Chrome toolbar
 2. Configure:
-   - **URL da API**: URL do backend do Celeiro (ex: `http://localhost:8080`)
-   - **Token**: Seu token JWT de autenticação
-   - **Mês/Ano**: Período dos pedidos a sincronizar
+   - **API URL**: Celeiro backend URL (e.g., `http://localhost:8080`)
+   - **Token**: Your JWT authentication token
+   - **Month/Year**: Order period to sync
 
-### Sincronização
+### Syncing
 
-1. Faça login na Amazon no navegador
-2. Clique em "Sincronizar Pedidos Amazon"
-3. A extensão irá:
-   - Navegar para a página de pedidos
-   - Extrair informações de cada pedido
-   - Paginar automaticamente
-   - Enviar dados para o Celeiro
+1. Log in to Amazon in the browser
+2. Click "Sync Amazon Orders"
+3. The extension will:
+   - Navigate to the orders page
+   - Extract information from each order
+   - Paginate automatically
+   - Send data to Celeiro
 
-### Botão "Abrir Amazon Orders"
+### "Open Amazon Orders" Button
 
-Abre diretamente a página de pedidos da Amazon filtrada pelo mês/ano selecionado.
+Opens the Amazon orders page directly, filtered by the selected month/year.
 
-## Dados Extraídos
+## Extracted Data
 
-Para cada pedido, a extensão extrai:
-- **order_id**: Identificador único do pedido
-- **date**: Data do pedido (formato ISO)
-- **total**: Valor total do pedido
-- **items**: Lista de produtos comprados
+For each order, the extension extracts:
+- **order_id**: Unique order identifier
+- **date**: Order date (ISO format)
+- **total**: Total order amount
+- **items**: List of purchased products
 
-## API Backend
+## Backend API
 
-A extensão envia os dados para:
+The extension sends data to:
 ```
 POST /api/v1/financial/amazon/sync
 ```
@@ -95,81 +95,81 @@ Payload:
 }
 ```
 
-## Comportamento de Paginação
+## Pagination Behavior
 
-A extensão navega automaticamente pelas páginas de pedidos da Amazon:
+The extension automatically navigates through Amazon order pages:
 
-1. **Extração automática**: Extrai pedidos de cada página sequencialmente
-2. **Detecção de mês anterior**: Para quando encontra pedidos do mês anterior ao selecionado
-3. **Página extra de segurança**: Sempre busca **UMA PÁGINA ADICIONAL** após detectar pedidos do mês anterior
-   - Isso garante que nenhum pedido seja perdido (a ordenação da Amazon nem sempre é perfeita)
-4. **Limite de segurança**: Máximo de 20 páginas para evitar loops infinitos
+1. **Automatic extraction**: Extracts orders from each page sequentially
+2. **Previous month detection**: Stops when it finds orders from the month before the selected one
+3. **Safety extra page**: Always fetches **ONE ADDITIONAL PAGE** after detecting orders from the previous month
+   - This ensures no orders are missed (Amazon's ordering isn't always perfect)
+4. **Safety limit**: Maximum of 20 pages to avoid infinite loops
 
-## Parsing de Dados
+## Data Parsing
 
-### Datas (Português Brasileiro)
+### Dates (Brazilian Portuguese)
 
-A extensão parseia datas no formato `15 de dezembro de 2024`:
+The extension parses dates in the format `15 de dezembro de 2024`:
 
-**Meses suportados:**
-- janeiro, fevereiro, março/marco, abril, maio, junho
+**Supported months:**
+- janeiro, fevereiro, marco/marco, abril, maio, junho
 - julho, agosto, setembro, outubro, novembro, dezembro
 
-### Valores Monetários
+### Currency Values
 
-Parseia o formato Real Brasileiro:
+Parses the Brazilian Real format:
 - `R$ 1.234,56` → `1234.56` (float)
-- Remove pontos de milhar, converte vírgula para ponto decimal
+- Removes thousands separators (dots), converts comma to decimal point
 
 ## Troubleshooting
 
-### Extensão não extrai pedidos
+### Extension doesn't extract orders
 
-1. Verifique se está logado na Amazon
-2. Tente recarregar a página de pedidos
-3. Verifique o console do navegador (F12) para erros
+1. Make sure you're logged in to Amazon
+2. Try reloading the orders page
+3. Check the browser console (F12) for errors
 
-### Erro de API
+### API Error
 
-1. Verifique se a URL da API está correta
-2. Verifique se o token está válido
-3. Verifique se o backend está rodando
+1. Check if the API URL is correct
+2. Check if the token is valid
+3. Check if the backend is running
 
-### Ícones não aparecem
+### Icons don't appear
 
-Gere os arquivos PNG conforme instruções acima.
+Generate the PNG files as instructed above.
 
-## Desenvolvimento
+## Development
 
-### Estrutura de Arquivos
+### File Structure
 
 ```
 chrome-extension/
-├── manifest.json      # Configuração da extensão
-├── popup.html         # Interface do popup
-├── popup.js           # Lógica do popup
-├── content.js         # Script injetado nas páginas Amazon
-├── background.js      # Service worker para operações longas
-├── icons/             # Ícones da extensão
-└── README.md          # Este arquivo
+├── manifest.json      # Extension configuration
+├── popup.html         # Popup interface
+├── popup.js           # Popup logic
+├── content.js         # Script injected into Amazon pages
+├── background.js      # Service worker for long operations
+├── icons/             # Extension icons
+└── README.md          # This file
 ```
 
 ### Debug
 
-**IMPORTANTE: Existem dois consoles diferentes!**
+**IMPORTANT: There are two different consoles!**
 
-1. **Console do Popup** (logs de `popup.js`):
-   - Clique com botão direito no ícone da extensão
-   - Selecione "Inspecionar popup"
-   - Os logs de navegação e chamadas de API aparecem aqui
+1. **Popup Console** (`popup.js` logs):
+   - Right-click the extension icon
+   - Select "Inspect popup"
+   - Navigation and API call logs appear here
 
-2. **Console da Página Amazon** (logs de `extractOrders()`):
-   - Pressione F12 na página da Amazon
-   - A função `extractOrders()` é injetada na página Amazon
-   - Logs de extração de pedidos aparecem NESTE console, não no popup
+2. **Amazon Page Console** (`extractOrders()` logs):
+   - Press F12 on the Amazon page
+   - The `extractOrders()` function is injected into the Amazon page
+   - Order extraction logs appear in THIS console, not in the popup
 
 3. **Service Worker**:
-   - Abra `chrome://extensions/`
-   - Clique em "Service Worker" para ver logs do background
+   - Open `chrome://extensions/`
+   - Click "Service Worker" to see background logs
 
-**Dica**: Quando a extensão navega para uma nova página, o DevTools anexado à página anterior pode desconectar. Reabra o DevTools após a navegação se necessário.
+**Tip**: When the extension navigates to a new page, DevTools attached to the previous page may disconnect. Reopen DevTools after navigation if needed.

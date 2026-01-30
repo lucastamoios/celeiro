@@ -1,124 +1,124 @@
-# Celeiro - Sistema de Gestão Financeira Pessoal
+# Celeiro - Personal Finance Management System
 
-## Visão Geral
+## Overview
 
-Celeiro é um sistema de controle financeiro pessoal que permite importar extratos bancários via formato OFX, classificar transações automaticamente através de regras customizáveis, e gerenciar orçamentos mensais por categoria.
+Celeiro is a personal finance management system that allows importing bank statements via OFX format, automatically classifying transactions through customizable rules, and managing monthly budgets by category.
 
-O nome "Celeiro" reflete a ideia de **armazenar e organizar recursos** de forma estruturada, assim como um celeiro agrícola guarda grãos para uso futuro.
+The name "Celeiro" (Portuguese for "barn") reflects the idea of **storing and organizing resources** in a structured way, just as a barn stores grain for future use.
 
-## Problema que Resolve
+## Problem Statement
 
-Usuários enfrentam dificuldades em:
-1. **Consolidar dados financeiros**: Múltiplas contas bancárias em diferentes instituições
-2. **Classificar gastos manualmente**: Processo tedioso e propenso a erros
-3. **Controlar orçamentos**: Falta de visibilidade sobre gastos por categoria
-4. **Entender padrões de consumo**: Ausência de histórico estruturado
+Users face difficulties with:
+1. **Consolidating financial data**: Multiple bank accounts across different institutions
+2. **Manually classifying expenses**: Tedious and error-prone process
+3. **Controlling budgets**: Lack of visibility into spending by category
+4. **Understanding spending patterns**: No structured history
 
-## Solução
+## Solution
 
-Sistema web que oferece:
-- **Importação automática** de extratos OFX (crédito e débito)
-- **Classificação inteligente** através de regras customizáveis
-- **Orçamentos flexíveis** por categoria (fixos, calculados ou híbridos)
-- **Visão consolidada** de gastos mensais
-- **Histórico estruturado** para análise de padrões
+A web system that offers:
+- **Automatic import** of OFX statements (credit and debit)
+- **Smart classification** through customizable rules
+- **Flexible budgets** by category (fixed, calculated, or hybrid)
+- **Consolidated view** of monthly expenses
+- **Structured history** for pattern analysis
 
-## Modelo de Uso
+## Usage Model
 
-### Versão Atual (MVP): Uso Individual
-- **1 usuário = 1 organização** (criada automaticamente no primeiro login)
-- Experiência totalmente pessoal e privada
-- Todas as contas, transações e orçamentos pertencem ao usuário
+### Current Version (MVP): Individual Use
+- **1 user = 1 organization** (created automatically on first login)
+- Fully personal and private experience
+- All accounts, transactions, and budgets belong to the user
 
-### Versão Futura: Uso Compartilhado
-- **Multi-usuário** dentro da mesma organização (ex: casais, famílias)
-- **Contas compartilhadas** visíveis para todos os membros
-- **Permissões por função** (administrador vs visualização)
-- **Orçamentos individuais ou compartilhados**
+### Future Version: Shared Use
+- **Multi-user** within the same organization (e.g., couples, families)
+- **Shared accounts** visible to all members
+- **Role-based permissions** (admin vs view-only)
+- **Individual or shared budgets**
 
-**Migração:** Sistema já preparado para multi-usuário, mas interface focada em experiência individual por enquanto.
+**Migration:** The system is already prepared for multi-user, but the interface is focused on individual experience for now.
 
-## Features Core (MVP)
+## Core Features (MVP)
 
-### 1. Gestão de Contas Bancárias
-- Cadastro manual de contas (nome, tipo: corrente/poupança/crédito)
-- Múltiplas contas por usuário
-- **Simplificação MVP**: Crédito e débito são tratados como mesma conta (compra no crédito = débito imediato)
-- **Futuro**: Suporte a parcelamento e postergação de débito
+### 1. Bank Account Management
+- Manual account creation (name, type: checking/savings/credit)
+- Multiple accounts per user
+- **MVP simplification**: Credit and debit are treated as the same account (credit purchase = immediate debit)
+- **Future**: Support for installments and deferred debits
 
-### 2. Importação de Transações (OFX)
-- Upload manual de arquivos OFX
-- Parse automático de transações
-- Detecção de duplicatas via `FITID` do OFX
-- Suporte a múltiplas importações (incremental)
-- **Arquivos separados**: Um OFX para crédito, outro para débito (mesmo que mesma conta)
+### 2. Transaction Import (OFX)
+- Manual OFX file upload
+- Automatic transaction parsing
+- Duplicate detection via OFX `FITID`
+- Support for multiple imports (incremental)
+- **Separate files**: One OFX for credit, another for debit (even if same account)
 
-### 3. Categorização de Transações
-- **Categorias padrão do sistema**: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Outros
-- Criação de categorias customizadas pelo usuário
-- **Classificação manual**: Tela com tabela de transações não classificadas
-- **Sistema de regras automáticas** baseado em:
-  - Descrição (regex/contains)
-  - Valor (ranges)
-  - Data (dia da semana, período do mês)
-  - Combinações (AND/OR)
-- Prioridade de regras (primeira que bater ganha)
+### 3. Transaction Categorization
+- **Default system categories**: Food, Transportation, Housing, Health, Education, Leisure, Other
+- User-created custom categories
+- **Manual classification**: Screen with table of unclassified transactions
+- **Automatic rule system** based on:
+  - Description (regex/contains)
+  - Amount (ranges)
+  - Date (day of week, period of month)
+  - Combinations (AND/OR)
+- Rule priority (first match wins)
 
-### 4. Orçamentos Mensais
-- Criação de orçamento por categoria + mês/ano
-- **Três tipos de orçamento**:
-  - **Fixo**: Valor definido pelo usuário (ex: R$ 500 em Alimentação)
-  - **Calculado**: Soma de itens previstos (ex: Netflix R$50 + Spotify R$30 = R$80)
-  - **Híbrido**: Maior valor entre fixo e calculado
-- Se não houver orçamento definido: herda valor real do mês anterior (ou zero se primeiro mês)
-- **Budget items** (gastos previstos) são opcionais
+### 4. Monthly Budgets
+- Budget creation by category + month/year
+- **Three budget types**:
+  - **Fixed**: User-defined amount (e.g., R$500 for Food)
+  - **Calculated**: Sum of planned items (e.g., Netflix R$50 + Spotify R$30 = R$80)
+  - **Hybrid**: Higher value between fixed and calculated
+- If no budget is defined: inherits actual value from previous month (or zero if first month)
+- **Budget items** (planned expenses) are optional
 
-### 5. Visualização e Controle
-- Dashboard mensal com:
-  - Gastos por categoria vs orçamento
-  - Status visual (OK/Warning/Over) - Valores acima de 0.5% sem finalidade é considerado Warning
-  - Total gasto vs total orçado
-- Lista de transações com filtros:
-  - Por período
-  - Por categoria
-  - Por conta
-  - Classificadas vs não classificadas
+### 5. Visualization and Control
+- Monthly dashboard with:
+  - Spending by category vs budget
+  - Visual status (OK/Warning/Over) — Values above 0.5% without a purpose are considered Warning
+  - Total spent vs total budgeted
+- Transaction list with filters:
+  - By period
+  - By category
+  - By account
+  - Classified vs unclassified
 
-## Decisões de Produto Importantes
+## Key Product Decisions
 
-### Por que OFX manual e não Open Banking?
-**Segurança e controle**: Open Banking requer credenciais bancárias ou integrações complexas. OFX manual é:
-- Mais seguro (usuário baixa do banco e faz upload)
-- Mais simples (sem manutenção de integrações)
-- Mais confiável (bancos sempre suportam OFX)
+### Why manual OFX instead of Open Banking?
+**Security and control**: Open Banking requires bank credentials or complex integrations. Manual OFX is:
+- More secure (user downloads from bank and uploads)
+- Simpler (no integration maintenance)
+- More reliable (banks always support OFX)
 
-### Por que crédito = débito imediato?
-**Simplicidade cognitiva**: Maioria dos usuários pensa "gastei hoje" mesmo se pagar depois. Evita complexidade de:
-- Conciliação de faturas
-- Transações "pendentes"
-- Fluxo de caixa vs competência
+### Why credit = immediate debit?
+**Cognitive simplicity**: Most users think "I spent today" even if they pay later. Avoids the complexity of:
+- Invoice reconciliation
+- "Pending" transactions
+- Cash flow vs accrual accounting
 
-Quando necessário, adicionaremos parcelamento/postergação como feature opcional.
+When needed, we'll add installments/deferral as an optional feature.
 
-### Por que não sincronização automática?
-**Privacidade e latência aceitável**: Importação manual 1x por semana é suficiente para 95% dos casos. Evita:
-- Armazenar credenciais bancárias
-- Complexidade de manutenção de APIs
-- Custos de integrações bancárias
+### Why no automatic sync?
+**Privacy and acceptable latency**: Manual import once a week is sufficient for 95% of cases. Avoids:
+- Storing bank credentials
+- API maintenance complexity
+- Banking integration costs
 
-## Stack Técnica
+## Tech Stack
 
 ### Backend
-- **Linguagem**: Go 1.24+
+- **Language**: Go 1.24+
 - **Framework**: Chi (HTTP router)
-- **Database**: PostgreSQL 16 (principal) + Redis (sessões)
-- **ORM**: SQLX + pgx (SQL direto, sem ORM pesado)
+- **Database**: PostgreSQL 16 (primary) + Redis (sessions)
+- **ORM**: SQLX + pgx (direct SQL, no heavy ORM)
 - **Migrations**: Goose
 - **Auth**: Passwordless (magic codes via email)
 - **Tests**: Testcontainers
 
 ### Frontend
-- **Framework**: React 18+ com TypeScript
+- **Framework**: React 18+ with TypeScript
 - **Styling**: Tailwind CSS
 - **Build**: Vite
 - **State**: Native Context API
@@ -128,31 +128,31 @@ Quando necessário, adicionaremos parcelamento/postergação como feature opcion
 - **Observability**: OpenTelemetry + Grafana + Loki
 - **CI/CD**: GitHub Actions
 
-### Ferramentas de Desenvolvimento com IA
+### AI Development Tools
 - **Specs**: OpenSpec (spec-driven development)
-- **Tasks**: Beads (issue tracking para coding agents)
+- **Tasks**: Beads (issue tracking for coding agents)
 - **Coding Agent**: Claude Code
 
-## Autenticação e Segurança
+## Authentication and Security
 
-### Sistema Passwordless
-- **Sem senhas**: Login via código de 4 dígitos enviado por email
-- **Magic codes**: Códigos temporários (10 minutos de validade)
-- **Auto-registro**: Novos usuários criados automaticamente no primeiro login
-- **Sessões**: Gerenciadas via Redis com tokens seguros
+### Passwordless System
+- **No passwords**: Login via 4-digit code sent by email
+- **Magic codes**: Temporary codes (10-minute validity)
+- **Auto-registration**: New users created automatically on first login
+- **Sessions**: Managed via Redis with secure tokens
 
-### Controle de Acesso
+### Access Control
 - **RBAC** (Role-Based Access Control)
-- **Funções**: admin, regular_manager, regular_user
-- **Permissões**: Controle granular de ações (view, edit, create, delete)
-- **Organizações**: Isolamento de dados entre organizações diferentes
+- **Roles**: admin, regular_manager, regular_user
+- **Permissions**: Granular action control (view, edit, create, delete)
+- **Organizations**: Data isolation between different organizations
 
-**Detalhes técnicos:** Ver [docs/auth-system.md](./docs/auth-system.md)
+**Technical details:** See [docs/auth-system.md](./docs/auth-system.md)
 
-## Glossário
+## Glossary
 
-- **OFX (Open Financial Exchange)**: Formato padrão de arquivo para troca de dados financeiros
-- **FITID**: Identificador único de transação no formato OFX (evita duplicatas)
-- **Classification Rule**: Regra automática para atribuir categoria a transações
-- **Budget Item**: Item individual dentro de um orçamento calculado (ex: "Netflix R$50")
-- **Vertical Slice**: Implementação completa de uma feature (banco → API → UI)
+- **OFX (Open Financial Exchange)**: Standard file format for financial data exchange
+- **FITID**: Unique transaction identifier in OFX format (prevents duplicates)
+- **Classification Rule**: Automatic rule to assign categories to transactions
+- **Budget Item**: Individual item within a calculated budget (e.g., "Netflix R$50")
+- **Vertical Slice**: Complete feature implementation (database → API → UI)
