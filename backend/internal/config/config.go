@@ -30,6 +30,7 @@ type Config struct {
 	SMTP2GO           SMTP2GOConfig
 	Resend            ResendConfig
 	FrontendURL       string // Base URL for frontend (used in email links)
+	MailDomain        string // Domain for inbound email parsing (e.g., "mail.celeiro.catru.tech")
 	GoogleOAuth       GoogleOAuthConfig
 }
 
@@ -79,6 +80,7 @@ func New() *Config {
 	resendAPIKey := flag.String("resend-api-key", getEnvAsString("RESEND_API_KEY", ""), "Resend API key")
 	resendWebhookSecret := flag.String("resend-webhook-secret", getEnvAsString("RESEND_WEBHOOK_SECRET", ""), "Resend webhook signing secret")
 	frontendURL := flag.String("frontend-url", getEnvAsString("FRONTEND_URL", "http://localhost:51111"), "Frontend base URL for email links")
+	mailDomain := flag.String("mail-domain", getEnvAsString("MAIL_DOMAIN", "mail.celeiro.catru.tech"), "Domain for inbound email parsing")
 	googleClientID := flag.String("google-client-id", getEnvAsString("GOOGLE_CLIENT_ID", ""), "Google OAuth Client ID")
 
 	flag.Parse()
@@ -112,6 +114,7 @@ func New() *Config {
 			WebhookSecret: *resendWebhookSecret,
 		},
 		FrontendURL: *frontendURL,
+		MailDomain:  *mailDomain,
 		GoogleOAuth: GoogleOAuthConfig{
 			ClientID: *googleClientID,
 		},

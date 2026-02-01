@@ -12,7 +12,11 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the app (API URL will be handled by nginx proxy)
+# Accept build-time environment variables for Vite
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build the app
 RUN npm run build
 
 # Production stage

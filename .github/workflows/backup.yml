@@ -31,12 +31,13 @@ jobs:
             mkdir -p ${BACKUP_DIR}
 
             # Get database credentials from container environment
-            DB_USER=$(docker exec celeiro_postgres printenv POSTGRES_USER)
-            DB_NAME=$(docker exec celeiro_postgres printenv POSTGRES_DB)
+            CONTAINER=$(docker ps --filter "name=celeiro-postgres" --format "{{.Names}}" | head -1)
+            DB_USER=$(docker exec ${CONTAINER} printenv POSTGRES_USER)
+            DB_NAME=$(docker exec ${CONTAINER} printenv POSTGRES_DB)
 
             # Create database backup using pg_dump inside the container
-            echo "Creating backup for database ${DB_NAME}..."
-            docker exec celeiro_postgres pg_dump -U ${DB_USER} -d ${DB_NAME} > ${BACKUP_FILE}
+            echo "Creating backup for database ${DB_NAME} from container ${CONTAINER}..."
+            docker exec ${CONTAINER} pg_dump -U ${DB_USER} -d ${DB_NAME} > ${BACKUP_FILE}
 
             # Verify backup was created and has content
             if [ ! -s "${BACKUP_FILE}" ]; then

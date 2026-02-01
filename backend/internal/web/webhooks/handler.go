@@ -26,21 +26,21 @@ import (
 	"github.com/catrutech/celeiro/pkg/mailer"
 )
 
-// Handler handles webhook requests
 type Handler struct {
 	app                 *application.Application
 	logger              logging.Logger
 	resendAPIKey        string
 	resendWebhookSecret string
+	mailDomain          string
 }
 
-// NewHandler creates a new webhook handler
 func NewHandler(app *application.Application, logger logging.Logger, cfg *config.Config) *Handler {
 	return &Handler{
 		app:                 app,
 		logger:              logger,
 		resendAPIKey:        cfg.Resend.APIKey,
 		resendWebhookSecret: cfg.Resend.WebhookSecret,
+		mailDomain:          cfg.MailDomain,
 	}
 }
 
@@ -53,15 +53,15 @@ type ResendInboundPayload struct {
 
 // ResendInboundEmail represents the email data in the webhook payload
 type ResendInboundEmail struct {
-	EmailID     string                   `json:"email_id"`
-	CreatedAt   string                   `json:"created_at"`
-	From        string                   `json:"from"`
-	To          []string                 `json:"to"`
-	CC          []string                 `json:"cc"`
-	BCC         []string                 `json:"bcc"`
-	Subject     string                   `json:"subject"`
-	Text        string                   `json:"text"`
-	HTML        string                   `json:"html"`
+	EmailID     string                    `json:"email_id"`
+	CreatedAt   string                    `json:"created_at"`
+	From        string                    `json:"from"`
+	To          []string                  `json:"to"`
+	CC          []string                  `json:"cc"`
+	BCC         []string                  `json:"bcc"`
+	Subject     string                    `json:"subject"`
+	Text        string                    `json:"text"`
+	HTML        string                    `json:"html"`
 	Attachments []ResendInboundAttachment `json:"attachments"`
 }
 
@@ -152,7 +152,7 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 
 	// Extract user's email_id from the To address
 	// e.g., "ofx+lucas.tamoios@mail.celeiro.catru.tech" -> "ofx+lucas.tamoios"
-	userEmailID := extractEmailIDFromTo(payload.Data.To)
+	userEmailID := extractEmailIDFromTo(payload.Data.To, h.mailDomain)
 	if userEmailID == "" {
 		h.logger.Error(ctx, "Could not extract email_id from To address", "to", payload.Data.To)
 		if senderEmail != "" {
@@ -345,9 +345,8 @@ func extractEmail(from string) string {
 // extractEmailIDFromTo extracts the email_id from a To address
 // e.g., "ofx+lucas.tamoios@mail.celeiro.catru.tech" -> "ofx+lucas.tamoios"
 // e.g., "u4a3b2c1d@mail.celeiro.catru.tech" -> "u4a3b2c1d"
-func extractEmailIDFromTo(toAddresses []string) string {
-	// Look for an address that matches our mail domain
-	mailDomainSuffix := "@mail.celeiro.catru.tech"
+func extractEmailIDFromTo(toAddresses []string, mailDomain string) string {
+	mailDomainSuffix := "@" + mailDomain
 
 	for _, to := range toAddresses {
 		// Extract email from angle brackets if present
