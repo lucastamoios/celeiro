@@ -209,7 +209,7 @@ jobs:
             MAILER_TYPE=resend
             RESEND_API_KEY=${RESEND_API_KEY}
             RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET}
-            EMAIL_FROM=Celeiro <noreply@mail.celeiro.catru.tech>
+            EMAIL_FROM=Celeiro <noreply@laguiar.dev>
             GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
             ENVEOF
 

@@ -151,7 +151,7 @@ func (h *Handler) HandleEmailInbound(w http.ResponseWriter, r *http.Request) {
 	senderEmail := extractEmail(payload.Data.From)
 
 	// Extract user's email_id from the To address
-	// e.g., "ofx+lucas.tamoios@mail.celeiro.catru.tech" -> "ofx+lucas.tamoios"
+	// e.g., "ofx+lucas.tamoios@laguiar.dev" -> "ofx+lucas.tamoios"
 	userEmailID := extractEmailIDFromTo(payload.Data.To, h.mailDomain)
 	if userEmailID == "" {
 		h.logger.Error(ctx, "Could not extract email_id from To address", "to", payload.Data.To)
@@ -343,8 +343,8 @@ func extractEmail(from string) string {
 }
 
 // extractEmailIDFromTo extracts the email_id from a To address
-// e.g., "ofx+lucas.tamoios@mail.celeiro.catru.tech" -> "ofx+lucas.tamoios"
-// e.g., "u4a3b2c1d@mail.celeiro.catru.tech" -> "u4a3b2c1d"
+// e.g., "ofx+lucas.tamoios@laguiar.dev" -> "ofx+lucas.tamoios"
+// e.g., "u4a3b2c1d@laguiar.dev" -> "u4a3b2c1d"
 func extractEmailIDFromTo(toAddresses []string, mailDomain string) string {
 	mailDomainSuffix := "@" + mailDomain
 
