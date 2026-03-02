@@ -25,11 +25,11 @@ SELECT
     COALESCE(actual.total_spent, 0)                            AS actual_amount,
     CASE
         WHEN (cb.controlled_amount + COALESCE(pe_sums.planned_amount, 0)) > 0 THEN
-            ROUND(
+            LEAST(999.99, GREATEST(-999.99, ROUND(
                 (COALESCE(actual.total_spent, 0) - (cb.controlled_amount + COALESCE(pe_sums.planned_amount, 0)))
                 / (cb.controlled_amount + COALESCE(pe_sums.planned_amount, 0)) * 100,
                 2
-            )
+            )))
         ELSE 0
     END AS variance_percent,
     'controlled' AS budget_type
