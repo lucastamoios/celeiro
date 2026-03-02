@@ -82,6 +82,7 @@ type Service interface {
 	DeleteCategoryBudget(ctx context.Context, params DeleteCategoryBudgetInput) error
 	ConsolidateCategoryBudget(ctx context.Context, params ConsolidateCategoryBudgetInput) (MonthlySnapshot, error)
 	CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyCategoryBudgetsInput) ([]CategoryBudget, error)
+	CloseMonth(ctx context.Context, params CloseMonthInput) (CloseMonthResult, error)
 
 	// Planned Entries
 	GetPlannedEntries(ctx context.Context, params GetPlannedEntriesInput) ([]PlannedEntry, error)
@@ -1110,24 +1111,22 @@ func (s *service) GetCategoryBudgetByID(ctx context.Context, params GetCategoryB
 }
 
 type CreateCategoryBudgetInput struct {
-	UserID         int
-	OrganizationID int
-	CategoryID     int
-	Month          int
-	Year           int
-	BudgetType     string
-	PlannedAmount  decimal.Decimal
+	UserID           int
+	OrganizationID   int
+	CategoryID       int
+	Month            int
+	Year             int
+	ControlledAmount decimal.Decimal
 }
 
 func (s *service) CreateCategoryBudget(ctx context.Context, params CreateCategoryBudgetInput) (CategoryBudget, error) {
 	model, err := s.Repository.InsertCategoryBudget(ctx, insertCategoryBudgetParams{
-		UserID:         params.UserID,
-		OrganizationID: params.OrganizationID,
-		CategoryID:     params.CategoryID,
-		Month:          params.Month,
-		Year:           params.Year,
-		BudgetType:     params.BudgetType,
-		PlannedAmount:  params.PlannedAmount,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+		CategoryID:       params.CategoryID,
+		Month:            params.Month,
+		Year:             params.Year,
+		ControlledAmount: params.ControlledAmount,
 	})
 	if err != nil {
 		return CategoryBudget{}, errors.Wrap(err, "failed to create category budget")
@@ -1140,8 +1139,7 @@ type UpdateCategoryBudgetInput struct {
 	CategoryBudgetID int
 	UserID           int
 	OrganizationID   int
-	BudgetType       *string
-	PlannedAmount    *decimal.Decimal
+	ControlledAmount *decimal.Decimal
 }
 
 func (s *service) UpdateCategoryBudget(ctx context.Context, params UpdateCategoryBudgetInput) (CategoryBudget, error) {
@@ -1149,8 +1147,7 @@ func (s *service) UpdateCategoryBudget(ctx context.Context, params UpdateCategor
 		CategoryBudgetID: params.CategoryBudgetID,
 		UserID:           params.UserID,
 		OrganizationID:   params.OrganizationID,
-		BudgetType:       params.BudgetType,
-		PlannedAmount:    params.PlannedAmount,
+		ControlledAmount: params.ControlledAmount,
 	})
 	if err != nil {
 		return CategoryBudget{}, errors.Wrap(err, "failed to update category budget")
@@ -1216,11 +1213,20 @@ func (s *service) ConsolidateCategoryBudget(ctx context.Context, params Consolid
 		actualAmount = decimal.Zero
 	}
 
+	// Calculate total planned: sum of planned entries + controlled amount
+	plannedEntrySums, err := s.Repository.FetchPlannedEntrySumsByCategory(ctx, fetchPlannedEntrySumsByCategoryParams{
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return MonthlySnapshot{}, errors.Wrap(err, "failed to fetch planned entry sums")
+	}
+	totalPlanned := plannedEntrySums[budget.CategoryID].Add(budget.ControlledAmount)
+
 	// Calculate variance percentage
 	variancePercent := decimal.Zero
-	if budget.PlannedAmount.GreaterThan(decimal.Zero) {
-		variance := actualAmount.Sub(budget.PlannedAmount)
-		variancePercent = variance.Div(budget.PlannedAmount).Mul(decimal.NewFromInt(100))
+	if totalPlanned.GreaterThan(decimal.Zero) {
+		variance := actualAmount.Sub(totalPlanned)
+		variancePercent = variance.Div(totalPlanned).Mul(decimal.NewFromInt(100))
 	}
 
 	// Create snapshot
@@ -1230,10 +1236,10 @@ func (s *service) ConsolidateCategoryBudget(ctx context.Context, params Consolid
 		CategoryID:      budget.CategoryID,
 		Month:           budget.Month,
 		Year:            budget.Year,
-		PlannedAmount:   budget.PlannedAmount,
+		PlannedAmount:   totalPlanned,
 		ActualAmount:    actualAmount,
 		VariancePercent: variancePercent,
-		BudgetType:      budget.BudgetType,
+		BudgetType:      "controlled",
 	})
 	if err != nil {
 		return MonthlySnapshot{}, errors.Wrap(err, "failed to create snapshot")
@@ -1308,13 +1314,12 @@ func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyC
 		}
 
 		model, err := s.Repository.InsertCategoryBudget(ctx, insertCategoryBudgetParams{
-			UserID:         params.UserID,
-			OrganizationID: params.OrganizationID,
-			CategoryID:     src.CategoryID,
-			Month:          params.TargetMonth,
-			Year:           params.TargetYear,
-			BudgetType:     src.BudgetType,
-			PlannedAmount:  src.PlannedAmount,
+			UserID:           params.UserID,
+			OrganizationID:   params.OrganizationID,
+			CategoryID:       src.CategoryID,
+			Month:            params.TargetMonth,
+			Year:             params.TargetYear,
+			ControlledAmount: src.ControlledAmount,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create budget for category %d: %w", src.CategoryID, err)
@@ -1326,6 +1331,147 @@ func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyC
 	// Return empty array if nothing was copied (all categories already exist)
 	// This is not an error condition - just nothing new to copy
 	return createdBudgets, nil
+}
+
+// CloseMonthInput contains parameters for closing a month
+type CloseMonthInput struct {
+	UserID         int
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// CloseMonthResult contains the result of closing a month
+type CloseMonthResult struct {
+	Snapshots            []MonthlySnapshot `json:"snapshots"`
+	CarryoverTransaction *Transaction      `json:"carryover_transaction,omitempty"`
+	Surplus              decimal.Decimal   `json:"surplus"`
+}
+
+var ptMonthNames = []string{"", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+	"Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"}
+
+// CloseMonth consolidates all category budgets for a month and creates a carry-over transaction
+// representing the real surplus/deficit (income - spending) into the next month.
+func (s *service) CloseMonth(ctx context.Context, params CloseMonthInput) (CloseMonthResult, error) {
+	// 1. Fetch all category budgets for the month
+	budgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		Month:          &params.Month,
+		Year:           &params.Year,
+	})
+	if err != nil {
+		return CloseMonthResult{}, errors.Wrap(err, "failed to fetch category budgets")
+	}
+
+	// 2. Consolidate all unconsolidated budgets (skip already consolidated ones)
+	snapshots := make([]MonthlySnapshot, 0)
+	for _, budget := range budgets {
+		if budget.IsConsolidated {
+			continue
+		}
+		snapshot, err := s.ConsolidateCategoryBudget(ctx, ConsolidateCategoryBudgetInput{
+			CategoryBudgetID: budget.CategoryBudgetID,
+			UserID:           params.UserID,
+			OrganizationID:   params.OrganizationID,
+		})
+		if err != nil {
+			return CloseMonthResult{}, errors.Wrap(err, "failed to consolidate budget")
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+
+	// 3. Calculate real surplus/deficit: total_income - total_spending
+	transactions, err := s.Repository.FetchTransactionsByMonth(ctx, fetchTransactionsByMonthParams{
+		OrganizationID: params.OrganizationID,
+		Month:          params.Month,
+		Year:           params.Year,
+	})
+	if err != nil {
+		return CloseMonthResult{}, errors.Wrap(err, "failed to fetch transactions for month")
+	}
+
+	totalIncome := decimal.Zero
+	totalSpending := decimal.Zero
+	for _, tx := range transactions {
+		if tx.IsIgnored {
+			continue
+		}
+		if tx.TransactionType == TransactionTypeCredit {
+			totalIncome = totalIncome.Add(tx.Amount)
+		} else if tx.TransactionType == TransactionTypeDebit {
+			totalSpending = totalSpending.Add(tx.Amount)
+		}
+	}
+	surplus := totalIncome.Sub(totalSpending)
+
+	// No carry-over needed if balance is zero
+	if surplus.IsZero() {
+		return CloseMonthResult{Snapshots: snapshots, Surplus: surplus}, nil
+	}
+
+	// 4. Find first active account (prefer checking)
+	isActive := true
+	accounts, err := s.Repository.FetchAccounts(ctx, fetchAccountsParams{
+		OrganizationID: params.OrganizationID,
+		IsActive:       &isActive,
+	})
+	if err != nil || len(accounts) == 0 {
+		// No account found — return snapshots without carry-over
+		return CloseMonthResult{Snapshots: snapshots, Surplus: surplus}, nil
+	}
+
+	var selectedAccount *AccountModel
+	for i := range accounts {
+		if accounts[i].AccountType == "checking" {
+			selectedAccount = &accounts[i]
+			break
+		}
+	}
+	if selectedAccount == nil {
+		selectedAccount = &accounts[0]
+	}
+
+	// 5. Compute next month date for the carry-over transaction
+	nextMonth := params.Month + 1
+	nextYear := params.Year
+	if nextMonth > 12 {
+		nextMonth = 1
+		nextYear++
+	}
+	txDate := fmt.Sprintf("%d-%02d-01", nextYear, nextMonth)
+
+	// 6. Determine type/amount and build description
+	txType := TransactionTypeCredit
+	txAmount := surplus
+	if surplus.LessThan(decimal.Zero) {
+		txType = TransactionTypeDebit
+		txAmount = surplus.Neg()
+	}
+	carryoverFitID := fmt.Sprintf("CARRYOVER-%d-%02d", params.Year, params.Month)
+	description := fmt.Sprintf("Saldo anterior - %s/%d", ptMonthNames[params.Month], params.Year)
+
+	// 7. Insert carry-over transaction (ON CONFLICT on ofx_fitid ensures idempotency)
+	model, err := s.Repository.InsertTransaction(ctx, insertTransactionParams{
+		AccountID:           selectedAccount.AccountID,
+		Description:         description,
+		OriginalDescription: description,
+		Amount:              txAmount,
+		TransactionDate:     txDate,
+		TransactionType:     txType,
+		OFXFitID:            &carryoverFitID,
+	})
+	if err != nil {
+		return CloseMonthResult{}, errors.Wrap(err, "failed to create carry-over transaction")
+	}
+
+	carryoverTx := Transaction{}.FromModel(&model)
+	return CloseMonthResult{
+		Snapshots:            snapshots,
+		CarryoverTransaction: &carryoverTx,
+		Surplus:              surplus,
+	}, nil
 }
 
 // ============================================================================

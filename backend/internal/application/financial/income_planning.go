@@ -37,7 +37,16 @@ func (s *service) GetIncomePlanning(ctx context.Context, input GetIncomePlanning
 		return nil, err
 	}
 
-	// 2. Get total planned amounts from category budgets
+	// 2. Get total planned amounts: sum of planned entries + controlled amounts
+	// Planned entries (recurrent expense entries)
+	plannedEntrySums, err := s.Repository.FetchPlannedEntrySumsByCategory(ctx, fetchPlannedEntrySumsByCategoryParams{
+		OrganizationID: input.OrganizationID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Controlled amounts from category budgets
 	budgets, err := s.GetCategoryBudgets(ctx, GetCategoryBudgetsInput{
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
@@ -48,10 +57,13 @@ func (s *service) GetIncomePlanning(ctx context.Context, input GetIncomePlanning
 		return nil, err
 	}
 
-	// Sum up all planned amounts
+	// Total planned = sum(planned entries) + sum(controlled amounts)
 	totalPlanned := decimal.Zero
+	for _, amount := range plannedEntrySums {
+		totalPlanned = totalPlanned.Add(amount)
+	}
 	for _, budget := range budgets {
-		totalPlanned = totalPlanned.Add(budget.PlannedAmount)
+		totalPlanned = totalPlanned.Add(budget.ControlledAmount)
 	}
 
 	// 3. Calculate unallocated amount and percentage

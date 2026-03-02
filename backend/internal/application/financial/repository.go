@@ -64,6 +64,7 @@ type Repository interface {
 
 	// Planned Entries
 	FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error)
+	FetchPlannedEntrySumsByCategory(ctx context.Context, params fetchPlannedEntrySumsByCategoryParams) (map[int]decimal.Decimal, error)
 	FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error)
 	FetchPlannedEntriesByParent(ctx context.Context, params fetchPlannedEntriesByParentParams) ([]PlannedEntryModel, error)
 	InsertPlannedEntry(ctx context.Context, params insertPlannedEntryParams) (PlannedEntryModel, error)
@@ -1302,8 +1303,7 @@ const fetchCategoryBudgetsQuery = `
 		category_id,
 		month,
 		year,
-		budget_type,
-		planned_amount,
+		controlled_amount,
 		is_consolidated,
 		consolidated_at
 	FROM category_budgets
@@ -1338,8 +1338,7 @@ const fetchCategoryBudgetByIDQuery = `
 		category_id,
 		month,
 		year,
-		budget_type,
-		planned_amount,
+		controlled_amount,
 		is_consolidated,
 		consolidated_at
 	FROM category_budgets
@@ -1355,13 +1354,12 @@ func (r *repository) FetchCategoryBudgetByID(ctx context.Context, params fetchCa
 }
 
 type insertCategoryBudgetParams struct {
-	UserID         int
-	OrganizationID int
-	CategoryID     int
-	Month          int
-	Year           int
-	BudgetType     string
-	PlannedAmount  decimal.Decimal
+	UserID           int
+	OrganizationID   int
+	CategoryID       int
+	Month            int
+	Year             int
+	ControlledAmount decimal.Decimal
 }
 
 const insertCategoryBudgetQuery = `
@@ -1372,9 +1370,8 @@ const insertCategoryBudgetQuery = `
 		category_id,
 		month,
 		year,
-		budget_type,
-		planned_amount
-	) VALUES ($1, $2, $3, $4, $5, $6, $7)
+		controlled_amount
+	) VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING
 		category_budget_id,
 		created_at,
@@ -1384,8 +1381,7 @@ const insertCategoryBudgetQuery = `
 		category_id,
 		month,
 		year,
-		budget_type,
-		planned_amount,
+		controlled_amount,
 		is_consolidated,
 		consolidated_at;
 `
@@ -1394,7 +1390,7 @@ func (r *repository) InsertCategoryBudget(ctx context.Context, params insertCate
 	var budget CategoryBudgetModel
 	err := r.db.Query(ctx, &budget, insertCategoryBudgetQuery,
 		params.UserID, params.OrganizationID, params.CategoryID,
-		params.Month, params.Year, params.BudgetType, params.PlannedAmount)
+		params.Month, params.Year, params.ControlledAmount)
 	return budget, err
 }
 
@@ -1402,8 +1398,7 @@ type modifyCategoryBudgetParams struct {
 	CategoryBudgetID int
 	UserID           int
 	OrganizationID   int
-	BudgetType       *string
-	PlannedAmount    *decimal.Decimal
+	ControlledAmount *decimal.Decimal
 	IsConsolidated   *bool
 }
 
@@ -1411,10 +1406,9 @@ const modifyCategoryBudgetQuery = `
 	-- financial.modifyCategoryBudgetQuery
 	UPDATE category_budgets
 	SET
-		budget_type = COALESCE($4, budget_type),
-		planned_amount = COALESCE($5, planned_amount),
-		is_consolidated = COALESCE($6, is_consolidated),
-		consolidated_at = CASE WHEN $6 = true AND is_consolidated = false THEN CURRENT_TIMESTAMP ELSE consolidated_at END,
+		controlled_amount = COALESCE($4, controlled_amount),
+		is_consolidated = COALESCE($5, is_consolidated),
+		consolidated_at = CASE WHEN $5 = true AND is_consolidated = false THEN CURRENT_TIMESTAMP ELSE consolidated_at END,
 		updated_at = CURRENT_TIMESTAMP
 	WHERE category_budget_id = $1
 		AND user_id = $2
@@ -1428,8 +1422,7 @@ const modifyCategoryBudgetQuery = `
 		category_id,
 		month,
 		year,
-		budget_type,
-		planned_amount,
+		controlled_amount,
 		is_consolidated,
 		consolidated_at;
 `
@@ -1438,7 +1431,7 @@ func (r *repository) ModifyCategoryBudget(ctx context.Context, params modifyCate
 	var budget CategoryBudgetModel
 	err := r.db.Query(ctx, &budget, modifyCategoryBudgetQuery,
 		params.CategoryBudgetID, params.UserID, params.OrganizationID,
-		params.BudgetType, params.PlannedAmount, params.IsConsolidated)
+		params.ControlledAmount, params.IsConsolidated)
 	return budget, err
 }
 
@@ -1509,6 +1502,45 @@ func (r *repository) FetchPlannedEntries(ctx context.Context, params fetchPlanne
 		params.OrganizationID, params.CategoryID,
 		params.IsRecurrent, params.IsActive)
 	return entries, err
+}
+
+// FetchPlannedEntrySumsByCategory returns the sum of planned entry amounts grouped by category.
+// Only includes active, recurrent, expense-type entries.
+// Used to calculate the "planned" portion of category budgets.
+type fetchPlannedEntrySumsByCategoryParams struct {
+	OrganizationID int
+}
+
+type categoryPlannedSum struct {
+	CategoryID    int             `db:"category_id"`
+	PlannedAmount decimal.Decimal `db:"planned_amount"`
+}
+
+const fetchPlannedEntrySumsByCategoryQuery = `
+	-- financial.fetchPlannedEntrySumsByCategoryQuery
+	SELECT
+		category_id,
+		COALESCE(SUM(amount), 0) AS planned_amount
+	FROM planned_entries
+	WHERE organization_id = $1
+		AND is_active = true
+		AND is_recurrent = true
+		AND entry_type = 'expense'
+	GROUP BY category_id;
+`
+
+func (r *repository) FetchPlannedEntrySumsByCategory(ctx context.Context, params fetchPlannedEntrySumsByCategoryParams) (map[int]decimal.Decimal, error) {
+	var sums []categoryPlannedSum
+	err := r.db.Query(ctx, &sums, fetchPlannedEntrySumsByCategoryQuery, params.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[int]decimal.Decimal)
+	for _, s := range sums {
+		result[s.CategoryID] = s.PlannedAmount
+	}
+	return result, nil
 }
 
 type fetchPlannedEntryByIDParams struct {

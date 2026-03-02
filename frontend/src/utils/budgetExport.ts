@@ -44,13 +44,13 @@ export function generateBudgetExportText(options: ExportOptions): string {
 
   // Calculate totals
   const totalPlannedExpenses = expenseBudgets.reduce(
-    (sum, b) => sum + parseFloat(b.PlannedAmount || '0'), 0
+    (sum, b) => sum + parseFloat(b.ControlledAmount || '0'), 0
   );
   const totalActualExpenses = expenseBudgets.reduce(
     (sum, b) => sum + parseFloat(actualSpending[b.CategoryID] || '0'), 0
   );
   const totalPlannedIncome = incomeBudgets.reduce(
-    (sum, b) => sum + parseFloat(b.PlannedAmount || '0'), 0
+    (sum, b) => sum + parseFloat(b.ControlledAmount || '0'), 0
   );
   const totalActualIncome = incomeBudgets.reduce(
     (sum, b) => sum + parseFloat(actualSpending[b.CategoryID] || '0'), 0
@@ -88,7 +88,7 @@ export function generateBudgetExportText(options: ExportOptions): string {
     for (const budget of incomeBudgets) {
       const category = categoryMap.get(budget.CategoryID);
       const categoryName = category?.name || 'Sem nome';
-      const planned = parseFloat(budget.PlannedAmount || '0');
+      const planned = parseFloat(budget.ControlledAmount || '0');
       const actual = parseFloat(actualSpending[budget.CategoryID] || '0');
       const variance = actual - planned;
       const variancePercent = planned > 0 ? ((variance / planned) * 100).toFixed(1) : '0';
@@ -128,7 +128,7 @@ export function generateBudgetExportText(options: ExportOptions): string {
     for (const budget of sortedBudgets) {
       const category = categoryMap.get(budget.CategoryID);
       const categoryName = category?.name || 'Sem nome';
-      const planned = parseFloat(budget.PlannedAmount || '0');
+      const planned = parseFloat(budget.ControlledAmount || '0');
       const actual = parseFloat(actualSpending[budget.CategoryID] || '0');
       const variance = actual - planned;
       const variancePercent = planned > 0 ? ((variance / planned) * 100).toFixed(1) : '0';

@@ -27,16 +27,16 @@ type CategoriesModel []CategoryModel
 
 // Account represents a bank account (checking, savings, credit card, etc.)
 type AccountModel struct {
-	AccountID      int       `db:"account_id"`
-	CreatedAt      time.Time `db:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at"`
+	AccountID int       `db:"account_id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 
-	UserID         int    `db:"user_id"`
-	OrganizationID int    `db:"organization_id"`
+	UserID         int `db:"user_id"`
+	OrganizationID int `db:"organization_id"`
 
-	Name        string          `db:"name"`
-	AccountType string          `db:"account_type"` // checking, savings, credit_card, investment
-	BankName    string          `db:"bank_name"`
+	Name        string `db:"name"`
+	AccountType string `db:"account_type"` // checking, savings, credit_card, investment
+	BankName    string `db:"bank_name"`
 
 	Balance  decimal.Decimal `db:"balance"`
 	Currency string          `db:"currency"`
@@ -55,8 +55,8 @@ type TransactionModel struct {
 	AccountID  int  `db:"account_id"`
 	CategoryID *int `db:"category_id"` // NULL if not classified
 
-	Description         string  `db:"description"`          // User-editable description
-	OriginalDescription *string `db:"original_description"` // Immutable OFX description for pattern matching
+	Description         string          `db:"description"`          // User-editable description
+	OriginalDescription *string         `db:"original_description"` // Immutable OFX description for pattern matching
 	Amount              decimal.Decimal `db:"amount"`
 	TransactionDate     time.Time       `db:"transaction_date"`
 	TransactionType     string          `db:"transaction_type"` // debit, credit
@@ -86,7 +86,7 @@ type TransactionsModel []TransactionModel
 
 // Budget represents a monthly budget
 type BudgetModel struct {
-	BudgetID int       `db:"budget_id"`
+	BudgetID  int       `db:"budget_id"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 
@@ -132,10 +132,10 @@ type ClassificationRuleModel struct {
 	Priority int    `db:"priority"`
 
 	// Match conditions (all optional, AND logic)
-	MatchDescription    *string          `db:"match_description"`
-	MatchAmountMin      *decimal.Decimal `db:"match_amount_min"`
-	MatchAmountMax      *decimal.Decimal `db:"match_amount_max"`
-	MatchTransactionType *string         `db:"match_transaction_type"` // debit, credit, or NULL
+	MatchDescription     *string          `db:"match_description"`
+	MatchAmountMin       *decimal.Decimal `db:"match_amount_min"`
+	MatchAmountMax       *decimal.Decimal `db:"match_amount_max"`
+	MatchTransactionType *string          `db:"match_transaction_type"` // debit, credit, or NULL
 
 	IsActive bool `db:"is_active"`
 }
@@ -163,7 +163,7 @@ const (
 	TransactionTypeCredit = "credit"
 )
 
-// CategoryBudget represents a category-centric monthly budget
+// CategoryBudgetModel represents a category-centric monthly budget
 type CategoryBudgetModel struct {
 	CategoryBudgetID int       `db:"category_budget_id"`
 	CreatedAt        time.Time `db:"created_at"`
@@ -176,8 +176,7 @@ type CategoryBudgetModel struct {
 	Month int `db:"month"`
 	Year  int `db:"year"`
 
-	BudgetType     string          `db:"budget_type"` // fixed, calculated, maior
-	PlannedAmount  decimal.Decimal `db:"planned_amount"`
+	ControlledAmount decimal.Decimal `db:"controlled_amount"`
 
 	IsConsolidated bool       `db:"is_consolidated"`
 	ConsolidatedAt *time.Time `db:"consolidated_at"`
@@ -422,20 +421,20 @@ type SyncAmazonOrdersInput struct {
 
 // SyncAmazonOrdersResult contains the result of the sync operation
 type SyncAmazonOrdersResult struct {
-	MatchedCount   int                    `json:"matched_count"`
-	TotalOrders    int                    `json:"total_orders"`
-	MatchedOrders  []AmazonMatchedOrder   `json:"matched_orders"`
+	MatchedCount    int                    `json:"matched_count"`
+	TotalOrders     int                    `json:"total_orders"`
+	MatchedOrders   []AmazonMatchedOrder   `json:"matched_orders"`
 	UnmatchedOrders []AmazonUnmatchedOrder `json:"unmatched_orders"`
-	Message        string                 `json:"message"`
+	Message         string                 `json:"message"`
 }
 
 // AmazonMatchedOrder represents a successfully matched Amazon order
 type AmazonMatchedOrder struct {
-	OrderID          string          `json:"order_id"`
-	TransactionID    int             `json:"transaction_id"`
-	OriginalDesc     string          `json:"original_description"`
-	NewDescription   string          `json:"new_description"`
-	OrderAmount      decimal.Decimal `json:"order_amount"`
+	OrderID           string          `json:"order_id"`
+	TransactionID     int             `json:"transaction_id"`
+	OriginalDesc      string          `json:"original_description"`
+	NewDescription    string          `json:"new_description"`
+	OrderAmount       decimal.Decimal `json:"order_amount"`
 	TransactionAmount decimal.Decimal `json:"transaction_amount"`
 }
 

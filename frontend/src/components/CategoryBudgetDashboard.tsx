@@ -14,6 +14,7 @@ import {
   deleteCategoryBudget,
   consolidateCategoryBudget,
   copyCategoryBudgetsFromMonth,
+  closeMonth,
   createPlannedEntry,
   updatePlannedEntry,
   deletePlannedEntry,
@@ -92,8 +93,7 @@ export default function CategoryBudgetDashboard() {
   // Form states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
-  const [budgetType, setBudgetType] = useState<'fixed' | 'calculated' | 'maior'>('fixed');
-  const [plannedAmount, setPlannedAmount] = useState<string>('');
+  const [controlledAmount, setControlledAmount] = useState<string>('');
 
   // Savings goals for planned entry linking
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
@@ -536,22 +536,12 @@ export default function CategoryBudgetDashboard() {
       return;
     }
 
-    // For fixed budgets, planned amount is required
-    if (budgetType === 'fixed') {
-      if (!plannedAmount) {
-        setError('Please enter a planned amount');
-        return;
-      }
-
-      const parsedAmount = parseFloat(plannedAmount);
-      if (isNaN(parsedAmount) || parsedAmount <= 0) {
-        setError('Planned amount must be a valid number greater than 0');
-        return;
-      }
+    // Controlled amount defaults to 0 if not provided (discretionary buffer)
+    const parsedAmount = controlledAmount ? parseFloat(controlledAmount) : 0
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      setError('Controlled amount must be a valid number >= 0');
+      return;
     }
-
-    // For calculated/maior budgets, default to 0 if not provided
-    const parsedAmount = plannedAmount ? parseFloat(plannedAmount) : 0
 
     setIsSubmitting(true);
     setError(null);
@@ -561,8 +551,7 @@ export default function CategoryBudgetDashboard() {
         category_id: parseInt(selectedCategoryId),
         month: selectedMonth,
         year: selectedYear,
-        budget_type: budgetType,
-        planned_amount: parsedAmount,
+        controlled_amount: parsedAmount,
       };
 
       await createCategoryBudget(data, { token, organizationId });
@@ -583,30 +572,24 @@ export default function CategoryBudgetDashboard() {
   const handleEditBudget = (budget: CategoryBudget) => {
     setEditingBudget(budget);
     setSelectedCategoryId(budget.CategoryID.toString());
-    setBudgetType(budget.BudgetType);
-    setPlannedAmount(budget.PlannedAmount);
+    setControlledAmount(budget.ControlledAmount);
     setShowCreateBudgetModal(true);
   };
 
   const handleUpdateBudget = async () => {
     if (!token || !editingBudget) return;
 
-    // For fixed budgets, validate planned amount
-    if (budgetType === 'fixed') {
-      if (!plannedAmount) {
-        setError('Please enter a planned amount');
-        return;
-      }
-
-      const parsedAmount = parseFloat(plannedAmount);
-      if (isNaN(parsedAmount) || parsedAmount <= 0) {
-        setError('Planned amount must be a valid number greater than 0');
-        return;
-      }
+    // Validate controlled amount
+    if (!controlledAmount) {
+      setError('Please enter a controlled amount');
+      return;
     }
 
-    // For calculated/maior budgets, use provided amount or 0
-    const parsedAmount = plannedAmount ? parseFloat(plannedAmount) : 0
+    const parsedAmount = parseFloat(controlledAmount);
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      setError('Controlled amount must be a valid number (0 or greater)');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -615,8 +598,7 @@ export default function CategoryBudgetDashboard() {
       await updateCategoryBudget(
         editingBudget.CategoryBudgetID,
         {
-          budget_type: budgetType,
-          planned_amount: parsedAmount,
+          controlled_amount: parsedAmount,
         },
         { token, organizationId }
       );
@@ -759,31 +741,35 @@ export default function CategoryBudgetDashboard() {
   const handleConsolidateAllBudgets = async () => {
     if (!token) return;
 
-    const unconsolidatedBudgets = selectedMonthBudgets.filter(b => !b.IsConsolidated);
-    if (unconsolidatedBudgets.length === 0) {
-      setSuccessMessage('Todos os orçamentos já estão consolidados!');
-      setTimeout(() => setSuccessMessage(null), 3000);
-      return;
-    }
-
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Consolidate all unconsolidated budgets in parallel
-      await Promise.all(
-        unconsolidatedBudgets.map(budget =>
-          consolidateCategoryBudget(budget.CategoryBudgetID, { token, organizationId })
-        )
+      const result = await closeMonth(
+        { month: selectedMonth, year: selectedYear },
+        { token, organizationId }
       );
 
       const monthName = new Date(selectedYear, selectedMonth - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
-      setSuccessMessage(`✅ ${unconsolidatedBudgets.length} orçamento${unconsolidatedBudgets.length === 1 ? '' : 's'} de ${monthName} consolidado${unconsolidatedBudgets.length === 1 ? '' : 's'} com sucesso!`);
-      await fetchAllData();
+      let message = `✅ Mês de ${monthName} encerrado com sucesso!`;
 
-      setTimeout(() => setSuccessMessage(null), 3000);
+      if (result.carryover_transaction) {
+        const surplus = parseFloat(result.surplus);
+        const nextMonthDate = new Date(selectedYear, selectedMonth, 1);
+        const nextMonthName = nextMonthDate.toLocaleDateString('pt-BR', { month: 'long' });
+        const absValue = Math.abs(surplus).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        if (surplus >= 0) {
+          message += ` Saldo de R$${absValue} registrado em ${nextMonthName}.`;
+        } else {
+          message += ` Deficit de R$${absValue} registrado em ${nextMonthName}.`;
+        }
+      }
+
+      setSuccessMessage(message);
+      await fetchAllData();
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao consolidar orçamentos');
+      setError(err instanceof Error ? err.message : 'Falha ao encerrar o mês');
     } finally {
       setIsSubmitting(false);
     }
@@ -1217,8 +1203,7 @@ export default function CategoryBudgetDashboard() {
 
   const resetBudgetForm = () => {
     setSelectedCategoryId('');
-    setBudgetType('fixed');
-    setPlannedAmount('');
+    setControlledAmount('');
   };
 
   const handleCancelBudgetForm = () => {
@@ -1256,7 +1241,7 @@ export default function CategoryBudgetDashboard() {
   // Calculate totals for summary (EXPENSES ONLY - exclude income categories)
   const expenseBudgets = selectedMonthBudgets.filter(b => !incomeCategoryIds.has(b.CategoryID));
   const totalPlanned = expenseBudgets.reduce(
-    (sum, b) => sum + parseFloat(b.PlannedAmount || '0'), 0
+    (sum, b) => sum + parseFloat(b.ControlledAmount || '0'), 0
   );
   // Sum spending only for expense categories
   const totalSpent = expenseBudgets.reduce(
@@ -1267,7 +1252,7 @@ export default function CategoryBudgetDashboard() {
   // Calculate income totals separately
   const incomeBudgets = selectedMonthBudgets.filter(b => incomeCategoryIds.has(b.CategoryID));
   const totalPlannedIncome = incomeBudgets.reduce(
-    (sum, b) => sum + parseFloat(b.PlannedAmount || '0'), 0
+    (sum, b) => sum + parseFloat(b.ControlledAmount || '0'), 0
   );
   const totalActualIncome = incomeBudgets.reduce(
     (sum, b) => sum + parseFloat(selectedMonthSpending[b.CategoryID] || '0'), 0
@@ -1602,46 +1587,27 @@ export default function CategoryBudgetDashboard() {
               </select>
             </div>
 
-            {/* Budget Type */}
+            {/* Controlled Amount */}
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">
-                Tipo de Orçamento *
+                Valor Controlado (Opcional)
               </label>
-              <select
-                value={budgetType}
-                onChange={(e) => setBudgetType(e.target.value as any)}
-                disabled={isSubmitting}
-                className="input"
-              >
-                <option value="fixed">Fixo</option>
-                <option value="calculated">Calculado</option>
-                <option value="maior">Maior</option>
-              </select>
-            </div>
-
-            {/* Planned Amount */}
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">
-                Valor Planejado {budgetType === 'fixed' ? '*' : '(Opcional)'}
-              </label>
-              {budgetType !== 'fixed' && (
-                <p className="text-xs text-stone-500 mb-2">
-                  💡 Para orçamentos calculados, o valor será calculado automaticamente a partir das entradas planejadas
-                </p>
-              )}
+              <p className="text-xs text-stone-500 mb-2">
+                💡 Adicione um valor extra de reserva além das entradas planejadas
+              </p>
               <div className="relative">
                 <span className="absolute left-3 top-2 text-stone-500">R$</span>
                 <input
                   type="text"
-                  value={plannedAmount}
+                  value={controlledAmount}
                   onChange={(e) => {
                     const value = e.target.value;
                     if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                      setPlannedAmount(value);
+                      setControlledAmount(value);
                     }
                   }}
                   disabled={isSubmitting}
-                  placeholder={budgetType === 'fixed' ? '0.00' : '0.00 (será calculado)'}
+                  placeholder="0.00"
                   className="input pl-10"
                 />
               </div>
@@ -1745,7 +1711,7 @@ export default function CategoryBudgetDashboard() {
               plannedEntries={categoryEntries}
               categories={categoriesMap}
               actualSpent={selectedMonthSpending[selectedCategoryForTransactions] || '0'}
-              plannedAmount={selectedBudget?.PlannedAmount || '0'}
+              plannedAmount={selectedBudget?.ControlledAmount || '0'}
               isIncome={category?.category_type === 'income'}
               onClose={handleCloseCategoryTransactionsModal}
               onTransactionClick={handleTransactionClickInBudget}

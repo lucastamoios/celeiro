@@ -743,3 +743,43 @@ export async function getIncomePlanning(
   const result: ApiResponse<IncomePlanningReport> = await response.json();
   return result.data;
 }
+
+export interface CloseMonthResult {
+  snapshots: MonthlySnapshot[];
+  carryover_transaction?: {
+    transaction_id: number;
+    account_id: number;
+    description: string;
+    amount: string;
+    transaction_date: string;
+    transaction_type: 'credit' | 'debit';
+    ofx_fitid: string | null;
+    is_classified: boolean;
+    is_ignored: boolean;
+    tags: string[];
+  };
+  surplus: string;
+}
+
+/**
+ * Close a month: consolidates all budgets and creates a carry-over transaction
+ * for the real surplus/deficit (income - spending) into the next month.
+ */
+export async function closeMonth(
+  data: { month: number; year: number },
+  options: RequestOptions
+): Promise<CloseMonthResult> {
+  const response = await fetch(`${API_CONFIG.baseURL}/financial/month/close`, {
+    method: 'POST',
+    headers: createHeaders(options),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to close month');
+  }
+
+  const result: ApiResponse<CloseMonthResult> = await response.json();
+  return result.data;
+}

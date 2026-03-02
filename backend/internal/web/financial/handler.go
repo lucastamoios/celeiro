@@ -941,11 +941,10 @@ func (h *Handler) CreateCategoryBudget(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		CategoryID    int     `json:"category_id"`
-		Month         int     `json:"month"`
-		Year          int     `json:"year"`
-		BudgetType    string  `json:"budget_type"`
-		PlannedAmount float64 `json:"planned_amount"`
+		CategoryID       int     `json:"category_id"`
+		Month            int     `json:"month"`
+		Year             int     `json:"year"`
+		ControlledAmount float64 `json:"controlled_amount"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -954,13 +953,12 @@ func (h *Handler) CreateCategoryBudget(w http.ResponseWriter, r *http.Request) {
 	}
 
 	budget, err := h.app.FinancialService.CreateCategoryBudget(r.Context(), financialApp.CreateCategoryBudgetInput{
-		UserID:         userID,
-		OrganizationID: organizationID,
-		CategoryID:     req.CategoryID,
-		Month:          req.Month,
-		Year:           req.Year,
-		BudgetType:     req.BudgetType,
-		PlannedAmount:  decimal.NewFromFloat(req.PlannedAmount),
+		UserID:           userID,
+		OrganizationID:   organizationID,
+		CategoryID:       req.CategoryID,
+		Month:            req.Month,
+		Year:             req.Year,
+		ControlledAmount: decimal.NewFromFloat(req.ControlledAmount),
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -984,8 +982,7 @@ func (h *Handler) UpdateCategoryBudget(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		BudgetType    *string  `json:"budget_type,omitempty"`
-		PlannedAmount *float64 `json:"planned_amount,omitempty"`
+		ControlledAmount *float64 `json:"controlled_amount,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -993,18 +990,17 @@ func (h *Handler) UpdateCategoryBudget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var plannedAmount *decimal.Decimal
-	if req.PlannedAmount != nil {
-		amt := decimal.NewFromFloat(*req.PlannedAmount)
-		plannedAmount = &amt
+	var controlledAmount *decimal.Decimal
+	if req.ControlledAmount != nil {
+		amt := decimal.NewFromFloat(*req.ControlledAmount)
+		controlledAmount = &amt
 	}
 
 	budget, err := h.app.FinancialService.UpdateCategoryBudget(r.Context(), financialApp.UpdateCategoryBudgetInput{
 		CategoryBudgetID: budgetID,
 		UserID:           userID,
 		OrganizationID:   organizationID,
-		BudgetType:       req.BudgetType,
-		PlannedAmount:    plannedAmount,
+		ControlledAmount: controlledAmount,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -1107,6 +1103,41 @@ func (h *Handler) CopyCategoryBudgetsFromMonth(w http.ResponseWriter, r *http.Re
 	}
 
 	responses.NewSuccess(budgets, w)
+}
+
+// CloseMonth consolidates all category budgets for a month and creates a carry-over transaction.
+func (h *Handler) CloseMonth(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	var req struct {
+		Month int `json:"month"`
+		Year  int `json:"year"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+	if req.Month < 1 || req.Month > 12 || req.Year < 2000 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	result, err := h.app.FinancialService.CloseMonth(r.Context(), financialApp.CloseMonthInput{
+		UserID:         userID,
+		OrganizationID: organizationID,
+		Month:          req.Month,
+		Year:           req.Year,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(result, w)
 }
 
 // ============================================================================

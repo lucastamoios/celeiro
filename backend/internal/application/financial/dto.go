@@ -300,8 +300,7 @@ type CategoryBudget struct {
 	CategoryID       int
 	Month            int
 	Year             int
-	BudgetType       string
-	PlannedAmount    decimal.Decimal
+	ControlledAmount decimal.Decimal
 	IsConsolidated   bool
 	ConsolidatedAt   *time.Time
 	CreatedAt        time.Time
@@ -316,8 +315,7 @@ func (c CategoryBudget) FromModel(model *CategoryBudgetModel) CategoryBudget {
 		CategoryID:       model.CategoryID,
 		Month:            model.Month,
 		Year:             model.Year,
-		BudgetType:       model.BudgetType,
-		PlannedAmount:    model.PlannedAmount,
+		ControlledAmount: model.ControlledAmount,
 		IsConsolidated:   model.IsConsolidated,
 		ConsolidatedAt:   model.ConsolidatedAt,
 		CreatedAt:        model.CreatedAt,

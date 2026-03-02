@@ -173,7 +173,7 @@ export default function MonthlyBudgetCard({
   const canConsolidateMonth = monthHasEnded && hasUnconsolidatedBudgets && budgetArray.length > 0;
 
   const totalPlanned = expenseBudgets.reduce((sum, b) => {
-    const val = parseFloat(b.PlannedAmount || '0');
+    const val = parseFloat(b.ControlledAmount || '0');
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
   const totalSpent = expenseBudgets.reduce((sum, b) => {

@@ -81,6 +81,9 @@ export interface BudgetProgress {
 }
 
 // Category-Centric Budget Types
+// New model: Total Budget = sum(planned entries) + controlled_amount
+// - Planned entries are auto-calculated from recurrent expense entries
+// - ControlledAmount is the user-editable discretionary buffer
 export interface CategoryBudget {
   CategoryBudgetID: number;
   UserID: number;
@@ -88,8 +91,7 @@ export interface CategoryBudget {
   CategoryID: number;
   Month: number;
   Year: number;
-  BudgetType: 'fixed' | 'calculated' | 'maior';
-  PlannedAmount: string; // Decimal as string
+  ControlledAmount: string; // Decimal as string - user-editable discretionary buffer
   IsConsolidated: boolean;
   ConsolidatedAt?: string;
   CreatedAt: string;
@@ -100,13 +102,11 @@ export interface CreateCategoryBudgetRequest {
   category_id: number;
   month: number;
   year: number;
-  budget_type: 'fixed' | 'calculated' | 'maior';
-  planned_amount: number;
+  controlled_amount: number;
 }
 
 export interface UpdateCategoryBudgetRequest {
-  budget_type?: 'fixed' | 'calculated' | 'maior';
-  planned_amount?: number;
+  controlled_amount?: number;
 }
 
 // Planned Entry Types

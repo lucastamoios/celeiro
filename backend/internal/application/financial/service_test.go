@@ -227,6 +227,11 @@ func (m *MockRepository) FetchPlannedEntries(ctx context.Context, params fetchPl
 	return args.Get(0).([]PlannedEntryModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchPlannedEntrySumsByCategory(ctx context.Context, params fetchPlannedEntrySumsByCategoryParams) (map[int]decimal.Decimal, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(map[int]decimal.Decimal), args.Error(1)
+}
+
 func (m *MockRepository) FetchPlannedEntryByID(ctx context.Context, params fetchPlannedEntryByIDParams) (PlannedEntryModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(PlannedEntryModel), args.Error(1)

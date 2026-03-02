@@ -252,7 +252,7 @@ export default function CategoryBudgetCard({
 
 
   // Calculate variance (with safety checks for NaN)
-  const plannedNum = parseFloat(budget.PlannedAmount || '0') || 0;
+  const plannedNum = parseFloat(budget.ControlledAmount || '0') || 0;
   const actualNum = parseFloat(actualSpent || '0') || 0;
   const variance = actualNum - plannedNum;
   const variancePercent = plannedNum > 0 ? (variance / plannedNum) * 100 : 0;
@@ -304,20 +304,6 @@ export default function CategoryBudgetCard({
     }
   };
 
-  const getBudgetTypeLabel = (type: string) => {
-    switch (type) {
-      case 'fixed':
-        return 'Fixed';
-      case 'calculated':
-        return 'Calculated';
-      case 'maior':
-        return 'Maior';
-      default:
-        return type;
-    }
-  };
-
-
   // Count entries by status
   const entryStats = {
     total: plannedEntries.length,
@@ -355,9 +341,6 @@ export default function CategoryBudgetCard({
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-stone-900">{categoryName}</h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-xs px-2 py-1 rounded bg-wheat-100 text-wheat-700">
-                {getBudgetTypeLabel(budget.BudgetType)}
-              </span>
               {budget.IsConsolidated && (
                 <span className="text-xs px-2 py-1 rounded bg-sage-100 text-sage-700">
                   Consolidado
@@ -450,9 +433,9 @@ export default function CategoryBudgetCard({
       {/* Budget Details */}
       <div className="grid grid-cols-2 gap-4 mb-3">
         <div>
-          <div className="text-sm text-stone-600">Planejado</div>
+          <div className="text-sm text-stone-600">Controlado</div>
           <div className="text-lg font-semibold text-stone-900 tabular-nums">
-            {formatCurrencyBRL(budget.PlannedAmount)}
+            {formatCurrencyBRL(budget.ControlledAmount)}
           </div>
         </div>
         <div>

@@ -275,7 +275,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             const category = categories.find(c => c.category_id === budget.CategoryID);
             if (!category) continue;
 
-            const planned = parseFloat(budget.PlannedAmount) || 0;
+            const planned = parseFloat(budget.ControlledAmount) || 0;
             const categoryData = categoryMap.get(budget.CategoryID);
             const actual = categoryData ? categoryData.amount : 0;
 

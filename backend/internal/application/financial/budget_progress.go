@@ -9,30 +9,30 @@ import (
 
 // BudgetProgress represents the tracking state of a budget
 type BudgetProgress struct {
-	BudgetID                int                    `json:"budget_id"`
-	BudgetType              string                 `json:"budget_type"`
-	TotalBudget             decimal.Decimal        `json:"total_budget"`
-	CurrentDay              int                    `json:"current_day"`
-	DaysInMonth             int                    `json:"days_in_month"`
-	ProgressPercentage      float64                `json:"progress_percentage"` // % of month elapsed
-	ExpectedAtCurrentDay    decimal.Decimal        `json:"expected_at_current_day"`
-	ActualSpent             decimal.Decimal        `json:"actual_spent"`
-	Variance                decimal.Decimal        `json:"variance"` // positive = over budget
-	Status                  string                 `json:"status"`   // "on_track", "over_budget", "warning"
-	Categories              []CategoryProgress     `json:"categories,omitempty"`
-	ProjectionEndOfMonth    decimal.Decimal        `json:"projection_end_of_month"`
-	ProjectedVarianceAtEnd  decimal.Decimal        `json:"projected_variance_at_end"`
+	BudgetID               int                `json:"budget_id"`
+	BudgetType             string             `json:"budget_type"`
+	TotalBudget            decimal.Decimal    `json:"total_budget"`
+	CurrentDay             int                `json:"current_day"`
+	DaysInMonth            int                `json:"days_in_month"`
+	ProgressPercentage     float64            `json:"progress_percentage"` // % of month elapsed
+	ExpectedAtCurrentDay   decimal.Decimal    `json:"expected_at_current_day"`
+	ActualSpent            decimal.Decimal    `json:"actual_spent"`
+	Variance               decimal.Decimal    `json:"variance"` // positive = over budget
+	Status                 string             `json:"status"`   // "on_track", "over_budget", "warning"
+	Categories             []CategoryProgress `json:"categories,omitempty"`
+	ProjectionEndOfMonth   decimal.Decimal    `json:"projection_end_of_month"`
+	ProjectedVarianceAtEnd decimal.Decimal    `json:"projected_variance_at_end"`
 }
 
 // CategoryProgress represents tracking for a single category
 type CategoryProgress struct {
-	CategoryID            int             `json:"category_id"`
-	CategoryName          string          `json:"category_name"`
-	PlannedAmount         decimal.Decimal `json:"planned_amount"`
-	ExpectedAtCurrentDay  decimal.Decimal `json:"expected_at_current_day,omitempty"` // only for fixed budgets
-	ActualSpent           decimal.Decimal `json:"actual_spent"`
-	Variance              decimal.Decimal `json:"variance"`
-	Status                string          `json:"status"`
+	CategoryID           int             `json:"category_id"`
+	CategoryName         string          `json:"category_name"`
+	PlannedAmount        decimal.Decimal `json:"planned_amount"`
+	ExpectedAtCurrentDay decimal.Decimal `json:"expected_at_current_day,omitempty"` // only for fixed budgets
+	ActualSpent          decimal.Decimal `json:"actual_spent"`
+	Variance             decimal.Decimal `json:"variance"`
+	Status               string          `json:"status"`
 }
 
 // CalculateBudgetProgressInput contains params for calculating budget progress
@@ -358,12 +358,12 @@ type CategoryPacing struct {
 
 // ControllableCategoryPacing contains pacing data for all controllable categories
 type ControllableCategoryPacing struct {
-	Month              int               `json:"month"`
-	Year               int               `json:"year"`
-	CurrentDay         int               `json:"current_day"`
-	DaysInMonth        int               `json:"days_in_month"`
-	ProgressPercentage float64           `json:"progress_percentage"` // % of month elapsed
-	Categories         []CategoryPacing  `json:"categories"`
+	Month              int              `json:"month"`
+	Year               int              `json:"year"`
+	CurrentDay         int              `json:"current_day"`
+	DaysInMonth        int              `json:"days_in_month"`
+	ProgressPercentage float64          `json:"progress_percentage"` // % of month elapsed
+	Categories         []CategoryPacing `json:"categories"`
 }
 
 // GetControllableCategoryPacingInput contains params for getting pacing data
@@ -421,10 +421,11 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		return nil, err
 	}
 
-	// Create map of category ID -> budget
+	// Create map of category ID -> controlled amount (discretionary buffer)
+	// Dashboard pacing tracks spending against the controlled portion only
 	budgetMap := make(map[int]decimal.Decimal)
 	for _, b := range categoryBudgets {
-		budgetMap[b.CategoryID] = b.PlannedAmount
+		budgetMap[b.CategoryID] = b.ControlledAmount
 	}
 
 	// Fetch transactions for the month to calculate spending

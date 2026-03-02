@@ -271,7 +271,7 @@ func TestGetCategoryBudgets_Success(t *testing.T) {
 			CategoryID:       5,
 			Month:            11,
 			Year:             2024,
-			PlannedAmount:    decimal.NewFromFloat(1000),
+			ControlledAmount: decimal.NewFromFloat(1000),
 		},
 		{
 			CategoryBudgetID: 2,
@@ -280,7 +280,7 @@ func TestGetCategoryBudgets_Success(t *testing.T) {
 			CategoryID:       6,
 			Month:            11,
 			Year:             2024,
-			PlannedAmount:    decimal.NewFromFloat(500),
+			ControlledAmount: decimal.NewFromFloat(500),
 		},
 	}
 
@@ -319,7 +319,7 @@ func TestGetCategoryBudgetByID_Success(t *testing.T) {
 		CategoryID:       5,
 		Month:            11,
 		Year:             2024,
-		PlannedAmount:    decimal.NewFromFloat(1000),
+		ControlledAmount: decimal.NewFromFloat(1000),
 	}
 
 	mockRepo.On("FetchCategoryBudgetByID", ctx, fetchCategoryBudgetByIDParams{
@@ -337,7 +337,7 @@ func TestGetCategoryBudgetByID_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.CategoryBudgetID)
 	assert.Equal(t, 5, result.CategoryID)
-	assert.True(t, result.PlannedAmount.Equal(decimal.NewFromFloat(1000)))
+	assert.True(t, result.ControlledAmount.Equal(decimal.NewFromFloat(1000)))
 	mockRepo.AssertExpectations(t)
 }
 
@@ -353,31 +353,31 @@ func TestCreateCategoryBudget_Success(t *testing.T) {
 		CategoryID:       5,
 		Month:            12,
 		Year:             2024,
-		PlannedAmount:    decimal.NewFromFloat(1500),
+		ControlledAmount: decimal.NewFromFloat(1500),
 	}
 
 	mockRepo.On("InsertCategoryBudget", ctx, insertCategoryBudgetParams{
-		UserID:         1,
-		OrganizationID: 1,
-		CategoryID:     5,
-		Month:          12,
-		Year:           2024,
-		PlannedAmount:  decimal.NewFromFloat(1500),
+		UserID:           1,
+		OrganizationID:   1,
+		CategoryID:       5,
+		Month:            12,
+		Year:             2024,
+		ControlledAmount: decimal.NewFromFloat(1500),
 	}).Return(createdBudget, nil)
 
 	result, err := svc.CreateCategoryBudget(ctx, CreateCategoryBudgetInput{
-		UserID:         1,
-		OrganizationID: 1,
-		CategoryID:     5,
-		Month:          12,
-		Year:           2024,
-		PlannedAmount:  decimal.NewFromFloat(1500),
+		UserID:           1,
+		OrganizationID:   1,
+		CategoryID:       5,
+		Month:            12,
+		Year:             2024,
+		ControlledAmount: decimal.NewFromFloat(1500),
 	})
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.CategoryBudgetID)
 	assert.Equal(t, 5, result.CategoryID)
-	assert.True(t, result.PlannedAmount.Equal(decimal.NewFromFloat(1500)))
+	assert.True(t, result.ControlledAmount.Equal(decimal.NewFromFloat(1500)))
 	mockRepo.AssertExpectations(t)
 }
 
@@ -394,25 +394,25 @@ func TestUpdateCategoryBudget_Success(t *testing.T) {
 		CategoryID:       5,
 		Month:            12,
 		Year:             2024,
-		PlannedAmount:    newAmount,
+		ControlledAmount: newAmount,
 	}
 
 	mockRepo.On("ModifyCategoryBudget", ctx, modifyCategoryBudgetParams{
 		CategoryBudgetID: 1,
 		UserID:           1,
 		OrganizationID:   1,
-		PlannedAmount:    &newAmount,
+		ControlledAmount: &newAmount,
 	}).Return(updatedBudget, nil)
 
 	result, err := svc.UpdateCategoryBudget(ctx, UpdateCategoryBudgetInput{
 		CategoryBudgetID: 1,
 		UserID:           1,
 		OrganizationID:   1,
-		PlannedAmount:    &newAmount,
+		ControlledAmount: &newAmount,
 	})
 
 	assert.NoError(t, err)
-	assert.True(t, result.PlannedAmount.Equal(newAmount))
+	assert.True(t, result.ControlledAmount.Equal(newAmount))
 	mockRepo.AssertExpectations(t)
 }
 
