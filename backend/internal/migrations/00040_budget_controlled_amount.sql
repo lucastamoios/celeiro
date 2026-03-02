@@ -13,28 +13,7 @@ ADD COLUMN controlled_amount DECIMAL(15, 2) NOT NULL DEFAULT 0 CHECK (controlled
 -- Step 2: Migrate data based on existing budget_type
 -- For 'fixed' and 'maior': controlled = MAX(0, planned_amount - sum of planned entries)
 -- For 'calculated': controlled = 0 (already the default)
-WITH planned_entry_sums AS (
-    SELECT
-        pe.category_id,
-        EXTRACT(MONTH FROM pes.created_at)::int AS month,
-        EXTRACT(YEAR FROM pes.created_at)::int AS year,
-        pe.user_id,
-        pe.organization_id,
-        COALESCE(SUM(
-            CASE 
-                WHEN pes.status = 'matched' AND pes.matched_amount IS NOT NULL THEN pes.matched_amount
-                ELSE pe.amount
-            END
-        ), 0) AS entry_sum
-    FROM planned_entries pe
-    LEFT JOIN planned_entry_statuses pes ON pe.planned_entry_id = pes.planned_entry_id
-    WHERE pe.is_active = true
-        AND pe.entry_type = 'expense'
-        AND (pes.status IS NULL OR pes.status != 'dismissed')
-    GROUP BY pe.category_id, month, year, pe.user_id, pe.organization_id
-),
--- Also calculate directly from planned_entries for categories without statuses
-direct_entry_sums AS (
+WITH direct_entry_sums AS (
     SELECT
         pe.category_id,
         cb.month,
