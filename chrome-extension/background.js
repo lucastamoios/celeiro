@@ -258,15 +258,11 @@ function extractOrdersFromPage(targetMonth, targetYear) {
 // Pagination helper (injected into the Amazon page)
 // ---------------------------------------------------------------------------
 
-function clickNextPage() {
+function getNextPageUrl() {
   const nextBtn = document.querySelector('.a-pagination .a-last:not(.a-disabled) a') ||
                   document.querySelector('[aria-label="Ir para a próxima página"]') ||
                   document.querySelector('.a-pagination li:last-child:not(.a-disabled) a');
-  if (nextBtn) {
-    nextBtn.click();
-    return true;
-  }
-  return false;
+  return nextBtn ? nextBtn.href : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -343,21 +339,30 @@ async function performFullSync({ tabId, month, year, apiUrl, token }) {
         break;
       }
 
-      // Click "Next" and wait for navigation
+      // Navigate to next page — extract the URL first so we can guarantee
+      // timeFilter is preserved (Amazon sometimes omits it from pagination links)
       try {
-        const paginationResult = await chrome.scripting.executeScript({
+        const results = await chrome.scripting.executeScript({
           target: { tabId },
-          func: clickNextPage
+          func: getNextPageUrl
         });
-        hasMorePages = paginationResult[0]?.result === true;
+        const nextUrl = results[0]?.result;
+        if (nextUrl) {
+          let urlToNavigate = nextUrl;
+          if (!urlToNavigate.includes('timeFilter')) {
+            const sep = urlToNavigate.includes('?') ? '&' : '?';
+            urlToNavigate += `${sep}timeFilter=year-${year}`;
+          }
+          pageNum++;
+          await chrome.tabs.update(tabId, { url: urlToNavigate });
+          await waitForTabComplete(tabId);
+          hasMorePages = true;
+        } else {
+          hasMorePages = false;
+        }
       } catch (e) {
-        console.error('[Celeiro] Pagination click failed:', e);
+        console.error('[Celeiro] Pagination failed:', e);
         hasMorePages = false;
-      }
-
-      if (hasMorePages) {
-        pageNum++;
-        await waitForTabComplete(tabId);
       }
     }
 
