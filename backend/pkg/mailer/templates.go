@@ -24,8 +24,9 @@ var (
 type TemplateName string
 
 const (
-	TemplateAuthCode             TemplateName = "auth_code"
-	OrganizationInviteTemplate   TemplateName = "organization_invite"
+	TemplateAuthCode           TemplateName = "auth_code"
+	OrganizationInviteTemplate TemplateName = "organization_invite"
+	TemplatePasswordReset      TemplateName = "password_reset"
 )
 
 func discoverTemplates() map[string]string {

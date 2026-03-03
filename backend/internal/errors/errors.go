@@ -22,6 +22,7 @@ var (
 	ErrInviteNotFound        = pkgerrors.New("invite not found")
 	ErrInviteExpired         = pkgerrors.New("invite has expired")
 	ErrInviteAlreadyAccepted = pkgerrors.New("invite has already been accepted")
+	ErrInvalidToken          = pkgerrors.New("invalid or expired token")
 
 	// Transaction pattern draft errors
 	ErrTransactionCategoryRequired    = pkgerrors.New("transaction has no category")

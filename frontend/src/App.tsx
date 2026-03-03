@@ -10,6 +10,7 @@ import SavingsGoalsPage from './components/SavingsGoalsPage'
 import SettingsPage from './components/SettingsPage'
 import UserAvatarMenu from './components/UserAvatarMenu'
 import AcceptInvite from './components/AcceptInvite'
+import ResetPassword from './components/ResetPassword'
 import {
   LayoutDashboard,
   CreditCard,
@@ -29,6 +30,12 @@ type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
 function getInviteToken(): string | null {
   const params = new URLSearchParams(window.location.search);
   return params.get('token');
+}
+
+// Helper to get password reset token from URL
+function getResetToken(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('reset-token');
 }
 
 // Helper to get view from URL params (for middle-click support)
@@ -66,6 +73,7 @@ function AppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('categorias');
   const [inviteToken, setInviteToken] = useState<string | null>(getInviteToken);
+  const [resetToken, setResetToken] = useState<string | null>(getResetToken);
 
   const setCurrentView = useCallback((view: View) => {
     setCurrentViewState(view);
@@ -86,6 +94,16 @@ function AppContent() {
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
+
+  // Handle password reset flow
+  if (resetToken) {
+    return (
+      <ResetPassword
+        token={resetToken}
+        onComplete={() => setResetToken(null)}
+      />
+    );
+  }
 
   // Handle invite acceptance flow
   if (inviteToken) {

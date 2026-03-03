@@ -53,7 +53,7 @@ func (test *AuthTestSuite) TestGenerateMagicLinkCode() {
 		logger := logging.TestLogger{}
 		localMailer := mailer.NewLocalMailer(&config.Config{}, &logger)
 		localMailer.(*mailer.LocalMailer).ClearSentEmails()
-		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil)
+		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil, &config.Config{})
 
 		ctx := context.Background()
 
@@ -73,7 +73,7 @@ func (test *AuthTestSuite) TestGenerateMagicLinkCode() {
 		logger := logging.TestLogger{}
 		localMailer := mailer.NewLocalMailer(&config.Config{}, &logger)
 		localMailer.(*mailer.LocalMailer).ClearSentEmails()
-		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil)
+		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil, &config.Config{})
 
 		ctx := context.Background()
 
@@ -93,7 +93,7 @@ func (test *AuthTestSuite) TestValidateMagicLinkCode() {
 		logger := logging.TestLogger{}
 		localMailer := mailer.NewLocalMailer(&config.Config{}, &logger)
 		localMailer.(*mailer.LocalMailer).ClearSentEmails()
-		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil)
+		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil, &config.Config{})
 
 		ctx := context.Background()
 
@@ -122,7 +122,7 @@ func (test *AuthTestSuite) TestValidateMagicLinkCode() {
 		logger := logging.TestLogger{}
 		localMailer := mailer.NewLocalMailer(&config.Config{}, &logger)
 		localMailer.(*mailer.LocalMailer).ClearSentEmails()
-		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil)
+		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil, &config.Config{})
 
 		ctx := context.Background()
 
@@ -143,7 +143,7 @@ func (test *AuthTestSuite) TestValidateMagicLinkCode() {
 		logger := logging.TestLogger{}
 		localMailer := mailer.NewLocalMailer(&config.Config{}, &logger)
 		localMailer.(*mailer.LocalMailer).ClearSentEmails()
-		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil)
+		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil, &config.Config{})
 
 		ctx := context.Background()
 
@@ -171,7 +171,7 @@ func (test *AuthTestSuite) TestValidateMagicLinkCode() {
 		logger := logging.TestLogger{}
 		localMailer := mailer.NewLocalMailer(&config.Config{}, &logger)
 		localMailer.(*mailer.LocalMailer).ClearSentEmails()
-		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil)
+		service := New(nil, memoryDB, localMailer, system.NewSystem(), &logger, nil, &config.Config{})
 
 		ctx := context.Background()
 
@@ -204,7 +204,7 @@ func TestSendMagicLinkEmail_Success(t *testing.T) {
 	}
 	localMailer := mailer.NewLocalMailer(&config, logger)
 	localMailer.(*mailer.LocalMailer).ClearSentEmails()
-	service := New(nil, memoryDB, localMailer, system.NewSystem(), logger, nil)
+	service := New(nil, memoryDB, localMailer, system.NewSystem(), logger, nil, &config)
 
 	ctx := context.Background()
 	email := "test@example.com"
@@ -231,10 +231,10 @@ func TestSendMagicLinkEmail_Success(t *testing.T) {
 	if len(message.To) != 1 || message.To[0] != email {
 		t.Errorf("Expected To: [%s], got %v", email, message.To)
 	}
-	if message.Subject != "Your Login Code" {
-		t.Errorf("Expected subject 'Your Login Code', got %s", message.Subject)
+	if message.Subject != "Seu Código de Acesso - Celeiro" {
+		t.Errorf("Expected subject 'Seu Código de Acesso - Celeiro', got %s", message.Subject)
 	}
-	if message.Data["code"] != code {
+	if message.Data["Code"] != code {
 		t.Errorf("Expected body to contain code %s", code)
 	}
 }
@@ -246,7 +246,7 @@ func TestSendMagicLinkEmail_NoMailer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	service := New(nil, memoryDB, nil, system.NewSystem(), logger, nil)
+	service := New(nil, memoryDB, nil, system.NewSystem(), logger, nil, &config)
 
 	ctx := context.Background()
 	email := "test@example.com"
@@ -271,7 +271,7 @@ func TestSendMagicLinkEmail_MailerError(t *testing.T) {
 	}
 	localMailer := mailer.NewLocalMailer(&config, logger)
 	localMailer.(*mailer.LocalMailer).SetTestError(fmt.Errorf("mailer error"))
-	service := New(nil, memoryDB, localMailer, system.NewSystem(), logger, nil)
+	service := New(nil, memoryDB, localMailer, system.NewSystem(), logger, nil, &config)
 
 	ctx := context.Background()
 	email := "test@example.com"
@@ -373,7 +373,7 @@ func TestAuthenticateWithMagicCode_ExistingUser(t *testing.T) {
 	persistentDB.ExpectQuery(FetchOrganizationsByUserQuery, 1).WillReturn(expectedOrganizations)
 
 	repo := NewRepository(persistentDB)
-	service := New(repo, transientDB, localMailer, system, logger, nil)
+	service := New(repo, transientDB, localMailer, system, logger, nil, &config)
 
 	ctx := context.Background()
 	email := "test@example.com"
@@ -420,6 +420,8 @@ func TestAuthenticateWithMagicCode_ExistingUser(t *testing.T) {
 	}
 }
 
+// TestAuthenticateWithMagicCode_NewUser verifies that unregistered users are rejected.
+// Auto-registration via magic link is disabled — only existing users can authenticate.
 func TestAuthenticateWithMagicCode_NewUser(t *testing.T) {
 	transientDB := transientdb.NewMemoryTransientDB()
 	persistentDB := database.NewMemoryDatabase()
@@ -430,48 +432,14 @@ func TestAuthenticateWithMagicCode_NewUser(t *testing.T) {
 	}
 	localMailer := mailer.NewLocalMailer(&config, logger)
 
-	// User Check
+	// User does not exist — auto-registration is disabled
 	persistentDB.ExpectQuery(
 		FetchUserByEmailQuery,
 		"test@example.com",
 	).WillReturnError(sql.ErrNoRows)
 
-	// Organization
-	// New organization is created with the same name as the email
-	expectedOrganization := &OrganizationModel{
-		OrganizationID: 1,
-		Name:           "test@example.com",
-	}
-	persistentDB.ExpectQuery(
-		InsertOrganizationQuery,
-		"test@example.com",
-	).WillReturn(expectedOrganization)
-
-	// User
-	expectedCreatedUser := &UserModel{
-		UserID: 1,
-		Name:   "test",
-		Email:  "test@example.com",
-	}
-	persistentDB.ExpectQuery(
-		InsertUserQuery,
-		"test", "test@example.com",
-	).WillReturn(expectedCreatedUser)
-
-	// User Organization
-	// User is added to the organization with the manager role
-	expectedUserOrganization := &UserOrganizationModel{
-		UserID:         1,
-		OrganizationID: 1,
-		UserRole:       RoleRegularManager,
-	}
-	persistentDB.ExpectQuery(
-		InsertUserOrganizationQuery,
-		1, 1, RoleRegularManager,
-	).WillReturn(expectedUserOrganization)
-
 	repo := NewRepository(persistentDB)
-	service := New(repo, transientDB, localMailer, system.NewSystem(), logger, persistentDB)
+	service := New(repo, transientDB, localMailer, system.NewSystem(), logger, persistentDB, &config)
 
 	ctx := context.Background()
 	email := "test@example.com"
@@ -483,38 +451,30 @@ func TestAuthenticateWithMagicCode_NewUser(t *testing.T) {
 		ExpiresAt: time.Now().Add(10 * time.Minute),
 	}
 	codeJSON, _ := json.Marshal(magicCode)
-	key := fmt.Sprintf("magic_code:%s", email)
-	transientDB.SetTestData(key, string(codeJSON))
+	transientDB.SetTestData(fmt.Sprintf("magic_code:%s", email), string(codeJSON))
 
 	result, err := service.AuthenticateWithMagicCode(ctx, AuthenticateWithMagicCodeInput{
 		Email: email,
 		Code:  code,
 	})
 
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if err == nil {
+		t.Error("Expected ErrInvalidCredentials for unregistered user, got no error")
 	}
-	if result.Session.Token == "" {
-		t.Fatal("Expected result to be returned")
+	if result.Session.Token != "" {
+		t.Error("Expected no session token for unregistered user")
 	}
-	if !result.IsNewUser {
-		t.Error("Expected IsNewUser to be true for new user")
+	if !strings.Contains(err.Error(), "invalid credentials") {
+		t.Errorf("Expected 'invalid credentials' error, got %v", err)
 	}
-	if result.Session.Token == "" {
-		t.Fatal("Expected session to be created")
-	}
-	if result.Session.Info.User.ID != 1 {
-		t.Errorf("Expected user ID 1, got %d", result.Session.Info.User.ID)
-	}
-	if result.Session.Info.User.Email != email {
-		t.Errorf("Expected user email %s, got %s", email, result.Session.Info.User.Email)
-	}
-	if err := persistentDB.ExpectationsWereMet(); err != nil {
-		t.Errorf("Database expectations not met: %v", err)
+	if dbErr := persistentDB.ExpectationsWereMet(); dbErr != nil {
+		t.Errorf("Database expectations not met: %v", dbErr)
 	}
 }
 
-func TestAuthenticateWithMagicCode_CreateUserFails(t *testing.T) {
+// TestAuthenticateWithMagicCode_UserFetchError verifies that a DB error during user lookup
+// returns an error (not ErrInvalidCredentials — that's reserved for user-not-found).
+func TestAuthenticateWithMagicCode_UserFetchError(t *testing.T) {
 	transientDB := transientdb.NewMemoryTransientDB()
 	persistentDB := database.NewMemoryDatabase()
 	config := config.Config{EmailFrom: "test@example.com"}
@@ -524,28 +484,14 @@ func TestAuthenticateWithMagicCode_CreateUserFails(t *testing.T) {
 	}
 	localMailer := mailer.NewLocalMailer(&config, logger)
 
+	// Simulate a DB error (not sql.ErrNoRows)
 	persistentDB.ExpectQuery(
 		FetchUserByEmailQuery,
 		"test@example.com",
-	).WillReturnError(sql.ErrNoRows)
-
-	expectedOrganization := &OrganizationModel{
-		OrganizationID: 1,
-		Name:           "test@example.com",
-	}
-
-	persistentDB.ExpectQuery(
-		InsertOrganizationQuery,
-		"test@example.com",
-	).WillReturn(expectedOrganization)
-
-	persistentDB.ExpectQuery(
-		InsertUserQuery,
-		"test", "test@example.com",
 	).WillReturnError(fmt.Errorf("database error"))
 
 	repo := NewRepository(persistentDB)
-	service := New(repo, transientDB, localMailer, system.NewSystem(), logger, persistentDB)
+	service := New(repo, transientDB, localMailer, system.NewSystem(), logger, persistentDB, &config)
 
 	ctx := context.Background()
 	email := "test@example.com"
@@ -557,8 +503,7 @@ func TestAuthenticateWithMagicCode_CreateUserFails(t *testing.T) {
 		ExpiresAt: time.Now().Add(10 * time.Minute),
 	}
 	codeJSON, _ := json.Marshal(magicCode)
-	key := fmt.Sprintf("magic_code:%s", email)
-	transientDB.SetTestData(key, string(codeJSON))
+	transientDB.SetTestData(fmt.Sprintf("magic_code:%s", email), string(codeJSON))
 
 	result, err := service.AuthenticateWithMagicCode(ctx, AuthenticateWithMagicCodeInput{
 		Email: email,
@@ -566,16 +511,15 @@ func TestAuthenticateWithMagicCode_CreateUserFails(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Error("Expected error when user creation fails")
+		t.Error("Expected error when user fetch fails")
 	}
 	if result.Session.Token != "" {
-		t.Error("Expected no result when user creation fails")
+		t.Error("Expected no session token on fetch error")
 	}
 	if !strings.Contains(err.Error(), "database error") {
 		t.Errorf("Expected 'database error' error, got %v", err)
 	}
-
-	if err := persistentDB.ExpectationsWereMet(); err != nil {
-		t.Errorf("Database expectations not met: %v", err)
+	if dbErr := persistentDB.ExpectationsWereMet(); dbErr != nil {
+		t.Errorf("Database expectations not met: %v", dbErr)
 	}
 }

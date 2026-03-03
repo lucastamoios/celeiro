@@ -38,6 +38,8 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 	r.Post("/auth/validate/", ah.Authenticate)
 	r.Post("/auth/google/", ah.AuthenticateWithGoogle)
 	r.Post("/auth/password/", ah.AuthenticateWithPassword)
+	r.Post("/auth/password/reset/request", ah.RequestPasswordReset)
+	r.Post("/auth/password/reset", ah.ResetPassword)
 
 	r.Get("/accounts/me/", mw.RequireSession(ah.Me, []accounts.Permission{}))
 	r.Post("/accounts/password/", mw.RequireSession(ah.SetPassword, []accounts.Permission{}))
