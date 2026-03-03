@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"time"
 
 	internalerrors "github.com/catrutech/celeiro/internal/errors"
@@ -23,6 +24,8 @@ type AccountsAuth interface {
 	AuthenticateWithGoogle(ctx context.Context, input AuthenticateWithGoogleInput) (Authentication, error)
 	AuthenticateWithPassword(ctx context.Context, input AuthenticateWithPasswordInput) (Authentication, error)
 	SetPassword(ctx context.Context, input SetPasswordInput) error
+	RequestPasswordReset(ctx context.Context, email string) error
+	ResetPassword(ctx context.Context, token, newPassword string) error
 
 	generateMagicLinkCode(ctx context.Context, input generateMagicLinkCodeInput) (string, error)
 	sendMagicLinkEmail(ctx context.Context, input sendMagicLinkEmailInput) error
@@ -31,6 +34,7 @@ type AccountsAuth interface {
 	deleteMagicCode(ctx context.Context, input deleteMagicCodeInput) error
 	getMagicCodeKey(email string) string
 	generateCode() string
+	getPasswordResetKey(token string) string
 }
 
 // AuthenticateWithMagicCode
@@ -517,4 +521,87 @@ func hashPassword(password string) (string, error) {
 func checkPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+// RequestPasswordReset
+
+// RequestPasswordReset generates a password reset token, stores it in Redis, and sends a reset email.
+// Always returns nil to prevent email enumeration — callers should always respond with 200.
+func (a *service) RequestPasswordReset(ctx context.Context, email string) error {
+	if a.transientDB == nil {
+		return nil
+	}
+
+	// Generate a secure random token using crypto/rand (via SessionToken generator)
+	token := a.system.SessionToken.Generate(32)
+
+	ttl := 24 * time.Hour
+	key := a.getPasswordResetKey(token)
+	if err := a.transientDB.SetWithExpiration(ctx, key, email, ttl); err != nil {
+		// Log but don't surface the error to avoid timing side-channels
+		return nil
+	}
+
+	if a.mailer == nil {
+		return nil
+	}
+
+	resetURL := fmt.Sprintf("%s/?reset-token=%s", a.frontendURL, url.QueryEscape(token))
+	msg := mailer.EmailTemplateMessage{
+		To:       []string{email},
+		Subject:  "Redefinição de senha - Celeiro",
+		Template: mailer.TemplatePasswordReset,
+		Data: map[string]any{
+			"ResetURL": resetURL,
+		},
+	}
+
+	// Best-effort: send email, ignore error to avoid enumeration
+	a.mailer.SendEmail(ctx, msg) //nolint:errcheck
+	return nil
+}
+
+// ResetPassword
+
+// ResetPassword validates a password reset token and updates the user's password.
+func (a *service) ResetPassword(ctx context.Context, token, newPassword string) error {
+	if len(newPassword) < MinPasswordLength {
+		return fmt.Errorf("password must be at least %d characters", MinPasswordLength)
+	}
+
+	if a.transientDB == nil {
+		return errors.New("transient database not available")
+	}
+
+	key := a.getPasswordResetKey(token)
+	email, err := a.transientDB.Get(ctx, key)
+	if err != nil {
+		return internalerrors.ErrInvalidToken
+	}
+
+	userModel, err := a.Repository.FetchUserByEmail(ctx, getUserByEmailParams{Email: email})
+	if err != nil {
+		return internalerrors.ErrInvalidToken
+	}
+
+	hashedPassword, err := hashPassword(newPassword)
+	if err != nil {
+		return errors.Wrap(err, "failed to hash password")
+	}
+
+	if err := a.Repository.ModifyUserPassword(ctx, modifyUserPasswordParams{
+		UserID:       userModel.UserID,
+		PasswordHash: hashedPassword,
+	}); err != nil {
+		return errors.Wrap(err, "failed to update password")
+	}
+
+	// Single-use: delete token immediately after successful reset
+	a.transientDB.Delete(ctx, key) //nolint:errcheck
+	return nil
+}
+
+// getPasswordResetKey returns the Redis key for a password reset token.
+func (a *service) getPasswordResetKey(token string) string {
+	return fmt.Sprintf("password_reset:%s", token)
 }

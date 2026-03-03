@@ -21,6 +21,8 @@ type AccountsAuthHandler interface {
 	AuthenticateWithGoogle(w http.ResponseWriter, r *http.Request)
 	AuthenticateWithPassword(w http.ResponseWriter, r *http.Request)
 	SetPassword(w http.ResponseWriter, r *http.Request)
+	RequestPasswordReset(w http.ResponseWriter, r *http.Request)
+	ResetPassword(w http.ResponseWriter, r *http.Request)
 }
 
 // RequestMagicLink
@@ -343,4 +345,92 @@ func (h *handler) SetPassword(w http.ResponseWriter, r *http.Request) {
 		Message: "Password updated successfully",
 	}
 	responses.NewSuccess(response, w)
+}
+
+// RequestPasswordReset
+
+type RequestPasswordResetRequest struct {
+	Email string `json:"email"`
+}
+
+func (r *RequestPasswordResetRequest) Validate() error {
+	if strings.TrimSpace(r.Email) == "" {
+		return errors.ErrEmailRequired
+	}
+	if !validators.IsValidEmail(r.Email) {
+		return errors.ErrEmailFormatInvalid
+	}
+	return nil
+}
+
+type RequestPasswordResetResponse struct {
+	Message string `json:"message"`
+}
+
+// RequestPasswordReset handles POST /auth/password/reset/request.
+// Always returns 200 to prevent email enumeration.
+func (h *handler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
+	var req RequestPasswordResetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Still respond 200 to avoid enumeration
+		responses.NewSuccess(RequestPasswordResetResponse{Message: "Se este email estiver cadastrado, você receberá um link em breve."}, w)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		responses.NewSuccess(RequestPasswordResetResponse{Message: "Se este email estiver cadastrado, você receberá um link em breve."}, w)
+		return
+	}
+
+	// Best-effort: ignore error to prevent enumeration
+	h.accountsService.RequestPasswordReset(r.Context(), req.Email) //nolint:errcheck
+
+	responses.NewSuccess(RequestPasswordResetResponse{
+		Message: "Se este email estiver cadastrado, você receberá um link em breve.",
+	}, w)
+}
+
+// ResetPassword
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+func (r *ResetPasswordRequest) Validate() error {
+	if strings.TrimSpace(r.Token) == "" {
+		return errors.ErrMissingRequiredFields
+	}
+	if strings.TrimSpace(r.NewPassword) == "" {
+		return errors.ErrMissingRequiredFields
+	}
+	if len(r.NewPassword) < accounts.MinPasswordLength {
+		return errors.ErrInvalidFormat
+	}
+	return nil
+}
+
+type ResetPasswordResponse struct {
+	Message string `json:"message"`
+}
+
+// ResetPassword handles POST /auth/password/reset.
+func (h *handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	if err := h.accountsService.ResetPassword(r.Context(), req.Token, req.NewPassword); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(ResetPasswordResponse{Message: "Senha redefinida com sucesso."}, w)
 }

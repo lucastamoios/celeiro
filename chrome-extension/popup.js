@@ -189,6 +189,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // -------------------------------------------------------------------------
+  // Forgot Password
+  // -------------------------------------------------------------------------
+
+  const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+
+  forgotPasswordBtn.addEventListener('click', async () => {
+    const emailValue = emailInput.value.trim();
+    const email = emailValue || prompt('Digite seu email para receber o link de redefinição:');
+
+    if (!email) return;
+
+    try {
+      forgotPasswordBtn.disabled = true;
+      showStatus('Enviando link de redefinição...', 'info');
+
+      const apiUrl = apiUrlInput.value.trim();
+      await fetch(`${apiUrl}/auth/password/reset/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      // Always show the same message regardless of whether email exists
+      showStatus('Se este email estiver cadastrado, você receberá um link em breve.', 'success');
+      setTimeout(hideStatus, 5000);
+    } catch (error) {
+      console.error('[Celeiro] Forgot password error:', error);
+      showStatus('Erro ao enviar email. Verifique sua conexão.', 'error');
+    } finally {
+      forgotPasswordBtn.disabled = false;
+    }
+  });
+
   logoutBtn.addEventListener('click', async () => {
     settings.token = null;
     settings.userEmail = null;

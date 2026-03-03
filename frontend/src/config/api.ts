@@ -11,6 +11,8 @@ export const API_CONFIG = {
       request: '/auth/request/',
       validate: '/auth/validate/',
       password: '/auth/password/',
+      passwordResetRequest: '/auth/password/reset/request',
+      passwordReset: '/auth/password/reset',
     },
     accounts: {
       me: '/accounts/me/',

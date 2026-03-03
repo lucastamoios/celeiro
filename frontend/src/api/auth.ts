@@ -57,6 +57,40 @@ export async function loginWithPassword(
 }
 
 /**
+ * Request a password reset link via email (public endpoint)
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await fetch(
+    `${API_CONFIG.baseURL}${API_CONFIG.endpoints.auth.passwordResetRequest}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }
+  );
+  // Always resolves — server returns 200 regardless of whether email exists
+}
+
+/**
+ * Reset password using a token received via email (public endpoint)
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}${API_CONFIG.endpoints.auth.passwordReset}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Link inválido ou expirado');
+  }
+}
+
+/**
  * Set or change password (requires authentication)
  */
 export async function setPassword(
