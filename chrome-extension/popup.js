@@ -43,12 +43,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
 
-  // Migrate old domain to new domain if user had it saved
-  if (settings.apiUrl === 'https://celeiro.catru.tech') {
-    settings.apiUrl = 'https://celeiro.laguiar.dev';
+  // Migrate old domains to current API URL
+  const oldDomains = ['https://celeiro.catru.tech', 'https://celeiro.laguiar.dev'];
+  if (!settings.apiUrl || oldDomains.includes(settings.apiUrl)) {
+    settings.apiUrl = 'https://api.celeiro.laguiar.dev';
     await chrome.storage.local.set({ apiUrl: settings.apiUrl });
   }
-  apiUrlInput.value = settings.apiUrl || 'https://celeiro.laguiar.dev';
+  apiUrlInput.value = settings.apiUrl || 'https://api.celeiro.laguiar.dev';
   monthSelect.value = currentMonth;
   yearInput.value = currentYear;
 
