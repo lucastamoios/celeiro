@@ -40,14 +40,6 @@ export default function TransactionEditModal({
   // Pattern creator
   const [showAdvancedPatternCreator, setShowAdvancedPatternCreator] = useState(false);
   const [applyRetroactivelyOnCreate, setApplyRetroactivelyOnCreate] = useState(true);
-  const [patternDraft, setPatternDraft] = useState<{
-    description: string;
-    category_id: number;
-    description_pattern: string;
-    target_description: string;
-    target_category_id: number;
-    apply_retroactively: boolean;
-  } | null>(null);
 
   // Linked planned entry
   const [linkedPlannedEntry, setLinkedPlannedEntry] = useState<PlannedEntryWithStatus | null>(null);
@@ -211,12 +203,6 @@ export default function TransactionEditModal({
       setSaving(false);
     }
   };
-
-  useEffect(() => {
-    if (!showAdvancedPatternCreator) {
-      setPatternDraft(null);
-    }
-  }, [showAdvancedPatternCreator]);
 
   const handleSavePattern = async (pattern: AdvancedPattern) => {
     if (!token) return;
@@ -742,29 +728,7 @@ export default function TransactionEditModal({
             </label>
 
             <button
-              onClick={async () => {
-                if (!token) return;
-                try {
-                  const res = await fetch(financialUrl(`transactions/${transaction.transaction_id}/pattern-draft`), {
-                    headers: {
-                      'Authorization': `Bearer ${token}`,
-                      'X-Active-Organization': '1',
-                    },
-                  });
-                  if (!res.ok) {
-                    // 400 usually means transaction has no category saved
-                    if (res.status === 400) {
-                      throw new Error('Salve a transação com uma categoria primeiro');
-                    }
-                    throw new Error('Falha ao gerar sugestao de padrao');
-                  }
-                  const json = await res.json();
-                  setPatternDraft(json.data);
-                  setShowAdvancedPatternCreator(true);
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : 'Falha ao gerar sugestao de padrao');
-                }
-              }}
+              onClick={() => setShowAdvancedPatternCreator(true)}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-stone-300 text-stone-600 rounded-lg hover:border-stone-400 hover:text-stone-700 hover:bg-stone-50 transition-all text-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -804,12 +768,9 @@ export default function TransactionEditModal({
           categories={categories}
           onClose={() => setShowAdvancedPatternCreator(false)}
           onSave={handleSavePattern}
-          initialData={{
-            description: patternDraft?.description || transaction.original_description || description,
-            categoryId: patternDraft?.category_id ?? categoryId ?? undefined,
-            amount: transaction.amount,
-            expectedDay: parseTransactionDate(transaction.transaction_date).getDate(),
-          }}
+          initialSourceText={transaction.original_description || description}
+          initialTargetDescription={description}
+          initialTargetCategoryId={categoryId ?? undefined}
         />
       )}
 
