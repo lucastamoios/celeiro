@@ -43,7 +43,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
 
-  apiUrlInput.value = settings.apiUrl || 'https://celeiro.catru.tech';
+  // Migrate old domain to new domain if user had it saved
+  if (settings.apiUrl === 'https://celeiro.catru.tech') {
+    settings.apiUrl = 'https://celeiro.laguiar.dev';
+    await chrome.storage.local.set({ apiUrl: settings.apiUrl });
+  }
+  apiUrlInput.value = settings.apiUrl || 'https://celeiro.laguiar.dev';
   monthSelect.value = currentMonth;
   yearInput.value = currentYear;
 
