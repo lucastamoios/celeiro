@@ -27,6 +27,7 @@ import {
 import { listSavingsGoals } from '../api/savingsGoals';
 import { financialUrl } from '../config/api';
 import PlannedEntryForm from './PlannedEntryForm';
+import NewPlannedEntryForm from './NewPlannedEntryForm';
 import MonthlyBudgetCard from './MonthlyBudgetCard';
 import { generateBudgetExportText, copyToClipboard } from '../utils/budgetExport';
 import { parseTransactionDate } from '../utils/date';
@@ -1629,54 +1630,65 @@ export default function CategoryBudgetDashboard() {
           headerGradient="wheat"
           size="lg"
         >
-          <PlannedEntryForm
-            categories={categories}
-            savingsGoals={savingsGoals}
-            onSubmit={editingEntry ? handleUpdatePlannedEntry : handleCreatePlannedEntry}
-            onCancel={() => {
-              setShowCreateEntryModal(false);
-              setEditingEntry(null);
-              setSelectedEntryMonth(null);
-              setPreselectedCategoryForEntry(null);
-            }}
-            initialEntry={editingEntry ? {
-              PlannedEntryID: editingEntry.PlannedEntryID,
-              UserID: 0,
-              OrganizationID: 0,
-              CategoryID: editingEntry.CategoryID,
-              Description: editingEntry.Description,
-              Amount: editingEntry.Amount,
-              AmountMin: editingEntry.AmountMin,
-              AmountMax: editingEntry.AmountMax,
-              ExpectedDay: editingEntry.ExpectedDay,
-              ExpectedDayStart: editingEntry.ExpectedDayStart,
-              ExpectedDayEnd: editingEntry.ExpectedDayEnd,
-              EntryType: editingEntry.EntryType,
-              IsRecurrent: editingEntry.IsRecurrent,
-              IsSavedPattern: false,
-              IsActive: true,
-              ParentEntryID: editingEntry.ParentEntryID,
-              PatternID: editingEntry.PatternID,
-              SavingsGoalID: editingEntry.SavingsGoalID,
-              CreatedAt: '',
-              UpdatedAt: '',
-            } : preselectedCategoryForEntry ? {
-              // Preselected category from modal "Add Entry" button
-              PlannedEntryID: 0,
-              UserID: 0,
-              OrganizationID: 0,
-              CategoryID: preselectedCategoryForEntry,
-              Description: '',
-              Amount: '0',
-              EntryType: categories.find(c => c.category_id === preselectedCategoryForEntry)?.category_type === 'income' ? 'income' : 'expense',
-              IsRecurrent: false,
-              IsSavedPattern: false,
-              IsActive: true,
-              CreatedAt: '',
-              UpdatedAt: '',
-            } : undefined}
-            isLoading={isSubmitting}
-          />
+          {editingEntry ? (
+            <PlannedEntryForm
+              categories={categories}
+              savingsGoals={savingsGoals}
+              onSubmit={handleUpdatePlannedEntry}
+              onCancel={() => {
+                setShowCreateEntryModal(false);
+                setEditingEntry(null);
+                setSelectedEntryMonth(null);
+                setPreselectedCategoryForEntry(null);
+              }}
+              initialEntry={{
+                PlannedEntryID: editingEntry.PlannedEntryID,
+                UserID: 0,
+                OrganizationID: 0,
+                CategoryID: editingEntry.CategoryID,
+                Description: editingEntry.Description,
+                Amount: editingEntry.Amount,
+                AmountMin: editingEntry.AmountMin,
+                AmountMax: editingEntry.AmountMax,
+                ExpectedDay: editingEntry.ExpectedDay,
+                ExpectedDayStart: editingEntry.ExpectedDayStart,
+                ExpectedDayEnd: editingEntry.ExpectedDayEnd,
+                EntryType: editingEntry.EntryType,
+                IsRecurrent: editingEntry.IsRecurrent,
+                IsSavedPattern: false,
+                IsActive: true,
+                ParentEntryID: editingEntry.ParentEntryID,
+                PatternID: editingEntry.PatternID,
+                SavingsGoalID: editingEntry.SavingsGoalID,
+                CreatedAt: '',
+                UpdatedAt: '',
+              }}
+              isLoading={isSubmitting}
+            />
+          ) : (
+            <NewPlannedEntryForm
+              categories={categories}
+              savingsGoals={savingsGoals}
+              transactionDescriptions={
+                allTransactions
+                  .map(t => t.original_description)
+                  .filter((d): d is string => !!d)
+              }
+              onSuccess={async () => {
+                setShowCreateEntryModal(false);
+                setPreselectedCategoryForEntry(null);
+                await fetchAllData();
+                setSuccessMessage('Entrada planejada criada com sucesso!');
+                setTimeout(() => setSuccessMessage(null), 3000);
+              }}
+              onCancel={() => {
+                setShowCreateEntryModal(false);
+                setPreselectedCategoryForEntry(null);
+              }}
+              initialCategoryId={preselectedCategoryForEntry ?? undefined}
+              initialIsRecurrent={false}
+            />
+          )}
         </Modal>
 
         {/* Transaction Matcher Modal */}
