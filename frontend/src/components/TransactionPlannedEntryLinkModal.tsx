@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
-import type { PlannedEntryWithStatus } from '../types/budget';
+import type { PlannedEntry, PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import type { Transaction } from '../types/transaction';
 import { getPlannedEntriesForMonth, matchPlannedEntry } from '../api/budget';
 import { useModalDismiss } from '../hooks/useModalDismiss';
 import { parseTransactionDate } from '../utils/date';
+import NewPlannedEntryForm from './NewPlannedEntryForm';
 
 interface TransactionPlannedEntryLinkModalProps {
   transaction: Transaction;
@@ -32,6 +33,7 @@ export default function TransactionPlannedEntryLinkModal({
     transaction.category_id || 'all'
   );
   const [linkingId, setLinkingId] = useState<number | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
@@ -80,6 +82,26 @@ export default function TransactionPlannedEntryLinkModal({
       setError(err instanceof Error ? err.message : 'Erro ao vincular');
     } finally {
       setLinkingId(null);
+    }
+  };
+
+  const handleCreateSuccess = async (entry: PlannedEntry) => {
+    if (!token) return;
+
+    try {
+      await matchPlannedEntry(
+        entry.PlannedEntryID,
+        {
+          transaction_id: transaction.transaction_id,
+          month: txMonth,
+          year: txYear,
+        },
+        { token, organizationId }
+      );
+      onLink();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao vincular');
+      setShowCreateForm(false);
     }
   };
 
@@ -164,6 +186,21 @@ export default function TransactionPlannedEntryLinkModal({
           </div>
         </div>
 
+        {showCreateForm ? (
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <NewPlannedEntryForm
+              categories={Array.from(categories.values())}
+              initialDescription={transaction.description}
+              initialCategoryId={transaction.category_id ?? undefined}
+              initialMatchText={transaction.original_description || transaction.description}
+              initialAmount={String(Math.abs(parseFloat(transaction.amount)))}
+              initialIsRecurrent={true}
+              onSuccess={handleCreateSuccess}
+              onCancel={() => setShowCreateForm(false)}
+            />
+          </div>
+        ) : (
+          <>
         {/* Filters */}
         <div className="px-6 py-3 border-b border-stone-100 flex gap-3">
           <div className="flex-1">
@@ -215,6 +252,12 @@ export default function TransactionPlannedEntryLinkModal({
                   ? 'Todas as entradas já estão vinculadas ou foram filtradas'
                   : `Nenhuma entrada planejada para ${parseTransactionDate(transaction.transaction_date).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`}
               </p>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="mt-4 px-4 py-2 text-sm font-medium text-wheat-700 bg-wheat-50 border border-wheat-200 rounded-lg hover:bg-wheat-100 transition-colors"
+              >
+                ＋ Criar nova entrada planejada
+              </button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -286,9 +329,17 @@ export default function TransactionPlannedEntryLinkModal({
             </div>
           )}
         </div>
+          </>
+        )}
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-stone-200 flex justify-end">
+        <div className="px-6 py-4 border-t border-stone-200 flex justify-between items-center">
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="px-4 py-2 text-sm font-medium text-wheat-700 bg-wheat-50 border border-wheat-200 rounded-lg hover:bg-wheat-100 transition-colors"
+          >
+            ＋ Nova entrada
+          </button>
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-stone-700 bg-stone-100 rounded-lg hover:bg-stone-200 transition-colors"
