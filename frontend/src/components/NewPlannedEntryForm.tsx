@@ -5,7 +5,7 @@ import type { SavingsGoal } from '../types/savingsGoals';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
-import { createPlannedEntry, updatePlannedEntry } from '../api/budget';
+import { createPlannedEntry, updatePlannedEntry, deletePlannedEntry } from '../api/budget';
 import PatternCreator, { type AdvancedPattern } from './PatternCreator';
 import TagSelector from './TagSelector';
 
@@ -107,12 +107,14 @@ export default function NewPlannedEntryForm({
     setSaving(true);
     setError(null);
 
+    let entry: PlannedEntry | null = null;
+
     try {
       // Step 1: Create planned entry (no pattern_id yet)
       const parsedAmount = parseFloat(amount || '0');
       const parsedDay = expectedDay ? parseInt(expectedDay) : undefined;
 
-      const entry = await createPlannedEntry(
+      entry = await createPlannedEntry(
         {
           description: description.trim(),
           category_id: parseInt(categoryId),
@@ -175,6 +177,10 @@ export default function NewPlannedEntryForm({
 
       onSuccess(entry);
     } catch (err) {
+      // Compensating action: if entry was created but pattern failed, delete the orphaned entry
+      if (entry !== null) {
+        await deletePlannedEntry(entry.PlannedEntryID, { token, organizationId }).catch(() => {});
+      }
       setError(err instanceof Error ? err.message : 'Erro ao criar entrada planejada');
     } finally {
       setSaving(false);
@@ -387,7 +393,8 @@ export default function NewPlannedEntryForm({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors text-sm"
+            disabled={saving}
+            className="px-4 py-2 text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 disabled:opacity-50 transition-colors text-sm"
           >
             Cancelar
           </button>
