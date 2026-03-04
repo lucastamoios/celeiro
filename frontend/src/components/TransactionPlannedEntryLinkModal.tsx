@@ -42,26 +42,26 @@ export default function TransactionPlannedEntryLinkModal({
   const txMonth = txDate.getMonth() + 1;
   const txYear = txDate.getFullYear();
 
+  const fetchEntries = async () => {
+    if (!token) return;
+
+    try {
+      const result = await getPlannedEntriesForMonth(txMonth, txYear, {
+        token,
+        organizationId,
+      });
+      setEntries(result || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar entradas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch planned entries for the transaction's month
   useEffect(() => {
-    const fetchEntries = async () => {
-      if (!token) return;
-
-      try {
-        const result = await getPlannedEntriesForMonth(txMonth, txYear, {
-          token,
-          organizationId,
-        });
-        setEntries(result || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar entradas');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchEntries();
-  }, [token, txMonth, txYear, organizationId]);
+  }, [token, txMonth, txYear, organizationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLink = async (entryId: number) => {
     if (!token) return;
@@ -100,8 +100,10 @@ export default function TransactionPlannedEntryLinkModal({
       );
       onLink();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao vincular');
+      setError(err instanceof Error ? err.message : 'Erro ao vincular entrada');
       setShowCreateForm(false);
+      // Re-fetch so the newly created entry appears in the list for manual linking
+      fetchEntries();
     }
   };
 
@@ -334,15 +336,17 @@ export default function TransactionPlannedEntryLinkModal({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-stone-200 flex justify-between items-center">
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="px-4 py-2 text-sm font-medium text-wheat-700 bg-wheat-50 border border-wheat-200 rounded-lg hover:bg-wheat-100 transition-colors"
-          >
-            ＋ Nova entrada
-          </button>
+          {!showCreateForm && (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="px-4 py-2 text-sm font-medium text-wheat-700 bg-wheat-50 border border-wheat-200 rounded-lg hover:bg-wheat-100 transition-colors"
+            >
+              ＋ Nova entrada
+            </button>
+          )}
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-stone-700 bg-stone-100 rounded-lg hover:bg-stone-200 transition-colors"
+            className={`px-4 py-2 text-sm font-medium text-stone-700 bg-stone-100 rounded-lg hover:bg-stone-200 transition-colors ${showCreateForm ? 'ml-auto' : ''}`}
           >
             Cancelar
           </button>
