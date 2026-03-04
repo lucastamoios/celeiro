@@ -15,7 +15,6 @@ import {
   consolidateCategoryBudget,
   copyCategoryBudgetsFromMonth,
   closeMonth,
-  createPlannedEntry,
   updatePlannedEntry,
   deletePlannedEntry,
   getPlannedEntriesForMonth,
@@ -812,28 +811,6 @@ export default function CategoryBudgetDashboard() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao copiar orçamentos');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCreatePlannedEntry = async (data: CreatePlannedEntryRequest) => {
-    if (!token) return;
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      await createPlannedEntry(data, { token, organizationId });
-
-      setSuccessMessage('Entrada planejada criada com sucesso!');
-      setShowCreateEntryModal(false);
-      setPreselectedCategoryForEntry(null);
-      await fetchAllData();
-
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao criar entrada planejada');
     } finally {
       setIsSubmitting(false);
     }
