@@ -87,12 +87,13 @@ export default function NewPlannedEntryForm({
     setAdvancedPattern(null);
   };
 
-  // Filter suggestions by matchText (case-insensitive, max 8)
+  // Filter suggestions by description (case-insensitive, max 8)
   const suggestions = transactionDescriptions
-    .filter(d => d && matchText.length >= 2 && d.toLowerCase().includes(matchText.toLowerCase()))
+    .filter(d => d && description.length >= 2 && d.toLowerCase().includes(description.toLowerCase()))
     .slice(0, 8);
 
   const handleSuggestionSelect = (suggestion: string) => {
+    setDescription(suggestion);
     setMatchText(suggestion);
     setMatchTextEdited(true);
     setAdvancedPattern(null);
@@ -101,7 +102,7 @@ export default function NewPlannedEntryForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() || !categoryId || !token) return;
+    if (!description.trim() || !categoryId || !matchText.trim() || !token) return;
 
     setSaving(true);
     setError(null);
@@ -155,18 +156,20 @@ export default function NewPlannedEntryForm({
           }),
         });
 
-        if (patternResponse.ok) {
-          const patternData = await patternResponse.json();
-          const patternId = patternData.data?.pattern_id;
+        if (!patternResponse.ok) {
+          throw new Error('Erro ao criar padrão de identificação');
+        }
 
-          // Step 3: Update planned entry with the new pattern_id
-          if (patternId) {
-            await updatePlannedEntry(
-              entry.PlannedEntryID,
-              { pattern_id: patternId },
-              { token, organizationId }
-            );
-          }
+        const patternData = await patternResponse.json();
+        const patternId = patternData.data?.pattern_id;
+
+        // Step 3: Update planned entry with the new pattern_id
+        if (patternId) {
+          await updatePlannedEntry(
+            entry.PlannedEntryID,
+            { pattern_id: patternId },
+            { token, organizationId }
+          );
         }
       }
 
@@ -198,10 +201,28 @@ export default function NewPlannedEntryForm({
             type="text"
             value={description}
             onChange={e => handleDescriptionChange(e.target.value)}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             placeholder="Ex: Netflix, Aluguel, Salário..."
             required
             className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500"
           />
+
+          {/* Autocomplete dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onMouseDown={() => handleSuggestionSelect(s)}
+                  className="w-full text-left px-3 py-2 text-sm text-stone-700 hover:bg-wheat-50 truncate"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Category */}
@@ -233,8 +254,6 @@ export default function NewPlannedEntryForm({
             type="text"
             value={advancedPattern ? '(padrão avançado configurado)' : matchText}
             onChange={e => !advancedPattern && handleMatchTextChange(e.target.value)}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             readOnly={!!advancedPattern}
             placeholder="Texto do banco para auto-match..."
             className={`w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-wheat-500 ${
@@ -268,21 +287,6 @@ export default function NewPlannedEntryForm({
             </p>
           </div>
 
-          {/* Autocomplete dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onMouseDown={() => handleSuggestionSelect(s)}
-                  className="w-full text-left px-3 py-2 text-sm text-stone-700 hover:bg-wheat-50 truncate"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Optional section */}
@@ -389,7 +393,7 @@ export default function NewPlannedEntryForm({
           </button>
           <button
             type="submit"
-            disabled={saving || !description.trim() || !categoryId}
+            disabled={saving || !description.trim() || !categoryId || !matchText.trim()}
             className="px-4 py-2 text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium"
           >
             {saving ? 'Criando...' : 'Criar Entrada'}
