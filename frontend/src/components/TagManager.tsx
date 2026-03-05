@@ -365,9 +365,9 @@ export default function TagManager() {
             {/* Modal */}
             <div className="relative bg-stone-50 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
               {/* Header */}
-              <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
-                <h3 className="font-display text-xl font-bold text-white">Nova Tag</h3>
-                <p className="text-wheat-100 text-sm mt-1">Crie uma tag para organizar suas transacoes</p>
+              <div className="bg-stone-200 border-b-[3px] border-wheat-500 px-6 py-5">
+                <h3 className="font-display text-xl font-bold text-stone-900">Nova Tag</h3>
+                <p className="text-stone-600 text-sm mt-1">Crie uma tag para organizar suas transacoes</p>
               </div>
 
               {/* Content */}
@@ -502,9 +502,9 @@ export default function TagManager() {
             {/* Modal */}
             <div className="relative bg-stone-50 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
               {/* Header */}
-              <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
-                <h3 className="font-display text-xl font-bold text-white">Editar Tag</h3>
-                <p className="text-wheat-100 text-sm mt-1">Altere os dados da tag</p>
+              <div className="bg-stone-200 border-b-[3px] border-wheat-500 px-6 py-5">
+                <h3 className="font-display text-xl font-bold text-stone-900">Editar Tag</h3>
+                <p className="text-stone-600 text-sm mt-1">Altere os dados da tag</p>
               </div>
 
               {/* Content */}

@@ -148,7 +148,7 @@ export default function CategoryTransactionsModal({
     >
       <div className="bg-stone-50 rounded-2xl shadow-warm-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-wheat-50 to-wheat-100 rounded-t-2xl">
+        <div className="px-6 py-4 bg-stone-200 border-b-[3px] border-wheat-500 rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{category?.icon || '📊'}</span>

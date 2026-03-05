@@ -155,7 +155,7 @@ export default function TransactionMatcherModal({
     >
       <div className="bg-stone-50 rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-stone-200">
+        <div className="p-6 bg-stone-200 border-b-[3px] border-wheat-500">
           <div className="flex items-start justify-between">
             <div>
               <h3 className="font-display text-lg font-semibold text-stone-900">

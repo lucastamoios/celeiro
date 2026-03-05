@@ -335,7 +335,7 @@ export default function TransactionEditModal({
         >
           <div className="bg-stone-50 rounded-2xl shadow-warm-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-stone-50 border-b border-stone-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+        <div className="sticky top-0 bg-stone-200 border-b-[3px] border-wheat-500 px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <h2 className="font-display text-xl font-bold text-stone-900">Editar Transação</h2>
           <button
             onClick={onClose}

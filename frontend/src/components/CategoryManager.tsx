@@ -602,9 +602,9 @@ export default function CategoryManager() {
           />
 
           <div className="relative bg-stone-50 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
-              <h3 className="font-display text-xl font-bold text-white">Nova Categoria</h3>
-              <p className="text-wheat-100 text-sm mt-1">Crie uma categoria personalizada</p>
+            <div className="bg-stone-200 border-b-[3px] border-wheat-500 px-6 py-5">
+              <h3 className="font-display text-xl font-bold text-stone-900">Nova Categoria</h3>
+              <p className="text-stone-600 text-sm mt-1">Crie uma categoria personalizada</p>
             </div>
 
             <div className="p-6 space-y-5">
@@ -737,9 +737,9 @@ export default function CategoryManager() {
           />
 
           <div className="relative bg-stone-50 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
-              <h3 className="font-display text-xl font-bold text-white">Editar Categoria</h3>
-              <p className="text-wheat-100 text-sm mt-1">Altere o nome e ícone da categoria</p>
+            <div className="bg-stone-200 border-b-[3px] border-wheat-500 px-6 py-5">
+              <h3 className="font-display text-xl font-bold text-stone-900">Editar Categoria</h3>
+              <p className="text-stone-600 text-sm mt-1">Altere o nome e ícone da categoria</p>
             </div>
 
             <div className="p-6 space-y-5">

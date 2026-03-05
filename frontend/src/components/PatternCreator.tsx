@@ -313,7 +313,7 @@ export default function PatternCreator({
     >
       <div className="bg-stone-50 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between bg-gradient-to-r from-wheat-50 to-wheat-100">
+        <div className="px-6 py-4 bg-stone-200 border-b-[3px] border-wheat-500 flex items-center justify-between">
           <div>
             <h2 className="font-display text-xl font-bold text-stone-900">
               {existingPattern

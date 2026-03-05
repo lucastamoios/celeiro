@@ -1526,7 +1526,6 @@ export default function CategoryBudgetDashboard() {
           onClose={handleCancelBudgetForm}
           title={editingBudget ? 'Editar Orçamento' : 'Criar Orçamento'}
           subtitle={!editingBudget ? `Para ${getMonthName(selectedMonth)} ${selectedYear}` : undefined}
-          headerGradient="sage"
           footer={
             <>
               <Modal.CancelButton onClick={handleCancelBudgetForm} disabled={isSubmitting}>
@@ -1604,7 +1603,6 @@ export default function CategoryBudgetDashboard() {
           }}
           title={editingEntry ? 'Editar Entrada Planejada' : 'Criar Entrada Planejada'}
           subtitle={!editingEntry ? `Para ${getMonthName(selectedMonth)} ${selectedYear}` : undefined}
-          headerGradient="wheat"
           size="lg"
         >
           {editingEntry ? (
@@ -1726,7 +1724,6 @@ export default function CategoryBudgetDashboard() {
           isOpen={!!editingPlannedEntryFromBudget}
           onClose={handleClosePlannedEntryEditModal}
           title="Editar Entrada Planejada"
-          headerGradient="wheat"
           size="lg"
         >
           {editingPlannedEntryFromBudget && (

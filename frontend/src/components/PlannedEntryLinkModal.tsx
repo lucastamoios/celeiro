@@ -137,21 +137,21 @@ export default function PlannedEntryLinkModal({
     >
       <div className="bg-stone-50 rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-t-lg">
+        <div className="px-6 py-4 bg-stone-200 border-b-[3px] border-wheat-500 rounded-t-lg">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold">🔗 Vincular Padrão a Entrada Planejada</h2>
+            <h2 className="font-display text-lg font-semibold text-stone-900">🔗 Vincular Padrão a Entrada Planejada</h2>
             <button
               onClick={onClose}
-              className="text-white/80 hover:text-white transition-colors"
+              className="text-stone-400 hover:text-stone-600 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <div className="mt-2 text-sm text-white/90">
+          <div className="mt-2 text-sm text-stone-600">
             <span className="font-medium">Padrão:</span>{' '}
-            <code className="bg-stone-50/20 px-1.5 py-0.5 rounded">{pattern.description_pattern}</code>
+            <code className="bg-stone-300/50 px-1.5 py-0.5 rounded">{pattern.description_pattern}</code>
             {' → '}
             <span className="inline-flex items-center gap-1">
               {targetCategory?.icon} {targetCategory?.name}

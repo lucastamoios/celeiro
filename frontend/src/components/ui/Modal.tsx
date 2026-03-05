@@ -21,8 +21,6 @@ export interface ModalProps {
   showCloseButton?: boolean;
   /** Whether clicking the backdrop closes the modal. Defaults to true */
   closeOnBackdropClick?: boolean;
-  /** Custom gradient colors for the header. Defaults to wheat */
-  headerGradient?: 'wheat' | 'sage' | 'rust' | 'stone';
 }
 
 const sizeClasses = {
@@ -32,25 +30,12 @@ const sizeClasses = {
   xl: 'max-w-xl',
 };
 
-const gradientClasses = {
-  wheat: 'from-wheat-500 to-wheat-600',
-  sage: 'from-sage-500 to-sage-600',
-  rust: 'from-rust-500 to-rust-600',
-  stone: 'from-stone-600 to-stone-700',
-};
-
-const subtitleClasses = {
-  wheat: 'text-wheat-100',
-  sage: 'text-sage-100',
-  rust: 'text-rust-100',
-  stone: 'text-stone-300',
-};
 
 /**
  * Reusable Modal component with premium styling
  *
  * Features:
- * - Gradient header with title and optional subtitle
+ * - Bottom-edge header with title and optional subtitle
  * - Backdrop blur effect
  * - ESC key to close
  * - Backdrop click to close (optional)
@@ -85,7 +70,6 @@ export default function Modal({
   size = 'md',
   showCloseButton = true,
   closeOnBackdropClick = true,
-  headerGradient = 'wheat',
 }: ModalProps) {
   const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
@@ -108,18 +92,18 @@ export default function Modal({
         className={`relative bg-stone-50 rounded-2xl shadow-2xl w-full ${sizeClasses[size]} mx-4 overflow-hidden max-h-[90vh] flex flex-col`}
       >
         {/* Header */}
-        <div className={`bg-gradient-to-r ${gradientClasses[headerGradient]} px-6 py-5 flex-shrink-0`}>
+        <div className="bg-stone-200 border-b-[3px] border-wheat-500 px-6 py-5 flex-shrink-0">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="font-display text-xl font-bold text-white">{title}</h3>
+              <h3 className="font-display text-xl font-bold text-stone-900">{title}</h3>
               {subtitle && (
-                <p className={`${subtitleClasses[headerGradient]} text-sm mt-1`}>{subtitle}</p>
+                <p className="text-stone-600 text-sm mt-1">{subtitle}</p>
               )}
             </div>
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="text-white/80 hover:text-white transition-colors p-1 -m-1 rounded-lg hover:bg-stone-50/10"
+                className="text-stone-400 hover:text-stone-600 transition-colors p-1 -m-1 rounded-lg hover:bg-stone-300/50"
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />

@@ -53,7 +53,7 @@ export default function InviteMemberModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-stone-50 rounded-xl shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-stone-100">
+        <div className="flex items-center justify-between p-6 bg-stone-200 border-b-[3px] border-wheat-500">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-wheat-100 rounded-lg flex items-center justify-center">
               <UserPlus className="w-5 h-5 text-wheat-600" />
