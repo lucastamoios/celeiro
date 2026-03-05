@@ -467,7 +467,7 @@ export default function TransactionList() {
     return (
       <div className="min-h-screen bg-stone-50 p-4 md:p-8 flex items-center justify-center">
         <div className="max-w-md w-full bg-rust-50 border border-rust-200 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-rust-900 mb-2">Erro ao carregar transações</h3>
+          <h3 className="font-display text-lg font-semibold text-rust-900 mb-2">Erro ao carregar transações</h3>
           <p className="text-rust-700 mb-4">{error}</p>
           <button
             onClick={fetchData}
@@ -527,7 +527,7 @@ export default function TransactionList() {
               </button>
 
               <div className="text-center min-w-[140px] sm:min-w-[180px]">
-                <h1 className="text-lg sm:text-xl font-bold text-stone-900">
+                <h1 className="font-display text-lg sm:text-xl font-bold text-stone-900">
                   {getMonthName(selectedMonth)} {selectedYear}
                 </h1>
                 <p className="text-xs text-stone-500">
@@ -594,7 +594,7 @@ export default function TransactionList() {
             onDrop={handleDrop}
             className="fixed inset-0 z-50 bg-wheat-500/20 backdrop-blur-sm flex items-center justify-center"
           >
-            <div className="bg-white border-2 border-dashed border-wheat-500 rounded-xl p-12 text-center shadow-2xl">
+            <div className="bg-stone-50 border-2 border-dashed border-wheat-500 rounded-xl p-12 text-center shadow-2xl">
               <Upload className="w-16 h-16 mx-auto mb-4 text-wheat-600" />
               <p className="text-xl font-medium text-wheat-700">Solte os arquivos OFX aqui</p>
             </div>
@@ -602,7 +602,7 @@ export default function TransactionList() {
         )}
 
         {/* Filters and Bulk Actions */}
-        <div className="mb-6 bg-white border border-stone-200 rounded-xl p-4">
+        <div className="mb-6 bg-stone-50 border border-stone-200 rounded-xl p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-4 flex-wrap">
               {/* Filters inline */}
@@ -670,7 +670,7 @@ export default function TransactionList() {
                     </svg>
                   </button>
                   {showBulkCategorySelect && (
-                    <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-stone-200 rounded-lg shadow-lg z-20 max-h-64 overflow-y-auto">
+                    <div className="absolute top-full left-0 mt-1 w-56 bg-stone-50 border border-stone-200 rounded-lg shadow-lg z-20 max-h-64 overflow-y-auto">
                       <button
                         onClick={() => {
                           handleBulkCategoryChange(null);
@@ -778,7 +778,7 @@ export default function TransactionList() {
           {filteredTransactions.map((transaction) => (
             <div
               key={transaction.transaction_id}
-              className={`bg-white border rounded-xl p-4 cursor-pointer
+              className={`bg-stone-50 border rounded-xl p-4 cursor-pointer
                 transition-all duration-150 ease-out
                 ${selectedTransactions.has(transaction.transaction_id)
                   ? 'border-wheat-400 bg-wheat-50 ring-1 ring-wheat-300'
@@ -875,7 +875,7 @@ export default function TransactionList() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-stone-200">
+              <tbody className="bg-stone-50 divide-y divide-stone-200">
                 {filteredTransactions.map((transaction) => (
                     <tr
                       key={transaction.transaction_id}

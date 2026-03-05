@@ -333,10 +333,10 @@ export default function TransactionEditModal({
           onMouseDown={handleBackdropMouseDown}
           onClick={handleBackdropClick}
         >
-          <div className="bg-white rounded-2xl shadow-warm-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-stone-50 rounded-2xl shadow-warm-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-          <h2 className="text-xl font-bold text-stone-900">Editar Transação</h2>
+        <div className="sticky top-0 bg-stone-50 border-b border-stone-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="font-display text-xl font-bold text-stone-900">Editar Transação</h2>
           <button
             onClick={onClose}
             className="text-stone-400 hover:text-stone-600 transition-colors"
@@ -580,7 +580,7 @@ export default function TransactionEditModal({
                           className={`w-10 h-10 rounded-lg text-lg flex items-center justify-center transition-all duration-200 ${
                             newCategoryIcon === icon
                               ? 'bg-wheat-500 text-white shadow-warm-lg scale-110'
-                              : 'bg-white hover:bg-stone-100 border border-stone-200'
+                              : 'bg-stone-50 hover:bg-stone-100 border border-stone-200'
                           }`}
                         >
                           {icon}
@@ -602,7 +602,7 @@ export default function TransactionEditModal({
                         type="text"
                         value={newCategoryName}
                         onChange={(e) => setNewCategoryName(e.target.value)}
-                        className="w-full pl-12 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent bg-white"
+                        className="w-full pl-12 pr-3 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent bg-stone-50"
                         placeholder="Ex: Academia, Streaming..."
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && newCategoryName.trim()) {
@@ -708,7 +708,7 @@ export default function TransactionEditModal({
               }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-4 w-4 transform rounded-full bg-stone-50 transition-transform ${
                   isIgnored ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />

@@ -121,9 +121,9 @@ export default function AccountSettings() {
   return (
     <div className="max-w-2xl space-y-6">
       {/* Account Info Section */}
-      <div className="bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
+      <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
         <div className="p-6 border-b border-stone-100">
-          <h2 className="text-lg font-semibold text-stone-900 mb-4">Sua Conta</h2>
+          <h2 className="font-display text-lg font-semibold text-stone-900 mb-4">Sua Conta</h2>
 
           <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-lg">
             <div className="w-12 h-12 bg-wheat-100 rounded-full flex items-center justify-center">
@@ -138,7 +138,7 @@ export default function AccountSettings() {
 
         {/* Logout Section */}
         <div className="p-6">
-          <h3 className="text-sm font-medium text-stone-700 mb-3">Sessão</h3>
+          <h3 className="font-display text-sm font-medium text-stone-700 mb-3">Sessão</h3>
 
           {showConfirmLogout ? (
             <div className="bg-rust-50 border border-rust-200 rounded-lg p-4">
@@ -158,7 +158,7 @@ export default function AccountSettings() {
                     </button>
                     <button
                       onClick={() => setShowConfirmLogout(false)}
-                      className="px-4 py-2 bg-white border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition-colors font-medium text-sm"
+                      className="px-4 py-2 bg-stone-50 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition-colors font-medium text-sm"
                     >
                       Cancelar
                     </button>
@@ -186,14 +186,14 @@ export default function AccountSettings() {
       </div>
 
       {/* Password Management Section */}
-      <div className="bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
+      <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-stone-100 rounded-full flex items-center justify-center">
               <Lock className="w-5 h-5 text-stone-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-stone-900">
+              <h2 className="font-display text-lg font-semibold text-stone-900">
                 {userInfo?.has_password ? 'Alterar Senha' : 'Definir Senha'}
               </h2>
               <p className="text-sm text-stone-500">
@@ -324,14 +324,14 @@ export default function AccountSettings() {
 
       {/* Email Import Section */}
       {importEmail && (
-        <div className="bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
+        <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-wheat-100 rounded-full flex items-center justify-center">
                 <Inbox className="w-5 h-5 text-wheat-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-stone-900">Importar por Email</h2>
+                <h2 className="font-display text-lg font-semibold text-stone-900">Importar por Email</h2>
                 <p className="text-sm text-stone-500">
                   Receba extratos OFX diretamente na sua conta
                 </p>
@@ -344,12 +344,12 @@ export default function AccountSettings() {
                 Seu endereço de importação
               </label>
               <div className="flex items-center gap-2">
-                <div className="flex-1 bg-white border border-stone-200 rounded-lg px-3 py-2 font-mono text-sm text-stone-800 overflow-x-auto">
+                <div className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 font-mono text-sm text-stone-800 overflow-x-auto">
                   {importEmail}
                 </div>
                 <button
                   onClick={handleCopyEmail}
-                  className="p-2 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex-shrink-0"
+                  className="p-2 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-50 transition-colors flex-shrink-0"
                   title="Copiar email"
                 >
                   {emailCopied ? (
@@ -366,7 +366,7 @@ export default function AccountSettings() {
 
             {/* Instructions */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-stone-800">Como configurar</h3>
+              <h3 className="font-display text-sm font-semibold text-stone-800">Como configurar</h3>
 
               <div className="space-y-3 text-sm text-stone-600">
                 <div className="flex gap-3">

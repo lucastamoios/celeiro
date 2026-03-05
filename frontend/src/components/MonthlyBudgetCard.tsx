@@ -258,7 +258,7 @@ export default function MonthlyBudgetCard({
     >
       <div
         id={isCurrent ? 'current-month-budget' : undefined}
-        className={`bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden ${
+        className={`bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden ${
           !hideHeader && isCurrent ? 'ring-2 ring-wheat-500' : ''
         }`}
       >
@@ -280,7 +280,7 @@ export default function MonthlyBudgetCard({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
               <div>
-                <h2 className="text-2xl font-bold text-stone-900 capitalize">
+                <h2 className="font-display text-2xl font-bold text-stone-900 capitalize">
                   {getMonthName(month, year)}
                 </h2>
                 <p className="text-sm text-stone-600 mt-1">
@@ -338,19 +338,19 @@ export default function MonthlyBudgetCard({
 
           {/* Summary Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6">
-            <div className="bg-white rounded-lg p-3 sm:p-4 shadow-warm-sm">
+            <div className="bg-stone-50 rounded-lg p-3 sm:p-4 shadow-warm-sm">
               <p className="text-xs text-stone-600 mb-1">Planejado</p>
               <p className="text-base sm:text-lg font-bold text-stone-900 tabular-nums">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPlanned)}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-3 sm:p-4 shadow-warm-sm">
+            <div className="bg-stone-50 rounded-lg p-3 sm:p-4 shadow-warm-sm">
               <p className="text-xs text-stone-600 mb-1">Gasto</p>
               <p className="text-base sm:text-lg font-bold text-stone-900 tabular-nums">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSpent)}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-3 sm:p-4 shadow-warm-sm">
+            <div className="bg-stone-50 rounded-lg p-3 sm:p-4 shadow-warm-sm">
               <p className="text-xs text-stone-600 mb-1">Variação</p>
               <p className={`text-base sm:text-lg font-bold tabular-nums ${totalVariance >= 0 ? 'text-sage-600' : 'text-rust-600'}`}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalVariance)}
@@ -435,7 +435,7 @@ export default function MonthlyBudgetCard({
                   <h4 className="text-sm font-semibold text-terra-900 mb-1">
                     {unallocated > 0 ? 'Renda não totalmente alocada' : 'Gastos excedem renda'}
                   </h4>
-                  <div className="bg-white rounded-md p-3 space-y-2 mt-2">
+                  <div className="bg-stone-50 rounded-md p-3 space-y-2 mt-2">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-stone-600">Renda (Atual/Planejada):</span>
                       <span className="font-semibold text-stone-900">
@@ -584,7 +584,7 @@ export default function MonthlyBudgetCard({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-xl">📋</span>
-              <h3 className="text-base sm:text-lg font-semibold text-stone-900">
+              <h3 className="font-display text-base sm:text-lg font-semibold text-stone-900">
                 Entradas sem Orçamento
               </h3>
               <span className="text-xs px-2 py-1 rounded bg-terra-100 text-terra-700">
@@ -599,7 +599,7 @@ export default function MonthlyBudgetCard({
           {plannedEntriesLoading ? (
             <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="break-inside-avoid mb-4 bg-white rounded-lg shadow-warm-sm p-4 animate-pulse">
+                <div key={i} className="break-inside-avoid mb-4 bg-stone-50 rounded-lg shadow-warm-sm p-4 animate-pulse">
                   <div className="h-5 bg-stone-200 rounded w-3/4 mb-3"></div>
                   <div className="h-4 bg-stone-200 rounded w-1/2 mb-2"></div>
                   <div className="h-6 bg-stone-200 rounded w-1/3"></div>
@@ -638,14 +638,14 @@ export default function MonthlyBudgetCard({
           className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
           onClick={handleBackdropClick}
         >
-          <div className="bg-white rounded-2xl shadow-warm-xl p-6 w-96 max-w-[90vw]">
+          <div className="bg-stone-50 rounded-2xl shadow-warm-xl p-6 w-96 max-w-[90vw]">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-rust-100 flex items-center justify-center">
                 <svg className="w-5 h-5 text-rust-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-stone-900">Excluir orçamentos</h3>
+              <h3 className="font-display text-lg font-semibold text-stone-900">Excluir orçamentos</h3>
             </div>
             <div className="text-sm text-stone-600 mb-6">
               <p>Tem certeza que deseja excluir os dados de <strong>{getMonthName(month, year)}</strong>?</p>

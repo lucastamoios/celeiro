@@ -153,12 +153,12 @@ export default function TransactionMatcherModal({
       onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
+      <div className="bg-stone-50 rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-stone-200">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-stone-900">
+              <h3 className="font-display text-lg font-semibold text-stone-900">
                 Vincular Transação
               </h3>
               <p className="text-sm text-stone-600 mt-1">
@@ -270,7 +270,7 @@ export default function TransactionMatcherModal({
                   className={`flex items-center justify-between p-4 rounded-lg border transition-colors hover:bg-stone-50 ${
                     tx.matchScore >= 70
                       ? 'border-sage-200 bg-sage-50/50'
-                      : 'border-stone-200 bg-white'
+                      : 'border-stone-200 bg-stone-50'
                   }`}
                 >
                   <div className="flex-1 min-w-0">

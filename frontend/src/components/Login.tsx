@@ -132,9 +132,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-wheat-50 to-stone-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-warm-xl p-8 w-full max-w-md">
+      <div className="bg-stone-50 rounded-2xl shadow-warm-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">Celeiro 🌾</h1>
+          <h1 className="font-display text-3xl font-bold text-stone-900 mb-2">Celeiro 🌾</h1>
           <p className="text-stone-600">Sistema de Gestão Financeira</p>
         </div>
 
@@ -145,7 +145,7 @@ export default function Login() {
             onClick={() => switchToMode('magic')}
             className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
               authMode === 'magic'
-                ? 'bg-white text-stone-900 shadow-sm'
+                ? 'bg-stone-50 text-stone-900 shadow-sm'
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
@@ -156,7 +156,7 @@ export default function Login() {
             onClick={() => switchToMode('password')}
             className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
               authMode === 'password'
-                ? 'bg-white text-stone-900 shadow-sm'
+                ? 'bg-stone-50 text-stone-900 shadow-sm'
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >

@@ -72,7 +72,7 @@ export default function SavingsGoalCard({
             </span>
           )}
           <div>
-            <h3 className="text-lg font-semibold text-stone-900">{goal.name}</h3>
+            <h3 className="font-display text-lg font-semibold text-stone-900">{goal.name}</h3>
             <div className="flex items-center gap-2 mt-1">
               <span
                 className={`text-xs px-2 py-1 rounded ${
@@ -121,7 +121,7 @@ export default function SavingsGoalCard({
             </button>
 
             {showActions && (
-              <div ref={actionsMenuRef} className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10 min-w-[140px]">
+              <div ref={actionsMenuRef} className="absolute right-0 top-full mt-1 bg-stone-50 rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10 min-w-[140px]">
                 {onEdit && (
                   <button
                     onClick={(e) => {

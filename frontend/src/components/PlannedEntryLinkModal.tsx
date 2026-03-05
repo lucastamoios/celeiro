@@ -135,11 +135,11 @@ export default function PlannedEntryLinkModal({
       className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
+      <div className="bg-stone-50 rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-t-lg">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">🔗 Vincular Padrão a Entrada Planejada</h2>
+            <h2 className="font-display text-lg font-semibold">🔗 Vincular Padrão a Entrada Planejada</h2>
             <button
               onClick={onClose}
               className="text-white/80 hover:text-white transition-colors"
@@ -151,7 +151,7 @@ export default function PlannedEntryLinkModal({
           </div>
           <div className="mt-2 text-sm text-white/90">
             <span className="font-medium">Padrão:</span>{' '}
-            <code className="bg-white/20 px-1.5 py-0.5 rounded">{pattern.description_pattern}</code>
+            <code className="bg-stone-50/20 px-1.5 py-0.5 rounded">{pattern.description_pattern}</code>
             {' → '}
             <span className="inline-flex items-center gap-1">
               {targetCategory?.icon} {targetCategory?.name}

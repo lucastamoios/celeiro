@@ -141,7 +141,7 @@ export default function OrganizationSettings() {
   return (
     <div className="max-w-4xl space-y-6">
       {/* Organization Info */}
-      <div className="bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
+      <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
         <div className="p-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-wheat-100 rounded-xl flex items-center justify-center">
@@ -182,7 +182,7 @@ export default function OrganizationSettings() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-semibold text-stone-900">{activeOrganization.name}</h2>
+                  <h2 className="font-display text-xl font-semibold text-stone-900">{activeOrganization.name}</h2>
                   {isAdmin && (
                     <button
                       onClick={handleStartEditingName}
@@ -214,12 +214,12 @@ export default function OrganizationSettings() {
       )}
 
       {/* Members Section */}
-      <div className="bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
+      <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
         <div className="p-6 border-b border-stone-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Users className="w-5 h-5 text-stone-500" />
-              <h3 className="text-lg font-semibold text-stone-900">Membros</h3>
+              <h3 className="font-display text-lg font-semibold text-stone-900">Membros</h3>
               {!loading && (
                 <span className="text-sm text-stone-500">({members.length})</span>
               )}
@@ -269,11 +269,11 @@ export default function OrganizationSettings() {
 
       {/* Pending Invites Section (only for users with invite permission) */}
       {canInvite && (
-        <div className="bg-white rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
+        <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
           <div className="p-6 border-b border-stone-100">
             <div className="flex items-center gap-3">
               <Mail className="w-5 h-5 text-stone-500" />
-              <h3 className="text-lg font-semibold text-stone-900">Convites Pendentes</h3>
+              <h3 className="font-display text-lg font-semibold text-stone-900">Convites Pendentes</h3>
               {!loading && invites.length > 0 && (
                 <span className="text-sm text-stone-500">({invites.length})</span>
               )}

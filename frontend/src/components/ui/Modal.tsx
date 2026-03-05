@@ -105,13 +105,13 @@ export default function Modal({
 
       {/* Modal Container */}
       <div
-        className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} mx-4 overflow-hidden max-h-[90vh] flex flex-col`}
+        className={`relative bg-stone-50 rounded-2xl shadow-2xl w-full ${sizeClasses[size]} mx-4 overflow-hidden max-h-[90vh] flex flex-col`}
       >
         {/* Header */}
         <div className={`bg-gradient-to-r ${gradientClasses[headerGradient]} px-6 py-5 flex-shrink-0`}>
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-xl font-bold text-white">{title}</h3>
+              <h3 className="font-display text-xl font-bold text-white">{title}</h3>
               {subtitle && (
                 <p className={`${subtitleClasses[headerGradient]} text-sm mt-1`}>{subtitle}</p>
               )}
@@ -119,7 +119,7 @@ export default function Modal({
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="text-white/80 hover:text-white transition-colors p-1 -m-1 rounded-lg hover:bg-white/10"
+                className="text-white/80 hover:text-white transition-colors p-1 -m-1 rounded-lg hover:bg-stone-50/10"
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />

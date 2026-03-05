@@ -147,7 +147,7 @@ export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetPr
     <div className="card mb-8">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+          <h2 className="font-display text-lg font-semibold text-stone-900 flex items-center gap-2">
             <span>🎯</span> Ritmo de Gastos Controlados
           </h2>
           {isCurrentMonth() && (

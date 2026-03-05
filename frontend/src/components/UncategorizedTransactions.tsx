@@ -103,7 +103,7 @@ export default function UncategorizedTransactions() {
       <div className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">
+          <h1 className="font-display text-3xl font-bold text-stone-900 mb-2">
             📋 Transações Não Categorizadas
           </h1>
           <p className="text-stone-600">
@@ -137,9 +137,9 @@ export default function UncategorizedTransactions() {
 
         {/* Empty State */}
         {transactions.length === 0 ? (
-          <div className="bg-white border-2 border-dashed border-stone-300 rounded-2xl p-12 text-center">
+          <div className="bg-stone-50 border-2 border-dashed border-stone-300 rounded-2xl p-12 text-center">
             <div className="text-6xl mb-4">🎉</div>
-            <h3 className="text-xl font-semibold text-stone-900 mb-2">
+            <h3 className="font-display text-xl font-semibold text-stone-900 mb-2">
               Tudo categorizado!
             </h3>
             <p className="text-stone-600">
@@ -148,7 +148,7 @@ export default function UncategorizedTransactions() {
           </div>
         ) : (
           /* Transactions List */
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-stone-50 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-stone-200">
                 <thead className="bg-stone-50">
@@ -167,7 +167,7 @@ export default function UncategorizedTransactions() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-stone-200">
+                <tbody className="bg-stone-50 divide-y divide-stone-200">
                   {transactions.map((transaction) => (
                     <tr
                       key={transaction.transaction_id}

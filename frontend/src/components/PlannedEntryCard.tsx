@@ -135,7 +135,7 @@ export default function PlannedEntryCard({
 
   return (
     <>
-      <div className={`bg-white rounded-lg shadow-sm border-l-4 p-4 hover:shadow-md transition-shadow ${
+      <div className={`bg-stone-50 rounded-lg shadow-sm border-l-4 p-4 hover:shadow-md transition-shadow ${
         entry.Status === 'matched' ? 'border-sage-500' :
         entry.Status === 'scheduled' ? 'border-wheat-500' :
         entry.Status === 'pending' || entry.Status === 'missed' ? 'border-rust-500' :
@@ -144,7 +144,7 @@ export default function PlannedEntryCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-stone-900">{entry.Description}</h3>
+            <h3 className="font-display text-lg font-semibold text-stone-900">{entry.Description}</h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-xs px-2 py-1 rounded bg-stone-100 text-stone-700">
                 {categoryName}
@@ -209,7 +209,7 @@ export default function PlannedEntryCard({
             </button>
 
             {showActions && (
-              <div ref={actionsMenuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
+              <div ref={actionsMenuRef} className="absolute right-0 mt-2 w-48 bg-stone-50 rounded-lg shadow-lg border border-stone-200 py-1 z-10">
                 {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onMatch && (
                   <button
                     onClick={() => {
@@ -334,8 +334,8 @@ export default function PlannedEntryCard({
           className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
           onClick={handleBackdropClick}
         >
-          <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-[90vw]">
-            <h3 className="text-lg font-semibold mb-4">Dispensar Entrada Planejada</h3>
+          <div className="bg-stone-50 rounded-lg shadow-xl p-6 w-96 max-w-[90vw]">
+            <h3 className="font-display text-lg font-semibold mb-4">Dispensar Entrada Planejada</h3>
             <p className="text-sm text-stone-600 mb-4">
               Dispensar "{entry.Description}" para {new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}?
             </p>

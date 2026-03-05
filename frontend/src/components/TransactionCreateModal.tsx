@@ -98,10 +98,10 @@ export default function TransactionCreateModal({
       onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-2xl shadow-warm-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-stone-50 rounded-2xl shadow-warm-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-          <h2 className="text-xl font-bold text-stone-900">Nova Transação</h2>
+        <div className="sticky top-0 bg-stone-50 border-b border-stone-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="font-display text-xl font-bold text-stone-900">Nova Transação</h2>
           <button
             onClick={onClose}
             className="text-stone-400 hover:text-stone-600 transition-colors"
@@ -183,7 +183,7 @@ export default function TransactionCreateModal({
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
                   transactionType === 'debit'
                     ? 'border-rust-500 bg-rust-50 text-rust-700'
-                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                    : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'
                 }`}
               >
                 <span className="text-lg">📉</span>
@@ -195,7 +195,7 @@ export default function TransactionCreateModal({
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
                   transactionType === 'credit'
                     ? 'border-sage-500 bg-sage-50 text-sage-700'
-                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                    : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'
                 }`}
               >
                 <span className="text-lg">📈</span>

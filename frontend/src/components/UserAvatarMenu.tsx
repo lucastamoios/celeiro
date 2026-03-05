@@ -101,7 +101,7 @@ export default function UserAvatarMenu({ onNavigateToSettings }: UserAvatarMenuP
           ref={menuRef}
           role="menu"
           aria-label="Opções da conta"
-          className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-stone-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+          className="absolute right-0 mt-2 w-64 bg-stone-50 rounded-xl shadow-lg border border-stone-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
         >
           {/* User Info Header */}
           <div className="px-4 py-3 border-b border-stone-100">

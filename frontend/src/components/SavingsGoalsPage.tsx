@@ -333,7 +333,7 @@ export default function SavingsGoalsPage() {
     return (
       <div className="min-h-screen bg-stone-50 p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold text-stone-900 mb-4 flex items-center gap-2">
             <Target className="w-6 h-6 text-wheat-600" />
             Metas de Poupança
           </h1>
@@ -349,7 +349,7 @@ export default function SavingsGoalsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
+            <h1 className="font-display text-2xl font-bold text-stone-900 flex items-center gap-2">
               <Target className="w-6 h-6 text-wheat-600" />
               Metas de Poupança
             </h1>
@@ -436,7 +436,7 @@ export default function SavingsGoalsPage() {
             <div className="flex justify-center mb-4">
               <Target className="w-16 h-16 text-stone-300" />
             </div>
-            <h3 className="text-lg font-medium text-stone-900 mb-2">
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
               Nenhuma meta encontrada
             </h3>
             <p className="text-stone-500 mb-4">
@@ -472,8 +472,8 @@ export default function SavingsGoalsPage() {
             className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
             onClick={handleFormBackdropClick}
           >
-            <div className="bg-white rounded-2xl shadow-warm-xl p-6 w-[500px] max-w-[90vw] max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-bold text-stone-900 mb-4">
+            <div className="bg-stone-50 rounded-2xl shadow-warm-xl p-6 w-[500px] max-w-[90vw] max-h-[90vh] overflow-y-auto">
+              <h2 className="font-display text-xl font-bold text-stone-900 mb-4">
                 {editingGoal ? 'Editar Meta' : 'Nova Meta'}
               </h2>
 
@@ -662,8 +662,8 @@ export default function SavingsGoalsPage() {
             className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
             onClick={handleContributionBackdropClick}
           >
-            <div className="bg-white rounded-2xl shadow-warm-xl p-6 w-[400px] max-w-[90vw]">
-              <h2 className="text-xl font-bold text-stone-900 mb-2">
+            <div className="bg-stone-50 rounded-2xl shadow-warm-xl p-6 w-[400px] max-w-[90vw]">
+              <h2 className="font-display text-xl font-bold text-stone-900 mb-2">
                 💰 Adicionar Contribuição
               </h2>
               <p className="text-stone-600 mb-4">

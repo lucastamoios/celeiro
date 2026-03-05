@@ -405,7 +405,7 @@ export default function PatternManager() {
           <div className="h-9 bg-stone-200 rounded w-1/4 mb-8"></div>
           <div className="grid gap-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-lg shadow p-6">
+              <div key={i} className="bg-stone-50 rounded-lg shadow p-6">
                 <div className="h-6 bg-stone-200 rounded w-1/3 mb-4"></div>
                 <div className="h-4 bg-stone-200 rounded w-2/3"></div>
               </div>
@@ -423,7 +423,7 @@ export default function PatternManager() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-stone-900">Padrões</h1>
+            <h1 className="font-display text-3xl font-bold text-stone-900">Padrões</h1>
             <p className="text-stone-600 mt-2">
               {totalPatterns} padrão{totalPatterns !== 1 ? 'ões' : ''} cadastrado{totalPatterns !== 1 ? 's' : ''}
             </p>
@@ -465,11 +465,11 @@ export default function PatternManager() {
 
         {/* Patterns Section */}
         {patterns.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="bg-stone-50 rounded-lg shadow p-12 text-center">
             <div className="flex justify-center mb-4">
               <Target className="w-16 h-16 text-stone-300" />
             </div>
-            <h3 className="text-lg font-semibold text-stone-900 mb-2">
+            <h3 className="font-display text-lg font-semibold text-stone-900 mb-2">
               Nenhum padrão criado ainda
             </h3>
             <p className="text-stone-600 mb-6">
@@ -492,7 +492,7 @@ export default function PatternManager() {
               return (
                 <div
                   key={pattern.pattern_id}
-                  className={`bg-white rounded-lg shadow-sm border transition-all ${
+                  className={`bg-stone-50 rounded-lg shadow-sm border transition-all ${
                     pattern.is_active
                       ? 'border-stone-200 hover:shadow-md'
                       : 'border-stone-200 opacity-60'
@@ -505,7 +505,7 @@ export default function PatternManager() {
                       <div className="flex-1 min-w-0">
                         {/* Header Row */}
                         <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <h3 className="text-base font-semibold text-stone-900 truncate">
+                          <h3 className="font-display text-base font-semibold text-stone-900 truncate">
                             {pattern.target_description}
                           </h3>
                           {category && (
@@ -579,7 +579,7 @@ export default function PatternManager() {
 
                         {/* Dropdown Menu */}
                         {openMenuId === pattern.pattern_id && (
-                          <div className="absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-10">
+                          <div className="absolute right-0 mt-1 w-52 bg-stone-50 rounded-lg shadow-lg border border-stone-200 py-1 z-10">
                             {/* Apply Retroactively */}
                             <button
                               onClick={() => {
@@ -726,11 +726,11 @@ export default function PatternManager() {
               }
             }}
           >
-            <div className="bg-white rounded-lg shadow-xl w-[500px] max-w-[95vw] max-h-[85vh] flex flex-col">
+            <div className="bg-stone-50 rounded-lg shadow-xl w-[500px] max-w-[95vw] max-h-[85vh] flex flex-col">
               {/* Header */}
               <div className="px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-sage-500 to-sage-600 text-white rounded-t-lg">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">📋 Criar Entrada Planejada</h2>
+                  <h2 className="font-display text-lg font-semibold">📋 Criar Entrada Planejada</h2>
                   <button
                     onClick={() => {
                       setShowCreateEntryModal(false);
@@ -744,7 +744,7 @@ export default function PatternManager() {
                   </button>
                 </div>
                 <div className="mt-2 text-sm text-white/90">
-                  Baseado no padrão: <code className="bg-white/20 px-1.5 py-0.5 rounded">{linkingPattern.description_pattern}</code>
+                  Baseado no padrão: <code className="bg-stone-50/20 px-1.5 py-0.5 rounded">{linkingPattern.description_pattern}</code>
                 </div>
               </div>
 

@@ -87,7 +87,7 @@ export default function OrganizationSwitcher({ onClose }: OrganizationSwitcherPr
       {isOpen && (
         <div
           ref={menuRef}
-          className="absolute left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-50 max-h-60 overflow-y-auto"
+          className="absolute left-0 right-0 mt-1 bg-stone-50 rounded-lg shadow-lg border border-stone-200 py-1 z-50 max-h-60 overflow-y-auto"
         >
           {organizations.map((org) => {
             const isActive = activeOrganization?.organization_id === org.organization_id;

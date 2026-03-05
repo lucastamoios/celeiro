@@ -150,11 +150,11 @@ export default function TransactionPlannedEntryLinkModal({
       onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
+      <div className="bg-stone-50 rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-t-lg">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">🔗 Vincular a Entrada Planejada</h2>
+            <h2 className="font-display text-lg font-semibold">🔗 Vincular a Entrada Planejada</h2>
             <button
               onClick={onClose}
               className="text-white/80 hover:text-white transition-colors"

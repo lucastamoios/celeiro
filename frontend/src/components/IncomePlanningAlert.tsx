@@ -51,7 +51,7 @@ export default function IncomePlanningAlert({ month, year }: IncomePlanningAlert
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-4 animate-pulse">
+      <div className="bg-stone-50 rounded-lg shadow p-4 animate-pulse">
         <div className="h-4 bg-stone-200 rounded w-3/4"></div>
       </div>
     );
@@ -132,7 +132,7 @@ export default function IncomePlanningAlert({ month, year }: IncomePlanningAlert
           </p>
 
           {/* Details Grid */}
-          <div className="bg-white rounded-md p-3 space-y-2">
+          <div className="bg-stone-50 rounded-md p-3 space-y-2">
             <div className="flex justify-between items-center text-sm">
               <span className="text-stone-600">Renda Total ({getMonthName(month)} {year}):</span>
               <span className="font-semibold text-stone-900">{formatCurrency(report.totalIncome || '0')}</span>

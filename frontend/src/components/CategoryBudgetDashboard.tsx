@@ -1304,7 +1304,7 @@ export default function CategoryBudgetDashboard() {
               </button>
 
               <div className="text-center min-w-[140px] sm:min-w-[180px]">
-                <h1 className="text-lg sm:text-xl font-bold text-stone-900">
+                <h1 className="font-display text-lg sm:text-xl font-bold text-stone-900">
                   {getMonthName(selectedMonth)} {selectedYear}
                 </h1>
                 {isCurrentMonth && (
@@ -1443,7 +1443,7 @@ export default function CategoryBudgetDashboard() {
             <div className="flex justify-center mb-4">
               <BarChart3 className="w-16 h-16 text-stone-300" />
             </div>
-            <h3 className="text-lg font-medium text-stone-900 mb-2">
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
               Nenhum orçamento para {getMonthName(selectedMonth)} {selectedYear}
             </h3>
             <p className="text-stone-600 mb-4">

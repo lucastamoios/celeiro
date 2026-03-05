@@ -216,7 +216,7 @@ export default function NewPlannedEntryForm({
 
           {/* Autocomplete dropdown */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            <div className="absolute z-10 w-full mt-1 bg-stone-50 border border-stone-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {suggestions.map((s, i) => (
                 <button
                   key={i}
@@ -394,7 +394,7 @@ export default function NewPlannedEntryForm({
             type="button"
             onClick={onCancel}
             disabled={saving}
-            className="px-4 py-2 text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 disabled:opacity-50 transition-colors text-sm"
+            className="px-4 py-2 text-stone-700 bg-stone-50 border border-stone-300 rounded-lg hover:bg-stone-50 disabled:opacity-50 transition-colors text-sm"
           >
             Cancelar
           </button>

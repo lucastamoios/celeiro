@@ -51,7 +51,7 @@ export default function InviteMemberModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-stone-50 rounded-xl shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-stone-100">
           <div className="flex items-center gap-3">
@@ -59,7 +59,7 @@ export default function InviteMemberModal({
               <UserPlus className="w-5 h-5 text-wheat-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-stone-900">Convidar Membro</h2>
+              <h2 className="font-display text-lg font-semibold text-stone-900">Convidar Membro</h2>
               <p className="text-sm text-stone-500">Envie um convite por email</p>
             </div>
           </div>

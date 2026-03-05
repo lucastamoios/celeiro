@@ -119,7 +119,7 @@ function DraggablePlannedEntryRow({
         transform: CSS.Transform.toString(transform),
         opacity: isDragging ? 0.5 : 1,
       }}
-      className={`bg-white rounded-lg border-l-4 p-3 shadow-warm-sm transition-all ${
+      className={`bg-stone-50 rounded-lg border-l-4 p-3 shadow-warm-sm transition-all ${
         entry.Status === 'matched' ? 'border-sage-500' :
         entry.Status === 'pending' ? 'border-terra-500' :
         entry.Status === 'missed' ? 'border-rust-500' :
@@ -314,7 +314,7 @@ export default function CategoryBudgetCard({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-warm-sm border overflow-hidden transition-shadow ${
+    <div className={`bg-stone-50 rounded-lg shadow-warm-sm border overflow-hidden transition-shadow ${
       entryStats.missed > 0 ? 'border-rust-200' : 'border-stone-200'
     } hover:shadow-warm-md`}>
       {/* Main Card Content - Clickable area */}
@@ -339,7 +339,7 @@ export default function CategoryBudgetCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-stone-900">{categoryName}</h3>
+            <h3 className="font-display text-lg font-semibold text-stone-900">{categoryName}</h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {budget.IsConsolidated && (
                 <span className="text-xs px-2 py-1 rounded bg-sage-100 text-sage-700">
@@ -388,7 +388,7 @@ export default function CategoryBudgetCard({
             </button>
 
             {showActions && (
-              <div ref={actionsMenuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10">
+              <div ref={actionsMenuRef} className="absolute right-0 mt-2 w-48 bg-stone-50 rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10">
                 {onEdit && (
                   <button
                     onClick={() => {
@@ -546,7 +546,7 @@ export default function CategoryBudgetCard({
                   </button>
 
                   {expandedEntryActions === entry.PlannedEntryID && (
-                    <div ref={entryActionsMenuRef} className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-warm-lg border border-stone-200 py-1 z-20">
+                    <div ref={entryActionsMenuRef} className="absolute right-0 mt-1 w-40 bg-stone-50 rounded-lg shadow-warm-lg border border-stone-200 py-1 z-20">
                       {(entry.Status === 'pending' || entry.Status === 'missed') && onMatchEntry && (
                         <button
                           onClick={() => {
@@ -644,8 +644,8 @@ export default function CategoryBudgetCard({
           className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-50"
           onClick={handleBackdropClick}
         >
-          <div className="bg-white rounded-2xl shadow-warm-xl p-6 w-96 max-w-[90vw]">
-            <h3 className="text-lg font-semibold text-stone-900 mb-4">Dispensar Entrada</h3>
+          <div className="bg-stone-50 rounded-2xl shadow-warm-xl p-6 w-96 max-w-[90vw]">
+            <h3 className="font-display text-lg font-semibold text-stone-900 mb-4">Dispensar Entrada</h3>
             <p className="text-sm text-stone-600 mb-4">
               Dispensar esta entrada para {new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}?
             </p>

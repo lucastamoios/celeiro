@@ -161,7 +161,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Navigation Bar */}
-      <nav className="sticky top-0 z-50 bg-white shadow-warm-sm border-b border-stone-200">
+      <nav className="sticky top-0 z-50 bg-stone-50 shadow-warm-sm border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo and Desktop Nav */}
@@ -286,7 +286,7 @@ function AppContent() {
             onClick={() => setIsMobileMenuOpen(false)}
           />
           {/* Drawer */}
-          <div className="fixed top-16 left-0 right-0 bg-white border-b border-stone-200 shadow-lg z-50 lg:hidden">
+          <div className="fixed top-16 left-0 right-0 bg-stone-50 border-b border-stone-200 shadow-lg z-50 lg:hidden">
             <div className="px-4 py-4 space-y-1">
               <button
                 onClick={(e) => {

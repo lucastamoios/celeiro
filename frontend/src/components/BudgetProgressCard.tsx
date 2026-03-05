@@ -78,7 +78,7 @@ export default function BudgetProgressCard({ budgetId }: BudgetProgressCardProps
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-stone-50 rounded-lg shadow p-6">
         <div className="flex justify-center items-center min-h-[200px]">
           <div className="text-stone-600">Loading budget progress...</div>
         </div>
@@ -88,7 +88,7 @@ export default function BudgetProgressCard({ budgetId }: BudgetProgressCardProps
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-stone-50 rounded-lg shadow p-6">
         <div className="bg-rust-50 border border-rust-200 rounded-lg p-4">
           <p className="text-rust-800">{error}</p>
           <button
@@ -104,7 +104,7 @@ export default function BudgetProgressCard({ budgetId }: BudgetProgressCardProps
 
   if (!progress) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-stone-50 rounded-lg shadow p-6">
         <div className="text-center py-8 text-stone-600">
           No progress data available
         </div>
@@ -113,11 +113,11 @@ export default function BudgetProgressCard({ budgetId }: BudgetProgressCardProps
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-stone-50 rounded-lg shadow">
       {/* Header */}
       <div className="p-6 border-b border-stone-200">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-stone-900">
+          <h3 className="font-display text-lg font-semibold text-stone-900">
             Budget Progress & Forecast
           </h3>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(progress.status)}`}>

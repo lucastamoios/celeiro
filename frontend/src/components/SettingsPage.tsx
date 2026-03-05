@@ -55,7 +55,7 @@ export default function SettingsPage({ initialTab = 'categorias' }: SettingsPage
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-stone-900 flex items-center gap-3">
+        <h1 className="font-display text-2xl font-bold text-stone-900 flex items-center gap-3">
           <Settings className="w-7 h-7 text-wheat-600" />
           Configurações
         </h1>

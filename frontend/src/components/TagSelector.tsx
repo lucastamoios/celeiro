@@ -145,7 +145,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
               key={tag.tag_id}
               onClick={() => toggleTag(tag.tag_id)}
               disabled={disabled}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border border-stone-300 bg-white text-stone-700 transition-all ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border border-stone-300 bg-stone-50 text-stone-700 transition-all ${
                 disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-stone-100 hover:border-stone-400 hover:shadow-sm'
               }`}
               title="Clique para adicionar"

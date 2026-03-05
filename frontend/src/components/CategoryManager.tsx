@@ -351,7 +351,7 @@ export default function CategoryManager() {
       <section className="mb-10">
         <div className="flex items-center gap-3 mb-4">
           <FolderOpen className="w-6 h-6 text-wheat-600" />
-          <h2 className="text-xl font-semibold text-stone-900">
+          <h2 className="font-display text-xl font-semibold text-stone-900">
             Minhas Categorias
             <span className="ml-2 text-sm font-normal text-stone-500">({userCategories.length})</span>
           </h2>
@@ -378,7 +378,7 @@ export default function CategoryManager() {
               return (
                 <div
                   key={category.category_id}
-                  className="relative bg-white border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
+                  className="relative bg-stone-50 border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
                   style={colors.cardStyle}
                 >
                   {/* Floating action buttons */}
@@ -386,7 +386,7 @@ export default function CategoryManager() {
                     <div className="absolute top-2 right-2 flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all z-10">
                       <button
                         onClick={() => handleStartEditDetails(category)}
-                        className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-sm hover:shadow"
+                        className="p-2 bg-stone-50/70 backdrop-blur-sm hover:bg-stone-50/90 rounded-lg shadow-sm hover:shadow"
                         title="Editar nome e ícone"
                       >
                         <svg className="w-4 h-4 text-stone-600 hover:text-stone-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -395,7 +395,7 @@ export default function CategoryManager() {
                       </button>
                       <button
                         onClick={() => handleStartEditColor(category.category_id, category.color)}
-                        className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-sm hover:shadow"
+                        className="p-2 bg-stone-50/70 backdrop-blur-sm hover:bg-stone-50/90 rounded-lg shadow-sm hover:shadow"
                         title="Editar cor"
                       >
                         <svg className="w-4 h-4 text-stone-600 hover:text-stone-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +404,7 @@ export default function CategoryManager() {
                       </button>
                       <button
                         onClick={() => handleStartDelete(category.category_id)}
-                        className="p-2 bg-white/70 backdrop-blur-sm hover:bg-rust-100/90 rounded-lg shadow-sm hover:shadow"
+                        className="p-2 bg-stone-50/70 backdrop-blur-sm hover:bg-rust-100/90 rounded-lg shadow-sm hover:shadow"
                         title="Excluir categoria"
                       >
                         <svg className="w-4 h-4 text-stone-600 hover:text-rust-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -438,7 +438,7 @@ export default function CategoryManager() {
                         {category.icon}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-stone-900">{category.name}</h3>
+                        <h3 className="font-display font-semibold text-stone-900">{category.name}</h3>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           <span className="text-xs text-stone-500">Personalizada</span>
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
@@ -515,7 +515,7 @@ export default function CategoryManager() {
       <section>
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">🔒</span>
-          <h2 className="text-xl font-semibold text-stone-900">
+          <h2 className="font-display text-xl font-semibold text-stone-900">
             Categorias do Sistema
             <span className="ml-2 text-sm font-normal text-stone-500">({systemCategories.length})</span>
           </h2>
@@ -531,7 +531,7 @@ export default function CategoryManager() {
             return (
               <div
                 key={category.category_id}
-                className="bg-white border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
+                className="bg-stone-50 border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
                 style={colors.cardStyle}
               >
                 {/* Header with icon and name */}
@@ -541,7 +541,7 @@ export default function CategoryManager() {
                       {category.icon}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-stone-900">{category.name}</h3>
+                      <h3 className="font-display font-semibold text-stone-900">{category.name}</h3>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="inline-flex items-center gap-1 text-xs text-stone-500 bg-stone-200/50 px-2 py-0.5 rounded-full">
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -601,9 +601,9 @@ export default function CategoryManager() {
             onClick={() => setShowCreateModal(false)}
           />
 
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+          <div className="relative bg-stone-50 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
             <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
-              <h3 className="text-xl font-bold text-white">Nova Categoria</h3>
+              <h3 className="font-display text-xl font-bold text-white">Nova Categoria</h3>
               <p className="text-wheat-100 text-sm mt-1">Crie uma categoria personalizada</p>
             </div>
 
@@ -668,7 +668,7 @@ export default function CategoryManager() {
                     className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
                       newCategoryType === 'expense'
                         ? 'border-rust-500 bg-rust-50 text-rust-700'
-                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                        : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'
                     }`}
                   >
                     <span>📉</span>
@@ -680,7 +680,7 @@ export default function CategoryManager() {
                     className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
                       newCategoryType === 'income'
                         ? 'border-sage-500 bg-sage-50 text-sage-700'
-                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                        : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'
                     }`}
                   >
                     <span>📈</span>
@@ -736,9 +736,9 @@ export default function CategoryManager() {
             onClick={handleCloseEditModal}
           />
 
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+          <div className="relative bg-stone-50 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
             <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
-              <h3 className="text-xl font-bold text-white">Editar Categoria</h3>
+              <h3 className="font-display text-xl font-bold text-white">Editar Categoria</h3>
               <p className="text-wheat-100 text-sm mt-1">Altere o nome e ícone da categoria</p>
             </div>
 
@@ -806,13 +806,13 @@ export default function CategoryManager() {
                     className={`w-full py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-3 ${
                       editControllable
                         ? 'border-sage-500 bg-sage-50'
-                        : 'border-stone-200 bg-white hover:border-stone-300'
+                        : 'border-stone-200 bg-stone-50 hover:border-stone-300'
                     }`}
                   >
                     <div className={`w-12 h-6 rounded-full transition-colors duration-200 flex items-center p-1 ${
                       editControllable ? 'bg-sage-500' : 'bg-stone-300'
                     }`}>
-                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                      <div className={`w-4 h-4 rounded-full bg-stone-50 shadow transition-transform duration-200 ${
                         editControllable ? 'translate-x-6' : 'translate-x-0'
                       }`} />
                     </div>

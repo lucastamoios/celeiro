@@ -223,7 +223,7 @@ export default function TagManager() {
     <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">Tags</h1>
+          <h1 className="font-display text-3xl font-bold text-stone-900 mb-2">Tags</h1>
           <p className="text-stone-600">
             Gerencie suas tags para organizar e filtrar transacoes
           </p>
@@ -287,7 +287,7 @@ export default function TagManager() {
               return (
                 <div
                   key={tag.tag_id}
-                  className="bg-white border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
+                  className="bg-stone-50 border border-stone-200 rounded-2xl p-5 transition-all duration-200 hover:shadow-md hover:border-stone-300 group"
                   style={colors.cardStyle}
                 >
                   {/* Header with icon and name */}
@@ -300,7 +300,7 @@ export default function TagManager() {
                         {tag.icon}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-lg text-stone-900">
+                        <h3 className="font-display font-semibold text-lg text-stone-900">
                           {tag.name}
                         </h3>
                       </div>
@@ -310,7 +310,7 @@ export default function TagManager() {
                       <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all">
                         <button
                           onClick={() => handleStartEdit(tag)}
-                          className="p-2 hover:bg-white/80 rounded-lg shadow-sm hover:shadow"
+                          className="p-2 hover:bg-stone-50/80 rounded-lg shadow-sm hover:shadow"
                           title="Editar tag"
                         >
                           <svg className="w-4 h-4 text-stone-600 hover:text-stone-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -363,10 +363,10 @@ export default function TagManager() {
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="relative bg-stone-50 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
               {/* Header */}
               <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
-                <h3 className="text-xl font-bold text-white">Nova Tag</h3>
+                <h3 className="font-display text-xl font-bold text-white">Nova Tag</h3>
                 <p className="text-wheat-100 text-sm mt-1">Crie uma tag para organizar suas transacoes</p>
               </div>
 
@@ -500,10 +500,10 @@ export default function TagManager() {
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="relative bg-stone-50 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
               {/* Header */}
               <div className="bg-gradient-to-r from-wheat-500 to-wheat-600 px-6 py-5">
-                <h3 className="text-xl font-bold text-white">Editar Tag</h3>
+                <h3 className="font-display text-xl font-bold text-white">Editar Tag</h3>
                 <p className="text-wheat-100 text-sm mt-1">Altere os dados da tag</p>
               </div>
 

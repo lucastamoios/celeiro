@@ -619,7 +619,7 @@ export default function PlannedEntryForm({
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-4 py-2 text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-stone-700 bg-stone-50 border border-stone-300 rounded-lg hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Cancelar
         </button>

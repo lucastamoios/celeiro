@@ -311,11 +311,11 @@ export default function PatternCreator({
       onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-stone-50 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between bg-gradient-to-r from-wheat-50 to-wheat-100">
           <div>
-            <h2 className="text-xl font-bold text-stone-900">
+            <h2 className="font-display text-xl font-bold text-stone-900">
               {existingPattern
                 ? '✏️ Editar Padrão'
                 : '🎯 Criar Padrão de Categorização'}
@@ -345,7 +345,7 @@ export default function PatternCreator({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Section 1: What to match */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-stone-900 uppercase tracking-wide">
+            <h3 className="font-display text-sm font-semibold text-stone-900 uppercase tracking-wide">
               Quando encontrar...
             </h3>
 
@@ -396,7 +396,7 @@ export default function PatternCreator({
           {/* Section 2: What to apply */}
           <div className="space-y-4 pt-4 border-t border-stone-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-stone-900 uppercase tracking-wide">
+              <h3 className="font-display text-sm font-semibold text-stone-900 uppercase tracking-wide">
                 Aplicar...
               </h3>
 
@@ -669,7 +669,7 @@ export default function PatternCreator({
                       Padrão completo
                     </h4>
                   </div>
-                  <pre className="bg-white p-2 rounded border border-stone-300 text-xs font-mono overflow-x-auto text-stone-700">
+                  <pre className="bg-stone-50 p-2 rounded border border-stone-300 text-xs font-mono overflow-x-auto text-stone-700">
 {generateFullPattern()}
                   </pre>
                 </div>
@@ -683,7 +683,7 @@ export default function PatternCreator({
               <h4 className="text-xs font-semibold text-sage-700 uppercase tracking-wide mb-2">
                 Preview
               </h4>
-              <div className="bg-white rounded-lg p-3 border border-sage-200 flex items-center justify-between">
+              <div className="bg-stone-50 rounded-lg p-3 border border-sage-200 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-stone-900 font-medium">{targetDescription}</span>
                   {categories.has(parseInt(targetCategoryId)) && (

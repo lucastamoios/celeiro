@@ -146,14 +146,14 @@ export default function CategoryTransactionsModal({
       onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-2xl shadow-warm-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-stone-50 rounded-2xl shadow-warm-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-wheat-50 to-wheat-100 rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{category?.icon || '📊'}</span>
               <div>
-                <h2 className="text-xl font-bold text-stone-900">{categoryName}</h2>
+                <h2 className="font-display text-xl font-bold text-stone-900">{categoryName}</h2>
                 <p className="text-sm text-stone-600 capitalize">{monthName}</p>
               </div>
             </div>
@@ -169,13 +169,13 @@ export default function CategoryTransactionsModal({
 
           {/* Summary Stats */}
           <div className="grid grid-cols-3 gap-4 mt-4">
-            <div className="bg-white/70 rounded-lg px-3 py-2">
+            <div className="bg-stone-50/70 rounded-lg px-3 py-2">
               <p className="text-xs text-stone-500">Planejado</p>
               <p className="text-lg font-semibold text-stone-900 tabular-nums">
                 {formatCurrency(plannedAmount)}
               </p>
             </div>
-            <div className="bg-white/70 rounded-lg px-3 py-2">
+            <div className="bg-stone-50/70 rounded-lg px-3 py-2">
               <p className="text-xs text-stone-500">{isIncome ? 'Recebido' : 'Gasto'}</p>
               <p className={`text-lg font-semibold tabular-nums ${
                 parseFloat(actualSpent) > parseFloat(plannedAmount) && !isIncome
@@ -185,7 +185,7 @@ export default function CategoryTransactionsModal({
                 {formatCurrency(actualSpent)}
               </p>
             </div>
-            <div className="bg-white/70 rounded-lg px-3 py-2">
+            <div className="bg-stone-50/70 rounded-lg px-3 py-2">
               <p className="text-xs text-stone-500">Transações</p>
               <p className="text-lg font-semibold text-stone-900">
                 {categoryTransactions.length}
@@ -199,7 +199,7 @@ export default function CategoryTransactionsModal({
           {/* All Planned Entries Section */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-stone-700 flex items-center gap-2">
+              <h3 className="font-display text-sm font-semibold text-stone-700 flex items-center gap-2">
                 <span className="text-terra-600">📋</span>
                 Entradas Planejadas
                 <span className="text-xs font-normal text-stone-500">
@@ -312,7 +312,7 @@ export default function CategoryTransactionsModal({
                             </div>
                           ) : (
                             <span
-                              className={`font-semibold tabular-nums ${onUpdatePlannedEntryAmount ? 'cursor-pointer hover:bg-white/50 px-2 py-1 rounded' : ''}`}
+                              className={`font-semibold tabular-nums ${onUpdatePlannedEntryAmount ? 'cursor-pointer hover:bg-stone-50/50 px-2 py-1 rounded' : ''}`}
                               onClick={(e) => {
                                 if (onUpdatePlannedEntryAmount) {
                                   e.stopPropagation();
@@ -348,7 +348,7 @@ export default function CategoryTransactionsModal({
 
           {/* Transactions List */}
           <div>
-            <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
+            <h3 className="font-display text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
               <span className="text-sage-600">💰</span>
               Transações
             </h3>

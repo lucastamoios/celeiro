@@ -56,13 +56,13 @@ export default function AcceptInvite({ token, onComplete }: AcceptInviteProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-wheat-50 to-stone-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+      <div className="bg-stone-50 rounded-2xl shadow-xl w-full max-w-md p-8">
         {state === 'loading' && (
           <div className="text-center">
             <div className="w-16 h-16 bg-wheat-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Loader2 className="w-8 h-8 text-wheat-600 animate-spin" />
             </div>
-            <h1 className="text-2xl font-bold text-stone-900 mb-2">Processando Convite</h1>
+            <h1 className="font-display text-2xl font-bold text-stone-900 mb-2">Processando Convite</h1>
             <p className="text-stone-600">Aguarde enquanto verificamos seu convite...</p>
           </div>
         )}
@@ -72,7 +72,7 @@ export default function AcceptInvite({ token, onComplete }: AcceptInviteProps) {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <h1 className="text-2xl font-bold text-stone-900 mb-2">
+            <h1 className="font-display text-2xl font-bold text-stone-900 mb-2">
               {isNewUser ? 'Bem-vindo ao Celeiro!' : 'Convite Aceito!'}
             </h1>
             <p className="text-stone-600 mb-6">
@@ -91,7 +91,7 @@ export default function AcceptInvite({ token, onComplete }: AcceptInviteProps) {
             <div className="w-16 h-16 bg-rust-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <XCircle className="w-8 h-8 text-rust-600" />
             </div>
-            <h1 className="text-2xl font-bold text-stone-900 mb-2">Convite Inválido</h1>
+            <h1 className="font-display text-2xl font-bold text-stone-900 mb-2">Convite Inválido</h1>
             <p className="text-stone-600 mb-6">
               {error || 'O convite pode ter expirado ou já foi utilizado.'}
             </p>

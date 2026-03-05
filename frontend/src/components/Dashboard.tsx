@@ -432,7 +432,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
       {/* Financial Overview Card */}
       <div className="card mb-8">
-        <h2 className="text-lg font-semibold text-stone-900 mb-6">Resumo Financeiro</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900 mb-6">Resumo Financeiro</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Income Section */}
@@ -585,7 +585,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       {shouldShowAttention && (
         <div className="card mb-8 border-terra-200 border-2 bg-terra-50/50">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+            <h2 className="font-display text-lg font-semibold text-stone-900 flex items-center gap-2">
               <span className="text-terra-500">⚠</span> Requer Atenção
             </h2>
             <button
@@ -599,7 +599,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
           <div className="space-y-3">
             {stats.uncategorizedCount > 0 && (
-              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+              <div className="flex items-center justify-between p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <div className="flex items-center gap-3">
                   <span className="text-xl">📋</span>
                   <div>
@@ -619,7 +619,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             )}
 
             {(stats.budgetSummary?.plannedEntries.missed || 0) > 0 && (
-              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+              <div className="flex items-center justify-between p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <div className="flex items-center gap-3">
                   <span className="text-xl">📅</span>
                   <div>
@@ -639,7 +639,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
               );
               return budget && ce.amount > budget.planned;
             }).slice(0, 3).map(ce => (
-              <div key={ce.category.category_id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+              <div key={ce.category.category_id} className="flex items-center justify-between p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <div className="flex items-center gap-3">
                   <span className="text-xl">{ce.category.icon || '📦'}</span>
                   <div>
@@ -657,7 +657,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
             {/* Planned expenses exceed income warning */}
             {plannedExpensesExceedIncome && stats.budgetSummary && (
-              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-stone-200">
+              <div className="flex items-center justify-between p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <div className="flex items-center gap-3">
                   <span className="text-xl">⚖️</span>
                   <div>
@@ -682,7 +682,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       {/* Category Expenses */}
       {stats.categoryExpenses.length > 0 && (
         <div className="card">
-          <h2 className="text-lg font-semibold text-stone-900 mb-4">
+          <h2 className="font-display text-lg font-semibold text-stone-900 mb-4">
             Gastos por Categoria
           </h2>
 
@@ -855,7 +855,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       {/* Tag Expenses */}
       {stats.tagExpenses.length > 0 && (
         <div className="card">
-          <h2 className="text-lg font-semibold text-stone-900 mb-4">
+          <h2 className="font-display text-lg font-semibold text-stone-900 mb-4">
             Gastos por Tag
           </h2>
 
@@ -974,7 +974,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
               ✅
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-sage-800">
+              <h3 className="font-display text-lg font-semibold text-sage-800">
                 Tudo Organizado!
               </h3>
               <p className="text-sage-700 text-sm">
