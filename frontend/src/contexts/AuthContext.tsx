@@ -26,6 +26,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserEmail(email);
     localStorage.setItem('auth_token', newToken);
     localStorage.setItem('auth_email', email);
+    // Clean URL back to root after login
+    if (window.location.pathname === '/login') {
+      window.history.replaceState({}, '', '/');
+    }
   };
 
   const logout = () => {
@@ -34,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_email');
     localStorage.removeItem('active_organization_id');
+    // Return to landing page on logout
+    window.history.replaceState({}, '', '/');
   };
 
   return (

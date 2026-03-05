@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { OrganizationProvider, useOrganization } from './contexts/OrganizationContext'
-import Login from './components/Login'
+import LoginPage from './components/LoginPage'
+import LandingPage from './components/LandingPage'
 import Dashboard from './components/Dashboard'
 import TransactionList from './components/TransactionList'
 import CategoryBudgetDashboard from './components/CategoryBudgetDashboard'
@@ -19,7 +20,6 @@ import {
   Calendar,
   Menu,
   X,
-  Wheat,
   Settings,
 } from 'lucide-react'
 
@@ -66,9 +66,16 @@ function getInitialView(): View {
   return 'dashboard';
 }
 
+// Check if URL has auth-related params that should show the login page
+function hasAuthUrlParams(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  return !!(params.get('email') || params.get('code'));
+}
+
 function AppContent() {
   const { isAuthenticated } = useAuth();
   const { isLoading: isOrgLoading, activeOrganization } = useOrganization();
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [currentView, setCurrentViewState] = useState<View>(getInitialView);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('categorias');
@@ -85,6 +92,13 @@ function AppContent() {
     if (tab) setSettingsTab(tab);
     setCurrentView('settings');
   }, [setCurrentView]);
+
+  // Listen for pathname changes (popstate from browser nav + programmatic navigate())
+  useEffect(() => {
+    const handlePopState = () => setCurrentPath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Close mobile menu when clicking outside or pressing Escape
   useEffect(() => {
@@ -128,7 +142,8 @@ function AppContent() {
   // === CONDITIONAL RETURNS (after all hooks) ===
 
   if (!isAuthenticated) {
-    return <Login />;
+    if (currentPath === '/login' || hasAuthUrlParams()) return <LoginPage />;
+    return <LandingPage />;
   }
 
   // Wait for organization data to be loaded before rendering main content
@@ -177,7 +192,7 @@ function AppContent() {
                 onAuxClick={handleAuxClick('dashboard')}
                 className="flex items-center gap-2 text-xl font-bold text-stone-900 hover:text-wheat-600 transition-colors"
               >
-                <Wheat className="w-6 h-6 text-wheat-600" />
+                <img src="/celeiro-wheat-v2.svg" alt="Celeiro" className="w-6 h-6" />
                 <span>Celeiro</span>
               </button>
               {/* Desktop Navigation - Hidden on mobile/tablet */}
