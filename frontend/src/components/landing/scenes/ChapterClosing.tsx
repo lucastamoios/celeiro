@@ -80,7 +80,7 @@ export function ChapterClosing() {
             transform: `translateY(${textY}px)`,
           }}
         >
-          Para quem foi chamado a prover, n\u00e3o apenas a ganhar.
+          Para quem foi chamado a prover, não apenas a ganhar.
         </p>
 
         {/* CTA button (visual only — real click handled by overlay in ScrollVideo) */}
@@ -104,7 +104,7 @@ export function ChapterClosing() {
               fontSize: 17,
             }}
           >
-            Quero come\u00e7ar agora \u2192
+            Quero começar agora →
           </div>
         </div>
       </AbsoluteFill>

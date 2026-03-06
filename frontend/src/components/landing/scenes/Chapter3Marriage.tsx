@@ -5,9 +5,9 @@ import { SceneTransition } from '../shared/SceneTransition';
 import { ProgressBar } from '../shared/ProgressBar';
 
 const PACING_ITEMS = [
-  { label: '\uD83D\uDED2 Alimenta\u00e7\u00e3o', spent: 1200, budget: 1800, progress: 0.67 },
-  { label: '\uD83D\uDE97 Transporte', spent: 380, budget: 600, progress: 0.63 },
-  { label: '\uD83C\uDFAC Lazer', spent: 150, budget: 400, progress: 0.38 },
+  { label: '🛒 Alimentação', spent: 1200, budget: 1800, progress: 0.67 },
+  { label: '🚗 Transporte', spent: 380, budget: 600, progress: 0.63 },
+  { label: '🎬 Lazer', spent: 150, budget: 400, progress: 0.38 },
 ];
 
 /** Chapter 3: dashboard with budget pacing — everything under control */
@@ -44,7 +44,7 @@ export function Chapter3Marriage() {
                     margin: 0,
                   }}
                 >
-                  "Dinheiro deixa de ser motivo de tens\u00e3o. Vira conversa."
+                  "Dinheiro deixa de ser motivo de tensão. Vira conversa."
                 </p>
               </div>
             </SceneTransition>
@@ -121,7 +121,7 @@ export function Chapter3Marriage() {
                       color: '#5A8A4A',
                     }}
                   >
-                    \u2705 Or\u00e7amento saud\u00e1vel
+                    ✅ Orçamento saudável
                   </span>
                 </div>
               </BrowserFrame>

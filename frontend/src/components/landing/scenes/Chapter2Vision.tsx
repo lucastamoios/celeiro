@@ -5,12 +5,12 @@ import { SceneTransition } from '../shared/SceneTransition';
 import { CategoryPill } from '../shared/CategoryPill';
 
 const CATEGORIES = [
-  { emoji: '\uD83D\uDED2', label: 'Alimenta\u00e7\u00e3o', color: 'rgba(90,138,74,0.15)' },
-  { emoji: '\uD83D\uDE97', label: 'Transporte', color: 'rgba(198,148,58,0.15)' },
-  { emoji: '\uD83C\uDFAC', label: 'Lazer', color: 'rgba(212,114,42,0.15)' },
-  { emoji: '\uD83C\uDFE0', label: 'Moradia', color: 'rgba(106,90,150,0.15)' },
-  { emoji: '\uD83D\uDCB3', label: 'Cart\u00e3o', color: 'rgba(196,69,58,0.15)' },
-  { emoji: '\uD83C\uDFE5', label: 'Sa\u00fade', color: 'rgba(74,130,170,0.15)' },
+  { emoji: '🛒', label: 'Alimentação', color: 'rgba(90,138,74,0.15)' },
+  { emoji: '🚗', label: 'Transporte', color: 'rgba(198,148,58,0.15)' },
+  { emoji: '🎬', label: 'Lazer', color: 'rgba(212,114,42,0.15)' },
+  { emoji: '🏠', label: 'Moradia', color: 'rgba(106,90,150,0.15)' },
+  { emoji: '💳', label: 'Cartão', color: 'rgba(196,69,58,0.15)' },
+  { emoji: '🏥', label: 'Saúde', color: 'rgba(74,130,170,0.15)' },
 ];
 
 const TRANSACTIONS = [
@@ -50,7 +50,7 @@ export function Chapter2Vision() {
                     margin: 0,
                   }}
                 >
-                  "Com o Celeiro, voc\u00ea v\u00ea o m\u00eas antes que ele acabe."
+                  "Com o Celeiro, você vê o mês antes que ele acabe."
                 </p>
               </div>
             </SceneTransition>
@@ -138,7 +138,7 @@ export function Chapter2Vision() {
                       color: '#A67A2A',
                     }}
                   >
-                    \u26A1 Classifica\u00e7\u00e3o autom\u00e1tica
+                    ⚡ Classificação automática
                   </span>
                 </div>
               </BrowserFrame>

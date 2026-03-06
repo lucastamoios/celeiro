@@ -7,23 +7,23 @@ import { AnimatedNumber } from '../shared/AnimatedNumber';
 
 const GOALS = [
   {
-    emoji: '\uD83D\uDEE1\uFE0F',
-    label: 'Reserva de emerg\u00eancia',
+    emoji: '🛡️',
+    label: 'Reserva de emergência',
     current: 20400,
     target: 30000,
     progress: 0.68,
   },
   {
-    emoji: '\u26EA',
-    label: 'D\u00edzimo e ofertas',
+    emoji: '⛪',
+    label: 'Dízimo e ofertas',
     current: 820,
     target: 820,
     progress: 1.0,
     completed: true,
   },
   {
-    emoji: '\u2708\uFE0F',
-    label: 'Viagem em fam\u00edlia',
+    emoji: '✈️',
+    label: 'Viagem em família',
     current: 2250,
     target: 5000,
     progress: 0.45,
@@ -64,7 +64,7 @@ export function Chapter4Generosity() {
                     margin: 0,
                   }}
                 >
-                  "Dar com liberdade — porque quem conhece seus n\u00fameros doa sem culpa e sem medo."
+                  "Dar com liberdade — porque quem conhece seus números doa sem culpa e sem medo."
                 </p>
               </div>
             </SceneTransition>
@@ -115,7 +115,7 @@ export function Chapter4Generosity() {
                                 color: '#5A8A4A',
                               }}
                             >
-                              Conclu\u00eddo \u2713
+                              Concluído ✓
                             </span>
                           )}
                         </div>
