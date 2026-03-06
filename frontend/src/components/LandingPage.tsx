@@ -57,7 +57,7 @@ export default function LandingPage() {
         <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-2xl">
           {/* Logo mark */}
           <img
-            src="/celeiro-wheat-v3.svg"
+            src="/celeiro-wheat-v4.svg"
             alt="Celeiro"
             className="mb-6"
             style={{ width: 56, height: 56, filter: 'brightness(0) invert(1)', opacity: 0.85 }}
