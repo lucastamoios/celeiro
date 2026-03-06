@@ -84,27 +84,24 @@ export default function LandingPage() {
             O problema não é o salário — é não ter visão clara do que foi confiado a você.
           </p>
 
-          {/* CTA buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => navigate('/login')}
-              className="btn-primary text-base px-8 py-3"
-            >
-              Começar a cuidar da minha família &rarr;
-            </button>
-            <button
-              onClick={scrollToDemo}
-              className="px-8 py-3 rounded-warm text-base font-semibold transition-colors"
-              style={{
-                color: '#FAFAF9',
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.15)',
-              }}
-            >
-              Ver como funciona &darr;
-            </button>
-          </div>
+          {/* CTA button */}
+          <button
+            onClick={() => navigate('/login')}
+            className="btn-primary text-base px-8 py-3"
+          >
+            Começar a cuidar da minha família &rarr;
+          </button>
         </div>
+
+        {/* Scroll hint — anchored to bottom of hero */}
+        <button
+          onClick={scrollToDemo}
+          className="absolute left-1/2 z-10 flex flex-col items-center gap-2 cursor-pointer bg-transparent border-none"
+          style={{ bottom: 32, transform: 'translateX(-50%)' }}
+        >
+          <span className="text-stone-400 text-sm">Veja como funciona</span>
+          <span className="text-stone-400 text-lg">&darr;</span>
+        </button>
       </section>
 
       {/* ── Scroll-driven Remotion chapters ── */}
@@ -121,15 +118,13 @@ export default function LandingPage() {
             className="font-display text-xl sm:text-2xl font-bold leading-snug mb-6"
             style={{ color: 'var(--text-1)' }}
           >
-            José não salvou o Egito porque tinha mais grãos que os outros.
-            <br />
-            Salvou porque{' '}
+            José não salvou o Egito porque tinha mais grãos que os outros. Salvou porque{' '}
             <span style={{ color: 'var(--accent-dark)' }}>
               sabia exatamente o que tinha, o que precisava, e o que guardar.
             </span>
           </blockquote>
           <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-            Isso é mordomia. Isso é liderança familiar.
+            Isso é <em>mordonomia</em>. Isso é liderança familiar.
           </p>
         </div>
       </section>
@@ -168,9 +163,7 @@ export default function LandingPage() {
             Se você é o responsável pelas finanças da sua família, este é o momento.
           </h2>
           <p className="text-stone-600 mb-10 max-w-lg mx-auto leading-relaxed">
-            Não amanhã. Não quando "organizar as contas primeiro".
-            <br />
-            Agora — porque cada mês sem controle é um mês que não volta.
+            Não amanhã. Não quando "organizar as contas primeiro". <strong>Agora</strong> — porque cada mês sem controle é um mês que não volta.
           </p>
           <button
             onClick={() => navigate('/login')}

@@ -29,7 +29,9 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
       const scrollRoom = container.offsetHeight - window.innerHeight;
       const scrolled = -rect.top;
       const progress = Math.max(0, Math.min(1, scrolled / scrollRoom));
-      const frame = Math.round(progress * (TOTAL_FRAMES - 1));
+      // Offset so Chapter 1 is already visible when container enters view
+      const INITIAL_FRAME = 25;
+      const frame = Math.round(INITIAL_FRAME + progress * (TOTAL_FRAMES - 1 - INITIAL_FRAME));
 
       player.seekTo(frame);
     });
@@ -48,7 +50,7 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
     playerRef.current?.pause();
   }, []);
 
-  // 520 frames → 520vh gives ~1vh per frame for smooth scroll pacing
+  // Shorter container = faster scroll pacing; initial frame offset ensures Ch1 is visible on entry
   return (
     <div
       ref={(el) => {
@@ -56,7 +58,7 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
         if (typeof ref === 'function') ref(el);
         else if (ref) ref.current = el;
       }}
-      style={{ height: '520vh', position: 'relative' }}
+      style={{ height: '380vh', position: 'relative' }}
     >
       <div
         style={{
