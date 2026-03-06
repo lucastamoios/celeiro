@@ -66,6 +66,19 @@ export function Chapter4Generosity() {
                 >
                   "Dar com liberdade — porque quem conhece seus números doa sem culpa e sem medo."
                 </p>
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: '#6B5744',
+                    lineHeight: 1.6,
+                    margin: 0,
+                    paddingTop: 16,
+                  }}
+                >
+                  Dar apenas o que sobra não é generosidade.
+                  <br />
+                  É descuido com o que foi confiado a você.
+                </p>
               </div>
             </SceneTransition>
           }

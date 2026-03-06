@@ -2,14 +2,13 @@ import type { ReactNode } from 'react';
 
 interface BrowserFrameProps {
   children: ReactNode;
-  url?: string;
 }
 
 /**
- * Browser chrome mockup: dark top bar with traffic lights + address bar.
+ * Browser chrome mockup: dark top bar with traffic lights.
  * Content area uses the app's off-white background.
  */
-export function BrowserFrame({ children, url = 'celeiro.laguiar.dev' }: BrowserFrameProps) {
+export function BrowserFrame({ children }: BrowserFrameProps) {
   return (
     <div
       style={{
@@ -44,20 +43,6 @@ export function BrowserFrame({ children, url = 'celeiro.laguiar.dev' }: BrowserF
               }}
             />
           ))}
-        </div>
-        {/* Address bar */}
-        <div
-          style={{
-            flex: 1,
-            background: 'rgba(255,255,255,0.08)',
-            borderRadius: 6,
-            padding: '4px 10px',
-            fontSize: 11,
-            color: 'rgba(255,255,255,0.45)',
-            fontFamily: 'system-ui, sans-serif',
-          }}
-        >
-          {url}
         </div>
       </div>
       {/* Content area */}

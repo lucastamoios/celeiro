@@ -36,6 +36,18 @@ export function Chapter1Problem() {
                 >
                   "O mês termina e você não sabe para onde foi."
                 </p>
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: '#6B5744',
+                    lineHeight: 1.6,
+                    marginTop: 16,
+                    margin: 0,
+                    paddingTop: 16,
+                  }}
+                >
+                  Você não é irresponsável. Você só nunca teve uma ferramenta feita para quem carrega o peso que você carrega.
+                </p>
               </div>
             </SceneTransition>
           }

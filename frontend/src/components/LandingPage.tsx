@@ -110,6 +110,30 @@ export default function LandingPage() {
       {/* ── Scroll-driven Remotion chapters ── */}
       <ScrollVideo ref={scrollVideoRef} />
 
+      {/* ── José Metaphor Interstitial ── */}
+      <section className="py-20 px-6" style={{ background: 'var(--bg-0)' }}>
+        <div className="max-w-2xl mx-auto text-center">
+          <div
+            className="mx-auto mb-6"
+            style={{ width: 48, height: 2, backgroundColor: 'var(--accent)', borderRadius: 1 }}
+          />
+          <blockquote
+            className="font-display text-xl sm:text-2xl font-bold leading-snug mb-6"
+            style={{ color: 'var(--text-1)' }}
+          >
+            José não salvou o Egito porque tinha mais grãos que os outros.
+            <br />
+            Salvou porque{' '}
+            <span style={{ color: 'var(--accent-dark)' }}>
+              sabia exatamente o que tinha, o que precisava, e o que guardar.
+            </span>
+          </blockquote>
+          <p className="text-sm" style={{ color: 'var(--text-3)' }}>
+            Isso é mordomia. Isso é liderança familiar.
+          </p>
+        </div>
+      </section>
+
       {/* ── Features Section ── */}
       <section className="max-w-5xl mx-auto px-6 py-20">
         <h2 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 text-center mb-4">
@@ -138,20 +162,25 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA Section ── */}
-      <section className="py-16" style={{ background: 'var(--accent-ghost)' }}>
-        <div className="max-w-5xl mx-auto px-6 text-center">
+      <section className="py-20" style={{ background: 'var(--accent-ghost)' }}>
+        <div className="max-w-2xl mx-auto px-6 text-center">
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-4">
-            Pronto para começar?
+            Se você é o responsável pelas finanças da sua família, este é o momento.
           </h2>
-          <p className="text-stone-600 mb-8 max-w-md mx-auto">
-            Crie sua conta e tenha controle total das suas finanças em minutos.
+          <p className="text-stone-600 mb-10 max-w-lg mx-auto leading-relaxed">
+            Não amanhã. Não quando "organizar as contas primeiro".
+            <br />
+            Agora — porque cada mês sem controle é um mês que não volta.
           </p>
           <button
             onClick={() => navigate('/login')}
             className="btn-primary text-base px-8 py-3"
           >
-            Entrar no Celeiro
+            Quero começar agora &rarr;
           </button>
+          <p className="text-stone-400 text-xs mt-3">
+            Gratuito para começar — sem cartão de crédito
+          </p>
         </div>
       </section>
 
