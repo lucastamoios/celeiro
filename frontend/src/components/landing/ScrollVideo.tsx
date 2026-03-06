@@ -4,12 +4,34 @@ import { HeroComposition, TOTAL_FRAMES } from './HeroComposition';
 import { navigate } from '../../utils/navigation';
 
 const COMPOSITION_FPS = 30;
+const FRAME_DURATION = 1000 / COMPOSITION_FPS; // ~33ms per frame
+
+/**
+ * Each zone maps a scroll region to a target frame range.
+ * When the user scrolls into zone N, we autoplay from that zone's
+ * startFrame to its endFrame at real speed (30fps).
+ *
+ * Scroll thresholds are percentages of total scroll progress (0–1).
+ */
+const ZONES = [
+  { threshold: 0.0,  startFrame: 0,   endFrame: 54  },  // Ch1
+  { threshold: 0.2,  startFrame: 40,  endFrame: 109 },  // Ch2 (starts in crossfade)
+  { threshold: 0.4,  startFrame: 95,  endFrame: 164 },  // Ch3
+  { threshold: 0.6,  startFrame: 150, endFrame: 219 },  // Ch4
+  { threshold: 0.8,  startFrame: 205, endFrame: 279 },  // Closing
+];
 
 export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_props, ref) {
   const playerRef = useRef<PlayerRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const rafRef = useRef<number>(0);
   const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
+
+  // Animation state (refs to avoid re-renders)
+  const currentFrameRef = useRef(0);
+  const targetFrameRef = useRef(54);  // Ch1 endFrame
+  const animatingRef = useRef(false);
+  const lastTimeRef = useRef(0);
+  const activeZoneRef = useRef(0);
 
   useEffect(() => {
     const update = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -18,39 +40,88 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  const handleScroll = useCallback(() => {
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      const container = containerRef.current;
-      const player = playerRef.current;
-      if (!container || !player) return;
+  // Animation loop: advances frames at 30fps toward targetFrame
+  const animate = useCallback((timestamp: number) => {
+    if (!animatingRef.current) return;
 
-      const rect = container.getBoundingClientRect();
-      const scrollRoom = container.offsetHeight - window.innerHeight;
-      const scrolled = -rect.top;
-      const progress = Math.max(0, Math.min(1, scrolled / scrollRoom));
-      // Offset so Chapter 1 is already visible when container enters view
-      const INITIAL_FRAME = 15;
-      const frame = Math.round(INITIAL_FRAME + progress * (TOTAL_FRAMES - 1 - INITIAL_FRAME));
+    const elapsed = timestamp - lastTimeRef.current;
+    if (elapsed >= FRAME_DURATION) {
+      lastTimeRef.current = timestamp - (elapsed % FRAME_DURATION);
 
-      player.seekTo(frame);
-    });
+      const current = currentFrameRef.current;
+      const target = targetFrameRef.current;
+
+      if (current !== target) {
+        // Move one frame toward target
+        const next = current < target ? current + 1 : current - 1;
+        currentFrameRef.current = next;
+        playerRef.current?.seekTo(next);
+      }
+
+      // Stop animating when we reach the target
+      if (currentFrameRef.current === targetFrameRef.current) {
+        animatingRef.current = false;
+        return;
+      }
+    }
+
+    requestAnimationFrame(animate);
   }, []);
+
+  const startAnimation = useCallback((targetFrame: number) => {
+    targetFrameRef.current = targetFrame;
+
+    if (!animatingRef.current) {
+      animatingRef.current = true;
+      lastTimeRef.current = performance.now();
+      requestAnimationFrame(animate);
+    }
+  }, [animate]);
+
+  // Scroll handler: determines which zone we're in
+  const handleScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const scrollRoom = container.offsetHeight - window.innerHeight;
+    const scrolled = -rect.top;
+    const progress = Math.max(0, Math.min(1, scrolled / scrollRoom));
+
+    // Find the active zone (last zone whose threshold we've passed)
+    let zoneIndex = 0;
+    for (let i = ZONES.length - 1; i >= 0; i--) {
+      if (progress >= ZONES[i].threshold) {
+        zoneIndex = i;
+        break;
+      }
+    }
+
+    // Only trigger when zone changes
+    if (zoneIndex !== activeZoneRef.current) {
+      activeZoneRef.current = zoneIndex;
+      const zone = ZONES[zoneIndex];
+
+      // If scrolling forward, play to the zone's end frame
+      // If scrolling backward, play to the zone's start frame
+      const goingForward = zone.endFrame > currentFrameRef.current;
+      startAnimation(goingForward ? zone.endFrame : zone.startFrame);
+    }
+  }, [startAnimation]);
 
   useEffect(() => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      cancelAnimationFrame(rafRef.current);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
+  // Start at frame 15 so Ch1 is already visible
   useEffect(() => {
     playerRef.current?.pause();
+    playerRef.current?.seekTo(15);
+    currentFrameRef.current = 15;
   }, []);
 
-  // Shorter container = faster scroll pacing; initial frame offset ensures Ch1 is visible on entry
   return (
     <div
       ref={(el) => {
@@ -58,7 +129,7 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
         if (typeof ref === 'function') ref(el);
         else if (ref) ref.current = el;
       }}
-      style={{ height: '250vh', position: 'relative' }}
+      style={{ height: '350vh', position: 'relative' }}
     >
       <div
         style={{
