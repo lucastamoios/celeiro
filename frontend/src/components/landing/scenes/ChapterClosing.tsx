@@ -5,26 +5,26 @@ export function ChapterClosing() {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const textOpacity = interpolate(frame, [10, 30], [0, 1], {
+  const textOpacity = interpolate(frame, [8, 22], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-  const textY = interpolate(frame, [10, 30], [20, 0], {
+  const textY = interpolate(frame, [8, 22], [15, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
-  const ruleOpacity = interpolate(frame, [5, 20], [0, 0.6], {
+  const ruleOpacity = interpolate(frame, [4, 14], [0, 0.6], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
   const ctaScale = spring({
-    frame: frame - 45,
+    frame: frame - 30,
     fps,
     config: { damping: 10, stiffness: 120 },
   });
-  const ctaOpacity = interpolate(frame, [45, 55], [0, 1], {
+  const ctaOpacity = interpolate(frame, [30, 38], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });

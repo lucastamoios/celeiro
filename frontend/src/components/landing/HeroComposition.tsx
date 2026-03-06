@@ -6,35 +6,35 @@ import { Chapter4Generosity } from './scenes/Chapter4Generosity';
 import { ChapterClosing } from './scenes/ChapterClosing';
 
 /**
- * Frame map:
- *   0–110   Chapter 1: O problema (messy transactions)
- * 110–220   Chapter 2: A visão (organized + categories)
- * 220–330   Chapter 3: O casamento (dashboard pacing)
- * 330–440   Chapter 4: A generosidade (savings goals)
- * 440–520   Closing (tagline + CTA)
+ * Frame map (overlapping sequences for crossfade):
+ *   0–70   Chapter 1: O problema
+ *  55–125  Chapter 2: A visão       (15-frame overlap with Ch1)
+ * 110–180  Chapter 3: O casamento   (15-frame overlap with Ch2)
+ * 165–235  Chapter 4: A generosidade (15-frame overlap with Ch3)
+ * 220–280  Closing                   (15-frame overlap with Ch4)
  */
-export const TOTAL_FRAMES = 520;
+export const TOTAL_FRAMES = 280;
 
 export function HeroComposition() {
   return (
     <AbsoluteFill style={{ background: '#F6F1E9' }}>
-      <Sequence from={0} durationInFrames={110}>
+      <Sequence from={0} durationInFrames={70}>
         <Chapter1Problem />
       </Sequence>
 
-      <Sequence from={110} durationInFrames={110}>
+      <Sequence from={55} durationInFrames={70}>
         <Chapter2Vision />
       </Sequence>
 
-      <Sequence from={220} durationInFrames={110}>
+      <Sequence from={110} durationInFrames={70}>
         <Chapter3Marriage />
       </Sequence>
 
-      <Sequence from={330} durationInFrames={110}>
+      <Sequence from={165} durationInFrames={70}>
         <Chapter4Generosity />
       </Sequence>
 
-      <Sequence from={440} durationInFrames={80}>
+      <Sequence from={220} durationInFrames={60}>
         <ChapterClosing />
       </Sequence>
     </AbsoluteFill>

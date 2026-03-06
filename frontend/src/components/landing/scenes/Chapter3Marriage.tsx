@@ -14,24 +14,22 @@ const PACING_ITEMS = [
 export function Chapter3Marriage() {
   const frame = useCurrentFrame();
 
-  // Summary card fades in first
-  const cardOpacity = interpolate(frame, [20, 35], [0, 1], {
+  const cardOpacity = interpolate(frame, [10, 20], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
-  // Status badge
-  const badgeOpacity = interpolate(frame, [60, 75], [0, 1], {
+  const badgeOpacity = interpolate(frame, [40, 48], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
   return (
-    <AbsoluteFill style={{ background: '#F6F1E9' }}>
-      <SceneTransition startFrame={0} endFrame={110} fadeInDuration={20} fadeOutDuration={15}>
+    <AbsoluteFill>
+      <SceneTransition startFrame={0} endFrame={70} fadeInDuration={12} fadeOutDuration={15} direction="up" slideDistance={30}>
         <SplitLayout
           left={
-            <SceneTransition startFrame={10} endFrame={95} direction="left" fadeOutDuration={15}>
+            <SceneTransition startFrame={5} endFrame={55} direction="left" fadeInDuration={10} fadeOutDuration={12}>
               <div style={{ padding: '0 8px' }}>
                 <p
                   style={{
@@ -50,7 +48,7 @@ export function Chapter3Marriage() {
             </SceneTransition>
           }
           right={
-            <SceneTransition startFrame={20} endFrame={95} direction="right" fadeOutDuration={15}>
+            <SceneTransition startFrame={8} endFrame={55} direction="right" fadeInDuration={10} fadeOutDuration={12}>
               <BrowserFrame>
                 {/* Summary card */}
                 <div
@@ -70,21 +68,21 @@ export function Chapter3Marriage() {
                     <span style={{ color: '#6B5744' }}>Receitas</span>
                     <span style={{ color: '#5A8A4A', fontWeight: 600 }}>R$&nbsp;8.200</span>
                   </div>
-                  <ProgressBar startFrame={30} duration={25} progress={1} color="#5A8A4A" height={8} />
+                  <ProgressBar startFrame={15} duration={18} progress={1} color="#5A8A4A" height={8} />
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 6, marginTop: 10 }}>
                     <span style={{ color: '#6B5744' }}>Despesas</span>
                     <span style={{ color: '#C4453A', fontWeight: 600 }}>R$&nbsp;6.430</span>
                   </div>
-                  <ProgressBar startFrame={35} duration={25} progress={0.78} color="#D4722A" height={8} />
+                  <ProgressBar startFrame={18} duration={18} progress={0.78} color="#D4722A" height={8} />
                 </div>
 
                 {/* Budget pacing rows */}
                 {PACING_ITEMS.map((item, i) => {
-                  const rowDelay = 40 + i * 10;
+                  const rowDelay = 22 + i * 6;
                   const rowOpacity = interpolate(
                     frame,
-                    [rowDelay, rowDelay + 10],
+                    [rowDelay, rowDelay + 8],
                     [0, 1],
                     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
                   );
@@ -98,8 +96,8 @@ export function Chapter3Marriage() {
                         </span>
                       </div>
                       <ProgressBar
-                        startFrame={rowDelay + 5}
-                        duration={20}
+                        startFrame={rowDelay + 3}
+                        duration={15}
                         progress={item.progress}
                         color="#5A8A4A"
                         height={8}

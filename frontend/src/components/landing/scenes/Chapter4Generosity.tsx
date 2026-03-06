@@ -35,23 +35,22 @@ export function Chapter4Generosity() {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // "Concluído" badge pops on the dízimo goal
   const completedScale = spring({
-    frame: frame - 65,
+    frame: frame - 40,
     fps,
     config: { damping: 10, stiffness: 150 },
   });
-  const completedOpacity = interpolate(frame, [62, 68], [0, 1], {
+  const completedOpacity = interpolate(frame, [38, 43], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
   return (
-    <AbsoluteFill style={{ background: '#F6F1E9' }}>
-      <SceneTransition startFrame={0} endFrame={110} fadeInDuration={20} fadeOutDuration={15}>
+    <AbsoluteFill>
+      <SceneTransition startFrame={0} endFrame={70} fadeInDuration={12} fadeOutDuration={15} direction="up" slideDistance={30}>
         <SplitLayout
           left={
-            <SceneTransition startFrame={10} endFrame={95} direction="left" fadeOutDuration={15}>
+            <SceneTransition startFrame={5} endFrame={55} direction="left" fadeInDuration={10} fadeOutDuration={12}>
               <div style={{ padding: '0 8px' }}>
                 <p
                   style={{
@@ -83,17 +82,17 @@ export function Chapter4Generosity() {
             </SceneTransition>
           }
           right={
-            <SceneTransition startFrame={20} endFrame={95} direction="right" fadeOutDuration={15}>
+            <SceneTransition startFrame={8} endFrame={55} direction="right" fadeInDuration={10} fadeOutDuration={12}>
               <BrowserFrame>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {GOALS.map((goal, i) => {
-                    const cardDelay = 25 + i * 14;
+                    const cardDelay = 12 + i * 8;
                     const cardSpring = spring({
                       frame: frame - cardDelay,
                       fps,
                       config: { damping: 12, stiffness: 100 },
                     });
-                    const cardOpacity = interpolate(frame, [cardDelay, cardDelay + 8], [0, 1], {
+                    const cardOpacity = interpolate(frame, [cardDelay, cardDelay + 6], [0, 1], {
                       extrapolateLeft: 'clamp',
                       extrapolateRight: 'clamp',
                     });
@@ -133,16 +132,16 @@ export function Chapter4Generosity() {
                           )}
                         </div>
                         <ProgressBar
-                          startFrame={cardDelay + 8}
-                          duration={25}
+                          startFrame={cardDelay + 5}
+                          duration={18}
                           progress={goal.progress}
                           color={goal.completed ? '#5A8A4A' : '#C6943A'}
                           height={8}
                         />
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: '#6B5744' }}>
                           <AnimatedNumber
-                            startFrame={cardDelay + 8}
-                            duration={25}
+                            startFrame={cardDelay + 5}
+                            duration={18}
                             to={goal.current}
                             style={{ fontWeight: 600 }}
                           />

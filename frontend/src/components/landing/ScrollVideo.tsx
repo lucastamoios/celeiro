@@ -30,7 +30,7 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
       const scrolled = -rect.top;
       const progress = Math.max(0, Math.min(1, scrolled / scrollRoom));
       // Offset so Chapter 1 is already visible when container enters view
-      const INITIAL_FRAME = 25;
+      const INITIAL_FRAME = 15;
       const frame = Math.round(INITIAL_FRAME + progress * (TOTAL_FRAMES - 1 - INITIAL_FRAME));
 
       player.seekTo(frame);
@@ -58,7 +58,7 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
         if (typeof ref === 'function') ref(el);
         else if (ref) ref.current = el;
       }}
-      style={{ height: '380vh', position: 'relative' }}
+      style={{ height: '250vh', position: 'relative' }}
     >
       <div
         style={{

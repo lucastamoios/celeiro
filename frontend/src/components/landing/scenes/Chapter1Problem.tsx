@@ -17,11 +17,11 @@ export function Chapter1Problem() {
   const frame = useCurrentFrame();
 
   return (
-    <AbsoluteFill style={{ background: '#F6F1E9' }}>
-      <SceneTransition startFrame={0} endFrame={110} fadeInDuration={20} fadeOutDuration={15}>
+    <AbsoluteFill>
+      <SceneTransition startFrame={0} endFrame={70} fadeInDuration={12} fadeOutDuration={15} direction="up" slideDistance={30}>
         <SplitLayout
           left={
-            <SceneTransition startFrame={10} endFrame={95} direction="left" fadeOutDuration={15}>
+            <SceneTransition startFrame={5} endFrame={55} direction="left" fadeInDuration={10} fadeOutDuration={12}>
               <div style={{ padding: '0 8px' }}>
                 <p
                   style={{
@@ -41,7 +41,6 @@ export function Chapter1Problem() {
                     fontSize: 14,
                     color: '#6B5744',
                     lineHeight: 1.6,
-                    marginTop: 16,
                     margin: 0,
                     paddingTop: 16,
                   }}
@@ -52,14 +51,14 @@ export function Chapter1Problem() {
             </SceneTransition>
           }
           right={
-            <SceneTransition startFrame={20} endFrame={95} direction="right" fadeOutDuration={15}>
+            <SceneTransition startFrame={8} endFrame={55} direction="right" fadeInDuration={10} fadeOutDuration={12}>
               <BrowserFrame>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {TRANSACTIONS.map((tx, i) => {
-                    const rowDelay = 20 + i * 4;
+                    const rowDelay = 8 + i * 3;
                     const rowOpacity = interpolate(
                       frame,
-                      [rowDelay, rowDelay + 8],
+                      [rowDelay, rowDelay + 6],
                       [0, 1],
                       { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
                     );
@@ -83,13 +82,7 @@ export function Chapter1Problem() {
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ color: '#8B7355', fontSize: 10 }}>{tx.date}</span>
-                            <span
-                              style={{
-                                fontStyle: 'italic',
-                                color: '#8B7355',
-                                fontSize: 10,
-                              }}
-                            >
+                            <span style={{ fontStyle: 'italic', color: '#8B7355', fontSize: 10 }}>
                               Sem categoria
                             </span>
                           </div>

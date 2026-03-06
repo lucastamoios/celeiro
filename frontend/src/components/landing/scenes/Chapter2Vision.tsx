@@ -26,18 +26,17 @@ const TRANSACTIONS = [
 export function Chapter2Vision() {
   const frame = useCurrentFrame();
 
-  // Badge "Classificação automática" fades in late
-  const badgeOpacity = interpolate(frame, [65, 80], [0, 1], {
+  const badgeOpacity = interpolate(frame, [40, 50], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
   return (
-    <AbsoluteFill style={{ background: '#F6F1E9' }}>
-      <SceneTransition startFrame={0} endFrame={110} fadeInDuration={20} fadeOutDuration={15}>
+    <AbsoluteFill>
+      <SceneTransition startFrame={0} endFrame={70} fadeInDuration={12} fadeOutDuration={15} direction="up" slideDistance={30}>
         <SplitLayout
           left={
-            <SceneTransition startFrame={10} endFrame={95} direction="left" fadeOutDuration={15}>
+            <SceneTransition startFrame={5} endFrame={55} direction="left" fadeInDuration={10} fadeOutDuration={12}>
               <div style={{ padding: '0 8px' }}>
                 <p
                   style={{
@@ -56,7 +55,7 @@ export function Chapter2Vision() {
             </SceneTransition>
           }
           right={
-            <SceneTransition startFrame={20} endFrame={95} direction="right" fadeOutDuration={15}>
+            <SceneTransition startFrame={8} endFrame={55} direction="right" fadeInDuration={10} fadeOutDuration={12}>
               <BrowserFrame>
                 {/* Summary bar */}
                 <div
@@ -78,11 +77,10 @@ export function Chapter2Vision() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {TRANSACTIONS.map((tx, i) => {
-                    // Categories appear one by one, staggered
-                    const catDelay = 30 + i * 6;
+                    const catDelay = 12 + i * 4;
                     const catOpacity = interpolate(
                       frame,
-                      [catDelay, catDelay + 10],
+                      [catDelay, catDelay + 8],
                       [0, 1],
                       { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
                     );
@@ -120,13 +118,7 @@ export function Chapter2Vision() {
                 </div>
 
                 {/* Auto-classification badge */}
-                <div
-                  style={{
-                    opacity: badgeOpacity,
-                    marginTop: 10,
-                    textAlign: 'center',
-                  }}
-                >
+                <div style={{ opacity: badgeOpacity, marginTop: 10, textAlign: 'center' }}>
                   <span
                     style={{
                       display: 'inline-block',
