@@ -15,8 +15,8 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-stone-900/40" />
         {/* Bottom-aligned branding */}
         <div className="relative z-10 flex flex-col justify-end p-12 pb-16 w-full">
-          <div className="flex items-center gap-3 mb-3">
-            <img src="/celeiro-wheat-v2.svg" alt="" className="w-10 h-10 brightness-0 invert" />
+          <div className="flex items-center gap-1.5 mb-3">
+            <img src="/celeiro-wheat-v3.svg" alt="" className="w-10 h-10 brightness-0 invert" />
             <span className="font-display text-4xl font-bold text-stone-50">Celeiro</span>
           </div>
           <p className="text-stone-200 text-lg max-w-sm">
@@ -28,8 +28,8 @@ export default function LoginPage() {
       {/* Right Panel — Login form */}
       <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-wheat-50 to-stone-100 p-6">
         {/* Mobile-only logo */}
-        <div className="lg:hidden flex items-center gap-2 mb-8">
-          <img src="/celeiro-wheat-v2.svg" alt="" className="w-8 h-8" />
+        <div className="lg:hidden flex items-center gap-1 mb-8">
+          <img src="/celeiro-wheat-v3.svg" alt="" className="w-8 h-8" />
           <span className="font-display text-2xl font-bold text-stone-900">Celeiro</span>
         </div>
 

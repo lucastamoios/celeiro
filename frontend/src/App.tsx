@@ -190,9 +190,9 @@ function AppContent() {
                   }
                 }}
                 onAuxClick={handleAuxClick('dashboard')}
-                className="flex items-center gap-2 text-xl font-bold text-stone-900 hover:text-wheat-600 transition-colors"
+                className="flex items-center gap-1 text-xl font-bold text-stone-900 hover:text-wheat-600 transition-colors"
               >
-                <img src="/celeiro-wheat-v2.svg" alt="Celeiro" className="w-6 h-6" />
+                <img src="/celeiro-wheat-v3.svg" alt="Celeiro" className="w-6 h-6" />
                 <span>Celeiro</span>
               </button>
               {/* Desktop Navigation - Hidden on mobile/tablet */}
