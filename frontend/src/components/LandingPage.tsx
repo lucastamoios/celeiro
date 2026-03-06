@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { PieChart, Zap, CalendarCheck, Target } from 'lucide-react';
 import { navigate } from '../utils/navigation';
+import { ScrollVideo } from './landing/ScrollVideo';
 
 const features = [
   {
@@ -25,41 +27,90 @@ const features = [
 ];
 
 export default function LandingPage() {
+  const scrollVideoRef = useRef<HTMLDivElement>(null);
+
+  const scrollToDemo = () => {
+    scrollVideoRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen bg-stone-100">
-      {/* Hero Section */}
-      <section className="relative min-h-[70vh] flex items-start">
-        {/* Background image */}
+    <div className="min-h-screen" style={{ background: 'var(--bg-0)' }}>
+      {/* ── Hero Section — Full screen, dark, static ── */}
+      <section
+        className="relative min-h-screen flex items-center justify-center"
+        style={{ overflow: 'hidden' }}
+      >
+        {/* Wheat field background */}
         <img
           src="/images/wheat-field.webp"
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
+          style={{ zIndex: 0 }}
         />
-        {/* Gradient overlay: dark at top for readability, fading to page bg */}
-        <div className="absolute inset-0 bg-gradient-to-b from-stone-900/60 via-stone-900/30 to-stone-100" />
+        {/* Dark overlay */}
+        <div
+          className="absolute inset-0"
+          style={{ background: 'rgba(28,25,23,0.70)', zIndex: 1 }}
+        />
 
-        {/* Hero content — positioned in top negative space */}
-        <div className="relative z-10 w-full max-w-5xl mx-auto px-6 pt-16 sm:pt-24">
-          <div className="flex items-center gap-3 mb-6">
-            <img src="/celeiro-wheat-v2.svg" alt="" className="w-10 h-10 brightness-0 invert" />
-            <span className="font-display text-3xl font-bold text-stone-50">Celeiro</span>
-          </div>
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-stone-50 max-w-2xl leading-tight mb-4">
-            Suas finanças com clareza e propósito
-          </h1>
-          <p className="text-stone-200 text-lg sm:text-xl max-w-lg mb-8">
-            Organize orçamentos, acompanhe gastos e alcance suas metas — tudo em um só lugar.
-          </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="btn-primary text-base px-8 py-3"
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-2xl">
+          {/* Badge */}
+          <span
+            className="inline-block mb-6 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase"
+            style={{
+              background: 'rgba(198,148,58,0.15)',
+              color: '#C6943A',
+              border: '1px solid rgba(198,148,58,0.25)',
+            }}
           >
-            Começar agora
-          </button>
+            Gestão financeira familiar
+          </span>
+
+          {/* Headline */}
+          <h1
+            className="font-display font-bold text-white leading-tight mb-6"
+            style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)' }}
+          >
+            Você trabalha para sustentar sua família.
+            <br />
+            <span style={{ color: '#C6943A' }}>Mas quem cuida do que você ganhou?</span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-stone-300 text-base sm:text-lg leading-relaxed max-w-xl mb-10">
+            A maioria ganha o suficiente para uma vida boa.
+            <br />
+            O problema não é o salário — é não ter visão clara do que foi confiado a você.
+          </p>
+
+          {/* CTA buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => navigate('/login')}
+              className="btn-primary text-base px-8 py-3"
+            >
+              Começar a cuidar da minha família &rarr;
+            </button>
+            <button
+              onClick={scrollToDemo}
+              className="px-8 py-3 rounded-warm text-base font-semibold transition-colors"
+              style={{
+                color: '#FAFAF9',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
+              }}
+            >
+              Ver como funciona &darr;
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* ── Scroll-driven Remotion chapters ── */}
+      <ScrollVideo ref={scrollVideoRef} />
+
+      {/* ── Features Section ── */}
       <section className="max-w-5xl mx-auto px-6 py-20">
         <h2 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 text-center mb-4">
           Tudo que você precisa
@@ -86,7 +137,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* ── CTA Section ── */}
       <section className="py-16" style={{ background: 'var(--accent-ghost)' }}>
         <div className="max-w-5xl mx-auto px-6 text-center">
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-4">
@@ -104,7 +155,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* ── Footer ── */}
       <footer className="py-8 text-center">
         <p className="text-stone-400 text-sm">
           Celeiro — Gestão financeira pessoal
