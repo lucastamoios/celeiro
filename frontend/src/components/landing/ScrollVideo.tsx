@@ -1,27 +1,15 @@
-import { useRef, useEffect, useState, forwardRef } from 'react';
+import { useRef, useEffect, useCallback, useState, forwardRef } from 'react';
 import { Player, type PlayerRef } from '@remotion/player';
 import { HeroComposition, TOTAL_FRAMES } from './HeroComposition';
 import { navigate } from '../../utils/navigation';
 
 const COMPOSITION_FPS = 30;
-const FRAME_DURATION = 1000 / COMPOSITION_FPS;
 
-/**
- * Scroll-triggered autoplay.
- *
- * When the container enters the viewport, the animation plays from
- * start to finish at 30fps. When complete, the page scrolls past
- * the section. The user can still scroll away manually at any time.
- */
 export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_props, ref) {
   const playerRef = useRef<PlayerRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
   const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
-
-  const currentFrameRef = useRef(0);
-  const animatingRef = useRef(false);
-  const startedRef = useRef(false);
-  const lastTimeRef = useRef(0);
 
   useEffect(() => {
     const update = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -30,70 +18,39 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  const scrollPastContainer = () => {
-    const container = containerRef.current;
-    if (!container) return;
-    const bottom = container.getBoundingClientRect().top + window.scrollY + container.offsetHeight;
-    window.scrollTo({ top: bottom, behavior: 'smooth' });
-  };
+  const handleScroll = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      const container = containerRef.current;
+      const player = playerRef.current;
+      if (!container || !player) return;
 
-  const animate = (timestamp: number) => {
-    if (!animatingRef.current) return;
+      const rect = container.getBoundingClientRect();
+      const scrollRoom = container.offsetHeight - window.innerHeight;
+      const scrolled = -rect.top;
+      const progress = Math.max(0, Math.min(1, scrolled / scrollRoom));
+      // Offset so Chapter 1 is already visible when container enters view
+      const INITIAL_FRAME = 15;
+      const frame = Math.round(INITIAL_FRAME + progress * (TOTAL_FRAMES - 1 - INITIAL_FRAME));
 
-    const elapsed = timestamp - lastTimeRef.current;
-    if (elapsed >= FRAME_DURATION) {
-      lastTimeRef.current = timestamp - (elapsed % FRAME_DURATION);
-
-      const next = currentFrameRef.current + 1;
-      if (next >= TOTAL_FRAMES) {
-        // Animation complete — scroll past
-        animatingRef.current = false;
-        setTimeout(scrollPastContainer, 600);
-        return;
-      }
-
-      currentFrameRef.current = next;
-      playerRef.current?.seekTo(next);
-    }
-
-    requestAnimationFrame(animate);
-  };
-
-  const startPlayback = () => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    animatingRef.current = true;
-    lastTimeRef.current = performance.now();
-    requestAnimationFrame(animate);
-  };
-
-  // Trigger playback when container enters viewport
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          startPlayback();
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    observer.observe(container);
-    return () => observer.disconnect();
+      player.seekTo(frame);
+    });
   }, []);
 
-  // Start paused at frame 0
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [handleScroll]);
+
   useEffect(() => {
     playerRef.current?.pause();
-    playerRef.current?.seekTo(0);
   }, []);
 
-  // Container just needs enough height to keep the sticky visible during playback
-  // 280 frames at 30fps ≈ 9.3s of animation. At typical scroll speed, 200vh is plenty.
+  // Shorter container = faster scroll pacing; initial frame offset ensures Ch1 is visible on entry
   return (
     <div
       ref={(el) => {
@@ -101,7 +58,7 @@ export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_prop
         if (typeof ref === 'function') ref(el);
         else if (ref) ref.current = el;
       }}
-      style={{ height: '200vh', position: 'relative' }}
+      style={{ height: '250vh', position: 'relative' }}
     >
       <div
         style={{
