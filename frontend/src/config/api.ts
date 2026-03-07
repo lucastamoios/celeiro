@@ -8,8 +8,10 @@ export const API_CONFIG = {
   baseURL: API_BASE_URL,
   endpoints: {
     auth: {
+      register: '/auth/register',
       request: '/auth/request/',
       validate: '/auth/validate/',
+      google: '/auth/google/',
       password: '/auth/password/',
       passwordResetRequest: '/auth/password/reset/request',
       passwordReset: '/auth/password/reset',

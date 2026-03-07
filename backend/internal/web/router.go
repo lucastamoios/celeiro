@@ -34,6 +34,7 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 
 	// Auth
 	// Allow requesting a magic code for both existing and new users (auto-registration happens on validate)
+	r.Post("/auth/register", ah.Register)
 	r.Post("/auth/request/", ah.RequestMagicLink)
 	r.Post("/auth/validate/", ah.Authenticate)
 	r.Post("/auth/google/", ah.AuthenticateWithGoogle)

@@ -19,6 +19,7 @@ import (
 )
 
 type AccountsAuth interface {
+	Register(ctx context.Context, input SelfRegisterInput) (Authentication, error)
 	AuthenticateWithMagicCode(ctx context.Context, input AuthenticateWithMagicCodeInput) (Authentication, error)
 	RequestMagicLinkViaEmail(ctx context.Context, input RequestMagicLinkViaEmailInput) (RequestMagicLinkViaEmailOutput, error)
 	AuthenticateWithGoogle(ctx context.Context, input AuthenticateWithGoogleInput) (Authentication, error)
@@ -88,6 +89,103 @@ func (s *service) AuthenticateWithMagicCode(ctx context.Context, params Authenti
 
 // TODO: To re-enable auto-registration for magic link, restore the original
 // AuthenticateWithMagicCode that creates new users when they don't exist.
+
+// Register creates a new user account with password (public self-registration).
+func (s *service) Register(ctx context.Context, params SelfRegisterInput) (Authentication, error) {
+	if params.Name == "" {
+		return Authentication{}, errors.New("name is required")
+	}
+	if params.Email == "" || !validators.IsValidEmail(params.Email) {
+		return Authentication{}, errors.New("valid email is required")
+	}
+	if len(params.Password) < MinPasswordLength {
+		return Authentication{}, fmt.Errorf("password must be at least %d characters", MinPasswordLength)
+	}
+
+	if err := s.verifyRecaptcha(params.RecaptchaToken); err != nil {
+		return Authentication{}, internalerrors.ErrRecaptchaFailed
+	}
+
+	// Check if user already exists
+	_, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{Email: params.Email})
+	if err == nil {
+		return Authentication{}, internalerrors.ErrUserAlreadyExists
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return Authentication{}, err
+	}
+
+	hashedPassword, err := hashPassword(params.Password)
+	if err != nil {
+		return Authentication{}, errors.Wrap(err, "failed to hash password")
+	}
+
+	var auth Authentication
+	err = s.db.Tx(ctx, func(ctx context.Context) error {
+		user, err := s.Repository.InsertUser(ctx, createUserParams{
+			Name:  params.Name,
+			Email: params.Email,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to create user")
+		}
+
+		if err := s.Repository.ModifyUserPassword(ctx, modifyUserPasswordParams{
+			UserID:       user.UserID,
+			PasswordHash: hashedPassword,
+		}); err != nil {
+			return errors.Wrap(err, "failed to set password")
+		}
+
+		org, err := s.Repository.InsertOrganization(ctx, insertOrganizationParams{
+			Name: "Finanças de " + params.Name,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to create organization")
+		}
+
+		_, err = s.Repository.InsertUserOrganization(ctx, createUserOrganizationParams{
+			UserID:         user.UserID,
+			OrganizationID: org.OrganizationID,
+			Role:           RoleAdmin,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to add user to organization")
+		}
+
+		if err := s.Repository.ModifyDefaultOrganization(ctx, modifyDefaultOrganizationParams{
+			UserID:         user.UserID,
+			OrganizationID: org.OrganizationID,
+		}); err != nil {
+			return errors.Wrap(err, "failed to set default organization")
+		}
+
+		orgsWithPermissions, err := s.Repository.FetchOrganizationsByUser(ctx, getOrganizationByUsersParams{
+			UserID: user.UserID,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to get user organizations")
+		}
+
+		userSession := SessionInfo{}.FromUserAndOrganizations(user, OrganizationsWithPermission{}.FromModel(orgsWithPermissions))
+		session, err := s.CreateSession(ctx, CreateSessionInput{Info: userSession})
+		if err != nil {
+			return errors.Wrap(err, "failed to create session")
+		}
+
+		auth = Authentication{
+			Session:   session,
+			IsNewUser: true,
+		}
+		return nil
+	})
+
+	if err != nil {
+		return Authentication{}, err
+	}
+
+	return auth, nil
+}
 
 // RequestMagicLinkViaEmail
 
@@ -302,7 +400,8 @@ func (a *service) generateCode() string {
 // AuthenticateWithGoogle
 
 type AuthenticateWithGoogleInput struct {
-	AccessToken string
+	AccessToken    string
+	RecaptchaToken string
 }
 
 type GoogleTokenInfo struct {
@@ -319,7 +418,6 @@ func (s *service) AuthenticateWithGoogle(ctx context.Context, params Authenticat
 		return Authentication{}, errors.New("access token is required")
 	}
 
-	// Validate the access token with Google
 	tokenInfo, err := s.validateGoogleToken(ctx, params.AccessToken)
 	if err != nil {
 		return Authentication{}, errors.Wrap(err, "failed to validate Google token")
@@ -329,17 +427,83 @@ func (s *service) AuthenticateWithGoogle(ctx context.Context, params Authenticat
 		return Authentication{}, errors.New("could not get email from Google token")
 	}
 
-	// Fetch user - auto-registration is disabled, user must exist
 	userModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
 		Email: tokenInfo.Email,
 	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Authentication{}, internalerrors.ErrInvalidCredentials
-		}
+
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return Authentication{}, err
 	}
 
+	isNewUser := errors.Is(err, sql.ErrNoRows)
+
+	if isNewUser {
+		// Verify reCAPTCHA only for new user registration
+		if err := s.verifyRecaptcha(params.RecaptchaToken); err != nil {
+			return Authentication{}, internalerrors.ErrRecaptchaFailed
+		}
+
+		var auth Authentication
+		txErr := s.db.Tx(ctx, func(ctx context.Context) error {
+			name := tokenInfo.Name
+			if name == "" {
+				name = tokenInfo.Email
+			}
+
+			newUser, err := s.Repository.InsertUser(ctx, createUserParams{
+				Name:  name,
+				Email: tokenInfo.Email,
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to create user")
+			}
+
+			org, err := s.Repository.InsertOrganization(ctx, insertOrganizationParams{
+				Name: "Finanças de " + name,
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to create organization")
+			}
+
+			_, err = s.Repository.InsertUserOrganization(ctx, createUserOrganizationParams{
+				UserID:         newUser.UserID,
+				OrganizationID: org.OrganizationID,
+				Role:           RoleAdmin,
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to add user to organization")
+			}
+
+			if err := s.Repository.ModifyDefaultOrganization(ctx, modifyDefaultOrganizationParams{
+				UserID:         newUser.UserID,
+				OrganizationID: org.OrganizationID,
+			}); err != nil {
+				return errors.Wrap(err, "failed to set default organization")
+			}
+
+			orgsWithPermissions, err := s.Repository.FetchOrganizationsByUser(ctx, getOrganizationByUsersParams{
+				UserID: newUser.UserID,
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to get user organizations")
+			}
+
+			userSession := SessionInfo{}.FromUserAndOrganizations(newUser, OrganizationsWithPermission{}.FromModel(orgsWithPermissions))
+			session, err := s.CreateSession(ctx, CreateSessionInput{Info: userSession})
+			if err != nil {
+				return errors.Wrap(err, "failed to create session")
+			}
+
+			auth = Authentication{Session: session, IsNewUser: true}
+			return nil
+		})
+		if txErr != nil {
+			return Authentication{}, txErr
+		}
+		return auth, nil
+	}
+
+	// Existing user — normal login
 	user := User{}.FromModel(&userModel)
 	organizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{
 		UserID: user.UserID,
@@ -349,22 +513,16 @@ func (s *service) AuthenticateWithGoogle(ctx context.Context, params Authenticat
 	}
 
 	userSession := SessionInfo{}.FromUserAndOrganizations(userModel, organizations)
-
-	session, err := s.CreateSession(ctx, CreateSessionInput{
-		Info: userSession,
-	})
+	session, err := s.CreateSession(ctx, CreateSessionInput{Info: userSession})
 	if err != nil {
 		return Authentication{}, err
 	}
 
 	return Authentication{
 		Session:   session,
-		IsNewUser: false, // Auto-registration disabled
+		IsNewUser: false,
 	}, nil
 }
-
-// TODO: To re-enable auto-registration for Google, restore the original
-// AuthenticateWithGoogle that creates new users when they don't exist.
 
 func (s *service) validateGoogleToken(ctx context.Context, accessToken string) (GoogleTokenInfo, error) {
 	// Use Google's userinfo endpoint to validate the token and get user info

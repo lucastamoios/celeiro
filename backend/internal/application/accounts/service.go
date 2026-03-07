@@ -50,13 +50,14 @@ type Service interface {
 }
 
 type service struct {
-	Repository  Repository
-	transientDB transientdb.TransientDatabase
-	mailer      mailer.Mailer
-	system      *system.System
-	logger      logging.Logger
-	db          database.Database
-	frontendURL string
+	Repository         Repository
+	transientDB        transientdb.TransientDatabase
+	mailer             mailer.Mailer
+	system             *system.System
+	logger             logging.Logger
+	db                 database.Database
+	frontendURL        string
+	recaptchaSecretKey string
 }
 
 func New(
@@ -69,13 +70,14 @@ func New(
 	cfg *config.Config,
 ) Service {
 	return &service{
-		Repository:  repo,
-		transientDB: transientDB,
-		mailer:      mailer,
-		system:      system,
-		db:          db,
-		logger:      logger,
-		frontendURL: cfg.FrontendURL,
+		Repository:         repo,
+		transientDB:        transientDB,
+		mailer:             mailer,
+		system:             system,
+		db:                 db,
+		logger:             logger,
+		frontendURL:        cfg.FrontendURL,
+		recaptchaSecretKey: cfg.RecaptchaSecretKey,
 	}
 }
 

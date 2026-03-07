@@ -31,7 +31,8 @@ type Config struct {
 	Resend            ResendConfig
 	FrontendURL       string // Base URL for frontend (used in email links)
 	MailDomain        string // Domain for inbound email parsing (e.g., "laguiar.dev")
-	GoogleOAuth       GoogleOAuthConfig
+	GoogleOAuth        GoogleOAuthConfig
+	RecaptchaSecretKey string
 }
 
 type GoogleOAuthConfig struct {
@@ -82,6 +83,7 @@ func New() *Config {
 	frontendURL := flag.String("frontend-url", getEnvAsString("FRONTEND_URL", "http://localhost:51111"), "Frontend base URL for email links")
 	mailDomain := flag.String("mail-domain", getEnvAsString("MAIL_DOMAIN", "laguiar.dev"), "Domain for inbound email parsing")
 	googleClientID := flag.String("google-client-id", getEnvAsString("GOOGLE_CLIENT_ID", ""), "Google OAuth Client ID")
+	recaptchaSecretKey := flag.String("recaptcha-secret-key", getEnvAsString("RECAPTCHA_SECRET_KEY", ""), "reCAPTCHA v3 secret key")
 
 	flag.Parse()
 
@@ -118,6 +120,7 @@ func New() *Config {
 		GoogleOAuth: GoogleOAuthConfig{
 			ClientID: *googleClientID,
 		},
+		RecaptchaSecretKey: *recaptchaSecretKey,
 	}
 }
 

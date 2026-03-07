@@ -32,6 +32,58 @@ export interface SetPasswordResponse {
 }
 
 /**
+ * Register a new account with name, email, password and reCAPTCHA token
+ */
+export async function register(
+  name: string,
+  email: string,
+  password: string,
+  recaptchaToken: string
+): Promise<AuthResponse> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}${API_CONFIG.endpoints.auth.register}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, recaptcha_token: recaptchaToken }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha ao criar conta');
+  }
+
+  const result: ApiResponse<AuthResponse> = await response.json();
+  return result.data;
+}
+
+/**
+ * Login with Google OAuth access token
+ */
+export async function loginWithGoogle(
+  accessToken: string,
+  recaptchaToken: string
+): Promise<AuthResponse> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}${API_CONFIG.endpoints.auth.google}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: accessToken, recaptcha_token: recaptchaToken }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha na autenticação com Google');
+  }
+
+  const result: ApiResponse<AuthResponse> = await response.json();
+  return result.data;
+}
+
+/**
  * Login with email and password
  */
 export async function loginWithPassword(

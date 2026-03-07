@@ -15,6 +15,7 @@ import (
 )
 
 type AccountsAuthHandler interface {
+	Register(w http.ResponseWriter, r *http.Request)
 	RequestMagicLink(w http.ResponseWriter, r *http.Request)
 	RequestMagicLinkForExistingUser(w http.ResponseWriter, r *http.Request)
 	Authenticate(w http.ResponseWriter, r *http.Request)
@@ -23,6 +24,76 @@ type AccountsAuthHandler interface {
 	SetPassword(w http.ResponseWriter, r *http.Request)
 	RequestPasswordReset(w http.ResponseWriter, r *http.Request)
 	ResetPassword(w http.ResponseWriter, r *http.Request)
+}
+
+// Register
+
+type RegisterRequest struct {
+	Name           string `json:"name"`
+	Email          string `json:"email"`
+	Password       string `json:"password"`
+	RecaptchaToken string `json:"recaptcha_token"`
+}
+
+func (r *RegisterRequest) Validate() error {
+	if strings.TrimSpace(r.Name) == "" {
+		return errors.ErrMissingRequiredFields
+	}
+	if strings.TrimSpace(r.Email) == "" {
+		return errors.ErrEmailRequired
+	}
+	if !validators.IsValidEmail(r.Email) {
+		return errors.ErrEmailFormatInvalid
+	}
+	if len(r.Password) < accounts.MinPasswordLength {
+		return errors.ErrInvalidFormat
+	}
+	return nil
+}
+
+func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
+	var req RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	authResult, err := h.accountsService.Register(r.Context(), accounts.SelfRegisterInput{
+		Name:           req.Name,
+		Email:          req.Email,
+		Password:       req.Password,
+		RecaptchaToken: req.RecaptchaToken,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	// Create a default financial account for the new user
+	if authResult.IsNewUser && len(authResult.Session.Info.Organizations) > 0 {
+		userID := authResult.Session.Info.User.ID
+		orgID := authResult.Session.Info.Organizations[0].OrganizationID
+
+		if _, err := h.financialService.CreateAccount(r.Context(), financial.CreateAccountInput{
+			UserID:         userID,
+			OrganizationID: orgID,
+			Name:           "Conta Principal",
+			AccountType:    "checking",
+			BankName:       "Meu Banco",
+			Balance:        decimal.Zero,
+			Currency:       "BRL",
+		}); err != nil {
+			log.Printf("[WARN] failed to create default account for new user (register): user_id=%d org_id=%d error=%v", userID, orgID, err)
+		}
+	}
+
+	response := AuthenticateResponse{}.FromDTO(authResult)
+	responses.NewSuccess(response, w)
 }
 
 // RequestMagicLink
@@ -193,7 +264,8 @@ func (h *handler) Authenticate(w http.ResponseWriter, r *http.Request) {
 // AuthenticateWithGoogle
 
 type GoogleAuthRequest struct {
-	AccessToken string `json:"access_token"`
+	AccessToken    string `json:"access_token"`
+	RecaptchaToken string `json:"recaptcha_token"`
 }
 
 func (r *GoogleAuthRequest) Validate() error {
@@ -216,7 +288,8 @@ func (h *handler) AuthenticateWithGoogle(w http.ResponseWriter, r *http.Request)
 	}
 
 	authResult, err := h.accountsService.AuthenticateWithGoogle(r.Context(), accounts.AuthenticateWithGoogleInput{
-		AccessToken: req.AccessToken,
+		AccessToken:    req.AccessToken,
+		RecaptchaToken: req.RecaptchaToken,
 	})
 	if err != nil {
 		responses.NewError(w, err)

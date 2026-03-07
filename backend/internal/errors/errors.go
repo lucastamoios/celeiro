@@ -23,6 +23,7 @@ var (
 	ErrInviteExpired         = pkgerrors.New("invite has expired")
 	ErrInviteAlreadyAccepted = pkgerrors.New("invite has already been accepted")
 	ErrInvalidToken          = pkgerrors.New("invalid or expired token")
+	ErrRecaptchaFailed       = pkgerrors.New("recaptcha verification failed")
 
 	// Transaction pattern draft errors
 	ErrTransactionCategoryRequired    = pkgerrors.New("transaction has no category")

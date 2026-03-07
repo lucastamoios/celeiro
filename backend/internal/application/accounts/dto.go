@@ -252,6 +252,14 @@ func (o OrganizationMembers) FromModel(models []OrganizationMemberModel) Organiz
 	return members
 }
 
+// SelfRegisterInput is the input for public self-registration (no invite needed).
+type SelfRegisterInput struct {
+	Name           string
+	Email          string
+	Password       string
+	RecaptchaToken string
+}
+
 // SystemUser represents a user in the backoffice system view
 type SystemUser struct {
 	UserID        int
