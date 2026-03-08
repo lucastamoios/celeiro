@@ -172,15 +172,19 @@ export default function MonthlyBudgetCard({
   const hasUnconsolidatedBudgets = budgetArray.some(b => !b.IsConsolidated);
   const canConsolidateMonth = monthHasEnded && hasUnconsolidatedBudgets && budgetArray.length > 0;
 
-  const totalPlanned = expenseBudgets.reduce((sum, b) => {
+  const totalControlled = expenseBudgets.reduce((sum, b) => {
     const val = parseFloat(b.ControlledAmount || '0');
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
+  const totalPlannedEntries = plannedEntries
+    .filter(e => e.EntryType === 'expense' && e.Status !== 'dismissed')
+    .reduce((sum, e) => sum + (parseFloat(e.AmountMax || e.Amount || '0') || 0), 0);
+  const totalEstimated = totalControlled + totalPlannedEntries;
   const totalSpent = expenseBudgets.reduce((sum, b) => {
     const val = parseFloat(actualSpending[b.CategoryID] || '0');
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
-  const totalVariance = totalPlanned - totalSpent;
+  const totalVariance = totalEstimated - totalSpent;
 
   // Group planned entries by category ID
   const entriesByCategoryId = plannedEntries.reduce((acc, entry) => {
@@ -339,9 +343,9 @@ export default function MonthlyBudgetCard({
           {/* Summary Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6">
             <div className="bg-stone-50 rounded-lg p-3 sm:p-4 shadow-warm-sm">
-              <p className="text-xs text-stone-600 mb-1">Planejado</p>
+              <p className="text-xs text-stone-600 mb-1">Estimado</p>
               <p className="text-base sm:text-lg font-bold text-stone-900 tabular-nums">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPlanned)}
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEstimated)}
               </p>
             </div>
             <div className="bg-stone-50 rounded-lg p-3 sm:p-4 shadow-warm-sm">
@@ -364,7 +368,7 @@ export default function MonthlyBudgetCard({
       <div className="px-6 pt-6">
         {(() => {
           // Calculate unallocated amount (income - planned expenses)
-          const unallocated = totalPlannedIncome - totalPlanned;
+          const unallocated = totalPlannedIncome - totalEstimated;
           const unallocatedPercent = totalPlannedIncome > 0
             ? ((unallocated / totalPlannedIncome) * 100)
             : 0;
@@ -412,8 +416,8 @@ export default function MonthlyBudgetCard({
                         {formatCurrency(totalActualIncome || totalPlannedIncome)}
                       </div>
                       <div>
-                        <span className="font-medium">Planejado: </span>
-                        {formatCurrency(totalPlanned)}
+                        <span className="font-medium">Estimado: </span>
+                        {formatCurrency(totalEstimated)}
                       </div>
                       <div>
                         <span className="font-medium">Não alocado: </span>
@@ -443,8 +447,8 @@ export default function MonthlyBudgetCard({
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-stone-600">Total Planejado (Despesas):</span>
-                      <span className="font-semibold text-stone-900">{formatCurrency(totalPlanned)}</span>
+                      <span className="text-stone-600">Total Estimado (Despesas):</span>
+                      <span className="font-semibold text-stone-900">{formatCurrency(totalEstimated)}</span>
                     </div>
                     <div className="h-px bg-stone-200"></div>
                     <div className="flex justify-between items-center text-sm">

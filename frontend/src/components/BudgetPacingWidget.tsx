@@ -138,6 +138,20 @@ export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetPr
     return null;
   }
 
+  // Sort: over_pace first, then on_pace, then under_pace, then no_budget
+  const statusOrder: Record<CategoryPacing['status'], number> = {
+    over_pace: 0,
+    on_pace: 1,
+    under_pace: 2,
+    no_budget: 3,
+  };
+  const sortedCategories = [...pacingData.categories].sort((a, b) => {
+    const orderDiff = statusOrder[a.status] - statusOrder[b.status];
+    if (orderDiff !== 0) return orderDiff;
+    // Within same status, sort by variance descending (most over-budget first)
+    return parseFloat(b.variance) - parseFloat(a.variance);
+  });
+
   const isCurrentMonth = () => {
     const now = new Date();
     return pacingData.month === now.getMonth() + 1 && pacingData.year === now.getFullYear();
@@ -159,7 +173,7 @@ export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetPr
       </div>
 
       <div className="space-y-3">
-        {pacingData.categories.map((category) => {
+        {sortedCategories.map((category) => {
           const config = getStatusConfig(category.status);
           const spent = parseFloat(category.spent);
           const expected = parseFloat(category.expected);

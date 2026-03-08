@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
 import { parseTransactionDate } from '../utils/date';
+import { useSelectedMonth } from '../hooks/useSelectedMonth';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import type { PlannedEntryWithStatus } from '../types/budget';
@@ -31,7 +32,9 @@ interface TagExpense {
 }
 
 interface BudgetSummary {
-  totalPlanned: number;
+  totalControlled: number;
+  totalPlannedEntries: number;
+  totalEstimated: number; // controlled + planned entries
   totalActual: number;
   totalPlannedIncome: number;
   variance: number;
@@ -68,13 +71,17 @@ interface DashboardProps {
 // Calculate budget status for hero card
 export default function Dashboard({ onNavigateToUncategorized }: DashboardProps) {
   const { token } = useAuth();
+  const {
+    selectedMonth, selectedYear,
+    goToPreviousMonth, goToNextMonth, goToCurrentMonth, isCurrentMonth: isCurrentSelectedMonth,
+  } = useSelectedMonth();
   const [stats, setStats] = useState<DashboardStats>({
     totalIncome: 0,
     totalExpenses: 0,
     balance: 0,
     uncategorizedCount: 0,
-    month: new Date().getMonth(),
-    year: new Date().getFullYear(),
+    month: selectedMonth - 1, // 0-indexed for Date compatibility
+    year: selectedYear,
     categoryExpenses: [],
     tagExpenses: [],
     budgetSummary: null,
@@ -85,7 +92,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
   useEffect(() => {
     fetchStats();
-  }, [token]);
+  }, [token, selectedMonth, selectedYear]);
 
   // Load dismissed state from localStorage
   useEffect(() => {
@@ -146,19 +153,9 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
         }
       }
 
-      // Get current month/year from transactions
-      let targetMonth = new Date().getMonth();
-      let targetYear = new Date().getFullYear();
-
-      if (allTransactions.length > 0) {
-        const sortedTx = [...allTransactions].sort((a, b) =>
-          parseTransactionDate(b.transaction_date).getTime() - parseTransactionDate(a.transaction_date).getTime()
-        );
-        // Parse as local time to avoid timezone shift
-        const mostRecentDate = parseTransactionDate(sortedTx[0].transaction_date);
-        targetMonth = mostRecentDate.getMonth();
-        targetYear = mostRecentDate.getFullYear();
-      }
+      // Use selected month from shared hook (0-indexed for Date compatibility)
+      const targetMonth = selectedMonth - 1;
+      const targetYear = selectedYear;
 
       const firstDay = new Date(targetYear, targetMonth, 1);
       const lastDay = new Date(targetYear, targetMonth + 1, 0);
@@ -257,15 +254,14 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       // Fetch budget data for the current month
       let budgetSummary: BudgetSummary | null = null;
       try {
-        const apiMonth = targetMonth + 1;
-
         const [categoryBudgets, plannedEntriesData] = await Promise.all([
-          getCategoryBudgets({ month: apiMonth, year: targetYear }, { token }),
-          getPlannedEntriesForMonth(apiMonth, targetYear, { token }),
+          getCategoryBudgets({ month: selectedMonth, year: selectedYear }, { token }),
+          getPlannedEntriesForMonth(selectedMonth, selectedYear, { token }),
         ]);
 
         const budgetsByCategory: BudgetSummary['budgetsByCategory'] = [];
-        let totalPlanned = 0;
+        let totalControlled = 0;
+        let totalPlannedEntries = 0;
         let totalActual = 0;
         let totalPlannedIncome = 0;
 
@@ -275,25 +271,22 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             const category = categories.find(c => c.category_id === budget.CategoryID);
             if (!category) continue;
 
-            const planned = parseFloat(budget.ControlledAmount) || 0;
+            const controlled = parseFloat(budget.ControlledAmount) || 0;
             const categoryData = categoryMap.get(budget.CategoryID);
             const actual = categoryData ? categoryData.amount : 0;
 
-            // Only count expense categories for the budget progress bar
-            // Income categories should not be mixed with expense budgets
             if (category.category_type === 'expense') {
-              totalPlanned += planned;
+              totalControlled += controlled;
               totalActual += actual;
             } else if (category.category_type === 'income') {
-              totalPlannedIncome += planned;
+              totalPlannedIncome += controlled;
             }
 
-            budgetsByCategory.push({ category, planned, actual });
+            budgetsByCategory.push({ category, planned: controlled, actual });
           }
         }
 
-        budgetsByCategory.sort((a, b) => b.planned - a.planned);
-
+        // Sum planned entries by type
         const plannedEntriesStats = {
           total: plannedEntriesData?.length || 0,
           matched: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'matched').length || 0,
@@ -301,23 +294,28 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
           missed: plannedEntriesData?.filter((e: PlannedEntryWithStatus) => e.Status === 'missed').length || 0,
         };
 
-        // Add planned income entries to totalPlannedIncome
         if (plannedEntriesData && plannedEntriesData.length > 0) {
-          plannedEntriesData
-            .filter((e: PlannedEntryWithStatus) => e.EntryType === 'income')
-            .forEach((e: PlannedEntryWithStatus) => {
-              // Use AmountMax if available (range), otherwise Amount
-              const plannedAmount = parseFloat(e.AmountMax || e.Amount || '0');
+          plannedEntriesData.forEach((e: PlannedEntryWithStatus) => {
+            if (e.Status === 'dismissed') return;
+            const plannedAmount = parseFloat(e.AmountMax || e.Amount || '0');
+            if (e.EntryType === 'income') {
               totalPlannedIncome += plannedAmount;
-            });
+            } else if (e.EntryType === 'expense') {
+              totalPlannedEntries += plannedAmount;
+            }
+          });
         }
 
-        const variance = totalPlanned - totalActual;
-        const variancePercent = totalPlanned > 0 ? (variance / totalPlanned) * 100 : 0;
+        budgetsByCategory.sort((a, b) => b.planned - a.planned);
 
-        // Always create budget summary if we have any data
+        const totalEstimated = totalControlled + totalPlannedEntries;
+        const variance = totalEstimated - totalActual;
+        const variancePercent = totalEstimated > 0 ? (variance / totalEstimated) * 100 : 0;
+
         budgetSummary = {
-          totalPlanned,
+          totalControlled,
+          totalPlannedEntries,
+          totalEstimated,
           totalActual,
           totalPlannedIncome,
           variance,
@@ -365,20 +363,20 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
     );
   }
 
-  const percentSpent = stats.budgetSummary && stats.budgetSummary.totalPlanned > 0
-    ? Math.round((stats.budgetSummary.totalActual / stats.budgetSummary.totalPlanned) * 100)
+  const percentSpent = stats.budgetSummary && stats.budgetSummary.totalEstimated > 0
+    ? Math.round((stats.budgetSummary.totalActual / stats.budgetSummary.totalEstimated) * 100)
     : 0;
 
   // Calculate day progress for the current month marker
   const now = new Date();
-  const isCurrentMonth = stats.month === now.getMonth() && stats.year === now.getFullYear();
+  const isCurrentMonth = isCurrentSelectedMonth;
   const currentDay = now.getDate();
-  const daysInMonth = new Date(stats.year, stats.month + 1, 0).getDate();
-  const dayProgressPercent = (currentDay / daysInMonth) * 100;
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+  const dayProgressPercent = isCurrentMonth ? (currentDay / daysInMonth) * 100 : 100;
 
   // Calculate spending pace
   const expectedSpentByNow = stats.budgetSummary
-    ? (stats.budgetSummary.totalPlanned * dayProgressPercent) / 100
+    ? (stats.budgetSummary.totalEstimated * dayProgressPercent) / 100
     : 0;
   const spendingPace = expectedSpentByNow > 0 && stats.budgetSummary
     ? ((stats.budgetSummary.totalActual - expectedSpentByNow) / expectedSpentByNow) * 100
@@ -388,7 +386,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
   // Check if planned expenses exceed planned income
   const plannedExpensesExceedIncome = stats.budgetSummary &&
     stats.budgetSummary.totalPlannedIncome > 0 &&
-    stats.budgetSummary.totalPlanned > stats.budgetSummary.totalPlannedIncome;
+    stats.budgetSummary.totalEstimated > stats.budgetSummary.totalPlannedIncome;
 
   // Check if there are attention items
   const hasAttentionItems = stats.uncategorizedCount > 0 ||
@@ -423,21 +421,46 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8">
-      {/* Header */}
-      <div className="mb-6">
-        <p className="text-stone-500 text-sm">
-          {new Date(stats.year, stats.month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-        </p>
+      {/* Month Navigation Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={goToPreviousMonth}
+            className="p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
+            title="Mes anterior"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <p className="text-stone-700 font-medium capitalize min-w-[160px] text-center">
+            {new Date(selectedYear, selectedMonth - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+          </p>
+          <button
+            onClick={goToNextMonth}
+            className="p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
+            title="Proximo mes"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+        {!isCurrentMonth && (
+          <button
+            onClick={goToCurrentMonth}
+            className="flex items-center gap-1.5 text-sm text-wheat-700 hover:text-wheat-800 transition-colors"
+          >
+            <CalendarDays className="w-4 h-4" />
+            Mes atual
+          </button>
+        )}
       </div>
 
       {/* Financial Overview Card */}
       <div className="card mb-8">
         <h2 className="font-display text-lg font-semibold text-stone-900 mb-6">Resumo Financeiro</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Income Section */}
           <div className="p-4 bg-sage-50 rounded-xl border border-sage-200">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-sage-100 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-sage-600" />
               </div>
@@ -451,22 +474,12 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             {stats.budgetSummary && stats.budgetSummary.totalPlannedIncome > 0 && (
               <div className="pt-3 border-t border-sage-200">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-sage-600">Planejado:</span>
+                  <span className="text-sage-600">Esperado:</span>
                   <span className="font-semibold text-sage-700 tabular-nums">
                     {formatCurrency(stats.budgetSummary.totalPlannedIncome)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm mt-1">
-                  <span className="text-sage-600">Diferença:</span>
-                  <span className={`font-semibold tabular-nums ${
-                    stats.totalIncome >= stats.budgetSummary.totalPlannedIncome ? 'text-sage-700' : 'text-terra-600'
-                  }`}>
-                    {stats.totalIncome >= stats.budgetSummary.totalPlannedIncome ? '+' : ''}
-                    {formatCurrency(stats.totalIncome - stats.budgetSummary.totalPlannedIncome)}
-                  </span>
-                </div>
-                {/* Progress bar */}
-                <div className="mt-3">
+                <div className="mt-2">
                   <div className="h-2 bg-sage-200 rounded-full relative overflow-hidden">
                     <div
                       className={`h-2 rounded-full transition-all duration-500 ${
@@ -482,22 +495,9 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                       />
                     )}
                   </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-sage-600">
-                      {Math.min(100, Math.round((stats.totalIncome / stats.budgetSummary.totalPlannedIncome) * 100))}% recebido
-                    </p>
-                    {isCurrentMonth && (
-                      <p className={`text-xs ${
-                        stats.totalIncome >= (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)
-                          ? 'text-sage-600'
-                          : 'text-terra-600'
-                      }`}>
-                        {stats.totalIncome >= (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)
-                          ? `${Math.abs(Math.round(((stats.totalIncome - (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)) / (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)) * 100))}% acima do esperado`
-                          : `${Math.abs(Math.round(((stats.totalIncome - (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)) / (stats.budgetSummary.totalPlannedIncome * dayProgressPercent / 100)) * 100))}% abaixo do esperado`}
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-xs text-sage-600 mt-1">
+                    {Math.min(100, Math.round((stats.totalIncome / stats.budgetSummary.totalPlannedIncome) * 100))}% recebido
+                  </p>
                 </div>
               </div>
             )}
@@ -505,7 +505,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
 
           {/* Expenses Section */}
           <div className="p-4 bg-rust-50 rounded-xl border border-rust-200">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-rust-100 rounded-lg flex items-center justify-center">
                 <TrendingDown className="w-5 h-5 text-rust-600" />
               </div>
@@ -516,25 +516,15 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                 </p>
               </div>
             </div>
-            {stats.budgetSummary && stats.budgetSummary.totalPlanned > 0 && (
+            {stats.budgetSummary && stats.budgetSummary.totalEstimated > 0 && (
               <div className="pt-3 border-t border-rust-200">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-rust-600">Planejado:</span>
+                  <span className="text-rust-600">Estimado:</span>
                   <span className="font-semibold text-rust-700 tabular-nums">
-                    {formatCurrency(stats.budgetSummary.totalPlanned)}
+                    {formatCurrency(stats.budgetSummary.totalEstimated)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm mt-1">
-                  <span className="text-rust-600">Diferença:</span>
-                  <span className={`font-semibold tabular-nums ${
-                    stats.totalExpenses <= stats.budgetSummary.totalPlanned ? 'text-sage-700' : 'text-rust-700'
-                  }`}>
-                    {stats.totalExpenses <= stats.budgetSummary.totalPlanned ? '' : '+'}
-                    {formatCurrency(stats.totalExpenses - stats.budgetSummary.totalPlanned)}
-                  </span>
-                </div>
-                {/* Progress bar */}
-                <div className="mt-3">
+                <div className="mt-2">
                   <div className="h-2 bg-rust-200 rounded-full relative overflow-hidden">
                     <div
                       className={`h-2 rounded-full transition-all duration-500 ${
@@ -550,19 +540,70 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                       />
                     )}
                   </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-rust-600">
-                      {percentSpent}% usado
-                    </p>
-                    {isCurrentMonth && (
-                      <p className={`text-xs ${isAheadOfPace ? 'text-rust-600' : 'text-sage-600'}`}>
-                        {isAheadOfPace
+                  <p className="text-xs text-rust-600 mt-1">
+                    {percentSpent}% usado
+                    {isCurrentMonth && Math.abs(spendingPace) > 1 && (
+                      <span className={isAheadOfPace ? ' text-rust-600' : ' text-sage-600'}>
+                        {' '}({isAheadOfPace
                           ? `${Math.abs(Math.round(spendingPace))}% acima do ritmo`
-                          : `${Math.abs(Math.round(spendingPace))}% abaixo`}
-                      </p>
+                          : `${Math.abs(Math.round(spendingPace))}% abaixo`})
+                      </span>
                     )}
-                  </div>
+                  </p>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Planned Section */}
+          <div className="p-4 bg-wheat-50 rounded-xl border border-wheat-200">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-wheat-100 rounded-lg flex items-center justify-center">
+                <CalendarDays className="w-5 h-5 text-wheat-600" />
+              </div>
+              <div>
+                <p className="text-xs text-wheat-600 uppercase tracking-wide font-medium">Planejado</p>
+                <p className="text-2xl font-bold text-wheat-700 tabular-nums">
+                  {formatCurrency(stats.budgetSummary?.totalPlannedEntries || 0)}
+                </p>
+              </div>
+            </div>
+            {stats.budgetSummary && stats.budgetSummary.plannedEntries.total > 0 && (
+              <div className="pt-3 border-t border-wheat-200">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-wheat-600">Entradas:</span>
+                  <span className="font-semibold text-wheat-700">
+                    {stats.budgetSummary.plannedEntries.total}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-2 text-xs">
+                  {stats.budgetSummary.plannedEntries.matched > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-sage-500" />
+                      {stats.budgetSummary.plannedEntries.matched}
+                    </span>
+                  )}
+                  {stats.budgetSummary.plannedEntries.pending > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-terra-500" />
+                      {stats.budgetSummary.plannedEntries.pending}
+                    </span>
+                  )}
+                  {stats.budgetSummary.plannedEntries.missed > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-rust-500" />
+                      {stats.budgetSummary.plannedEntries.missed}
+                    </span>
+                  )}
+                </div>
+                {stats.budgetSummary.totalControlled > 0 && (
+                  <div className="flex items-center justify-between text-sm mt-2 pt-2 border-t border-wheat-200">
+                    <span className="text-wheat-600">Controlado:</span>
+                    <span className="font-semibold text-wheat-700 tabular-nums">
+                      {formatCurrency(stats.budgetSummary.totalControlled)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -665,7 +706,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                       Despesas planejadas excedem receitas
                     </p>
                     <p className="text-xs text-stone-500">
-                      Planejado: {formatCurrency(stats.budgetSummary.totalPlanned)} despesas vs {formatCurrency(stats.budgetSummary.totalPlannedIncome)} receitas
+                      Estimado: {formatCurrency(stats.budgetSummary.totalEstimated)} despesas vs {formatCurrency(stats.budgetSummary.totalPlannedIncome)} receitas
                     </p>
                   </div>
                 </div>
@@ -677,7 +718,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       )}
 
       {/* Budget Pacing Widget */}
-      <BudgetPacingWidget month={stats.month + 1} year={stats.year} />
+      <BudgetPacingWidget month={selectedMonth} year={selectedYear} />
 
       {/* Category Expenses */}
       {stats.categoryExpenses.length > 0 && (
@@ -825,30 +866,6 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
             </div>
           </div>
 
-          {/* Planned entries summary */}
-          {stats.budgetSummary?.plannedEntries.total ? (
-            <div className="mt-6 pt-4 border-t border-stone-200">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-stone-600">Entradas planejadas</span>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-sage-500" />
-                    {stats.budgetSummary.plannedEntries.matched} recebidas
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-terra-500" />
-                    {stats.budgetSummary.plannedEntries.pending} pendentes
-                  </span>
-                  {stats.budgetSummary.plannedEntries.missed > 0 && (
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-rust-500" />
-                      {stats.budgetSummary.plannedEntries.missed} atrasadas
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
       )}
 

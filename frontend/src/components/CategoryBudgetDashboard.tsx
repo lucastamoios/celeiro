@@ -1218,14 +1218,19 @@ export default function CategoryBudgetDashboard() {
 
   // Calculate totals for summary (EXPENSES ONLY - exclude income categories)
   const expenseBudgets = selectedMonthBudgets.filter(b => !incomeCategoryIds.has(b.CategoryID));
-  const totalPlanned = expenseBudgets.reduce(
+  const totalControlled = expenseBudgets.reduce(
     (sum, b) => sum + parseFloat(b.ControlledAmount || '0'), 0
   );
+  // Sum planned entries (expense, not dismissed)
+  const totalPlannedEntries = selectedMonthEntries
+    .filter(e => e.EntryType === 'expense' && e.Status !== 'dismissed')
+    .reduce((sum, e) => sum + (parseFloat(e.AmountMax || e.Amount || '0') || 0), 0);
+  const totalEstimated = totalControlled + totalPlannedEntries;
   // Sum spending only for expense categories
   const totalSpent = expenseBudgets.reduce(
     (sum, b) => sum + parseFloat(selectedMonthSpending[b.CategoryID] || '0'), 0
   );
-  const spentPercentage = totalPlanned > 0 ? Math.round((totalSpent / totalPlanned) * 100) : 0;
+  const spentPercentage = totalEstimated > 0 ? Math.round((totalSpent / totalEstimated) * 100) : 0;
 
   // Calculate income totals separately
   const incomeBudgets = selectedMonthBudgets.filter(b => incomeCategoryIds.has(b.CategoryID));
@@ -1361,11 +1366,19 @@ export default function CategoryBudgetDashboard() {
         {/* Monthly Summary Card */}
         <div className="mb-6 card border-wheat-200 border-2 bg-wheat-50/30">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-4">
-            {/* Planned */}
+            {/* Estimated */}
             <div className="text-center">
-              <p className="text-sm text-stone-500 mb-1">Planejado</p>
+              <p
+                className="text-sm text-stone-500 mb-1 cursor-help inline-flex items-center gap-1"
+                title={`Controlado: R$ ${totalControlled.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} + Planejado: R$ ${totalPlannedEntries.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              >
+                Estimado
+                <svg className="w-3.5 h-3.5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </p>
               <p className="text-xl sm:text-2xl font-bold text-stone-900 tabular-nums">
-                R$ {totalPlanned.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {totalEstimated.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
 

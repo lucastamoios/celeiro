@@ -251,11 +251,19 @@ export default function CategoryBudgetCard({
 
 
 
-  // Calculate variance (with safety checks for NaN)
-  const plannedNum = parseFloat(budget.ControlledAmount || '0') || 0;
+  // Calculate planned entries sum for this category (expense entries, not dismissed)
+  const plannedEntriesSum = plannedEntries
+    .filter(e => e.EntryType === 'expense' && e.Status !== 'dismissed')
+    .reduce((sum, e) => sum + (parseFloat(e.AmountMax || e.Amount || '0') || 0), 0);
+
+  // Estimado = controlled + planned entries
+  const controlledNum = parseFloat(budget.ControlledAmount || '0') || 0;
+  const estimatedNum = controlledNum + plannedEntriesSum;
+
+  // Calculate variance against estimated total
   const actualNum = parseFloat(actualSpent || '0') || 0;
-  const variance = actualNum - plannedNum;
-  const variancePercent = plannedNum > 0 ? (variance / plannedNum) * 100 : 0;
+  const variance = actualNum - estimatedNum;
+  const variancePercent = estimatedNum > 0 ? (variance / estimatedNum) * 100 : 0;
 
   // For income, positive variance (earned more) is GOOD; for expenses, positive variance (spent more) is BAD
   // We invert the variance percent for income so the status thresholds work correctly
@@ -433,9 +441,9 @@ export default function CategoryBudgetCard({
       {/* Budget Details */}
       <div className="grid grid-cols-2 gap-4 mb-3">
         <div>
-          <div className="text-sm text-stone-600">Controlado</div>
+          <div className="text-sm text-stone-600">Estimado</div>
           <div className="text-lg font-semibold text-stone-900 tabular-nums">
-            {formatCurrencyBRL(budget.ControlledAmount)}
+            {formatCurrencyBRL(estimatedNum)}
           </div>
         </div>
         <div>
@@ -525,6 +533,23 @@ export default function CategoryBudgetCard({
       {/* Expanded Entries Section */}
       {isExpanded && entryStats.total > 0 && (
         <div className="border-t border-stone-200 bg-stone-50 p-3 space-y-2">
+          {/* Controlled vs Planned breakdown */}
+          {(controlledNum > 0 || plannedEntriesSum > 0) && (
+            <div className="flex items-center gap-4 px-3 py-2 bg-stone-100 rounded-lg text-sm mb-2">
+              {controlledNum > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-stone-500">Controlado:</span>
+                  <span className="font-medium text-stone-700 tabular-nums">{formatCurrencyBRL(controlledNum)}</span>
+                </div>
+              )}
+              {plannedEntriesSum > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-stone-500">Planejado:</span>
+                  <span className="font-medium text-stone-700 tabular-nums">{formatCurrencyBRL(plannedEntriesSum)}</span>
+                </div>
+              )}
+            </div>
+          )}
           {plannedEntries.map((entry) => (
             <DraggablePlannedEntryRow
               key={entry.PlannedEntryID}
