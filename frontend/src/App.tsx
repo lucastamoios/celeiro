@@ -17,10 +17,8 @@ import {
   CreditCard,
   PieChart,
   Target,
-  Calendar,
   Menu,
   X,
-  Settings,
 } from 'lucide-react'
 
 type View = 'dashboard' | 'transactions' | 'budgets' | 'goals' | 'settings' | 'uncategorized';
@@ -239,34 +237,6 @@ function AppContent() {
                   <Target className="w-4 h-4" />
                   <span>Metas</span>
                 </button>
-                <button
-                  onClick={(e) => {
-                    if (e.ctrlKey || e.metaKey) {
-                      handleAuxClick('settings')(e);
-                    } else {
-                      setCurrentView('settings');
-                    }
-                  }}
-                  onAuxClick={handleAuxClick('settings')}
-                  className={navButtonClass('settings')}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span>Configurações</span>
-                </button>
-                {currentView === 'budgets' && (
-                  <button
-                    onClick={() => {
-                      const currentMonthElement = document.getElementById('current-month-budget');
-                      if (currentMonthElement) {
-                        currentMonthElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                    className="px-3 py-2 text-sm font-medium text-wheat-700 bg-wheat-100 border border-wheat-300 rounded-lg hover:bg-wheat-200 transition-colors inline-flex items-center gap-2"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    <span>Este mês</span>
-                  </button>
-                )}
               </div>
             </div>
 
@@ -358,20 +328,6 @@ function AppContent() {
               >
                 <Target className="w-5 h-5" />
                 <span>Metas</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    handleAuxClick('settings')(e);
-                  } else {
-                    setCurrentView('settings');
-                  }
-                }}
-                onAuxClick={handleAuxClick('settings')}
-                className={mobileNavButtonClass('settings')}
-              >
-                <Settings className="w-5 h-5" />
-                <span>Configurações</span>
               </button>
             </div>
           </div>
