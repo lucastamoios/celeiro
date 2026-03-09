@@ -98,6 +98,13 @@ export default function CategoryTransactionsModal({
     return plannedEntries.filter(entry => entry.CategoryID === categoryId);
   }, [plannedEntries, categoryId]);
 
+  // Calculate estimated = controlled + planned entries sum
+  const controlledNum = parseFloat(plannedAmount || '0') || 0;
+  const plannedEntriesSum = allCategoryEntries
+    .filter(e => e.EntryType === 'expense' && e.Status !== 'dismissed')
+    .reduce((sum, e) => sum + (parseFloat(e.AmountMax || e.Amount || '0') || 0), 0);
+  const estimatedNum = controlledNum + plannedEntriesSum;
+
   // Inline editing handlers
   const handleStartEdit = (entry: PlannedEntryWithStatus) => {
     setEditingEntryId(entry.PlannedEntryID);
@@ -170,15 +177,20 @@ export default function CategoryTransactionsModal({
           {/* Summary Stats */}
           <div className="grid grid-cols-3 gap-4 mt-4">
             <div className="bg-stone-50/70 rounded-lg px-3 py-2">
-              <p className="text-xs text-stone-500">Planejado</p>
+              <p className="text-xs text-stone-500">Estimado</p>
               <p className="text-lg font-semibold text-stone-900 tabular-nums">
-                {formatCurrency(plannedAmount)}
+                {formatCurrency(estimatedNum)}
               </p>
+              {controlledNum > 0 && plannedEntriesSum > 0 && (
+                <p className="text-[10px] text-stone-400 tabular-nums mt-0.5">
+                  {formatCurrency(controlledNum)} + {formatCurrency(plannedEntriesSum)}
+                </p>
+              )}
             </div>
             <div className="bg-stone-50/70 rounded-lg px-3 py-2">
               <p className="text-xs text-stone-500">{isIncome ? 'Recebido' : 'Gasto'}</p>
               <p className={`text-lg font-semibold tabular-nums ${
-                parseFloat(actualSpent) > parseFloat(plannedAmount) && !isIncome
+                parseFloat(actualSpent) > estimatedNum && !isIncome
                   ? 'text-rust-600'
                   : 'text-stone-900'
               }`}>
