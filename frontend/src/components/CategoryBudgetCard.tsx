@@ -445,6 +445,11 @@ export default function CategoryBudgetCard({
           <div className="text-lg font-semibold text-stone-900 tabular-nums">
             {formatCurrencyBRL(estimatedNum)}
           </div>
+          {controlledNum > 0 && plannedEntriesSum > 0 && (
+            <div className="text-xs text-stone-400 tabular-nums mt-0.5">
+              {formatCurrencyBRL(controlledNum)} controlado + {formatCurrencyBRL(plannedEntriesSum)} planejado
+            </div>
+          )}
         </div>
         <div>
           <div className="text-sm text-stone-600">{isIncome ? 'Ganho' : 'Gasto'}</div>
@@ -533,21 +538,21 @@ export default function CategoryBudgetCard({
       {/* Expanded Entries Section */}
       {isExpanded && entryStats.total > 0 && (
         <div className="border-t border-stone-200 bg-stone-50 p-3 space-y-2">
-          {/* Controlled vs Planned breakdown */}
+          {/* Estimado breakdown */}
           {(controlledNum > 0 || plannedEntriesSum > 0) && (
-            <div className="flex items-center gap-4 px-3 py-2 bg-stone-100 rounded-lg text-sm mb-2">
-              {controlledNum > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-stone-500">Controlado:</span>
-                  <span className="font-medium text-stone-700 tabular-nums">{formatCurrencyBRL(controlledNum)}</span>
-                </div>
-              )}
-              {plannedEntriesSum > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-stone-500">Planejado:</span>
-                  <span className="font-medium text-stone-700 tabular-nums">{formatCurrencyBRL(plannedEntriesSum)}</span>
-                </div>
-              )}
+            <div className="px-3 py-2 bg-stone-100 rounded-lg text-sm mb-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">Controlado</span>
+                <span className="font-medium text-stone-700 tabular-nums">{formatCurrencyBRL(controlledNum)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">Planejado ({plannedEntries.filter(e => e.EntryType === 'expense' && e.Status !== 'dismissed').length})</span>
+                <span className="font-medium text-stone-700 tabular-nums">{formatCurrencyBRL(plannedEntriesSum)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-stone-200">
+                <span className="text-stone-600 font-medium">Estimado</span>
+                <span className="font-semibold text-stone-900 tabular-nums">{formatCurrencyBRL(estimatedNum)}</span>
+              </div>
             </div>
           )}
           {plannedEntries.map((entry) => (
