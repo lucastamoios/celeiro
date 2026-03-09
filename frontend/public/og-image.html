@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1200, height=630">
+  <title>Celeiro — OG Image</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+    }
+
+    .og-container {
+      width: 1200px;
+      height: 630px;
+      position: relative;
+      background: radial-gradient(ellipse at 50% 45%, #FFFDF8 0%, #F0EAE0 50%, #DED6C8 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Warm glow behind the logo */
+    .og-container::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(255, 253, 248, 0.7) 0%, rgba(246, 241, 233, 0.3) 40%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .logo-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 300px;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 8px 32px rgba(166, 122, 42, 0.25));
+    }
+
+    .logo-wrapper img {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="og-container">
+    <div class="logo-wrapper">
+      <img src="celeiro-wheat-v4.svg" alt="">
+    </div>
+  </div>
+</body>
+</html>
