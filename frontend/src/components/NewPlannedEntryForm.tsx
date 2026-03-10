@@ -412,6 +412,7 @@ export default function NewPlannedEntryForm({
       {showPatternCreator && (
         <PatternCreator
           categories={categoriesMap}
+          variant="from_planned_entry"
           onClose={() => setShowPatternCreator(false)}
           onSave={async (pattern) => {
             // Store config — actual API call happens in handleSubmit

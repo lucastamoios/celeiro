@@ -93,7 +93,7 @@ export default function PatternCreator({
   initialSourceText,
   initialTargetDescription,
   initialTargetCategoryId,
-  variant: _variant
+  variant
 }: PatternCreatorProps) {
   const { token } = useAuth();
 
@@ -400,7 +400,8 @@ export default function PatternCreator({
                 Aplicar...
               </h3>
 
-              {/* Toggle between manual and planned entry */}
+              {/* Toggle between manual and planned entry — hidden when opened from planned entry form */}
+              {variant !== 'from_planned_entry' && (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -428,6 +429,7 @@ export default function PatternCreator({
                   📋 Entrada Planejada
                 </button>
               </div>
+              )}
             </div>
 
             {linkToPlannedEntry ? (
