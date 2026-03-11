@@ -77,6 +77,42 @@ const extractPluggyResults = (payload: unknown): Record<string, unknown>[] => {
   return [];
 };
 
+const formatWidgetError = (error: unknown) => {
+  if (typeof error === 'string' && error.trim() !== '') {
+    return error;
+  }
+
+  if (isRecord(error)) {
+    const message = getNestedString(error, ['message']);
+    const description = getNestedString(error, ['description']);
+    const code = getNestedString(error, ['code']);
+
+    if (message && description) {
+      return `${message}: ${description}`;
+    }
+
+    if (message) {
+      return message;
+    }
+
+    if (description) {
+      return description;
+    }
+
+    if (code) {
+      return `Pluggy error: ${code}`;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Falha ao conectar conta via Pluggy';
+    }
+  }
+
+  return 'Falha ao conectar conta via Pluggy';
+};
+
 export default function PluggyConnectionCard() {
   const { token } = useAuth();
   const { activeOrganization } = useOrganization();
@@ -368,8 +404,8 @@ export default function PluggyConnectionCard() {
           includeSandbox
           onClose={() => setIsPluggyOpen(false)}
           onSuccess={handlePluggySuccess}
-          onError={() => {
-            setActionError('Falha ao conectar conta via Pluggy');
+          onError={(pluggyError) => {
+            setActionError(formatWidgetError(pluggyError));
             setIsPluggyOpen(false);
           }}
         />
