@@ -92,6 +92,24 @@ export default function PluggyConnectionCard() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const readErrorMessage = async (response: Response, fallback: string) => {
+    const contentType = response.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const maybeJson = await response.json().catch(() => null);
+      if (typeof maybeJson?.message === 'string' && maybeJson.message.trim() !== '') {
+        return maybeJson.message;
+      }
+    }
+
+    const maybeText = await response.text().catch(() => '');
+    if (maybeText.trim() !== '') {
+      return maybeText.trim();
+    }
+
+    return fallback;
+  };
+
   const formatPluggyCurrency = (amount?: number, currencyCode = 'BRL') => {
     if (typeof amount !== 'number') {
       return 'Saldo indisponivel';
@@ -128,8 +146,7 @@ export default function PluggyConnectionCard() {
       });
 
       if (!response.ok) {
-        const maybeJson = await response.json().catch(() => null);
-        throw new Error(maybeJson?.message || 'Falha ao criar token do Pluggy');
+        throw new Error(await readErrorMessage(response, 'Falha ao criar token do Pluggy'));
       }
 
       const result: ApiResponse<PluggyConnectTokenResponse> = await response.json();
@@ -174,8 +191,7 @@ export default function PluggyConnectionCard() {
         { headers },
       );
       if (!accountsResponse.ok) {
-        const maybeJson = await accountsResponse.json().catch(() => null);
-        throw new Error(maybeJson?.message || 'Falha ao buscar contas conectadas');
+        throw new Error(await readErrorMessage(accountsResponse, 'Falha ao buscar contas conectadas'));
       }
 
       const accountsPayload = await accountsResponse.json().catch(() => null);
@@ -207,8 +223,7 @@ export default function PluggyConnectionCard() {
         { headers },
       );
       if (!transactionsResponse.ok) {
-        const maybeJson = await transactionsResponse.json().catch(() => null);
-        throw new Error(maybeJson?.message || 'Falha ao buscar transacoes da conta conectada');
+        throw new Error(await readErrorMessage(transactionsResponse, 'Falha ao buscar transacoes da conta conectada'));
       }
 
       const transactionsPayload = await transactionsResponse.json().catch(() => null);
