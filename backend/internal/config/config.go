@@ -9,30 +9,31 @@ import (
 )
 
 type Config struct {
-	Environment       string // "development" or "production"
-	PGConnStr         string
-	PGMaxIdle         int
-	PGMaxConn         int
-	PGDBName          string
-	Port              int
-	Logger            *slog.Logger
-	EmailFrom         string
-	RedisHost         string
-	RedisPort         string
-	RedisPassword     string
-	RedisDB           int
-	ServiceName       string
-	ServiceInstanceID string
-	ServiceVersion    string
-	OTELEndpoint      string
-	OTELEnabled       bool
-	MailerType        string
-	SMTP2GO           SMTP2GOConfig
-	Resend            ResendConfig
-	FrontendURL       string // Base URL for frontend (used in email links)
-	MailDomain        string // Domain for inbound email parsing (e.g., "laguiar.dev")
+	Environment        string // "development" or "production"
+	PGConnStr          string
+	PGMaxIdle          int
+	PGMaxConn          int
+	PGDBName           string
+	Port               int
+	Logger             *slog.Logger
+	EmailFrom          string
+	RedisHost          string
+	RedisPort          string
+	RedisPassword      string
+	RedisDB            int
+	ServiceName        string
+	ServiceInstanceID  string
+	ServiceVersion     string
+	OTELEndpoint       string
+	OTELEnabled        bool
+	MailerType         string
+	SMTP2GO            SMTP2GOConfig
+	Resend             ResendConfig
+	FrontendURL        string // Base URL for frontend (used in email links)
+	MailDomain         string // Domain for inbound email parsing (e.g., "laguiar.dev")
 	GoogleOAuth        GoogleOAuthConfig
 	RecaptchaSecretKey string
+	Pluggy             PluggyConfig
 }
 
 type GoogleOAuthConfig struct {
@@ -53,6 +54,12 @@ type SMTP2GOConfig struct {
 type ResendConfig struct {
 	APIKey        string
 	WebhookSecret string
+}
+
+type PluggyConfig struct {
+	ClientID     string
+	ClientSecret string
+	BaseURL      string
 }
 
 func New() *Config {
@@ -84,6 +91,9 @@ func New() *Config {
 	mailDomain := flag.String("mail-domain", getEnvAsString("MAIL_DOMAIN", "laguiar.dev"), "Domain for inbound email parsing")
 	googleClientID := flag.String("google-client-id", getEnvAsString("GOOGLE_CLIENT_ID", ""), "Google OAuth Client ID")
 	recaptchaSecretKey := flag.String("recaptcha-secret-key", getEnvAsString("RECAPTCHA_SECRET_KEY", ""), "reCAPTCHA v3 secret key")
+	pluggyClientID := flag.String("pluggy-client-id", getEnvAsString("PLUGGY_CLIENT_ID", ""), "Pluggy client ID")
+	pluggyClientSecret := flag.String("pluggy-client-secret", getEnvAsString("PLUGGY_CLIENT_SECRET", ""), "Pluggy client secret")
+	pluggyBaseURL := flag.String("pluggy-base-url", getEnvAsString("PLUGGY_BASE_URL", "https://api.pluggy.ai"), "Pluggy base URL")
 
 	flag.Parse()
 
@@ -121,6 +131,11 @@ func New() *Config {
 			ClientID: *googleClientID,
 		},
 		RecaptchaSecretKey: *recaptchaSecretKey,
+		Pluggy: PluggyConfig{
+			ClientID:     *pluggyClientID,
+			ClientSecret: *pluggyClientSecret,
+			BaseURL:      *pluggyBaseURL,
+		},
 	}
 }
 

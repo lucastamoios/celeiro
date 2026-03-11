@@ -84,6 +84,12 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 		r.Post("/accounts", mw.RequireSession(fh.CreateAccount, []accounts.Permission{}))
 		r.Get("/accounts/{accountId}", mw.RequireSession(fh.GetAccount, []accounts.Permission{}))
 
+		// Pluggy
+		r.Post("/integrations/pluggy/connect-token", mw.RequireSession(fh.CreatePluggyConnectToken, []accounts.Permission{}))
+		r.Get("/integrations/pluggy/connectors", mw.RequireSession(fh.ListPluggyConnectors, []accounts.Permission{}))
+		r.Get("/integrations/pluggy/items/{itemId}/accounts", mw.RequireSession(fh.ListPluggyAccountsByItem, []accounts.Permission{}))
+		r.Get("/integrations/pluggy/accounts/{accountId}/transactions", mw.RequireSession(fh.ListPluggyTransactionsByAccount, []accounts.Permission{}))
+
 		// Transactions
 		r.Get("/accounts/{accountId}/transactions", mw.RequireSession(fh.ListTransactions, []accounts.Permission{}))
 		r.Get("/transactions/uncategorized", mw.RequireSession(fh.ListUncategorizedTransactions, []accounts.Permission{}))

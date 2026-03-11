@@ -4,6 +4,7 @@ import (
 	"github.com/catrutech/celeiro/internal/application/accounts"
 	"github.com/catrutech/celeiro/internal/application/financial"
 	"github.com/catrutech/celeiro/internal/config"
+	"github.com/catrutech/celeiro/internal/integrations/pluggy"
 	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	transientdb "github.com/catrutech/celeiro/pkg/database/transient"
 	"github.com/catrutech/celeiro/pkg/logging"
@@ -18,17 +19,20 @@ type Application struct {
 	AccountsService  accounts.Service
 	FinancialService financial.Service
 	Mailer           mailer.Mailer
+	PluggyClient     *pluggy.Client
 }
 
 func NewApplication(
 	accountsService accounts.Service,
 	financialService financial.Service,
 	m mailer.Mailer,
+	pluggyClient *pluggy.Client,
 ) *Application {
 	return &Application{
 		AccountsService:  accountsService,
 		FinancialService: financialService,
 		Mailer:           m,
+		PluggyClient:     pluggyClient,
 	}
 }
 
@@ -42,6 +46,7 @@ func GetApplicationProvider() fx.Option {
 		mailer.NewMailer,
 		system.NewSystem,
 		metrics.NewMetrics,
+		pluggy.New,
 		// Accounts
 		accounts.NewRepository,
 		accounts.New,

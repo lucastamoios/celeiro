@@ -12,6 +12,7 @@ import (
 	"github.com/catrutech/celeiro/internal/application"
 	financialApp "github.com/catrutech/celeiro/internal/application/financial"
 	"github.com/catrutech/celeiro/internal/errors"
+	"github.com/catrutech/celeiro/internal/integrations/pluggy"
 	"github.com/catrutech/celeiro/internal/web/responses"
 
 	"github.com/go-chi/chi/v5"
@@ -285,6 +286,97 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.NewSuccess(account, w)
+}
+
+// ============================================================================
+// Pluggy
+// ============================================================================
+
+func (h *Handler) CreatePluggyConnectToken(w http.ResponseWriter, r *http.Request) {
+	userID, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	if h.app.PluggyClient == nil {
+		responses.NewError(w, fmt.Errorf("pluggy client is not available"))
+		return
+	}
+
+	token, err := h.app.PluggyClient.CreateConnectToken(r.Context(), pluggy.CreateConnectTokenInput{
+		ClientUserID: fmt.Sprintf("celeiro:%d:%d", organizationID, userID),
+		Language:     "pt",
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(token, w)
+}
+
+func (h *Handler) ListPluggyConnectors(w http.ResponseWriter, r *http.Request) {
+	if _, _, err := h.getSessionInfo(r); err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	connectors, err := h.app.PluggyClient.ListConnectors(r.Context())
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(connectors, w)
+}
+
+func (h *Handler) ListPluggyAccountsByItem(w http.ResponseWriter, r *http.Request) {
+	if _, _, err := h.getSessionInfo(r); err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	itemID := chi.URLParam(r, "itemId")
+	if itemID == "" {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	accounts, err := h.app.PluggyClient.ListAccountsByItem(r.Context(), itemID)
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(accounts, w)
+}
+
+func (h *Handler) ListPluggyTransactionsByAccount(w http.ResponseWriter, r *http.Request) {
+	if _, _, err := h.getSessionInfo(r); err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	accountID := chi.URLParam(r, "accountId")
+	if accountID == "" {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	from, to, err := pluggy.QueryDateRange(r.URL.Query().Get("from"), r.URL.Query().Get("to"), time.Now())
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	transactions, err := h.app.PluggyClient.ListTransactionsByAccount(r.Context(), accountID, from, to)
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(transactions, w)
 }
 
 // ============================================================================
