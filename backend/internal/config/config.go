@@ -70,7 +70,7 @@ func New() *Config {
 	serviceName := flag.String("service-name", getEnvAsString("SERVICE_NAME", "scaffold"), "Service name")
 	serviceInstanceID := flag.String("service-instance-id", getEnvAsString("SERVICE_INSTANCE_ID", "1"), "Service instance ID")
 	serviceVersion := flag.String("service-version", getEnvAsString("SERVICE_VERSION", "unknown"), "Service version")
-	otelEndpoint := flag.String("otel-endpoint", getEnvAsString("OTEL_ENDPOINT", "localhost:4317"), "OTEL endpoint")
+	otelEndpoint := flag.String("otel-endpoint", getEnvAsString("OTEL_ENDPOINT", "localhost:4318"), "OTEL endpoint")
 	otelEnabled := flag.Bool("otel-enabled", getEnvAsBool("OTEL_ENABLED", true), "Enable OTEL metrics and tracing")
 	mailerType := flag.String("mailer-type", getEnvAsString("MAILER_TYPE", "local"), "Mailer type")
 

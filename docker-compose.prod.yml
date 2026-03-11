@@ -22,6 +22,8 @@ services:
       - EMAIL_FROM=${EMAIL_FROM:-Celeiro <noreply@laguiar.dev>}
       - FRONTEND_URL=${FRONTEND_URL:-https://celeiro.catru.tech}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - OTEL_ENDPOINT=${OTEL_ENDPOINT:-otel_collector:4318}
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -29,6 +31,7 @@ services:
         condition: service_started
     networks:
       - celeiro_network
+      - dokploy-network
     restart: unless-stopped
 
   frontend:
@@ -86,3 +89,5 @@ networks:
   celeiro_network:
     name: celeiro_network
     driver: bridge
+  dokploy-network:
+    external: true
