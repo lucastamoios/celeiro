@@ -49,7 +49,6 @@ export default function TransactionList() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-
   // Bulk selection state
   const [selectedTransactions, setSelectedTransactions] = useState<Set<number>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
