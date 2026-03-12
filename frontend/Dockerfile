@@ -14,7 +14,9 @@ COPY . .
 
 # Accept build-time environment variables for Vite
 ARG VITE_API_URL
+ARG VITE_OTEL_ENDPOINT
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_OTEL_ENDPOINT=$VITE_OTEL_ENDPOINT
 
 # Build the app
 RUN npm run build
