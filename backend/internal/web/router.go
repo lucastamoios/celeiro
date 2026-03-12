@@ -23,9 +23,6 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 	fh := financialWeb.NewHandler(application)
 	wh := webhooksWeb.NewHandler(application, logger, cfg)
 
-	r.Use(celeiroOtel.ChiTraceMiddleware(otelProvider))
-	r.Use(mw.LogError)
-	r.Use(mw.Session)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
@@ -34,6 +31,9 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	r.Use(celeiroOtel.ChiTraceMiddleware(otelProvider))
+	r.Use(mw.LogError)
+	r.Use(mw.Session)
 
 	// Auth
 	// Allow requesting a magic code for both existing and new users (auto-registration happens on validate)
