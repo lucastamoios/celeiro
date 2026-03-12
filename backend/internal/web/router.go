@@ -29,7 +29,8 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Active-Organization"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Active-Organization", "traceparent", "tracestate"},
+		ExposedHeaders:   []string{"Server-Timing"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
