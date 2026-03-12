@@ -1,6 +1,8 @@
 package application
 
 import (
+	"context"
+
 	"github.com/catrutech/celeiro/internal/application/accounts"
 	"github.com/catrutech/celeiro/internal/application/financial"
 	"github.com/catrutech/celeiro/internal/config"
@@ -10,6 +12,7 @@ import (
 	"github.com/catrutech/celeiro/pkg/logging"
 	"github.com/catrutech/celeiro/pkg/mailer"
 	"github.com/catrutech/celeiro/pkg/metrics"
+	celeiroOtel "github.com/catrutech/celeiro/pkg/otel"
 	"github.com/catrutech/celeiro/pkg/system"
 
 	"go.uber.org/fx"
@@ -63,7 +66,10 @@ func GetApplication() *Application {
 
 	app := fx.New(
 		GetApplicationProvider(),
-		fx.Provide(logging.NewStdoutLogger),
+		fx.Provide(
+			logging.NewStdoutLogger,
+			provideDefaultOTelProvider,
+		),
 		fx.Populate(&application),
 		fx.NopLogger,
 	)
@@ -73,4 +79,10 @@ func GetApplication() *Application {
 	}
 
 	return application
+}
+
+// provideDefaultOTelProvider creates an OTel provider for non-web contexts (CLI, tests).
+func provideDefaultOTelProvider(cfg *config.Config) *celeiroOtel.Provider {
+	provider, _ := celeiroOtel.InitProvider(context.Background(), cfg)
+	return provider
 }

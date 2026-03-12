@@ -74,7 +74,7 @@ func New() *Config {
 	redisPassword := flag.String("redis-password", getEnvAsString("REDIS_PASSWORD", ""), "Redis password")
 	redisDB := flag.Int("redis-db", getEnvAsInt("REDIS_DB", 0), "Redis database")
 	emailFrom := flag.String("email-from", getEnvAsString("EMAIL_FROM", "noreply@example.com"), "Email from")
-	serviceName := flag.String("service-name", getEnvAsString("SERVICE_NAME", "scaffold"), "Service name")
+	serviceName := flag.String("service-name", getEnvAsString("SERVICE_NAME", "celeiro"), "Service name")
 	serviceInstanceID := flag.String("service-instance-id", getEnvAsString("SERVICE_INSTANCE_ID", "1"), "Service instance ID")
 	serviceVersion := flag.String("service-version", getEnvAsString("SERVICE_VERSION", "unknown"), "Service version")
 	otelEndpoint := flag.String("otel-endpoint", getEnvAsString("OTEL_ENDPOINT", "localhost:4318"), "OTEL endpoint")

@@ -10,11 +10,7 @@ import (
 	"github.com/catrutech/celeiro/pkg/errors"
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
-	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 )
 
@@ -109,39 +105,9 @@ func (l *otelLogger) Error(ctx context.Context, msg string, args ...any) {
 	l.ErrorContext(ctx, msg, attrs...)
 }
 
-func NewOTelLogger(config *config.Config) (Logger, error) {
-	// Set resource attributes
-	res, _ := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(config.ServiceName),
-			semconv.ServiceInstanceID(config.ServiceInstanceID),
-			semconv.ServiceVersion(config.ServiceVersion),
-		),
-	)
-	// Propagate trace context and baggage
-	prop := propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{},
-		propagation.Baggage{},
-	)
-	otel.SetTextMapPropagator(prop)
-
-	// Export logs to OTLP
-	logExporter, err := otlploghttp.New(
-		context.Background(),
-		otlploghttp.WithInsecure(),
-		otlploghttp.WithEndpoint(config.OTELEndpoint),
-	)
-	if err != nil {
-		return nil, err
-	}
-	processor := log.NewBatchProcessor(logExporter)
-	loggerProvider := log.NewLoggerProvider(
-		log.WithResource(res),
-		log.WithProcessor(processor),
-	)
-	// should we call loggerProvider.Shutdown?
+// NewOTelLogger creates a logger backed by an OTel LoggerProvider.
+// The provider is managed externally (by the otel.Provider).
+func NewOTelLogger(cfg *config.Config, loggerProvider *log.LoggerProvider) (Logger, error) {
 	logger := otelslog.NewLogger(semconv.SchemaURL, otelslog.WithLoggerProvider(loggerProvider))
 	return &otelLogger{*logger}, nil
 }

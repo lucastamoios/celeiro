@@ -9,12 +9,13 @@ import (
 	"github.com/catrutech/celeiro/internal/web/middlewares"
 	webhooksWeb "github.com/catrutech/celeiro/internal/web/webhooks"
 	"github.com/catrutech/celeiro/pkg/logging"
+	celeiroOtel "github.com/catrutech/celeiro/pkg/otel"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 )
 
-func NewRouter(application *application.Application, logger logging.Logger, cfg *config.Config) *chi.Mux {
+func NewRouter(application *application.Application, logger logging.Logger, cfg *config.Config, otelProvider *celeiroOtel.Provider) *chi.Mux {
 	r := chi.NewRouter()
 
 	mw := middlewares.NewMiddleware(application, logger)
@@ -22,6 +23,7 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 	fh := financialWeb.NewHandler(application)
 	wh := webhooksWeb.NewHandler(application, logger, cfg)
 
+	r.Use(celeiroOtel.ChiTraceMiddleware(otelProvider))
 	r.Use(mw.LogError)
 	r.Use(mw.Session)
 	r.Use(cors.Handler(cors.Options{

@@ -36,9 +36,7 @@ func (test *MiddlewareTestSuite) SetupTest() {
 }
 
 func (test *MiddlewareTestSuite) createTestLogger() logging.Logger {
-	logger, err := logging.NewOTelLogger(test.createTestConfig())
-	test.Require().NoError(err)
-	return logger
+	return &logging.TestLogger{}
 }
 
 func (test *MiddlewareTestSuite) createTestConfig() *config.Config {

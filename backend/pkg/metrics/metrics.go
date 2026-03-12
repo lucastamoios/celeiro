@@ -1,17 +1,10 @@
 package metrics
 
 import (
-	"context"
-	"fmt"
-	"time"
-
 	"github.com/catrutech/celeiro/internal/config"
+	celeiroOtel "github.com/catrutech/celeiro/pkg/otel"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 )
 
 // Metrics provides access to application metrics
@@ -38,50 +31,17 @@ type Metrics struct {
 	ClassificationRuleDuration   metric.Float64Histogram
 }
 
-// NewMetrics creates a new metrics instance with OpenTelemetry
-func NewMetrics(cfg *config.Config) (*Metrics, error) {
-	// If OTEL is disabled, return no-op metrics
+// NewMetrics creates a new metrics instance using the centralized OTel provider.
+func NewMetrics(cfg *config.Config, provider *celeiroOtel.Provider) (*Metrics, error) {
 	if !cfg.OTELEnabled {
 		return NewNoOpMetrics(), nil
 	}
 
-	// Set resource attributes (without schema URL to avoid conflicts)
-	res := resource.NewWithAttributes(
-		"",
-		semconv.ServiceName(cfg.ServiceName),
-		semconv.ServiceInstanceID(cfg.ServiceInstanceID),
-		semconv.ServiceVersion(cfg.ServiceVersion),
-	)
+	// Use the centralized meter provider (set as global by pkg/otel)
+	meter := otel.GetMeterProvider().Meter("github.com/catrutech/celeiro/financial")
 
-	// Create OTLP HTTP exporter
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	metricExporter, err := otlpmetrichttp.New(
-		ctx,
-		otlpmetrichttp.WithInsecure(),
-		otlpmetrichttp.WithEndpoint(cfg.OTELEndpoint),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create metric exporter: %w", err)
-	}
-
-	// Create meter provider
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(res),
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter,
-			sdkmetric.WithInterval(10*time.Second),
-		)),
-	)
-
-	// Set global meter provider
-	otel.SetMeterProvider(meterProvider)
-
-	// Create meter
-	meter := meterProvider.Meter("github.com/catrutech/celeiro/financial")
-
-	// Initialize all metrics
 	m := &Metrics{meter: meter}
+	var err error
 
 	// OFX Import Metrics
 	m.OFXImportTotal, err = meter.Int64Counter(
@@ -206,18 +166,7 @@ func NewMetrics(cfg *config.Config) (*Metrics, error) {
 	return m, nil
 }
 
-// NoOpMetrics creates a metrics instance that does nothing (for tests)
-type NoOpMetrics struct{}
-
-func (n *NoOpMetrics) OFXImportTotal() metric.Int64Counter       { return nil }
-func (n *NoOpMetrics) OFXImportSuccess() metric.Int64Counter     { return nil }
-func (n *NoOpMetrics) OFXImportFailure() metric.Int64Counter     { return nil }
-func (n *NoOpMetrics) OFXParseErrors() metric.Int64Counter       { return nil }
-func (n *NoOpMetrics) OFXTransactionCount() metric.Int64Histogram { return nil }
-func (n *NoOpMetrics) OFXParseDuration() metric.Float64Histogram { return nil }
-func (n *NoOpMetrics) OFXImportDuration() metric.Float64Histogram { return nil }
-
-// NewNoOpMetrics creates a no-op metrics instance for tests
+// NewNoOpMetrics creates a no-op metrics instance for tests and disabled OTel.
 func NewNoOpMetrics() *Metrics {
 	return &Metrics{}
 }

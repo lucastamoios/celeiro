@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/catrutech/celeiro/internal/application"
+	"github.com/catrutech/celeiro/internal/config"
 	"github.com/catrutech/celeiro/internal/web"
 	"github.com/catrutech/celeiro/pkg/logging"
+	celeiroOtel "github.com/catrutech/celeiro/pkg/otel"
 	"go.uber.org/fx"
 )
 
@@ -19,7 +21,8 @@ func main() {
 	app := fx.New(
 		application.GetApplicationProvider(),
 		fx.Provide(
-			logging.NewStdoutLogger,
+			provideOTelProvider,
+			provideLogger,
 			web.NewRouter,
 			web.NewHTTPServer,
 		),
@@ -30,6 +33,28 @@ func main() {
 	app.Run()
 	<-done
 	log.Println("Graceful shutdown complete.")
+}
+
+func provideOTelProvider(lc fx.Lifecycle, cfg *config.Config) *celeiroOtel.Provider {
+	provider, err := celeiroOtel.InitProvider(context.Background(), cfg)
+	if err != nil {
+		log.Fatalf("failed to initialize OTel provider: %v", err)
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			return provider.Stop(ctx)
+		},
+	})
+
+	return provider
+}
+
+func provideLogger(cfg *config.Config, provider *celeiroOtel.Provider) (logging.Logger, error) {
+	if cfg.OTELEnabled {
+		return logging.NewOTelLogger(cfg, provider.GetLoggerProvider())
+	}
+	return logging.NewStdoutLogger()
 }
 
 func gracefulShutdown(f *fx.App, done chan bool) {
