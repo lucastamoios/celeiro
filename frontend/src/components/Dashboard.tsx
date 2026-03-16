@@ -9,6 +9,7 @@ import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import BudgetPacingWidget from './BudgetPacingWidget';
+import { getCategoryColor } from '../utils/colors';
 
 interface Account {
   AccountID: number;
@@ -723,262 +724,125 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
       {/* Category Expenses */}
       {stats.categoryExpenses.length > 0 && (
         <div className="card">
-          <h2 className="font-display text-lg font-semibold text-stone-900 mb-4">
-            Gastos por Categoria
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Pie Chart */}
-            <div className="flex items-center justify-center">
-              <svg viewBox="0 0 200 200" className="w-full max-w-[280px]">
-                {(() => {
-                  const colors = [
-                    '#8b5a3c', '#d4a574', '#c97d60', '#a68572', '#b8956a',
-                    '#9d7a5e', '#c89f7e', '#b07d62', '#a68a76', '#c6906e'
-                  ];
-                  let currentAngle = -90; // Start at top
-
-                  return stats.categoryExpenses.map(({ category, percentage }, index) => {
-                    const sliceAngle = (percentage / 100) * 360;
-                    const startAngle = currentAngle;
-                    const endAngle = currentAngle + sliceAngle;
-
-                    // Calculate path for pie slice
-                    const startRad = (startAngle * Math.PI) / 180;
-                    const endRad = (endAngle * Math.PI) / 180;
-                    const x1 = 100 + 80 * Math.cos(startRad);
-                    const y1 = 100 + 80 * Math.sin(startRad);
-                    const x2 = 100 + 80 * Math.cos(endRad);
-                    const y2 = 100 + 80 * Math.sin(endRad);
-                    const largeArc = sliceAngle > 180 ? 1 : 0;
-
-                    const path = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-                    currentAngle = endAngle;
-
-                    return (
-                      <path
-                        key={category.category_id}
-                        d={path}
-                        fill={colors[index % colors.length]}
-                        stroke="white"
-                        strokeWidth="2"
-                        className="transition-opacity hover:opacity-80 cursor-pointer"
-                      />
-                    );
-                  });
-                })()}
-                {/* Center hole for donut effect */}
-                <circle cx="100" cy="100" r="50" fill="white" />
-                <text
-                  x="100"
-                  y="95"
-                  textAnchor="middle"
-                  className="text-xs fill-stone-500"
-                  style={{ fontSize: '10px' }}
-                >
-                  Total
-                </text>
-                <text
-                  x="100"
-                  y="110"
-                  textAnchor="middle"
-                  className="text-sm font-bold fill-stone-900"
-                  style={{ fontSize: '14px' }}
-                >
-                  {formatCurrency(stats.totalExpenses)}
-                </text>
-              </svg>
-            </div>
-
-            {/* Legend */}
-            <div className="space-y-3">
-              {stats.categoryExpenses.map(({ category, amount, percentage }, index) => {
-                const colors = [
-                  '#8b5a3c', '#d4a574', '#c97d60', '#a68572', '#b8956a',
-                  '#9d7a5e', '#c89f7e', '#b07d62', '#a68a76', '#c6906e'
-                ];
-                const budget = stats.budgetSummary?.budgetsByCategory.find(
-                  b => b.category.category_id === category.category_id
-                );
-                const budgetPercent = budget && budget.planned > 0
-                  ? (amount / budget.planned) * 100
-                  : 0;
-                const hasBudget = budget && budget.planned > 0;
-
-                // For categories with budget, calculate expected spending by now
-                const expectedByNow = hasBudget
-                  ? (budget.planned * dayProgressPercent) / 100
-                  : 0;
-                const categoryPacePercent = expectedByNow > 0
-                  ? ((amount - expectedByNow) / expectedByNow) * 100
-                  : 0;
-                const isCategoryAhead = amount > expectedByNow;
-
-                return (
-                  <div key={category.category_id} className="flex items-start gap-3">
-                    {/* Color indicator */}
-                    <div
-                      className="w-4 h-4 rounded flex-shrink-0 mt-0.5"
-                      style={{ backgroundColor: colors[index % colors.length] }}
-                    />
-
-                    {/* Category info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-base flex-shrink-0">{category.icon || '📦'}</span>
-                          <span className="text-sm font-medium text-stone-900 truncate">
-                            {category.name}
-                          </span>
-                        </div>
-                        <span className="text-sm font-bold text-stone-900 tabular-nums ml-2">
-                          {formatCurrency(amount)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        {hasBudget ? (
-                          <>
-                            <span className={`text-xs ${
-                              isCurrentMonth && isCategoryAhead ? 'text-terra-600' : 'text-stone-500'
-                            }`}>
-                              {budgetPercent.toFixed(0)}% do orçamento
-                              {isCurrentMonth && Math.abs(categoryPacePercent) > 5 && (
-                                <span className={isCategoryAhead ? 'text-terra-600' : 'text-sage-600'}>
-                                  {' '}({isCategoryAhead ? '+' : ''}{categoryPacePercent.toFixed(0)}%)
-                                </span>
-                              )}
-                            </span>
-                            <span className="text-xs text-stone-500">
-                              de {formatCurrency(budget.planned)}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-xs text-stone-500">
-                            {percentage.toFixed(1)}% do total
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold text-stone-900">
+              Gastos por Categoria
+            </h2>
+            <span className="text-sm text-stone-500">
+              Total: {formatCurrency(stats.totalExpenses)}
+            </span>
           </div>
 
+          <div className="space-y-3">
+            {stats.categoryExpenses.map(({ category, amount, percentage }, index) => {
+              const color = category.color || getCategoryColor(index);
+              const budget = stats.budgetSummary?.budgetsByCategory.find(
+                b => b.category.category_id === category.category_id
+              );
+              const budgetPercent = budget && budget.planned > 0
+                ? (amount / budget.planned) * 100
+                : 0;
+              const hasBudget = budget && budget.planned > 0;
+
+              const expectedByNow = hasBudget
+                ? (budget.planned * dayProgressPercent) / 100
+                : 0;
+              const categoryPacePercent = expectedByNow > 0
+                ? ((amount - expectedByNow) / expectedByNow) * 100
+                : 0;
+              const isCategoryAhead = amount > expectedByNow;
+
+              return (
+                <div key={category.category_id}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base flex-shrink-0">{category.icon || '📦'}</span>
+                      <span className="text-sm font-medium text-stone-900 truncate">
+                        {category.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                      <span className="text-sm font-bold text-stone-900 tabular-nums">
+                        {formatCurrency(amount)}
+                      </span>
+                      <span className="text-xs text-stone-400 tabular-nums w-10 text-right">
+                        {percentage.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(percentage, 1)}%`, backgroundColor: color }}
+                    />
+                  </div>
+                  {hasBudget && (
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className={`text-xs ${
+                        isCurrentMonth && isCategoryAhead ? 'text-terra-600' : 'text-stone-500'
+                      }`}>
+                        {budgetPercent.toFixed(0)}% do orçamento
+                        {isCurrentMonth && Math.abs(categoryPacePercent) > 5 && (
+                          <span className={isCategoryAhead ? 'text-terra-600' : 'text-sage-600'}>
+                            {' '}({isCategoryAhead ? '+' : ''}{categoryPacePercent.toFixed(0)}%)
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-xs text-stone-500">
+                        de {formatCurrency(budget.planned)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {/* Tag Expenses */}
       {stats.tagExpenses.length > 0 && (
         <div className="card">
-          <h2 className="font-display text-lg font-semibold text-stone-900 mb-4">
-            Gastos por Tag
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold text-stone-900">
+              Gastos por Tag
+            </h2>
+            <span className="text-sm text-stone-500">
+              {stats.tagExpenses.length} tags
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Pie Chart */}
-            <div className="flex items-center justify-center">
-              <svg viewBox="0 0 200 200" className="w-full max-w-[280px]">
-                {(() => {
-                  const colors = [
-                    '#6b7280', '#78716c', '#57534e', '#a8a29e', '#d6d3d1',
-                    '#737373', '#525252', '#404040', '#a3a3a3', '#d4d4d4'
-                  ];
-                  let currentAngle = -90; // Start at top
+          <div className="space-y-3">
+            {stats.tagExpenses.map(({ tag, amount, percentage }) => {
+              const color = getCategoryColor(tag);
 
-                  return stats.tagExpenses.map(({ tag, percentage }, index) => {
-                    const sliceAngle = (percentage / 100) * 360;
-                    const startAngle = currentAngle;
-                    const endAngle = currentAngle + sliceAngle;
-
-                    // Calculate path for pie slice
-                    const startRad = (startAngle * Math.PI) / 180;
-                    const endRad = (endAngle * Math.PI) / 180;
-                    const x1 = 100 + 80 * Math.cos(startRad);
-                    const y1 = 100 + 80 * Math.sin(startRad);
-                    const x2 = 100 + 80 * Math.cos(endRad);
-                    const y2 = 100 + 80 * Math.sin(endRad);
-                    const largeArc = sliceAngle > 180 ? 1 : 0;
-
-                    const path = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-                    currentAngle = endAngle;
-
-                    return (
-                      <path
-                        key={tag}
-                        d={path}
-                        fill={colors[index % colors.length]}
-                        stroke="white"
-                        strokeWidth="2"
-                        className="transition-opacity hover:opacity-80 cursor-pointer"
-                      />
-                    );
-                  });
-                })()}
-                {/* Center hole for donut effect */}
-                <circle cx="100" cy="100" r="50" fill="white" />
-                <text
-                  x="100"
-                  y="95"
-                  textAnchor="middle"
-                  className="text-xs fill-stone-500"
-                  style={{ fontSize: '10px' }}
-                >
-                  Tags
-                </text>
-                <text
-                  x="100"
-                  y="110"
-                  textAnchor="middle"
-                  className="text-sm font-bold fill-stone-900"
-                  style={{ fontSize: '14px' }}
-                >
-                  {stats.tagExpenses.length}
-                </text>
-              </svg>
-            </div>
-
-            {/* Legend */}
-            <div className="space-y-3">
-              {stats.tagExpenses.map(({ tag, amount, percentage }, index) => {
-                const colors = [
-                  '#6b7280', '#78716c', '#57534e', '#a8a29e', '#d6d3d1',
-                  '#737373', '#525252', '#404040', '#a3a3a3', '#d4d4d4'
-                ];
-
-                return (
-                  <div key={tag} className="flex items-start gap-3">
-                    {/* Color indicator */}
-                    <div
-                      className="w-4 h-4 rounded flex-shrink-0 mt-0.5"
-                      style={{ backgroundColor: colors[index % colors.length] }}
-                    />
-
-                    {/* Tag info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-base flex-shrink-0">🏷️</span>
-                          <span className="text-sm font-medium text-stone-900 truncate">
-                            {tag}
-                          </span>
-                        </div>
-                        <span className="text-sm font-bold text-stone-900 tabular-nums ml-2">
-                          {formatCurrency(amount)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-stone-500">
-                          {percentage.toFixed(1)}% do total
-                        </span>
-                      </div>
+              return (
+                <div key={tag}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base flex-shrink-0">🏷️</span>
+                      <span className="text-sm font-medium text-stone-900 truncate">
+                        {tag}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                      <span className="text-sm font-bold text-stone-900 tabular-nums">
+                        {formatCurrency(amount)}
+                      </span>
+                      <span className="text-xs text-stone-400 tabular-nums w-10 text-right">
+                        {percentage.toFixed(0)}%
+                      </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(percentage, 1)}%`, backgroundColor: color }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
