@@ -1474,7 +1474,7 @@ export default function CategoryBudgetDashboard() {
         )}
 
         {/* Single Month Budget View */}
-        {categories.length > 0 && selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
+        {categories.length > 0 && (selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
           <div className="card p-12 text-center">
             <div className="flex justify-center mb-4">
               <BarChart3 className="w-16 h-16 text-stone-300" />
@@ -1554,7 +1554,7 @@ export default function CategoryBudgetDashboard() {
               }}
               hideHeader={true}
             />
-        )}
+        ))}
 
         {/* Create/Edit Budget Modal */}
         <Modal

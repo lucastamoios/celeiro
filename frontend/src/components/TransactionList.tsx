@@ -843,7 +843,7 @@ export default function TransactionList() {
         )}
 
         {/* Mobile Card View */}
-        <div className="lg:hidden space-y-3">
+        {filteredTransactions.length > 0 && <div className="lg:hidden space-y-3">
           {filteredTransactions.map((transaction) => (
             <div
               key={transaction.transaction_id}
@@ -909,10 +909,10 @@ export default function TransactionList() {
               </div>
             </div>
           ))}
-        </div>
+        </div>}
 
         {/* Desktop Table View */}
-        <div className="hidden lg:block card overflow-hidden">
+        {filteredTransactions.length > 0 && <div className="hidden lg:block card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-stone-200">
               <thead className="bg-stone-50">
@@ -1010,7 +1010,7 @@ export default function TransactionList() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Edit Modal */}
