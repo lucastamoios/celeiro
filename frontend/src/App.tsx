@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { OrganizationProvider, useOrganization } from './contexts/OrganizationContext'
 import LoginPage from './components/LoginPage'
@@ -21,84 +22,17 @@ import {
   X,
 } from 'lucide-react'
 
-type View = 'dashboard' | 'transactions' | 'budgets' | 'goals' | 'settings' | 'uncategorized';
-type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
-
-// Helper to get invite token from URL
-function getInviteToken(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('token');
-}
-
-// Helper to get password reset token from URL
-function getResetToken(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('reset-token');
-}
-
-// Helper to get view from URL params (for middle-click support)
-function getViewFromUrl(): View | null {
-  const params = new URLSearchParams(window.location.search);
-  const view = params.get('view');
-  if (view && VALID_VIEWS.includes(view as View)) {
-    return view as View;
-  }
-  return null;
-}
-
-const VALID_VIEWS: View[] = ['dashboard', 'transactions', 'budgets', 'goals', 'settings', 'uncategorized'];
-const VIEW_STORAGE_KEY = 'celeiro_current_view';
-
-function getInitialView(): View {
-  // Priority: URL param > sessionStorage > default
-  const urlView = getViewFromUrl();
-  if (urlView) {
-    return urlView;
-  }
-
-  // Use sessionStorage for per-tab state (not shared across tabs)
-  const stored = sessionStorage.getItem(VIEW_STORAGE_KEY);
-  if (stored && VALID_VIEWS.includes(stored as View)) {
-    return stored as View;
-  }
-  return 'dashboard';
-}
-
-// Check if URL has auth-related params that should show the login page
-function hasAuthUrlParams(): boolean {
-  const params = new URLSearchParams(window.location.search);
-  return !!(params.get('email') || params.get('code'));
-}
-
-function AppContent() {
-  const { isAuthenticated } = useAuth();
+function AuthenticatedLayout() {
   const { isLoading: isOrgLoading, activeOrganization } = useOrganization();
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
-  const [currentView, setCurrentViewState] = useState<View>(getInitialView);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('categorias');
-  const [inviteToken, setInviteToken] = useState<string | null>(getInviteToken);
-  const [resetToken, setResetToken] = useState<string | null>(getResetToken);
+  const location = useLocation();
 
-  const setCurrentView = useCallback((view: View) => {
-    setCurrentViewState(view);
-    sessionStorage.setItem(VIEW_STORAGE_KEY, view);
-    setIsMobileMenuOpen(false); // Close mobile menu when navigating
-  }, []);
-
-  const handleNavigateToSettings = useCallback((tab?: SettingsTab) => {
-    if (tab) setSettingsTab(tab);
-    setCurrentView('settings');
-  }, [setCurrentView]);
-
-  // Listen for pathname changes (popstate from browser nav + programmatic navigate())
+  // Close mobile menu on route change
   useEffect(() => {
-    const handlePopState = () => setCurrentPath(window.location.pathname);
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
-  // Close mobile menu when clicking outside or pressing Escape
+  // Close mobile menu on Escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsMobileMenuOpen(false);
@@ -107,45 +41,6 @@ function AppContent() {
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  // Handle password reset flow
-  if (resetToken) {
-    return (
-      <ResetPassword
-        token={resetToken}
-        onComplete={() => setResetToken(null)}
-      />
-    );
-  }
-
-  // Handle invite acceptance flow
-  if (inviteToken) {
-    return (
-      <AcceptInvite
-        token={inviteToken}
-        onComplete={() => setInviteToken(null)}
-      />
-    );
-  }
-
-  // Handler for middle-click (auxiliary click) to open in new tab
-  // NOTE: All hooks must be declared before any conditional returns
-  const handleAuxClick = useCallback((view: View) => (e: React.MouseEvent) => {
-    // Middle-click (button 1) or Ctrl/Cmd+click
-    if (e.button === 1 || e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      window.open(`${window.location.origin}${window.location.pathname}?view=${view}`, '_blank');
-    }
-  }, []);
-
-  // === CONDITIONAL RETURNS (after all hooks) ===
-
-  if (!isAuthenticated) {
-    if (currentPath === '/login' || hasAuthUrlParams()) return <LoginPage />;
-    return <LandingPage />;
-  }
-
-  // Wait for organization data to be loaded before rendering main content
-  // This prevents race condition where components try to access activeOrganization before it's set
   if (isOrgLoading || !activeOrganization) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
@@ -157,16 +52,16 @@ function AppContent() {
     );
   }
 
-  const navButtonClass = (view: View) =>
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `px-3 py-2 text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-2 ${
-      currentView === view
+      isActive
         ? 'bg-wheat-100 text-wheat-700'
         : 'text-stone-600 hover:bg-stone-100'
     }`;
 
-  const mobileNavButtonClass = (view: View) =>
+  const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
     `w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-colors ${
-      currentView === view
+      isActive
         ? 'bg-wheat-100 text-wheat-700'
         : 'text-stone-600 hover:bg-stone-100'
     }`;
@@ -179,71 +74,34 @@ function AppContent() {
           <div className="flex items-center justify-between h-16">
             {/* Logo and Desktop Nav */}
             <div className="flex items-center space-x-6">
-              <button
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    handleAuxClick('dashboard')(e);
-                  } else {
-                    setCurrentView('dashboard');
-                  }
-                }}
-                onAuxClick={handleAuxClick('dashboard')}
+              <NavLink
+                to="/"
                 className="flex items-center gap-1 text-xl font-bold text-stone-900 hover:text-wheat-600 transition-colors"
               >
                 <img src="/celeiro-wheat-v4.svg" alt="Celeiro" className="w-6 h-6" />
                 <span>Celeiro</span>
-              </button>
+              </NavLink>
               {/* Desktop Navigation - Hidden on mobile/tablet */}
               <div className="hidden lg:flex space-x-1">
-                <button
-                  onClick={(e) => {
-                    if (e.ctrlKey || e.metaKey) {
-                      handleAuxClick('transactions')(e);
-                    } else {
-                      setCurrentView('transactions');
-                    }
-                  }}
-                  onAuxClick={handleAuxClick('transactions')}
-                  className={navButtonClass('transactions')}
-                >
+                <NavLink to="/transactions" className={navLinkClass}>
                   <CreditCard className="w-4 h-4" />
                   <span>Transações</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    if (e.ctrlKey || e.metaKey) {
-                      handleAuxClick('budgets')(e);
-                    } else {
-                      setCurrentView('budgets');
-                    }
-                  }}
-                  onAuxClick={handleAuxClick('budgets')}
-                  className={navButtonClass('budgets')}
-                >
+                </NavLink>
+                <NavLink to="/budgets" className={navLinkClass}>
                   <PieChart className="w-4 h-4" />
                   <span>Orçamentos</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    if (e.ctrlKey || e.metaKey) {
-                      handleAuxClick('goals')(e);
-                    } else {
-                      setCurrentView('goals');
-                    }
-                  }}
-                  onAuxClick={handleAuxClick('goals')}
-                  className={navButtonClass('goals')}
-                >
+                </NavLink>
+                <NavLink to="/goals" className={navLinkClass}>
                   <Target className="w-4 h-4" />
                   <span>Metas</span>
-                </button>
+                </NavLink>
               </div>
             </div>
 
             {/* Right Side: Avatar + Mobile Hamburger */}
             <div className="flex items-center gap-2">
               {/* User Avatar Menu - always visible */}
-              <UserAvatarMenu onNavigateToSettings={handleNavigateToSettings} />
+              <UserAvatarMenu />
 
               {/* Mobile/Tablet Hamburger Button */}
               <button
@@ -273,85 +131,153 @@ function AppContent() {
           {/* Drawer */}
           <div className="fixed top-16 left-0 right-0 bg-stone-50 border-b border-stone-200 shadow-lg z-50 lg:hidden">
             <div className="px-4 py-4 space-y-1">
-              <button
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    handleAuxClick('dashboard')(e);
-                  } else {
-                    setCurrentView('dashboard');
-                  }
-                }}
-                onAuxClick={handleAuxClick('dashboard')}
-                className={mobileNavButtonClass('dashboard')}
-              >
+              <NavLink to="/" end className={mobileNavLinkClass}>
                 <LayoutDashboard className="w-5 h-5" />
                 <span>Dashboard</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    handleAuxClick('transactions')(e);
-                  } else {
-                    setCurrentView('transactions');
-                  }
-                }}
-                onAuxClick={handleAuxClick('transactions')}
-                className={mobileNavButtonClass('transactions')}
-              >
+              </NavLink>
+              <NavLink to="/transactions" className={mobileNavLinkClass}>
                 <CreditCard className="w-5 h-5" />
                 <span>Transações</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    handleAuxClick('budgets')(e);
-                  } else {
-                    setCurrentView('budgets');
-                  }
-                }}
-                onAuxClick={handleAuxClick('budgets')}
-                className={mobileNavButtonClass('budgets')}
-              >
+              </NavLink>
+              <NavLink to="/budgets" className={mobileNavLinkClass}>
                 <PieChart className="w-5 h-5" />
                 <span>Orçamentos</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    handleAuxClick('goals')(e);
-                  } else {
-                    setCurrentView('goals');
-                  }
-                }}
-                onAuxClick={handleAuxClick('goals')}
-                className={mobileNavButtonClass('goals')}
-              >
+              </NavLink>
+              <NavLink to="/goals" className={mobileNavLinkClass}>
                 <Target className="w-5 h-5" />
                 <span>Metas</span>
-              </button>
+              </NavLink>
             </div>
           </div>
         </>
       )}
 
       {/* Content */}
-      {currentView === 'dashboard' && <Dashboard onNavigateToUncategorized={() => setCurrentView('uncategorized')} />}
-      {currentView === 'transactions' && <TransactionList />}
-      {currentView === 'budgets' && <CategoryBudgetDashboard />}
-      {currentView === 'goals' && <SavingsGoalsPage />}
-      {currentView === 'settings' && <SettingsPage initialTab={settingsTab} />}
-      {currentView === 'uncategorized' && <UncategorizedTransactions />}
+      <Routes>
+        <Route index element={<Dashboard />} />
+        <Route path="transactions" element={<TransactionList />} />
+        <Route path="budgets" element={<CategoryBudgetDashboard />} />
+        <Route path="goals" element={<SavingsGoalsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="uncategorized" element={<UncategorizedTransactions />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   );
 }
 
+function AcceptInviteRoute() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const token = searchParams.get('token');
+
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <AcceptInvite
+      token={token}
+      onComplete={() => navigate('/', { replace: true })}
+    />
+  );
+}
+
+function ResetPasswordRoute() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const token = searchParams.get('reset-token');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <ResetPassword
+      token={token}
+      onComplete={() => navigate('/login', { replace: true })}
+    />
+  );
+}
+
+function LoginRoute() {
+  const { isAuthenticated } = useAuth();
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <LoginPage />;
+}
+
+function LandingRoute() {
+  const { isAuthenticated } = useAuth();
+
+  if (isAuthenticated) {
+    return <AuthenticatedLayout />;
+  }
+
+  return <LandingPage />;
+}
+
+// Check if URL has auth-related params that should show the login page
+function hasAuthUrlParams(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  return !!(params.get('email') || params.get('code'));
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/accept-invite" element={<AcceptInviteRoute />} />
+      <Route path="/reset-password" element={<ResetPasswordRoute />} />
+      <Route path="/login" element={<LoginRoute />} />
+      <Route path="/*" element={<LandingRoute />} />
+    </Routes>
+  );
+}
+
+function AppContent() {
+  // Handle legacy ?view= URLs by redirecting to proper routes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    if (view && window.location.pathname === '/') {
+      const viewRoutes: Record<string, string> = {
+        dashboard: '/',
+        transactions: '/transactions',
+        budgets: '/budgets',
+        goals: '/goals',
+        settings: '/settings',
+        uncategorized: '/uncategorized',
+      };
+      const route = viewRoutes[view];
+      if (route) {
+        window.history.replaceState({}, '', route);
+      }
+    }
+  }, []);
+
+  // Handle legacy auth URL params (?email=&code=) by redirecting to /login
+  useEffect(() => {
+    if (hasAuthUrlParams() && window.location.pathname !== '/login') {
+      const search = window.location.search;
+      window.history.replaceState({}, '', '/login' + search);
+    }
+  }, []);
+
+  return <AppRoutes />;
+}
+
 function App() {
   return (
-    <AuthProvider>
-      <OrganizationProvider>
-        <AppContent />
-      </OrganizationProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <OrganizationProvider>
+          <AppContent />
+        </OrganizationProvider>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
 

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
 interface AuthContextType {
@@ -21,26 +21,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!token;
 
-  const login = (newToken: string, email: string) => {
+  const login = useCallback((newToken: string, email: string) => {
     setToken(newToken);
     setUserEmail(email);
     localStorage.setItem('auth_token', newToken);
     localStorage.setItem('auth_email', email);
-    // Clean URL back to root after login
-    if (window.location.pathname === '/login') {
-      window.history.replaceState({}, '', '/');
-    }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setToken(null);
     setUserEmail(null);
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_email');
     localStorage.removeItem('active_organization_id');
-    // Return to landing page on logout
-    window.history.replaceState({}, '', '/');
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ token, userEmail, isAuthenticated, login, logout }}>

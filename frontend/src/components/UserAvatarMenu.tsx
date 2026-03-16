@@ -1,14 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import OrganizationSwitcher from './OrganizationSwitcher';
 import { User, LogOut, ChevronDown, Building2, Settings } from 'lucide-react';
 
 type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
-
-interface UserAvatarMenuProps {
-  onNavigateToSettings: (tab?: SettingsTab) => void;
-}
 
 // Get initials from email
 function getInitials(email: string): string {
@@ -19,7 +16,8 @@ function getInitials(email: string): string {
   return name.toUpperCase();
 }
 
-export default function UserAvatarMenu({ onNavigateToSettings }: UserAvatarMenuProps) {
+export default function UserAvatarMenu() {
+  const navigate = useNavigate();
   const { userEmail, logout } = useAuth();
   const { activeOrganization, organizations, userInfo } = useOrganization();
   const [isOpen, setIsOpen] = useState(false);
@@ -64,7 +62,8 @@ export default function UserAvatarMenu({ onNavigateToSettings }: UserAvatarMenuP
 
   const handleMenuItemClick = (tab?: SettingsTab) => {
     setIsOpen(false);
-    onNavigateToSettings(tab);
+    const params = tab ? `?tab=${tab}` : '';
+    navigate(`/settings${params}`);
   };
 
   const handleLogout = () => {
