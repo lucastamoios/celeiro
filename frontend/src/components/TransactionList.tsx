@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Coins, XCircle, CheckSquare, Square, X, Upload } from 'lucide-react';
+import { Coins, XCircle, CheckSquare, Square, X, Upload, CreditCard, Calendar } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
@@ -771,6 +771,76 @@ export default function TransactionList() {
             </div>
           </div>
         </div>
+
+        {/* Empty State: No transactions at all */}
+        {transactions.length === 0 && (
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <CreditCard className="w-16 h-16 text-stone-300" />
+            </div>
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
+              Nenhuma transação ainda
+            </h3>
+            <p className="text-stone-500 mb-4">
+              Importe seu extrato bancário em formato OFX ou crie uma transação manual para começar.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <label className="btn-primary text-sm cursor-pointer">
+                <Upload className="w-4 h-4" />
+                Importar OFX
+                <input
+                  type="file"
+                  accept=".ofx"
+                  multiple
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn-secondary text-sm"
+              >
+                Nova Transação
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State: No transactions in selected month (but has others) */}
+        {transactions.length > 0 && filteredTransactions.length === 0 && selectedMonthTransactions.length === 0 && (
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <Calendar className="w-16 h-16 text-stone-300" />
+            </div>
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
+              Nenhuma transação em {getMonthName(selectedMonth)} {selectedYear}
+            </h3>
+            <p className="text-stone-500 mb-4">
+              Importe um extrato OFX para este período ou navegue para outro mês.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <label className="btn-primary text-sm cursor-pointer">
+                <Upload className="w-4 h-4" />
+                Importar OFX
+                <input
+                  type="file"
+                  accept=".ofx"
+                  multiple
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={handleGoToCurrentMonth}
+                className="btn-secondary text-sm"
+              >
+                Ir para mês atual
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-3">

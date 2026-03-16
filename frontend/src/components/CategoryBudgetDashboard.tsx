@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BarChart3, Copy, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { BarChart3, Copy, Download, Tags } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useSelectedMonth } from '../hooks/useSelectedMonth';
@@ -43,6 +44,7 @@ interface MonthlyBudgetData {
 }
 
 export default function CategoryBudgetDashboard() {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const { activeOrganization } = useOrganization();
   const organizationId = activeOrganization?.organization_id?.toString() || '1';
@@ -1450,8 +1452,29 @@ export default function CategoryBudgetDashboard() {
           </div>
         )}
 
+        {/* Empty State: No categories created */}
+        {!loading && categories.length === 0 && (
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <Tags className="w-16 h-16 text-stone-300" />
+            </div>
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
+              Nenhuma categoria encontrada
+            </h3>
+            <p className="text-stone-500 mb-4">
+              Crie suas categorias primeiro para poder definir orçamentos mensais.
+            </p>
+            <button
+              onClick={() => navigate('/settings?tab=categorias')}
+              className="btn-primary"
+            >
+              Ir para Categorias
+            </button>
+          </div>
+        )}
+
         {/* Single Month Budget View */}
-        {selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
+        {categories.length > 0 && selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
           <div className="card p-12 text-center">
             <div className="flex justify-center mb-4">
               <BarChart3 className="w-16 h-16 text-stone-300" />
