@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Coins, XCircle, CheckSquare, Square, X, Upload } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
@@ -417,6 +417,9 @@ export default function TransactionList() {
     await fetchData();
   };
 
+  const fetchDataRef = useRef(fetchData);
+  fetchDataRef.current = fetchData;
+
   const handleInlineSave = useCallback(async (transaction: Transaction, patch: Record<string, unknown>) => {
     if (!token) return;
 
@@ -425,23 +428,28 @@ export default function TransactionList() {
       t.transaction_id === transaction.transaction_id ? { ...t, ...patch } : t
     ));
 
-    const response = await fetch(
-      financialUrl(`accounts/${transaction.account_id}/transactions/${transaction.transaction_id}`),
-      {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-Active-Organization': activeOrganizationId,
-        },
-        body: JSON.stringify(patch),
-      }
-    );
+    try {
+      const response = await fetch(
+        financialUrl(`accounts/${transaction.account_id}/transactions/${transaction.transaction_id}`),
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'X-Active-Organization': activeOrganizationId,
+          },
+          body: JSON.stringify(patch),
+        }
+      );
 
-    if (!response.ok) {
-      // Revert optimistic update
-      await fetchData();
-      throw new Error('Erro ao salvar');
+      if (!response.ok) {
+        await fetchDataRef.current();
+        throw new Error('Erro ao salvar');
+      }
+    } catch (err) {
+      // Revert optimistic update on network or response errors
+      await fetchDataRef.current();
+      throw err;
     }
   }, [token, activeOrganizationId]);
 

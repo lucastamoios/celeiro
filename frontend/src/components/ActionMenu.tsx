@@ -34,8 +34,15 @@ export default function ActionMenu({ transaction, onEditFull }: ActionMenuProps)
     onEditFull(transaction);
   }, [onEditFull, transaction]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+    }
+  }, []);
+
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative" ref={menuRef} onKeyDown={handleKeyDown}>
       <button
         onClick={handleToggle}
         className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
