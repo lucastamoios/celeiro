@@ -601,7 +601,7 @@ export default function TransactionList() {
         )}
 
         {/* Filters and Bulk Actions */}
-        <div className="mb-6 bg-stone-50 border border-stone-200 rounded-xl p-4">
+        {transactions.length > 0 && <div className="mb-6 bg-stone-50 border border-stone-200 rounded-xl p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-4 flex-wrap">
               {/* Filters inline */}
@@ -724,7 +724,7 @@ export default function TransactionList() {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Success/Error Messages */}
         {uploadSuccess && (
@@ -740,7 +740,7 @@ export default function TransactionList() {
         )}
 
         {/* Summary Cards */}
-        <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        {transactions.length > 0 && <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="card-compact flex items-center gap-3 sm:block">
             <div className="w-10 h-10 sm:w-auto sm:h-auto bg-sage-100 rounded-lg flex items-center justify-center sm:hidden">
               <Coins className="w-5 h-5 text-sage-600" />
@@ -770,7 +770,7 @@ export default function TransactionList() {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Empty State: No transactions at all */}
         {transactions.length === 0 && (
@@ -808,7 +808,7 @@ export default function TransactionList() {
         )}
 
         {/* Empty State: No transactions in selected month (but has others) */}
-        {transactions.length > 0 && filteredTransactions.length === 0 && selectedMonthTransactions.length === 0 && (
+        {transactions.length > 0 && selectedMonthTransactions.length === 0 && (
           <div className="card p-12 text-center">
             <div className="flex justify-center mb-4">
               <Calendar className="w-16 h-16 text-stone-300" />
@@ -843,7 +843,7 @@ export default function TransactionList() {
         )}
 
         {/* Mobile Card View */}
-        {filteredTransactions.length > 0 && <div className="lg:hidden space-y-3">
+        {selectedMonthTransactions.length > 0 && <div className="lg:hidden space-y-3">
           {filteredTransactions.map((transaction) => (
             <div
               key={transaction.transaction_id}
@@ -912,7 +912,7 @@ export default function TransactionList() {
         </div>}
 
         {/* Desktop Table View */}
-        {filteredTransactions.length > 0 && <div className="hidden lg:block card overflow-hidden">
+        {selectedMonthTransactions.length > 0 && <div className="hidden lg:block card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-stone-200">
               <thead className="bg-stone-50">
