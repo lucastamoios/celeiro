@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, TrendingDown, X, ChevronLeft, ChevronRight, CalendarDays, Tags, Upload, PieChart } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, ChevronLeft, ChevronRight, CalendarDays, Tags, Upload, PieChart, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
@@ -90,6 +90,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [attentionDismissed, setAttentionDismissed] = useState(false);
   const [dismissedItemsSignature, setDismissedItemsSignature] = useState('');
+  const [chartsExpanded, setChartsExpanded] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -510,6 +511,9 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Budget Pacing Widget - Hero position */}
+      <BudgetPacingWidget month={selectedMonth} year={selectedYear} />
+
       {/* Financial Overview Card */}
       <div className="card mb-8">
         <h2 className="font-display text-lg font-semibold text-stone-900 mb-6">Resumo Financeiro</h2>
@@ -774,132 +778,150 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Budget Pacing Widget */}
-      <BudgetPacingWidget month={selectedMonth} year={selectedYear} />
-
-      {/* Category Expenses */}
-      {stats.categoryExpenses.length > 0 && (
+      {/* Expense Breakdown - Collapsible */}
+      {(stats.categoryExpenses.length > 0 || stats.tagExpenses.length > 0) && (
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setChartsExpanded(!chartsExpanded)}
+            className="w-full flex items-center justify-between"
+          >
             <h2 className="font-display text-lg font-semibold text-stone-900">
-              Gastos por Categoria
+              Detalhamento de Gastos
             </h2>
-            <span className="text-sm text-stone-500">
-              Total: {formatCurrency(stats.totalExpenses)}
-            </span>
-          </div>
+            <div className="flex items-center gap-2 text-stone-500">
+              <span className="text-sm">
+                {stats.categoryExpenses.length} categorias{stats.tagExpenses.length > 0 ? `, ${stats.tagExpenses.length} tags` : ''}
+              </span>
+              <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${chartsExpanded ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
 
-          <div className="space-y-3">
-            {stats.categoryExpenses.map(({ category, amount, percentage }, index) => {
-              const color = category.color || getCategoryColor(index);
-              const budget = stats.budgetSummary?.budgetsByCategory.find(
-                b => b.category.category_id === category.category_id
-              );
-              const budgetPercent = budget && budget.planned > 0
-                ? (amount / budget.planned) * 100
-                : 0;
-              const hasBudget = budget && budget.planned > 0;
-
-              const expectedByNow = hasBudget
-                ? (budget.planned * dayProgressPercent) / 100
-                : 0;
-              const categoryPacePercent = expectedByNow > 0
-                ? ((amount - expectedByNow) / expectedByNow) * 100
-                : 0;
-              const isCategoryAhead = amount > expectedByNow;
-
-              return (
-                <div key={category.category_id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-base flex-shrink-0">{category.icon || '📦'}</span>
-                      <span className="text-sm font-medium text-stone-900 truncate">
-                        {category.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                      <span className="text-sm font-bold text-stone-900 tabular-nums">
-                        {formatCurrency(amount)}
-                      </span>
-                      <span className="text-xs text-stone-400 tabular-nums w-10 text-right">
-                        {percentage.toFixed(0)}%
-                      </span>
-                    </div>
+          {chartsExpanded && (
+            <div className="mt-4 space-y-6">
+              {/* Category Expenses */}
+              {stats.categoryExpenses.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-stone-700">Por Categoria</h3>
+                    <span className="text-sm text-stone-500">
+                      Total: {formatCurrency(stats.totalExpenses)}
+                    </span>
                   </div>
-                  <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(percentage, 1)}%`, backgroundColor: color }}
-                    />
+                  <div className="space-y-3">
+                    {stats.categoryExpenses.map(({ category, amount, percentage }, index) => {
+                      const color = category.color || getCategoryColor(index);
+                      const budget = stats.budgetSummary?.budgetsByCategory.find(
+                        b => b.category.category_id === category.category_id
+                      );
+                      const budgetPercent = budget && budget.planned > 0
+                        ? (amount / budget.planned) * 100
+                        : 0;
+                      const hasBudget = budget && budget.planned > 0;
+
+                      const expectedByNow = hasBudget
+                        ? (budget.planned * dayProgressPercent) / 100
+                        : 0;
+                      const categoryPacePercent = expectedByNow > 0
+                        ? ((amount - expectedByNow) / expectedByNow) * 100
+                        : 0;
+                      const isCategoryAhead = amount > expectedByNow;
+
+                      return (
+                        <div key={category.category_id}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-base flex-shrink-0">{category.icon || '📦'}</span>
+                              <span className="text-sm font-medium text-stone-900 truncate">
+                                {category.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                              <span className="text-sm font-bold text-stone-900 tabular-nums">
+                                {formatCurrency(amount)}
+                              </span>
+                              <span className="text-xs text-stone-400 tabular-nums w-10 text-right">
+                                {percentage.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${Math.max(percentage, 1)}%`, backgroundColor: color }}
+                            />
+                          </div>
+                          {hasBudget && (
+                            <div className="flex items-center justify-between mt-0.5">
+                              <span className={`text-xs ${
+                                isCurrentMonth && isCategoryAhead ? 'text-terra-600' : 'text-stone-500'
+                              }`}>
+                                {budgetPercent.toFixed(0)}% do orçamento
+                                {isCurrentMonth && Math.abs(categoryPacePercent) > 5 && (
+                                  <span className={isCategoryAhead ? 'text-terra-600' : 'text-sage-600'}>
+                                    {' '}({isCategoryAhead ? '+' : ''}{categoryPacePercent.toFixed(0)}%)
+                                  </span>
+                                )}
+                              </span>
+                              <span className="text-xs text-stone-500">
+                                de {formatCurrency(budget.planned)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  {hasBudget && (
-                    <div className="flex items-center justify-between mt-0.5">
-                      <span className={`text-xs ${
-                        isCurrentMonth && isCategoryAhead ? 'text-terra-600' : 'text-stone-500'
-                      }`}>
-                        {budgetPercent.toFixed(0)}% do orçamento
-                        {isCurrentMonth && Math.abs(categoryPacePercent) > 5 && (
-                          <span className={isCategoryAhead ? 'text-terra-600' : 'text-sage-600'}>
-                            {' '}({isCategoryAhead ? '+' : ''}{categoryPacePercent.toFixed(0)}%)
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-xs text-stone-500">
-                        de {formatCurrency(budget.planned)}
-                      </span>
-                    </div>
+                </div>
+              )}
+
+              {/* Tag Expenses */}
+              {stats.tagExpenses.length > 0 && (
+                <div>
+                  {stats.categoryExpenses.length > 0 && (
+                    <div className="border-t border-stone-200 pt-4" />
                   )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Tag Expenses */}
-      {stats.tagExpenses.length > 0 && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-semibold text-stone-900">
-              Gastos por Tag
-            </h2>
-            <span className="text-sm text-stone-500">
-              {stats.tagExpenses.length} tags
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {stats.tagExpenses.map(({ tag, amount, percentage }) => {
-              const color = getCategoryColor(tag);
-
-              return (
-                <div key={tag}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-base flex-shrink-0">🏷️</span>
-                      <span className="text-sm font-medium text-stone-900 truncate">
-                        {tag}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                      <span className="text-sm font-bold text-stone-900 tabular-nums">
-                        {formatCurrency(amount)}
-                      </span>
-                      <span className="text-xs text-stone-400 tabular-nums w-10 text-right">
-                        {percentage.toFixed(0)}%
-                      </span>
-                    </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-stone-700">Por Tag</h3>
+                    <span className="text-sm text-stone-500">
+                      {stats.tagExpenses.length} tags
+                    </span>
                   </div>
-                  <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(percentage, 1)}%`, backgroundColor: color }}
-                    />
+                  <div className="space-y-3">
+                    {stats.tagExpenses.map(({ tag, amount, percentage }) => {
+                      const color = getCategoryColor(tag);
+
+                      return (
+                        <div key={tag}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-base flex-shrink-0">🏷️</span>
+                              <span className="text-sm font-medium text-stone-900 truncate">
+                                {tag}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                              <span className="text-sm font-bold text-stone-900 tabular-nums">
+                                {formatCurrency(amount)}
+                              </span>
+                              <span className="text-xs text-stone-400 tabular-nums w-10 text-right">
+                                {percentage.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${Math.max(percentage, 1)}%`, backgroundColor: color }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
