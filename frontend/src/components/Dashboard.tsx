@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TrendingUp, TrendingDown, X, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
@@ -64,12 +65,9 @@ interface DashboardStats {
   budgetSummary: BudgetSummary | null;
 }
 
-interface DashboardProps {
-  onNavigateToUncategorized: () => void;
-}
-
 // Calculate budget status for hero card
-export default function Dashboard({ onNavigateToUncategorized }: DashboardProps) {
+export default function Dashboard() {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const {
     selectedMonth, selectedYear,
@@ -651,7 +649,7 @@ export default function Dashboard({ onNavigateToUncategorized }: DashboardProps)
                   </div>
                 </div>
                 <button
-                  onClick={onNavigateToUncategorized}
+                  onClick={() => navigate('/uncategorized')}
                   className="btn-primary text-sm px-3 py-1.5"
                 >
                   Categorizar

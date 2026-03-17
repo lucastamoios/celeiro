@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { PieChart, Zap, CalendarCheck, Target } from 'lucide-react';
-import { navigate } from '../utils/navigation';
+import { Link } from 'react-router-dom';
 import { ScrollVideo } from './landing/ScrollVideo';
 
 const features = [
@@ -93,12 +93,12 @@ export default function LandingPage() {
           </p>
 
           {/* CTA button */}
-          <button
-            onClick={() => navigate('/login')}
-            className="btn-primary text-base px-8 py-3"
+          <Link
+            to="/login"
+            className="btn-primary text-base px-8 py-3 inline-block"
           >
             Começar a cuidar da minha família &rarr;
-          </button>
+          </Link>
         </div>
 
         {/* Scroll hint — anchored to bottom of hero */}
@@ -173,12 +173,12 @@ export default function LandingPage() {
           <p className="text-stone-600 mb-10 max-w-lg mx-auto leading-relaxed">
             Não amanhã. Não quando "organizar as contas primeiro". <strong>Agora</strong> — porque cada mês sem controle é um mês que não volta.
           </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="btn-primary text-base px-8 py-3"
+          <Link
+            to="/login"
+            className="btn-primary text-base px-8 py-3 inline-block"
           >
             Quero começar agora &rarr;
-          </button>
+          </Link>
           <p className="text-stone-400 text-xs mt-3">
             Gratuito para começar — sem cartão de crédito
           </p>

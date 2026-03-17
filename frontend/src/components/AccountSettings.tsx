@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { setPassword } from '../api/auth';
 import { API_CONFIG } from '../config/api';
@@ -14,6 +15,7 @@ interface UserInfo {
 }
 
 export default function AccountSettings() {
+  const navigate = useNavigate();
   const { userEmail, logout, token } = useAuth();
   const [showConfirmLogout, setShowConfirmLogout] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -69,6 +71,7 @@ export default function AccountSettings() {
   const handleLogout = () => {
     if (showConfirmLogout) {
       logout();
+      navigate('/');
     } else {
       setShowConfirmLogout(true);
     }

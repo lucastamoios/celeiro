@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { Settings, FolderOpen, Workflow, Tag, User, Building2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import CategoryManager from './CategoryManager';
 import PatternManager from './PatternManager';
 import TagManager from './TagManager';
@@ -7,6 +7,8 @@ import AccountSettings from './AccountSettings';
 import OrganizationSettings from './OrganizationSettings';
 
 type SettingsTab = 'conta' | 'categorias' | 'padroes' | 'tags' | 'organizacao';
+
+const VALID_TABS: SettingsTab[] = ['conta', 'categorias', 'padroes', 'tags', 'organizacao'];
 
 interface TabConfig {
   id: SettingsTab;
@@ -22,17 +24,16 @@ const TABS: TabConfig[] = [
   { id: 'organizacao', label: 'Organização', icon: Building2 },
 ];
 
-interface SettingsPageProps {
-  initialTab?: SettingsTab;
-}
+export default function SettingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab: SettingsTab = tabParam && VALID_TABS.includes(tabParam as SettingsTab)
+    ? tabParam as SettingsTab
+    : 'categorias';
 
-export default function SettingsPage({ initialTab = 'categorias' }: SettingsPageProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
-
-  // Update active tab when initialTab changes (from avatar menu navigation)
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+  const handleTabChange = (tab: SettingsTab) => {
+    setSearchParams({ tab }, { replace: true });
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -73,7 +74,7 @@ export default function SettingsPage({ initialTab = 'categorias' }: SettingsPage
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`
                   inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
                   ${isActive

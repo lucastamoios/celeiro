@@ -1,5 +1,5 @@
+import { Link } from 'react-router-dom';
 import LoginForm from './LoginForm';
-import { navigate } from '../utils/navigation';
 
 export default function LoginPage() {
   return (
@@ -41,12 +41,12 @@ export default function LoginPage() {
           <LoginForm />
         </div>
 
-        <button
-          onClick={() => navigate('/')}
-          className="mt-6 text-sm text-stone-500 hover:text-stone-700 transition-colors"
+        <Link
+          to="/"
+          className="mt-6 text-sm text-stone-500 hover:text-stone-700 transition-colors inline-block"
         >
           ← Voltar para a página inicial
-        </button>
+        </Link>
       </div>
     </div>
   );

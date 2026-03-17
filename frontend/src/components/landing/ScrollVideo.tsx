@@ -1,11 +1,12 @@
 import { useRef, useEffect, useCallback, useState, forwardRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Player, type PlayerRef } from '@remotion/player';
 import { HeroComposition, TOTAL_FRAMES } from './HeroComposition';
-import { navigate } from '../../utils/navigation';
 
 const COMPOSITION_FPS = 30;
 
 export const ScrollVideo = forwardRef<HTMLDivElement>(function ScrollVideo(_props, ref) {
+  const navigate = useNavigate();
   const playerRef = useRef<PlayerRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
