@@ -842,8 +842,33 @@ export default function TransactionList() {
           </div>
         )}
 
+        {/* Empty State: Filters eliminated all transactions */}
+        {selectedMonthTransactions.length > 0 && filteredTransactions.length === 0 && (
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <XCircle className="w-16 h-16 text-stone-300" />
+            </div>
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
+              Nenhuma transação corresponde aos filtros
+            </h3>
+            <p className="text-stone-500 mb-4">
+              {hideIgnored && onlyUncategorized
+                ? 'Não há transações não ignoradas e sem categoria neste mês.'
+                : hideIgnored
+                  ? 'Todas as transações deste mês estão marcadas como ignoradas.'
+                  : 'Todas as transações deste mês já possuem categoria.'}
+            </p>
+            <button
+              onClick={() => { setFilter('hideIgnored', false); setFilter('onlyUncategorized', false); }}
+              className="btn-secondary text-sm"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        )}
+
         {/* Mobile Card View */}
-        {selectedMonthTransactions.length > 0 && <div className="lg:hidden space-y-3">
+        {filteredTransactions.length > 0 && <div className="lg:hidden space-y-3">
           {filteredTransactions.map((transaction) => (
             <div
               key={transaction.transaction_id}
@@ -912,7 +937,7 @@ export default function TransactionList() {
         </div>}
 
         {/* Desktop Table View */}
-        {selectedMonthTransactions.length > 0 && <div className="hidden lg:block card overflow-hidden">
+        {filteredTransactions.length > 0 && <div className="hidden lg:block card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-stone-200">
               <thead className="bg-stone-50">
