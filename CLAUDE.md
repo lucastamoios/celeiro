@@ -354,3 +354,51 @@ expiresAt := time.Now().UTC().Add(7 * 24 * time.Hour)
 ```
 
 PostgreSQL stores `TIMESTAMP` without timezone info. If you pass local time, it's stored as-is but compared against UTC later, causing bugs (e.g., invitations expiring immediately).
+
+---
+
+## Design Context
+
+### Users
+
+Brazilian family providers (primarily fathers) who earn enough but lack financial visibility. They carry the weight of providing for their families and need a tool that respects that responsibility — not a flashy fintech app, but a serious stewardship instrument. They use Celeiro to import bank transactions (OFX), categorize spending, plan budgets, and gain clarity on where money goes each month.
+
+### Brand Personality
+
+**Conviction-driven, Warm, Grounded**
+
+- **Voice**: Direct and paternal — speaks to the user as a fellow steward, not a consumer. Uses conviction ("é sua RESPONSABILIDADE") without being preachy. Frames financial management as an act of love and family leadership, not lifestyle optimization.
+- **Emotional goals**: Clarity over anxiety, confidence over guilt, stewardship over spending.
+- **Core metaphor**: *Celeiro* (granary/storehouse) — like Joseph in Egypt, it's about knowing exactly what you have, what you need, and what to save. The wheat motif runs through the entire visual language.
+- **Tagline**: "Para quem foi chamado a prover, não apenas a ganhar."
+
+### Aesthetic Direction
+
+- **Visual tone**: Warm, earthy, intentional — cream backgrounds with golden wheat accents. Premium but not flashy. Feels like a well-made leather-bound ledger, not a Silicon Valley dashboard.
+- **Design system**: "Provision Design System" — warm cream palette (stone), golden accents (wheat), muted forest green (sage) for success, burnt orange (terra) for warnings, warm rust (rust) for errors.
+- **Typography**: Lora (serif) for display/headings — evokes tradition and weight. Nunito Sans for body — clean and readable.
+- **Interactions**: Tactile button press effect (bottom-edge border + translateY on active) — playful but purposeful.
+- **Theme**: Light mode only. No dark mode planned.
+- **Anti-patterns**: Avoid neon colors, gamification, "fintech bro" aesthetics, cold blue/gray corporate dashboards, overly playful illustrations.
+
+### Design Principles
+
+1. **Clarity over cleverness** — Every element should make the user's financial picture clearer. If a design choice adds visual interest but obscures information, remove it.
+2. **Warmth signals trust** — Use warm earth tones (cream, gold, brown) to create a sense of reliability and care. Cold, clinical interfaces feel impersonal for family finance.
+3. **Tactile and grounded** — Interactions should feel physical (button press effects, subtle shadows). The interface should feel like a well-organized desk, not a floating cloud dashboard.
+4. **Numbers are sacred** — Financial data gets tabular nums, careful alignment, and clear hierarchy. Currency displays use consistent formatting (`.tabular-nums`, dedicated size classes).
+5. **Accessible by default** — WCAG AA compliance. 4.5:1 contrast ratios, visible focus indicators, semantic HTML, keyboard-navigable components.
+
+### Key Design Tokens Reference
+
+| Token | Value | Use |
+|-------|-------|-----|
+| Page bg | `--bg-0` #F6F1E9 | Page background |
+| Card bg | `--bg-1` #FFFDF8 | Cards, inputs |
+| Accent | `--accent` #C6943A | Primary actions, active states |
+| Accent dark | `--accent-dark` #A67A2A | Button borders, hover |
+| Text primary | `--text-1` #3D2B1F | Headings |
+| Text body | `--text-2` #6B5744 | Body copy |
+| Card radius | `--r-md` 12px | Card corners |
+| Button radius | `--r-sm` 8px | Button corners |
+| Logo | `celeiro-wheat-v4.svg` | Two-tone wheat, 25° tilt |

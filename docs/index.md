@@ -51,6 +51,7 @@ Personal finance management system with Go backend, React frontend, PostgreSQL d
 | Deployment | [deployment.md](./deployment.md) |
 | Troubleshooting | [troubleshooting.md](./troubleshooting.md) |
 | **Known Issues** | [known-issues.md](./known-issues.md) |
+| **UX Critique** | [ux-critique.md](./ux-critique.md) |
 
 ## Project Structure
 
