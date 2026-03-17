@@ -1296,7 +1296,7 @@ export default function CategoryBudgetDashboard() {
     <div className="px-4 py-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Month Navigation Header */}
-        <div className="mb-6 card-compact">
+        {categories.length > 0 && <div className="mb-6 card-compact">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             {/* Month Navigation */}
             <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-4">
@@ -1363,10 +1363,10 @@ export default function CategoryBudgetDashboard() {
               </button>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Monthly Summary Card */}
-        <div className="mb-6 card border-wheat-200 border-2 bg-wheat-50/30">
+        {categories.length > 0 && <div className="mb-6 card border-wheat-200 border-2 bg-wheat-50/30">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-4">
             {/* Estimated */}
             <div className="text-center">
@@ -1438,7 +1438,7 @@ export default function CategoryBudgetDashboard() {
               </>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Success/Error Messages */}
         {successMessage && (
