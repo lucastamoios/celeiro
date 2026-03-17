@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Coins, XCircle, CheckSquare, Square, X, Upload } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
@@ -417,9 +417,6 @@ export default function TransactionList() {
     await fetchData();
   };
 
-  const fetchDataRef = useRef(fetchData);
-  fetchDataRef.current = fetchData;
-
   const handleInlineSave = useCallback(async (transaction: Transaction, patch: Record<string, unknown>) => {
     if (!token) return;
 
@@ -446,13 +443,13 @@ export default function TransactionList() {
         throw new Error('Erro ao salvar');
       }
     } catch (err) {
-      await fetchDataRef.current();
+      await fetchData();
       setUploadSuccess(null);
       setError(err instanceof Error ? err.message : 'Erro ao salvar transação');
       setTimeout(() => setError(null), 4000);
       throw err;
     }
-  }, [token, activeOrganizationId]);
+  }, [token, activeOrganizationId, fetchData]);
 
   const handleInlineDescriptionSave = useCallback(async (transaction: Transaction, newDescription: string) => {
     await handleInlineSave(transaction, { description: newDescription });
