@@ -123,7 +123,7 @@ export default function TransactionList() {
     } finally {
       setBulkActionLoading(false);
     }
-  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection, transactions]);
+  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection, transactions, fetchData]);
 
   const handleBulkIgnore = useCallback(async (shouldIgnore: boolean) => {
     if (!token || selectedTransactions.size === 0) return;
@@ -159,7 +159,7 @@ export default function TransactionList() {
     } finally {
       setBulkActionLoading(false);
     }
-  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection, transactions]);
+  }, [token, selectedTransactions, activeOrganizationId, handleClearSelection, transactions, fetchData]);
 
   // Filters (persisted to localStorage) - month is handled separately by useSelectedMonth
   const { filters, setFilter } = usePersistedFilters(
@@ -180,11 +180,7 @@ export default function TransactionList() {
 
   const getMonthName = (month: number) => monthNames[month - 1];
 
-  useEffect(() => {
-    fetchData();
-  }, [token, selectedAccountId, activeOrganizationId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -239,7 +235,11 @@ export default function TransactionList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, selectedAccountId, activeOrganizationId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const formatCurrency = (amount: string) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -273,7 +273,7 @@ export default function TransactionList() {
 
     let totalImported = 0;
     let totalDuplicates = 0;
-    let failedFiles: string[] = [];
+    const failedFiles: string[] = [];
 
     for (const file of ofxFiles) {
       try {
@@ -332,7 +332,7 @@ export default function TransactionList() {
     // Refresh the transaction list
     await fetchData();
     setUploading(false);
-  }, [token, selectedAccountId, activeOrganizationId]);
+  }, [token, selectedAccountId, activeOrganizationId, fetchData]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
