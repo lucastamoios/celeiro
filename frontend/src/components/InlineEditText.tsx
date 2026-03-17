@@ -22,7 +22,7 @@ export default function InlineEditText({ value, onSave, className = '', isIgnore
     }
   }, [editing]);
 
-  const handleStartEdit = useCallback((e: React.MouseEvent) => {
+  const handleStartEdit = useCallback((e: React.SyntheticEvent) => {
     e.stopPropagation();
     setEditValue(value);
     setEditing(true);
@@ -70,6 +70,7 @@ export default function InlineEditText({ value, onSave, className = '', isIgnore
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
         disabled={saving}
+        aria-label="Editar descrição"
         className={`w-full px-2 py-1 text-sm border border-wheat-400 rounded focus:outline-none focus:ring-2 focus:ring-wheat-500 bg-stone-50 ${saving ? 'opacity-50' : ''}`}
         onClick={(e) => e.stopPropagation()}
       />
@@ -78,14 +79,19 @@ export default function InlineEditText({ value, onSave, className = '', isIgnore
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={handleStartEdit}
-      className={`truncate cursor-text rounded px-1 -mx-1 hover:bg-wheat-50 transition-colors ${className} ${isIgnored ? 'line-through' : ''}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleStartEdit(e);
+        }
+      }}
+      className={`truncate cursor-text rounded px-1 -mx-1 hover:bg-wheat-50 transition-colors focus:outline-none focus:ring-2 focus:ring-wheat-500 ${className} ${isIgnored ? 'line-through' : ''}`}
       title="Clique para editar"
     >
       {value}
-      {isIgnored && (
-        <span className="ml-2 text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">IGNORADA</span>
-      )}
     </div>
   );
 }

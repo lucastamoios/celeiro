@@ -84,6 +84,8 @@ export default function InlineCategoryPicker({ categoryId, categories, transacti
       <button
         onClick={handleToggle}
         disabled={saving}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className={`transition-colors rounded-full ${saving ? 'opacity-50' : 'hover:ring-2 hover:ring-wheat-300'}`}
         title="Clique para alterar categoria"
       >
@@ -100,7 +102,10 @@ export default function InlineCategoryPicker({ categoryId, categories, transacti
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-stone-50 border border-stone-200 rounded-lg shadow-lg z-30 max-h-72 overflow-hidden"
+        <div
+          role="listbox"
+          aria-label="Selecionar categoria"
+          className="absolute top-full left-0 mt-1 w-56 bg-stone-50 border border-stone-200 rounded-lg shadow-lg z-30 max-h-72 overflow-hidden"
           onKeyDown={handleKeyDown}
         >
           <div className="p-2 border-b border-stone-200">
@@ -115,6 +120,8 @@ export default function InlineCategoryPicker({ categoryId, categories, transacti
           </div>
           <div className="max-h-52 overflow-y-auto">
             <button
+              role="option"
+              aria-selected={categoryId === null}
               onClick={() => handleSelect(null)}
               className="w-full px-3 py-2 text-left text-sm text-stone-500 hover:bg-stone-100 italic"
             >
@@ -123,6 +130,8 @@ export default function InlineCategoryPicker({ categoryId, categories, transacti
             {filteredCategories.map(cat => (
               <button
                 key={cat.category_id}
+                role="option"
+                aria-selected={cat.category_id === categoryId}
                 onClick={() => handleSelect(cat.category_id)}
                 className={`w-full px-3 py-2 text-left text-sm hover:bg-wheat-50 flex items-center gap-2 ${
                   cat.category_id === categoryId ? 'bg-wheat-50 text-wheat-800 font-medium' : 'text-stone-700'
