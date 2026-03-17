@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BarChart3, Copy, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { BarChart3, Copy, Download, Tags } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useSelectedMonth } from '../hooks/useSelectedMonth';
@@ -43,6 +44,7 @@ interface MonthlyBudgetData {
 }
 
 export default function CategoryBudgetDashboard() {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const { activeOrganization } = useOrganization();
   const organizationId = activeOrganization?.organization_id?.toString() || '1';
@@ -1294,7 +1296,7 @@ export default function CategoryBudgetDashboard() {
     <div className="px-4 py-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Month Navigation Header */}
-        <div className="mb-6 card-compact">
+        {categories.length > 0 && <div className="mb-6 card-compact">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             {/* Month Navigation */}
             <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-4">
@@ -1361,10 +1363,10 @@ export default function CategoryBudgetDashboard() {
               </button>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Monthly Summary Card */}
-        <div className="mb-6 card border-wheat-200 border-2 bg-wheat-50/30">
+        {categories.length > 0 && <div className="mb-6 card border-wheat-200 border-2 bg-wheat-50/30">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-4">
             {/* Estimated */}
             <div className="text-center">
@@ -1436,7 +1438,7 @@ export default function CategoryBudgetDashboard() {
               </>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Success/Error Messages */}
         {successMessage && (
@@ -1450,8 +1452,29 @@ export default function CategoryBudgetDashboard() {
           </div>
         )}
 
+        {/* Empty State: No categories created */}
+        {!loading && categories.length === 0 && (
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <Tags className="w-16 h-16 text-stone-300" />
+            </div>
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
+              Nenhuma categoria encontrada
+            </h3>
+            <p className="text-stone-500 mb-4">
+              Crie suas categorias primeiro para poder definir orçamentos mensais.
+            </p>
+            <button
+              onClick={() => navigate('/settings?tab=categorias')}
+              className="btn-primary"
+            >
+              Ir para Categorias
+            </button>
+          </div>
+        )}
+
         {/* Single Month Budget View */}
-        {selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
+        {categories.length > 0 && (selectedMonthBudgets.length === 0 && selectedMonthEntries.length === 0 ? (
           <div className="card p-12 text-center">
             <div className="flex justify-center mb-4">
               <BarChart3 className="w-16 h-16 text-stone-300" />
@@ -1531,7 +1554,7 @@ export default function CategoryBudgetDashboard() {
               }}
               hideHeader={true}
             />
-        )}
+        ))}
 
         {/* Create/Edit Budget Modal */}
         <Modal

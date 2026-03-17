@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, TrendingDown, X, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, ChevronLeft, ChevronRight, CalendarDays, Tags, Upload, PieChart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
@@ -59,6 +59,7 @@ interface DashboardStats {
   totalExpenses: number;
   balance: number;
   uncategorizedCount: number;
+  totalTransactions: number;
   month: number;
   year: number;
   categoryExpenses: CategoryExpense[];
@@ -79,6 +80,7 @@ export default function Dashboard() {
     totalExpenses: 0,
     balance: 0,
     uncategorizedCount: 0,
+    totalTransactions: 0,
     month: selectedMonth - 1, // 0-indexed for Date compatibility
     year: selectedYear,
     categoryExpenses: [],
@@ -331,6 +333,7 @@ export default function Dashboard() {
         totalExpenses: expenses,
         balance: income - expenses,
         uncategorizedCount,
+        totalTransactions: allTransactions.length,
         month: targetMonth,
         year: targetYear,
         categoryExpenses,
@@ -451,6 +454,61 @@ export default function Dashboard() {
           </button>
         )}
       </div>
+
+      {/* New User Onboarding */}
+      {!loading && stats.totalTransactions === 0 && (
+        <div className="card border-wheat-200 border-2 bg-wheat-50/30 mb-8">
+          <div className="text-center py-4">
+            <div className="flex justify-center mb-4">
+              <img src="/celeiro-wheat-v4.svg" alt="Celeiro" className="w-16 h-16 opacity-60" />
+            </div>
+            <h3 className="font-display text-xl font-semibold text-stone-900 mb-2">
+              Bem-vindo ao Celeiro
+            </h3>
+            <p className="text-stone-600 mb-6">
+              Organize suas finanças em 3 passos simples
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+              <button
+                onClick={() => navigate('/settings?tab=categorias')}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-wheat-300 transition-colors group"
+              >
+                <div className="w-10 h-10 bg-wheat-100 rounded-lg flex items-center justify-center group-hover:bg-wheat-200 transition-colors">
+                  <Tags className="w-5 h-5 text-wheat-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-stone-900">1. Crie suas categorias</p>
+                  <p className="text-xs text-stone-500">Organize por tipo de gasto</p>
+                </div>
+              </button>
+              <button
+                onClick={() => navigate('/transactions')}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-wheat-300 transition-colors group"
+              >
+                <div className="w-10 h-10 bg-wheat-100 rounded-lg flex items-center justify-center group-hover:bg-wheat-200 transition-colors">
+                  <Upload className="w-5 h-5 text-wheat-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-stone-900">2. Importe seu extrato</p>
+                  <p className="text-xs text-stone-500">Arquivo OFX do seu banco</p>
+                </div>
+              </button>
+              <button
+                onClick={() => navigate('/budgets')}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-wheat-300 transition-colors group"
+              >
+                <div className="w-10 h-10 bg-wheat-100 rounded-lg flex items-center justify-center group-hover:bg-wheat-200 transition-colors">
+                  <PieChart className="w-5 h-5 text-wheat-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-stone-900">3. Defina orçamentos</p>
+                  <p className="text-xs text-stone-500">Controle seus gastos mensais</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Financial Overview Card */}
       <div className="card mb-8">

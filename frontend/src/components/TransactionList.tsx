@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Coins, XCircle, CheckSquare, Square, X, Upload } from 'lucide-react';
+import { Coins, XCircle, CheckSquare, Square, X, Upload, CreditCard, Calendar } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
@@ -601,7 +601,7 @@ export default function TransactionList() {
         )}
 
         {/* Filters and Bulk Actions */}
-        <div className="mb-6 bg-stone-50 border border-stone-200 rounded-xl p-4">
+        {transactions.length > 0 && <div className="mb-6 bg-stone-50 border border-stone-200 rounded-xl p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-4 flex-wrap">
               {/* Filters inline */}
@@ -724,7 +724,7 @@ export default function TransactionList() {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Success/Error Messages */}
         {uploadSuccess && (
@@ -740,7 +740,7 @@ export default function TransactionList() {
         )}
 
         {/* Summary Cards */}
-        <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        {transactions.length > 0 && <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="card-compact flex items-center gap-3 sm:block">
             <div className="w-10 h-10 sm:w-auto sm:h-auto bg-sage-100 rounded-lg flex items-center justify-center sm:hidden">
               <Coins className="w-5 h-5 text-sage-600" />
@@ -770,10 +770,105 @@ export default function TransactionList() {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
+
+        {/* Empty State: No transactions at all */}
+        {transactions.length === 0 && (
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <CreditCard className="w-16 h-16 text-stone-300" />
+            </div>
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
+              Nenhuma transação ainda
+            </h3>
+            <p className="text-stone-500 mb-4">
+              Importe seu extrato bancário em formato OFX ou crie uma transação manual para começar.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <label className="btn-primary text-sm cursor-pointer">
+                <Upload className="w-4 h-4" />
+                Importar OFX
+                <input
+                  type="file"
+                  accept=".ofx"
+                  multiple
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn-secondary text-sm"
+              >
+                Nova Transação
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State: No transactions in selected month (but has others) */}
+        {transactions.length > 0 && selectedMonthTransactions.length === 0 && (
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <Calendar className="w-16 h-16 text-stone-300" />
+            </div>
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
+              Nenhuma transação em {getMonthName(selectedMonth)} {selectedYear}
+            </h3>
+            <p className="text-stone-500 mb-4">
+              Importe um extrato OFX para este período ou navegue para outro mês.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <label className="btn-primary text-sm cursor-pointer">
+                <Upload className="w-4 h-4" />
+                Importar OFX
+                <input
+                  type="file"
+                  accept=".ofx"
+                  multiple
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={handleGoToCurrentMonth}
+                className="btn-secondary text-sm"
+              >
+                Ir para mês atual
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State: Filters eliminated all transactions */}
+        {selectedMonthTransactions.length > 0 && filteredTransactions.length === 0 && (
+          <div className="card p-12 text-center">
+            <div className="flex justify-center mb-4">
+              <XCircle className="w-16 h-16 text-stone-300" />
+            </div>
+            <h3 className="font-display text-lg font-medium text-stone-900 mb-2">
+              Nenhuma transação corresponde aos filtros
+            </h3>
+            <p className="text-stone-500 mb-4">
+              {hideIgnored && onlyUncategorized
+                ? 'Não há transações não ignoradas e sem categoria neste mês.'
+                : hideIgnored
+                  ? 'Todas as transações deste mês estão marcadas como ignoradas.'
+                  : 'Todas as transações deste mês já possuem categoria.'}
+            </p>
+            <button
+              onClick={() => { setFilter('hideIgnored', false); setFilter('onlyUncategorized', false); }}
+              className="btn-secondary text-sm"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        )}
 
         {/* Mobile Card View */}
-        <div className="lg:hidden space-y-3">
+        {filteredTransactions.length > 0 && <div className="lg:hidden space-y-3">
           {filteredTransactions.map((transaction) => (
             <div
               key={transaction.transaction_id}
@@ -839,10 +934,10 @@ export default function TransactionList() {
               </div>
             </div>
           ))}
-        </div>
+        </div>}
 
         {/* Desktop Table View */}
-        <div className="hidden lg:block card overflow-hidden">
+        {filteredTransactions.length > 0 && <div className="hidden lg:block card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-stone-200">
               <thead className="bg-stone-50">
@@ -940,7 +1035,7 @@ export default function TransactionList() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Edit Modal */}
