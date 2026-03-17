@@ -63,7 +63,7 @@ export default function InlineCategoryPicker({ categoryId, categories, transacti
     try {
       await onSave(newCategoryId);
     } catch {
-      // revert silently - parent handles error display
+      // parent shows error via setError and reverts via fetchData
     } finally {
       setSaving(false);
       setOpen(false);

@@ -443,12 +443,13 @@ export default function TransactionList() {
       );
 
       if (!response.ok) {
-        await fetchDataRef.current();
         throw new Error('Erro ao salvar');
       }
     } catch (err) {
-      // Revert optimistic update on network or response errors
       await fetchDataRef.current();
+      setUploadSuccess(null);
+      setError(err instanceof Error ? err.message : 'Erro ao salvar transação');
+      setTimeout(() => setError(null), 4000);
       throw err;
     }
   }, [token, activeOrganizationId]);

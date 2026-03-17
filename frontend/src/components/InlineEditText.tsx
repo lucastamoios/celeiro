@@ -79,7 +79,7 @@ export default function InlineEditText({ value, onSave, className = '', isIgnore
   return (
     <div
       onClick={handleStartEdit}
-      className={`truncate cursor-text rounded px-1 -mx-1 hover:bg-wheat-50 transition-colors ${className} ${isIgnored ? 'line-through' : ''} ${saving ? 'opacity-50' : ''}`}
+      className={`truncate cursor-text rounded px-1 -mx-1 hover:bg-wheat-50 transition-colors ${className} ${isIgnored ? 'line-through' : ''}`}
       title="Clique para editar"
     >
       {value}
