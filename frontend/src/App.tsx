@@ -220,12 +220,6 @@ function LandingRoute() {
   return <LandingPage />;
 }
 
-// Check if URL has auth-related params that should show the login page
-function hasAuthUrlParams(): boolean {
-  const params = new URLSearchParams(window.location.search);
-  return !!(params.get('email') || params.get('code'));
-}
-
 function AppRoutes() {
   return (
     <Routes>
@@ -237,12 +231,15 @@ function AppRoutes() {
   );
 }
 
-function AppContent() {
+function LegacyRedirects() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Handle legacy ?view= URLs by redirecting to proper routes
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const view = params.get('view');
-    if (view && window.location.pathname === '/') {
+    if (view && location.pathname === '/') {
       const viewRoutes: Record<string, string> = {
         dashboard: '/',
         transactions: '/transactions',
@@ -253,20 +250,30 @@ function AppContent() {
       };
       const route = viewRoutes[view];
       if (route) {
-        window.history.replaceState({}, '', route);
+        navigate(route, { replace: true });
       }
     }
-  }, []);
+  }, [location, navigate]);
 
   // Handle legacy auth URL params (?email=&code=) by redirecting to /login
   useEffect(() => {
-    if (hasAuthUrlParams() && window.location.pathname !== '/login') {
-      const search = window.location.search;
-      window.history.replaceState({}, '', '/login' + search);
+    const params = new URLSearchParams(location.search);
+    const hasAuthParams = !!(params.get('email') || params.get('code'));
+    if (hasAuthParams && location.pathname !== '/login') {
+      navigate('/login' + location.search, { replace: true });
     }
-  }, []);
+  }, [location, navigate]);
 
-  return <AppRoutes />;
+  return null;
+}
+
+function AppContent() {
+  return (
+    <>
+      <LegacyRedirects />
+      <AppRoutes />
+    </>
+  );
 }
 
 function App() {
