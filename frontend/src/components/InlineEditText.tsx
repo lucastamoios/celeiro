@@ -13,6 +13,7 @@ export default function InlineEditText({ value, onSave, className = '', isIgnore
   const [editValue, setEditValue] = useState(value);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -28,11 +29,13 @@ export default function InlineEditText({ value, onSave, className = '', isIgnore
   }, [value]);
 
   const handleSave = useCallback(async () => {
+    if (savingRef.current) return;
     const trimmed = editValue.trim();
     if (trimmed === value || trimmed === '') {
       setEditing(false);
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     try {
       await onSave(trimmed);
@@ -42,6 +45,7 @@ export default function InlineEditText({ value, onSave, className = '', isIgnore
       setEditing(false);
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   }, [editValue, value, onSave]);
 

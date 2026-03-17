@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { Category } from '../types/category';
 
 interface InlineCategoryPickerProps {
@@ -17,10 +17,15 @@ export default function InlineCategoryPicker({ categoryId, categories, transacti
   const searchRef = useRef<HTMLInputElement>(null);
 
   const expectedType = transactionType === 'credit' ? 'income' : 'expense';
-  const filteredCategories = Array.from(categories.values())
-    .filter(c => c.category_type === expectedType)
-    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const sortedCategories = useMemo(() =>
+    Array.from(categories.values())
+      .filter(c => c.category_type === expectedType)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [categories, expectedType]
+  );
+  const filteredCategories = search
+    ? sortedCategories.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    : sortedCategories;
 
   const currentCategory = categoryId ? categories.get(categoryId) : null;
 
