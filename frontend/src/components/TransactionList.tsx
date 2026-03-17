@@ -10,6 +10,9 @@ import { useSelectedMonth } from '../hooks/useSelectedMonth';
 import { parseTransactionDate, formatDateBR } from '../utils/date';
 import TransactionEditModal from './TransactionEditModal';
 import TransactionCreateModal from './TransactionCreateModal';
+import InlineEditText from './InlineEditText';
+import InlineCategoryPicker from './InlineCategoryPicker';
+import ActionMenu from './ActionMenu';
 // Simple patterns have been removed - unified pattern system now in PatternManager
 
 // Default filter values (month is now handled by useSelectedMonth hook)
@@ -413,6 +416,48 @@ export default function TransactionList() {
     setTimeout(() => setUploadSuccess(null), 3000);
     await fetchData();
   };
+
+  const handleInlineSave = useCallback(async (transaction: Transaction, patch: Record<string, unknown>) => {
+    if (!token) return;
+
+    // Optimistic update
+    setTransactions(prev => prev.map(t =>
+      t.transaction_id === transaction.transaction_id ? { ...t, ...patch } : t
+    ));
+
+    try {
+      const response = await fetch(
+        financialUrl(`accounts/${transaction.account_id}/transactions/${transaction.transaction_id}`),
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'X-Active-Organization': activeOrganizationId,
+          },
+          body: JSON.stringify(patch),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Erro ao salvar');
+      }
+    } catch (err) {
+      await fetchData();
+      setUploadSuccess(null);
+      setError(err instanceof Error ? err.message : 'Erro ao salvar transação');
+      setTimeout(() => setError(null), 4000);
+      throw err;
+    }
+  }, [token, activeOrganizationId, fetchData]);
+
+  const handleInlineDescriptionSave = useCallback(async (transaction: Transaction, newDescription: string) => {
+    await handleInlineSave(transaction, { description: newDescription });
+  }, [handleInlineSave]);
+
+  const handleInlineCategorySave = useCallback(async (transaction: Transaction, categoryId: number | null) => {
+    await handleInlineSave(transaction, { category_id: categoryId });
+  }, [handleInlineSave]);
 
   const handleCreateTransaction = async () => {
     setUploadSuccess(`✅ Transação criada com sucesso!`);
@@ -872,11 +917,11 @@ export default function TransactionList() {
           {filteredTransactions.map((transaction) => (
             <div
               key={transaction.transaction_id}
-              className={`bg-stone-50 border rounded-xl p-4 cursor-pointer
+              className={`bg-stone-50 border rounded-xl p-4
                 transition-all duration-150 ease-out
                 ${selectedTransactions.has(transaction.transaction_id)
                   ? 'border-wheat-400 bg-wheat-50 ring-1 ring-wheat-300'
-                  : 'border-stone-200 active:scale-[0.98] active:bg-stone-50 active:shadow-inner active:border-stone-300'
+                  : 'border-stone-200'
                 }
                 ${transaction.is_ignored ? 'opacity-50' : 'shadow-sm'}`}
             >
@@ -894,14 +939,16 @@ export default function TransactionList() {
                 </button>
 
                 {/* Card content */}
-                <div className="flex-1 min-w-0" onClick={() => handleOpenEditModal(transaction)}>
-                  {/* First line: Description */}
+                <div className="flex-1 min-w-0">
+                  {/* First line: Description + Amount */}
                   <div className="flex items-start justify-between gap-3 mb-2">
-                    <p className={`text-sm font-medium text-stone-900 line-clamp-2 flex-1 ${
-                      transaction.is_ignored ? 'line-through' : ''
-                    }`}>
-                      {transaction.description || transaction.original_description || ''}
-                    </p>
+                    <div className="flex-1 min-w-0 text-sm font-medium text-stone-900">
+                      <InlineEditText
+                        value={transaction.description || transaction.original_description || ''}
+                        onSave={(val) => handleInlineDescriptionSave(transaction, val)}
+                        isIgnored={transaction.is_ignored}
+                      />
+                    </div>
                     <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
                       transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
                     }`}>
@@ -910,25 +957,29 @@ export default function TransactionList() {
                     </span>
                   </div>
 
-                  {/* Second line: Date + Category + Ignored badge */}
+                  {/* Second line: Date + Category + Actions */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-stone-500 tabular-nums">
                       {formatDate(transaction.transaction_date)}
                     </span>
                     <span className="text-stone-300">•</span>
-                    {transaction.category_id && categories.has(transaction.category_id) ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-stone-600">
-                        <span>{categories.get(transaction.category_id)!.icon}</span>
-                        <span>{categories.get(transaction.category_id)!.name}</span>
-                      </span>
-                    ) : (
-                      <span className="text-xs text-stone-400 italic">Sem categoria</span>
-                    )}
+                    <InlineCategoryPicker
+                      categoryId={transaction.category_id}
+                      categories={categories}
+                      transactionType={transaction.transaction_type}
+                      onSave={(catId) => handleInlineCategorySave(transaction, catId)}
+                    />
                     {transaction.is_ignored && (
                       <span className="text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">
                         IGNORADA
                       </span>
                     )}
+                    <div className="ml-auto">
+                      <ActionMenu
+                        transaction={transaction}
+                        onEditFull={handleOpenEditModal}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -967,13 +1018,15 @@ export default function TransactionList() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                     Categoria
                   </th>
+                  <th className="w-12 px-2 py-3">
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-stone-50 divide-y divide-stone-200">
                 {filteredTransactions.map((transaction) => (
                     <tr
                       key={transaction.transaction_id}
-                      className={`cursor-pointer transition-colors ${
+                      className={`transition-colors ${
                         selectedTransactions.has(transaction.transaction_id)
                           ? 'bg-wheat-50'
                           : 'hover:bg-wheat-50'
@@ -991,44 +1044,37 @@ export default function TransactionList() {
                           )}
                         </button>
                       </td>
-                      <td
-                        className="px-6 py-4 whitespace-nowrap text-sm text-stone-900 tabular-nums"
-                        onClick={() => handleOpenEditModal(transaction)}
-                      >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-900 tabular-nums">
                         {formatDate(transaction.transaction_date)}
                       </td>
-                      <td
-                        className="px-6 py-4 text-sm text-stone-900 max-w-md"
-                        onClick={() => handleOpenEditModal(transaction)}
-                      >
-                        <div className={`truncate flex items-center gap-2 ${transaction.is_ignored ? 'line-through' : ''}`}>
-                          {transaction.description || transaction.original_description || ''}
-                          {transaction.is_ignored && (
-                            <span className="text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">IGNORADA</span>
-                          )}
-                        </div>
+                      <td className="px-6 py-4 text-sm text-stone-900 max-w-md">
+                        <InlineEditText
+                          value={transaction.description || transaction.original_description || ''}
+                          onSave={(val) => handleInlineDescriptionSave(transaction, val)}
+                          isIgnored={transaction.is_ignored}
+                        />
                       </td>
                       <td
                         className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium tabular-nums ${
                           transaction.transaction_type === 'credit' ? 'text-sage-600' : 'text-rust-600'
                         }`}
-                        onClick={() => handleOpenEditModal(transaction)}
                       >
                         {transaction.transaction_type === 'credit' ? '+' : '-'}
                         {formatCurrency(transaction.amount)}
                       </td>
-                      <td
-                        className="px-6 py-4 whitespace-nowrap text-sm text-stone-500"
-                        onClick={() => handleOpenEditModal(transaction)}
-                      >
-                        {transaction.category_id && categories.has(transaction.category_id) ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-wheat-100 text-wheat-700 rounded-full">
-                            <span>{categories.get(transaction.category_id)!.icon}</span>
-                            <span>{categories.get(transaction.category_id)!.name}</span>
-                          </span>
-                        ) : (
-                          <span className="text-stone-400 italic">Não classificada</span>
-                        )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-500">
+                        <InlineCategoryPicker
+                          categoryId={transaction.category_id}
+                          categories={categories}
+                          transactionType={transaction.transaction_type}
+                          onSave={(catId) => handleInlineCategorySave(transaction, catId)}
+                        />
+                      </td>
+                      <td className="w-12 px-2 py-4">
+                        <ActionMenu
+                          transaction={transaction}
+                          onEditFull={handleOpenEditModal}
+                        />
                       </td>
                     </tr>
                 ))}
