@@ -599,7 +599,7 @@ export default function CategoryBudgetCard({
                           Desvincular
                         </button>
                       )}
-                      {(entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
+                      {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
                         <button
                           onClick={() => {
                             setDismissingEntryId(entry.PlannedEntryID);

@@ -3,6 +3,7 @@ import type { Transaction } from '../types/transaction';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import { useModalDismiss } from '../hooks/useModalDismiss';
+import { useDropdownClose } from '../hooks/useDropdownClose';
 import { parseTransactionDate } from '../utils/date';
 
 interface CategoryTransactionsModalProps {
@@ -21,6 +22,9 @@ interface CategoryTransactionsModalProps {
   onPlannedEntryClick?: (entry: PlannedEntryWithStatus) => void;
   onAddPlannedEntry?: () => void;
   onUpdatePlannedEntryAmount?: (entryId: number, newAmount: number) => Promise<void>;
+  onDismissEntry?: (entryId: number, reason?: string) => void;
+  onUndismissEntry?: (entryId: number) => void;
+  onDeleteEntry?: (entryId: number) => void;
 }
 
 export default function CategoryTransactionsModal({
@@ -39,12 +43,19 @@ export default function CategoryTransactionsModal({
   onPlannedEntryClick,
   onAddPlannedEntry,
   onUpdatePlannedEntryAmount,
+  onDismissEntry,
+  onUndismissEntry,
+  onDeleteEntry,
 }: CategoryTransactionsModalProps) {
   const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
   // Inline editing state
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [editingAmount, setEditingAmount] = useState<string>('');
+
+  // Dropdown menu state for planned entry actions
+  const [openEntryMenuId, setOpenEntryMenuId] = useState<number | null>(null);
+  const entryMenuRef = useDropdownClose(openEntryMenuId !== null, () => setOpenEntryMenuId(null));
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'number' ? amount : parseFloat(amount);
@@ -337,17 +348,88 @@ export default function CategoryTransactionsModal({
                             </span>
                           )}
 
-                          {/* Edit button for full entry */}
-                          {onPlannedEntryClick && !isEditing && (
-                            <button
-                              onClick={() => onPlannedEntryClick(entry)}
-                              className="p-1 text-stone-400 hover:text-stone-600"
-                              title="Editar entrada"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </button>
+                          {/* 3-dot actions menu */}
+                          {!isEditing && (
+                            <div className="relative">
+                              <button
+                                data-entry-menu={entry.PlannedEntryID}
+                                onClick={() => setOpenEntryMenuId(openEntryMenuId === entry.PlannedEntryID ? null : entry.PlannedEntryID)}
+                                className="p-1 hover:bg-stone-100 rounded-full transition-colors"
+                                aria-label="Ações"
+                              >
+                                <svg className="w-5 h-5 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                              </button>
+
+                              {openEntryMenuId === entry.PlannedEntryID && (
+                                <div
+                                  ref={entryMenuRef}
+                                  className="fixed z-[60] w-48 bg-stone-50 rounded-lg shadow-lg border border-stone-200 py-1"
+                                  style={{
+                                    top: (() => {
+                                      const btn = document.querySelector(`[data-entry-menu="${entry.PlannedEntryID}"]`);
+                                      if (!btn) return 0;
+                                      const rect = btn.getBoundingClientRect();
+                                      return rect.bottom + 4;
+                                    })(),
+                                    right: (() => {
+                                      const btn = document.querySelector(`[data-entry-menu="${entry.PlannedEntryID}"]`);
+                                      if (!btn) return 0;
+                                      const rect = btn.getBoundingClientRect();
+                                      return window.innerWidth - rect.right;
+                                    })(),
+                                  }}
+                                >
+                                  {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
+                                    <button
+                                      onClick={() => {
+                                        onDismissEntry(entry.PlannedEntryID);
+                                        setOpenEntryMenuId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Dispensar
+                                    </button>
+                                  )}
+                                  {entry.Status === 'dismissed' && onUndismissEntry && (
+                                    <button
+                                      onClick={() => {
+                                        onUndismissEntry(entry.PlannedEntryID);
+                                        setOpenEntryMenuId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Reativar
+                                    </button>
+                                  )}
+                                  {onPlannedEntryClick && (
+                                    <button
+                                      onClick={() => {
+                                        onPlannedEntryClick(entry);
+                                        setOpenEntryMenuId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Editar
+                                    </button>
+                                  )}
+                                  {onDeleteEntry && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Tem certeza que deseja excluir "${entry.Description}"? Esta ação não pode ser desfeita.`)) {
+                                          onDeleteEntry(entry.PlannedEntryID);
+                                        }
+                                        setOpenEntryMenuId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-rust-50 text-rust-600 text-sm"
+                                    >
+                                      Excluir
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
