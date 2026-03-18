@@ -391,10 +391,35 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		return nil, err
 	}
 
-	// Filter controllable categories
-	controllableCategories := []CategoryModel{}
+	// Fetch category budgets for the month
+	categoryBudgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+		Month:          &input.Month,
+		Year:           &input.Year,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create map of category ID -> controlled amount
+	// Include all categories that have a non-zero controlled amount
+	budgetMap := make(map[int]decimal.Decimal)
+	for _, b := range categoryBudgets {
+		if !b.ControlledAmount.IsZero() {
+			budgetMap[b.CategoryID] = b.ControlledAmount
+		}
+	}
+
+	// Build controllable categories from those with non-zero controlled amounts
+	categoryMap := make(map[int]CategoryModel)
 	for _, cat := range categories {
-		if cat.IsControllable {
+		categoryMap[cat.CategoryID] = cat
+	}
+
+	controllableCategories := []CategoryModel{}
+	for catID := range budgetMap {
+		if cat, ok := categoryMap[catID]; ok {
 			controllableCategories = append(controllableCategories, cat)
 		}
 	}
@@ -408,24 +433,6 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 			ProgressPercentage: progressPercentage,
 			Categories:         []CategoryPacing{},
 		}, nil
-	}
-
-	// Fetch category budgets for the month
-	categoryBudgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
-		UserID:         input.UserID,
-		OrganizationID: input.OrganizationID,
-		Month:          &input.Month,
-		Year:           &input.Year,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Create map of category ID -> controlled amount (discretionary buffer)
-	// Dashboard pacing tracks spending against the controlled portion only
-	budgetMap := make(map[int]decimal.Decimal)
-	for _, b := range categoryBudgets {
-		budgetMap[b.CategoryID] = b.ControlledAmount
 	}
 
 	// Fetch transactions for the month to calculate spending
