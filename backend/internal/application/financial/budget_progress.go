@@ -374,7 +374,7 @@ type GetControllableCategoryPacingInput struct {
 	Year           int
 }
 
-// GetControllableCategoryPacing calculates pacing data for all controllable categories
+// GetControllableCategoryPacing calculates pacing data for all categories with a non-zero controlled_amount budget
 func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetControllableCategoryPacingInput) (*ControllableCategoryPacing, error) {
 	// Calculate time-based values
 	now := s.system.Time.Now()
@@ -382,16 +382,8 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 	daysInMonth := time.Date(input.Year, time.Month(input.Month+1), 0, 0, 0, 0, 0, time.UTC).Day()
 	progressPercentage := float64(currentDay) / float64(daysInMonth) * 100
 
-	// Fetch all categories for the organization
-	categories, err := s.Repository.FetchCategories(ctx, fetchCategoriesParams{
-		OrganizationID: &input.OrganizationID,
-		IncludeSystem:  false,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch category budgets for the month
+	// Fetch category budgets for the month — controllable categories are determined
+	// by having a non-zero controlled_amount, not by the is_controllable flag
 	categoryBudgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
@@ -402,29 +394,22 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		return nil, err
 	}
 
-	// Create map of category ID -> controlled amount
-	// Include all categories that have a non-zero controlled amount
-	budgetMap := make(map[int]decimal.Decimal)
+	// Filter to only budgets with non-zero controlled amount
+	type controllableBudget struct {
+		CategoryID       int
+		ControlledAmount decimal.Decimal
+	}
+	var controllable []controllableBudget
 	for _, b := range categoryBudgets {
 		if !b.ControlledAmount.IsZero() {
-			budgetMap[b.CategoryID] = b.ControlledAmount
+			controllable = append(controllable, controllableBudget{
+				CategoryID:       b.CategoryID,
+				ControlledAmount: b.ControlledAmount,
+			})
 		}
 	}
 
-	// Build controllable categories from those with non-zero controlled amounts
-	categoryMap := make(map[int]CategoryModel)
-	for _, cat := range categories {
-		categoryMap[cat.CategoryID] = cat
-	}
-
-	controllableCategories := []CategoryModel{}
-	for catID := range budgetMap {
-		if cat, ok := categoryMap[catID]; ok {
-			controllableCategories = append(controllableCategories, cat)
-		}
-	}
-
-	if len(controllableCategories) == 0 {
+	if len(controllable) == 0 {
 		return &ControllableCategoryPacing{
 			Month:              input.Month,
 			Year:               input.Year,
@@ -433,6 +418,19 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 			ProgressPercentage: progressPercentage,
 			Categories:         []CategoryPacing{},
 		}, nil
+	}
+
+	// Fetch category details for each controllable budget
+	categoryMap := make(map[int]CategoryModel)
+	for _, cb := range controllable {
+		cat, err := s.Repository.FetchCategoryByID(ctx, fetchCategoryByIDParams{
+			CategoryID:     cb.CategoryID,
+			OrganizationID: input.OrganizationID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		categoryMap[cb.CategoryID] = cat
 	}
 
 	// Fetch transactions for the month to calculate spending
@@ -456,40 +454,32 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 	}
 
 	// Build pacing data for each controllable category
-	categoryPacingList := make([]CategoryPacing, 0, len(controllableCategories))
-	for _, cat := range controllableCategories {
-		budget := budgetMap[cat.CategoryID]
-		spent := spendingByCategory[cat.CategoryID]
+	categoryPacingList := make([]CategoryPacing, 0, len(controllable))
+	for _, cb := range controllable {
+		cat := categoryMap[cb.CategoryID]
+		budget := cb.ControlledAmount
+		spent := spendingByCategory[cb.CategoryID]
 		if spent.IsZero() {
 			spent = decimal.Zero
 		}
 
 		// Calculate expected spend: budget * (current_day / days_in_month)
-		var expected decimal.Decimal
-		var variance decimal.Decimal
+		expected := budget.Mul(decimal.NewFromInt(int64(currentDay))).Div(decimal.NewFromInt(int64(daysInMonth)))
+		variance := spent.Sub(expected)
+
+		// Determine status
+		// Within 5% of expected = on pace
+		// Below expected - 5% = under pace
+		// Above expected + 5% = over pace
+		threshold := expected.Mul(decimal.NewFromFloat(0.05))
+
 		var status CategoryPacingStatus
-
-		if budget.IsZero() {
-			expected = decimal.Zero
-			variance = decimal.Zero
-			status = PaceStatusNoBudget
+		if variance.LessThan(threshold.Neg()) {
+			status = PaceStatusUnderPace
+		} else if variance.GreaterThan(threshold) {
+			status = PaceStatusOverPace
 		} else {
-			expected = budget.Mul(decimal.NewFromInt(int64(currentDay))).Div(decimal.NewFromInt(int64(daysInMonth)))
-			variance = spent.Sub(expected)
-
-			// Determine status
-			// Within 5% of expected = on pace
-			// Below expected - 5% = under pace
-			// Above expected + 5% = over pace
-			threshold := expected.Mul(decimal.NewFromFloat(0.05))
-
-			if variance.LessThan(threshold.Neg()) {
-				status = PaceStatusUnderPace
-			} else if variance.GreaterThan(threshold) {
-				status = PaceStatusOverPace
-			} else {
-				status = PaceStatusOnPace
-			}
+			status = PaceStatusOnPace
 		}
 
 		categoryPacingList = append(categoryPacingList, CategoryPacing{
