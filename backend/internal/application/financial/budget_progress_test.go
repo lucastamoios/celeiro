@@ -406,6 +406,109 @@ func TestCalculateBudgetProgress_EdgeCase_FirstDayOfMonth(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+func TestGetControllableCategoryPacing_IncludesAllBudgetsWithControlledAmount(t *testing.T) {
+	stubSystem := system.NewStubSystem()
+	// Fix time to March 15, 2026 for deterministic results
+	stubSystem.Time.SetTimes(time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC))
+
+	mockRepo := new(MockRepository)
+	svc := &service{
+		Repository: mockRepo,
+		system:     stubSystem.ToSystem(),
+	}
+
+	ctx := context.Background()
+
+	// Setup: 3 categories, only one marked as is_controllable
+	// But two have budgets with non-zero controlled_amount
+	categories := []CategoryModel{
+		{CategoryID: 1, Name: "Groceries", Icon: "🛒", IsControllable: true, CategoryType: "expense"},
+		{CategoryID: 2, Name: "Transport", Icon: "🚗", IsControllable: false, CategoryType: "expense"},
+		{CategoryID: 3, Name: "Entertainment", Icon: "🎮", IsControllable: false, CategoryType: "expense"},
+	}
+
+	// Both Groceries and Transport have non-zero controlled amounts
+	categoryBudgets := []CategoryBudgetModel{
+		{CategoryBudgetID: 1, CategoryID: 1, Month: 3, Year: 2026, ControlledAmount: decimal.NewFromFloat(500)},
+		{CategoryBudgetID: 2, CategoryID: 2, Month: 3, Year: 2026, ControlledAmount: decimal.NewFromFloat(300)},
+		// Entertainment has zero controlled amount - should NOT appear
+		{CategoryBudgetID: 3, CategoryID: 3, Month: 3, Year: 2026, ControlledAmount: decimal.Zero},
+	}
+
+	catID1 := 1
+	catID2 := 2
+	transactions := []TransactionModel{
+		{TransactionID: 1, Amount: decimal.NewFromFloat(200), TransactionType: TransactionTypeDebit, CategoryID: &catID1},
+		{TransactionID: 2, Amount: decimal.NewFromFloat(100), TransactionType: TransactionTypeDebit, CategoryID: &catID2},
+	}
+
+	mockRepo.On("FetchCategories", ctx, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", ctx, mock.Anything).Return(categoryBudgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", ctx, mock.Anything).Return(transactions, nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID:         1,
+		OrganizationID: 1,
+		Month:          3,
+		Year:           2026,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// Should include both Groceries (is_controllable) AND Transport (has controlled_amount)
+	// but NOT Entertainment (zero controlled_amount)
+	assert.Len(t, result.Categories, 2)
+
+	// Verify both categories are present
+	categoryIDs := map[int]bool{}
+	for _, cat := range result.Categories {
+		categoryIDs[cat.CategoryID] = true
+	}
+	assert.True(t, categoryIDs[1], "Groceries should be included (has controlled amount)")
+	assert.True(t, categoryIDs[2], "Transport should be included (has controlled amount)")
+	assert.False(t, categoryIDs[3], "Entertainment should NOT be included (zero controlled amount)")
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetControllableCategoryPacing_EmptyWhenNoBudgetsWithControlledAmount(t *testing.T) {
+	stubSystem := system.NewStubSystem()
+	stubSystem.Time.SetTimes(time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC))
+
+	mockRepo := new(MockRepository)
+	svc := &service{
+		Repository: mockRepo,
+		system:     stubSystem.ToSystem(),
+	}
+
+	ctx := context.Background()
+
+	categories := []CategoryModel{
+		{CategoryID: 1, Name: "Groceries", Icon: "🛒", IsControllable: false, CategoryType: "expense"},
+	}
+
+	// Budget exists but with zero controlled amount
+	categoryBudgets := []CategoryBudgetModel{
+		{CategoryBudgetID: 1, CategoryID: 1, Month: 3, Year: 2026, ControlledAmount: decimal.Zero},
+	}
+
+	mockRepo.On("FetchCategories", ctx, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", ctx, mock.Anything).Return(categoryBudgets, nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID:         1,
+		OrganizationID: 1,
+		Month:          3,
+		Year:           2026,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.Categories, 0)
+
+	mockRepo.AssertExpectations(t)
+}
+
 func TestSumTransactions_OnlyCountsDebits(t *testing.T) {
 	svc := &service{}
 
