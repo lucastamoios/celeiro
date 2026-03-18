@@ -2,6 +2,7 @@ package financial
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/catrutech/celeiro/pkg/system"
@@ -595,5 +596,58 @@ func TestGetTransactions_DefaultLimit(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestDeletePlannedEntry_Success(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+
+	mockRepo.On("RemovePlannedEntry", ctx, removePlannedEntryParams{
+		PlannedEntryID: 42,
+		UserID:         1,
+		OrganizationID: 1,
+	}).Return(nil)
+
+	err := svc.DeletePlannedEntry(ctx, DeletePlannedEntryInput{
+		PlannedEntryID: 42,
+		UserID:         1,
+		OrganizationID: 1,
+	})
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestDeletePlannedEntry_RepositoryError(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+
+	mockRepo.On("RemovePlannedEntry", ctx, removePlannedEntryParams{
+		PlannedEntryID: 99,
+		UserID:         1,
+		OrganizationID: 1,
+	}).Return(fmt.Errorf("entry not found"))
+
+	err := svc.DeletePlannedEntry(ctx, DeletePlannedEntryInput{
+		PlannedEntryID: 99,
+		UserID:         1,
+		OrganizationID: 1,
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete planned entry")
 	mockRepo.AssertExpectations(t)
 }
