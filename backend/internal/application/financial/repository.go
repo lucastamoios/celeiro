@@ -1783,11 +1783,13 @@ const removePlannedEntryQuery = `
 	DELETE FROM planned_entries
 	WHERE planned_entry_id = $1
 		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $3
+	RETURNING planned_entry_id;
 `
 
 func (r *repository) RemovePlannedEntry(ctx context.Context, params removePlannedEntryParams) error {
-	return r.db.Run(ctx, removePlannedEntryQuery,
+	var deletedID int
+	return r.db.Query(ctx, &deletedID, removePlannedEntryQuery,
 		params.PlannedEntryID, params.UserID, params.OrganizationID)
 }
 

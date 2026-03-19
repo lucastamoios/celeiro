@@ -1487,6 +1487,10 @@ func (h *Handler) DeletePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		OrganizationID: organizationID,
 	})
 	if err != nil {
+		if err == financialApp.ErrPlannedEntryNotFound {
+			responses.NewError(w, errors.ErrPlannedEntryNotFound)
+			return
+		}
 		responses.NewError(w, err)
 		return
 	}

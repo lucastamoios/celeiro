@@ -1647,6 +1647,8 @@ type DeletePlannedEntryInput struct {
 	OrganizationID int
 }
 
+var ErrPlannedEntryNotFound = fmt.Errorf("planned entry not found")
+
 func (s *service) DeletePlannedEntry(ctx context.Context, params DeletePlannedEntryInput) error {
 	err := s.Repository.RemovePlannedEntry(ctx, removePlannedEntryParams{
 		PlannedEntryID: params.PlannedEntryID,
@@ -1654,6 +1656,9 @@ func (s *service) DeletePlannedEntry(ctx context.Context, params DeletePlannedEn
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrPlannedEntryNotFound
+		}
 		return errors.Wrap(err, "failed to delete planned entry")
 	}
 

@@ -28,6 +28,9 @@ var (
 	// Transaction pattern draft errors
 	ErrTransactionCategoryRequired    = pkgerrors.New("transaction has no category")
 	ErrTransactionDescriptionRequired = pkgerrors.New("transaction has no usable description")
+
+	// Planned entry errors
+	ErrPlannedEntryNotFound = pkgerrors.New("planned entry not found")
 )
 
 func NewInvalidTimeFormatError(field string) error {

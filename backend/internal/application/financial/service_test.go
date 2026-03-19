@@ -2,6 +2,7 @@ package financial
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
 
@@ -649,5 +650,32 @@ func TestDeletePlannedEntry_RepositoryError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to delete planned entry")
+	mockRepo.AssertExpectations(t)
+}
+
+func TestDeletePlannedEntry_NotFound(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+
+	mockRepo.On("RemovePlannedEntry", ctx, removePlannedEntryParams{
+		PlannedEntryID: 999,
+		UserID:         1,
+		OrganizationID: 1,
+	}).Return(sql.ErrNoRows)
+
+	err := svc.DeletePlannedEntry(ctx, DeletePlannedEntryInput{
+		PlannedEntryID: 999,
+		UserID:         1,
+		OrganizationID: 1,
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, ErrPlannedEntryNotFound, err)
 	mockRepo.AssertExpectations(t)
 }
