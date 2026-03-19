@@ -414,13 +414,13 @@ export default function CategoryTransactionsModal({
                                       Editar
                                     </button>
                                   )}
-                                  {onDeleteEntry && (
+                                  {onDeleteEntry && entry.Status !== 'matched' && (
                                     <button
                                       onClick={() => {
                                         if (confirm(`Tem certeza que deseja excluir "${entry.Description}"? Esta ação não pode ser desfeita.`)) {
                                           onDeleteEntry(entry.PlannedEntryID);
+                                          setOpenEntryMenuId(null);
                                         }
-                                        setOpenEntryMenuId(null);
                                       }}
                                       className="w-full text-left px-4 py-2 hover:bg-rust-50 text-rust-600 text-sm"
                                     >
