@@ -14,6 +14,10 @@ export interface Transaction {
   is_classified: boolean;
   classification_rule_id: number | null;
   is_ignored: boolean;
+  classified_by: 'manual' | 'pattern' | 'planned_entry' | 'similarity' | null;
+  suggested_category_id: number | null;
+  suggested_description: string | null;
+  suggestion_confidence: number | null;
   notes: string | null;
   tags: string[] | null;
   created_at: string;

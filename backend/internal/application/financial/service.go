@@ -145,6 +145,10 @@ type Service interface {
 	// Planned Entry Tags
 	GetPlannedEntryTags(ctx context.Context, input GetPlannedEntryTagsInput) ([]Tag, error)
 	SetPlannedEntryTags(ctx context.Context, input SetPlannedEntryTagsInput) error
+
+	// Similarity Classification
+	SuggestCategoryForTransaction(ctx context.Context, input SuggestCategoryInput) (SuggestCategoryOutput, error)
+	GetTransactionsNeedingReview(ctx context.Context, input GetTransactionsNeedingReviewInput) ([]Transaction, error)
 }
 
 type service struct {
@@ -541,10 +545,13 @@ type ImportOFXInput struct {
 }
 
 type ImportOFXOutput struct {
-	ImportedCount  int
-	DuplicateCount int
-	ErrorCount     int
-	Transactions   []Transaction
+	ImportedCount          int
+	DuplicateCount         int
+	ErrorCount             int
+	PatternMatchedCount    int
+	SimilarityMatchedCount int
+	SuggestedCount         int
+	Transactions           []Transaction
 }
 
 // ImportTransactionsFromOFX parses OFX data and imports transactions
@@ -614,8 +621,9 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 	importedCount := len(inserted)
 	duplicateCount := len(ofxTransactions) - importedCount
 
-	// Auto-match imported transactions using advanced patterns (regex-based)
-	matchedCount := 0
+	// Phase 1: Auto-match imported transactions using patterns (regex-based)
+	patternMatchedCount := 0
+	patternMatchedIDs := make(map[int]bool)
 	for _, tx := range inserted {
 		matched, err := s.ApplyPatternsToTransaction(ctx, ApplyPatternsToTransactionInput{
 			TransactionID:  tx.TransactionID,
@@ -630,7 +638,75 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 			continue
 		}
 		if matched {
-			matchedCount++
+			patternMatchedCount++
+			patternMatchedIDs[tx.TransactionID] = true
+		}
+	}
+
+	// Phase 2: Similarity-based classification for transactions not matched by patterns
+	similarityMatchedCount := 0
+	suggestedCount := 0
+	for _, tx := range inserted {
+		if patternMatchedIDs[tx.TransactionID] {
+			continue // already classified by pattern
+		}
+		if tx.OriginalDescription == nil || *tx.OriginalDescription == "" {
+			continue // manual transactions have no original_description
+		}
+
+		suggestion, err := s.SuggestCategoryForTransaction(ctx, SuggestCategoryInput{
+			OriginalDescription: *tx.OriginalDescription,
+			OrganizationID:      params.OrganizationID,
+		})
+		if err != nil {
+			s.logger.Warn(ctx, "Similarity suggestion failed",
+				"transaction_id", tx.TransactionID,
+				"error", err.Error(),
+			)
+			continue
+		}
+
+		if suggestion.CategoryID == nil {
+			continue // no similar history found
+		}
+
+		if !suggestion.IsAmbiguous && suggestion.Confidence >= SimilarityAutoClassifyMinScore {
+			// Unambiguous + high confidence → auto-classify (category + description)
+			classifiedBy := ClassifiedBySimilarity
+			err = s.Repository.SetTransactionSimilarityResult(ctx, setTransactionSimilarityResultParams{
+				TransactionID:        tx.TransactionID,
+				CategoryID:           suggestion.CategoryID,
+				Description:          suggestion.SuggestedDescription,
+				IsClassified:         true,
+				ClassifiedBy:         &classifiedBy,
+				SuggestedCategoryID:  suggestion.CategoryID,
+				SuggestedDescription: suggestion.SuggestedDescription,
+				SuggestionConfidence: &suggestion.Confidence,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "Failed to auto-classify transaction",
+					"transaction_id", tx.TransactionID,
+					"error", err.Error(),
+				)
+				continue
+			}
+			similarityMatchedCount++
+		} else {
+			// Ambiguous or low confidence → store suggestion only
+			err = s.Repository.SetTransactionSimilarityResult(ctx, setTransactionSimilarityResultParams{
+				TransactionID:        tx.TransactionID,
+				SuggestedCategoryID:  suggestion.CategoryID,
+				SuggestedDescription: suggestion.SuggestedDescription,
+				SuggestionConfidence: &suggestion.Confidence,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "Failed to store category suggestion",
+					"transaction_id", tx.TransactionID,
+					"error", err.Error(),
+				)
+				continue
+			}
+			suggestedCount++
 		}
 	}
 
@@ -650,15 +726,20 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 		"total_parsed", len(ofxTransactions),
 		"imported", importedCount,
 		"duplicates", duplicateCount,
-		"pattern_matched", matchedCount,
+		"pattern_matched", patternMatchedCount,
+		"similarity_matched", similarityMatchedCount,
+		"suggested", suggestedCount,
 		"duration_seconds", importDuration,
 	)
 
 	return ImportOFXOutput{
-		ImportedCount:  importedCount,
-		DuplicateCount: duplicateCount,
-		ErrorCount:     0,
-		Transactions:   Transactions{}.FromModel(inserted),
+		ImportedCount:          importedCount,
+		DuplicateCount:         duplicateCount,
+		ErrorCount:             0,
+		PatternMatchedCount:    patternMatchedCount,
+		SimilarityMatchedCount: similarityMatchedCount,
+		SuggestedCount:         suggestedCount,
+		Transactions:           Transactions{}.FromModel(inserted),
 	}, nil
 }
 
@@ -2699,4 +2780,99 @@ func (s *service) SetPlannedEntryTags(ctx context.Context, input SetPlannedEntry
 		PlannedEntryID: input.PlannedEntryID,
 		TagIDs:         input.TagIDs,
 	})
+}
+
+// ============================================================================
+// Similarity Classification
+// ============================================================================
+
+const (
+	// SimilarityThreshold is the minimum trigram similarity to consider descriptions as related
+	SimilarityThreshold = 0.6
+	// SimilarityLookbackMonths is how far back to look for categorized transactions
+	SimilarityLookbackMonths = 3
+	// SimilarityAutoClassifyMinScore is the minimum score to auto-classify without review
+	SimilarityAutoClassifyMinScore = 0.7
+	// ClassifiedBySimilarity is the value for classified_by when auto-classified
+	ClassifiedBySimilarity = "similarity"
+)
+
+type SuggestCategoryInput struct {
+	OriginalDescription string
+	OrganizationID      int
+}
+
+type SuggestCategoryOutput struct {
+	CategoryID           *int    // Best category (nil if no history found)
+	SuggestedDescription *string // Most common user-edited description for similar transactions
+	Confidence           float64 // Normalized score (0.0 - 1.0)
+	IsAmbiguous          bool    // true if 2+ categories found for similar descriptions
+}
+
+// SuggestCategoryForTransaction analyzes past categorized transactions to find
+// the best category match for a description. Returns ambiguity information
+// so the caller can decide whether to auto-classify or suggest.
+func (s *service) SuggestCategoryForTransaction(ctx context.Context, input SuggestCategoryInput) (SuggestCategoryOutput, error) {
+	distribution, err := s.Repository.FetchSimilarCategoryDistribution(ctx, fetchSimilarCategoryDistributionParams{
+		OriginalDescription: input.OriginalDescription,
+		OrganizationID:      input.OrganizationID,
+		SimilarityThreshold: SimilarityThreshold,
+		LookbackMonths:      SimilarityLookbackMonths,
+	})
+	if err != nil {
+		return SuggestCategoryOutput{}, fmt.Errorf("fetch similar categories: %w", err)
+	}
+
+	// No history — unknown
+	if len(distribution) == 0 {
+		return SuggestCategoryOutput{}, nil
+	}
+
+	best := distribution[0] // Sorted by score DESC
+
+	// Normalize score to 0-1 range.
+	// The raw score is AVG(similarity) * LN(frequency + 1).
+	// Max theoretical: similarity=1.0 * LN(inf) → unbounded, but practically
+	// capped around 3-4 for realistic frequencies.
+	// We use the avg_similarity as the primary confidence signal since it's
+	// already in [0,1], weighted slightly by whether we have frequency backing.
+	confidence := best.AvgSimilarity
+	if best.Frequency > 1 {
+		// Small bonus for repeated matches, capped at 1.0
+		bonus := 0.05 * float64(best.Frequency-1)
+		if bonus > 0.15 {
+			bonus = 0.15
+		}
+		confidence += bonus
+		if confidence > 1.0 {
+			confidence = 1.0
+		}
+	}
+
+	return SuggestCategoryOutput{
+		CategoryID:           &best.CategoryID,
+		SuggestedDescription: best.SuggestedDescription,
+		Confidence:           confidence,
+		IsAmbiguous:          len(distribution) >= 2,
+	}, nil
+}
+
+type GetTransactionsNeedingReviewInput struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// GetTransactionsNeedingReview returns transactions that were auto-classified by
+// similarity (need confirmation) or have suggestions but no category (need action).
+func (s *service) GetTransactionsNeedingReview(ctx context.Context, input GetTransactionsNeedingReviewInput) ([]Transaction, error) {
+	models, err := s.Repository.FetchTransactionsNeedingReview(ctx, fetchTransactionsNeedingReviewParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("fetch transactions needing review: %w", err)
+	}
+	return Transactions{}.FromModel(models), nil
 }

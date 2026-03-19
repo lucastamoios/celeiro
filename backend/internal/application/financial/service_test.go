@@ -116,6 +116,21 @@ func (m *MockRepository) FetchUncategorizedTransactions(ctx context.Context, par
 	return args.Get(0).([]TransactionModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchSimilarCategoryDistribution(ctx context.Context, params fetchSimilarCategoryDistributionParams) ([]CategoryDistributionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]CategoryDistributionModel), args.Error(1)
+}
+
+func (m *MockRepository) SetTransactionSimilarityResult(ctx context.Context, params setTransactionSimilarityResultParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+func (m *MockRepository) FetchTransactionsNeedingReview(ctx context.Context, params fetchTransactionsNeedingReviewParams) ([]TransactionModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TransactionModel), args.Error(1)
+}
+
 // Budgets
 func (m *MockRepository) FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error) {
 	args := m.Called(ctx, params)
@@ -677,5 +692,210 @@ func TestDeletePlannedEntry_NotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, ErrPlannedEntryNotFound, err)
+	mockRepo.AssertExpectations(t)
+}
+
+// ============================================================================
+// Similarity Classification Tests
+// ============================================================================
+
+func TestSuggestCategoryForTransaction_Unambiguous_HighConfidence(t *testing.T) {
+	// When a description maps to exactly 1 category with high score,
+	// it should auto-classify.
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+	desc := "PAG*JoseDaSilva"
+
+	suggestedDesc := "José - Mercado"
+	mockRepo.On("FetchSimilarCategoryDistribution", ctx, mock.MatchedBy(func(p fetchSimilarCategoryDistributionParams) bool {
+		return p.OriginalDescription == desc && p.OrganizationID == 1 && p.LookbackMonths == 3
+	})).Return([]CategoryDistributionModel{
+		{CategoryID: 10, SuggestedDescription: &suggestedDesc, AvgSimilarity: 0.85, Frequency: 5, Score: 1.52},
+	}, nil)
+
+	result, err := svc.SuggestCategoryForTransaction(ctx, SuggestCategoryInput{
+		OriginalDescription: desc,
+		OrganizationID:      1,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result.CategoryID)
+	assert.Equal(t, 10, *result.CategoryID)
+	assert.NotNil(t, result.SuggestedDescription)
+	assert.Equal(t, "José - Mercado", *result.SuggestedDescription)
+	assert.False(t, result.IsAmbiguous)
+	assert.Greater(t, result.Confidence, 0.0)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSuggestCategoryForTransaction_Ambiguous_MultipleCategories(t *testing.T) {
+	// When a description maps to 2+ categories (e.g., Amazon),
+	// it should mark as ambiguous and only suggest, never auto-classify.
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+	desc := "AMZN MKTP US*AB1234"
+
+	mockRepo.On("FetchSimilarCategoryDistribution", ctx, mock.MatchedBy(func(p fetchSimilarCategoryDistributionParams) bool {
+		return p.OriginalDescription == desc && p.OrganizationID == 1
+	})).Return([]CategoryDistributionModel{
+		{CategoryID: 10, AvgSimilarity: 0.82, Frequency: 8, Score: 1.80},  // Electronics
+		{CategoryID: 20, AvgSimilarity: 0.80, Frequency: 4, Score: 1.28},  // Groceries
+		{CategoryID: 30, AvgSimilarity: 0.78, Frequency: 2, Score: 0.86},  // Household
+	}, nil)
+
+	result, err := svc.SuggestCategoryForTransaction(ctx, SuggestCategoryInput{
+		OriginalDescription: desc,
+		OrganizationID:      1,
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, result.IsAmbiguous)
+	// Should still return the best suggestion even when ambiguous
+	assert.NotNil(t, result.CategoryID)
+	assert.Equal(t, 10, *result.CategoryID) // Highest score
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSuggestCategoryForTransaction_NoHistory(t *testing.T) {
+	// When there are no similar transactions at all,
+	// it should return nil category (unknown).
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+	desc := "COMPLETELY NEW MERCHANT"
+
+	mockRepo.On("FetchSimilarCategoryDistribution", ctx, mock.MatchedBy(func(p fetchSimilarCategoryDistributionParams) bool {
+		return p.OriginalDescription == desc
+	})).Return([]CategoryDistributionModel{}, nil)
+
+	result, err := svc.SuggestCategoryForTransaction(ctx, SuggestCategoryInput{
+		OriginalDescription: desc,
+		OrganizationID:      1,
+	})
+
+	assert.NoError(t, err)
+	assert.Nil(t, result.CategoryID)
+	assert.False(t, result.IsAmbiguous)
+	assert.Equal(t, 0.0, result.Confidence)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSuggestCategoryForTransaction_Unambiguous_LowConfidence(t *testing.T) {
+	// When a description maps to 1 category but with a low score,
+	// it should still suggest (not auto-classify). The caller decides the threshold.
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+	desc := "PARTIAL MATCH DESC"
+
+	mockRepo.On("FetchSimilarCategoryDistribution", ctx, mock.MatchedBy(func(p fetchSimilarCategoryDistributionParams) bool {
+		return p.OriginalDescription == desc
+	})).Return([]CategoryDistributionModel{
+		{CategoryID: 15, AvgSimilarity: 0.45, Frequency: 1, Score: 0.31},
+	}, nil)
+
+	result, err := svc.SuggestCategoryForTransaction(ctx, SuggestCategoryInput{
+		OriginalDescription: desc,
+		OrganizationID:      1,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result.CategoryID)
+	assert.Equal(t, 15, *result.CategoryID)
+	assert.False(t, result.IsAmbiguous)
+	// Low confidence — caller should decide to suggest rather than auto-classify
+	assert.Less(t, result.Confidence, 1.0)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSuggestCategoryForTransaction_RepositoryError(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+
+	mockRepo.On("FetchSimilarCategoryDistribution", ctx, mock.Anything).
+		Return([]CategoryDistributionModel{}, fmt.Errorf("database error"))
+
+	_, err := svc.SuggestCategoryForTransaction(ctx, SuggestCategoryInput{
+		OriginalDescription: "anything",
+		OrganizationID:      1,
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "fetch similar categories")
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetTransactionsNeedingReview_Success(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{
+		metrics:    nil,
+		Repository: mockRepo,
+		system:     system.NewSystem(),
+	}
+
+	ctx := context.Background()
+	classifiedBy := "similarity"
+	suggestedCatID := 10
+	confidence := 0.75
+
+	expectedModels := []TransactionModel{
+		{
+			TransactionID: 1,
+			Description:   "Auto-classified",
+			ClassifiedBy:  &classifiedBy,
+			CategoryID:    &suggestedCatID,
+		},
+		{
+			TransactionID:        2,
+			Description:          "Suggestion only",
+			SuggestedCategoryID:  &suggestedCatID,
+			SuggestionConfidence: &confidence,
+		},
+	}
+
+	mockRepo.On("FetchTransactionsNeedingReview", ctx, fetchTransactionsNeedingReviewParams{
+		OrganizationID: 1,
+		Month:          3,
+		Year:           2026,
+	}).Return(expectedModels, nil)
+
+	result, err := svc.GetTransactionsNeedingReview(ctx, GetTransactionsNeedingReviewInput{
+		OrganizationID: 1,
+		Month:          3,
+		Year:           2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 2)
+	assert.Equal(t, "Auto-classified", result[0].Description)
+	assert.Equal(t, "Suggestion only", result[1].Description)
 	mockRepo.AssertExpectations(t)
 }

@@ -446,6 +446,34 @@ func (h *Handler) ListUncategorizedTransactions(w http.ResponseWriter, r *http.R
 	responses.NewSuccess(transactions, w)
 }
 
+func (h *Handler) ListTransactionsNeedingReview(w http.ResponseWriter, r *http.Request) {
+	_, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	month, _ := strconv.Atoi(r.URL.Query().Get("month"))
+	year, _ := strconv.Atoi(r.URL.Query().Get("year"))
+
+	if month == 0 || year == 0 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	transactions, err := h.app.FinancialService.GetTransactionsNeedingReview(r.Context(), financialApp.GetTransactionsNeedingReviewInput{
+		OrganizationID: organizationID,
+		Month:          month,
+		Year:           year,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(transactions, w)
+}
+
 func (h *Handler) ImportOFX(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
