@@ -474,10 +474,29 @@ export default function TransactionList() {
   }, [handleInlineSave]);
 
   const handleAcceptSuggestion = useCallback(async (transaction: Transaction) => {
-    const patch: Record<string, unknown> = { category_id: transaction.suggested_category_id };
+    const patch: Record<string, unknown> = {
+      category_id: transaction.suggested_category_id,
+      // Clear suggestion fields optimistically so badges disappear immediately
+      suggested_category_id: null,
+      suggested_description: null,
+      suggestion_confidence: null,
+      classified_by: 'manual',
+    };
     if (transaction.suggested_description) {
       patch.description = transaction.suggested_description;
     }
+    await handleInlineSave(transaction, patch);
+  }, [handleInlineSave]);
+
+  const handleConfirmAutoClassification = useCallback(async (transaction: Transaction) => {
+    // Optimistically clear the similarity badge before the API call
+    const patch: Record<string, unknown> = {
+      category_id: transaction.category_id,
+      classified_by: 'manual',
+      suggested_category_id: null,
+      suggested_description: null,
+      suggestion_confidence: null,
+    };
     await handleInlineSave(transaction, patch);
   }, [handleInlineSave]);
 
@@ -993,20 +1012,20 @@ export default function TransactionList() {
                     />
                     {transaction.classified_by === 'similarity' && transaction.category_id && (
                       <button
-                        className="text-xs bg-wheat-50 text-wheat-700 px-2 py-0.5 rounded-full font-medium hover:bg-wheat-100 transition-colors cursor-pointer"
+                        className="text-xs bg-wheat-50 text-wheat-700 px-2 py-0.5 rounded-full font-medium hover:bg-wheat-100 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-wheat-300"
                         title="Confirmar categoria"
-                        onClick={() => handleInlineCategorySave(transaction, transaction.category_id!)}
+                        onClick={() => handleConfirmAutoClassification(transaction)}
                       >
                         ✓ Auto
                       </button>
                     )}
-                    {!transaction.category_id && transaction.suggested_category_id && (
+                    {!transaction.category_id && transaction.suggested_category_id && categories.get(transaction.suggested_category_id) && (
                       <button
-                        className="text-xs bg-terra-50 text-terra-700 px-2 py-0.5 rounded-full font-medium hover:bg-terra-100 transition-colors"
-                        title={`Usar: ${transaction.suggested_description ?? ''} → ${categories.get(transaction.suggested_category_id)?.name ?? 'categoria'}`}
+                        className="text-xs bg-terra-50 text-terra-700 px-2 py-0.5 rounded-full font-medium hover:bg-terra-100 transition-colors max-w-[200px] truncate focus:outline-none focus:ring-2 focus:ring-terra-300"
+                        title={`Usar: ${transaction.suggested_description ?? categories.get(transaction.suggested_category_id)!.name} → ${categories.get(transaction.suggested_category_id)!.name}`}
                         onClick={() => handleAcceptSuggestion(transaction)}
                       >
-                        {categories.get(transaction.suggested_category_id)?.icon}{' '}
+                        {categories.get(transaction.suggested_category_id)!.icon}{' '}
                         {transaction.suggested_description ?? 'Sugestão'}
                       </button>
                     )}
@@ -1113,20 +1132,20 @@ export default function TransactionList() {
                           />
                           {transaction.classified_by === 'similarity' && transaction.category_id && (
                             <button
-                              className="text-xs bg-wheat-50 text-wheat-700 px-2 py-0.5 rounded-full font-medium hover:bg-wheat-100 transition-colors cursor-pointer"
+                              className="text-xs bg-wheat-50 text-wheat-700 px-2 py-0.5 rounded-full font-medium hover:bg-wheat-100 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-wheat-300"
                               title="Confirmar categoria"
-                              onClick={() => handleInlineCategorySave(transaction, transaction.category_id!)}
+                              onClick={() => handleConfirmAutoClassification(transaction)}
                             >
                               ✓ Auto
                             </button>
                           )}
-                          {!transaction.category_id && transaction.suggested_category_id && (
+                          {!transaction.category_id && transaction.suggested_category_id && categories.get(transaction.suggested_category_id) && (
                             <button
-                              className="text-xs bg-terra-50 text-terra-700 px-2 py-0.5 rounded-full font-medium hover:bg-terra-100 transition-colors"
-                              title={`Usar: ${transaction.suggested_description ?? ''} → ${categories.get(transaction.suggested_category_id)?.name ?? 'categoria'}`}
+                              className="text-xs bg-terra-50 text-terra-700 px-2 py-0.5 rounded-full font-medium hover:bg-terra-100 transition-colors max-w-[180px] truncate focus:outline-none focus:ring-2 focus:ring-terra-300"
+                              title={`Usar: ${transaction.suggested_description ?? categories.get(transaction.suggested_category_id)!.name} → ${categories.get(transaction.suggested_category_id)!.name}`}
                               onClick={() => handleAcceptSuggestion(transaction)}
                             >
-                              {categories.get(transaction.suggested_category_id)?.icon}{' '}
+                              {categories.get(transaction.suggested_category_id)!.icon}{' '}
                               {transaction.suggested_description ?? 'Sugestão'}
                             </button>
                           )}
