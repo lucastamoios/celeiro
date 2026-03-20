@@ -104,6 +104,10 @@ type Transaction struct {
 	IsClassified         bool            `json:"is_classified"`
 	ClassificationRuleID *int            `json:"classification_rule_id,omitempty"`
 	IsIgnored            bool            `json:"is_ignored"`
+	ClassifiedBy         *string         `json:"classified_by,omitempty"`           // manual, pattern, planned_entry, similarity
+	SuggestedCategoryID  *int            `json:"suggested_category_id,omitempty"`   // Suggestion for ambiguous/low-confidence
+	SuggestedDescription *string         `json:"suggested_description,omitempty"`   // Best description from similar past transactions
+	SuggestionConfidence *float64        `json:"suggestion_confidence,omitempty"`   // 0.0 to 1.0
 	Notes                *string         `json:"notes,omitempty"`
 	Tags                 []string        `json:"tags"`
 	CreatedAt            time.Time       `json:"created_at"`
@@ -128,6 +132,10 @@ func (t Transaction) FromModel(model *TransactionModel) Transaction {
 		IsClassified:         model.IsClassified,
 		ClassificationRuleID: model.ClassificationRuleID,
 		IsIgnored:            model.IsIgnored,
+		ClassifiedBy:         model.ClassifiedBy,
+		SuggestedCategoryID:  model.SuggestedCategoryID,
+		SuggestedDescription: model.SuggestedDescription,
+		SuggestionConfidence: model.SuggestionConfidence,
 		Notes:                model.Notes,
 		Tags:                 model.Tags,
 		CreatedAt:            model.CreatedAt,

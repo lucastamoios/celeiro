@@ -39,6 +39,7 @@ var errorMappings = map[error]ErrorMapping{
 	errors.ErrInvalidCode:                    {Status: http.StatusUnauthorized, Code: "INVALID_CODE"},
 	errors.ErrTransactionCategoryRequired:    {Status: http.StatusBadRequest, Code: "TRANSACTION_CATEGORY_REQUIRED"},
 	errors.ErrTransactionDescriptionRequired: {Status: http.StatusBadRequest, Code: "TRANSACTION_DESCRIPTION_REQUIRED"},
+	errors.ErrPlannedEntryNotFound:           {Status: http.StatusNotFound, Code: "PLANNED_ENTRY_NOT_FOUND"},
 }
 
 func NewSuccess[T any](data T, w http.ResponseWriter, status ...int) {

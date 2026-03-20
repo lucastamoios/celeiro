@@ -29,6 +29,9 @@ type Repository interface {
 	FetchTransactionsByMonth(ctx context.Context, params fetchTransactionsByMonthParams) ([]TransactionModel, error)
 	FetchUncategorizedTransactions(ctx context.Context, params fetchUncategorizedTransactionsParams) ([]TransactionModel, error)
 	FetchTransactionsForPatternMatching(ctx context.Context, params fetchTransactionsForPatternMatchingParams) ([]TransactionModel, error)
+	FetchSimilarCategoryDistribution(ctx context.Context, params fetchSimilarCategoryDistributionParams) ([]CategoryDistributionModel, error)
+	SetTransactionSimilarityResult(ctx context.Context, params setTransactionSimilarityResultParams) error
+	FetchTransactionsNeedingReview(ctx context.Context, params fetchTransactionsNeedingReviewParams) ([]TransactionModel, error)
 	InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error)
 	BulkInsertTransactions(ctx context.Context, params bulkInsertTransactionsParams) ([]TransactionModel, error)
 	ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error)
@@ -475,6 +478,10 @@ const fetchTransactionsQuery = `
 		t.classification_rule_id,
 		t.is_ignored,
 		t.savings_goal_id,
+		t.classified_by,
+		t.suggested_category_id,
+		t.suggested_description,
+		t.suggestion_confidence,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -521,6 +528,10 @@ const fetchTransactionByIDQuery = `
 		t.classification_rule_id,
 		t.is_ignored,
 		t.savings_goal_id,
+		t.classified_by,
+		t.suggested_category_id,
+		t.suggested_description,
+		t.suggestion_confidence,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -565,6 +576,10 @@ const fetchUncategorizedTransactionsQuery = `
 		t.classification_rule_id,
 		t.is_ignored,
 		t.savings_goal_id,
+		t.classified_by,
+		t.suggested_category_id,
+		t.suggested_description,
+		t.suggestion_confidence,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -611,6 +626,10 @@ const fetchTransactionsForPatternMatchingQuery = `
 		t.classification_rule_id,
 		t.is_ignored,
 		t.savings_goal_id,
+		t.classified_by,
+		t.suggested_category_id,
+		t.suggested_description,
+		t.suggestion_confidence,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -656,6 +675,10 @@ const fetchTransactionsByMonthQuery = `
 		t.classification_rule_id,
 		t.is_ignored,
 		t.savings_goal_id,
+		t.classified_by,
+		t.suggested_category_id,
+		t.suggested_description,
+		t.suggestion_confidence,
 		t.notes,
 		t.tags
 	FROM transactions t
@@ -712,7 +735,8 @@ const insertTransactionQuery = `
 		updated_at = NOW()
 	RETURNING transaction_id, created_at, updated_at, account_id, category_id, description, original_description, amount,
 			  transaction_date, transaction_type, ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data,
-			  is_classified, classification_rule_id, is_ignored, notes, tags;
+			  is_classified, classification_rule_id, is_ignored, savings_goal_id,
+			  classified_by, suggested_category_id, suggested_description, suggestion_confidence, notes, tags;
 `
 
 func (r *repository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
@@ -768,6 +792,11 @@ const modifyTransactionQuery = `
 		amount = COALESCE($7, t.amount),
 		notes = COALESCE($8, t.notes),
 		is_ignored = COALESCE($9, t.is_ignored),
+		-- When user explicitly sets a category, mark as manual and clear suggestion
+		classified_by = CASE WHEN $4 IS NOT NULL THEN 'manual' ELSE t.classified_by END,
+		suggested_category_id = CASE WHEN $4 IS NOT NULL THEN NULL ELSE t.suggested_category_id END,
+		suggested_description = CASE WHEN $4 IS NOT NULL THEN NULL ELSE t.suggested_description END,
+		suggestion_confidence = CASE WHEN $4 IS NOT NULL THEN NULL ELSE t.suggestion_confidence END,
 		updated_at = NOW()
 	FROM accounts a
 	WHERE t.transaction_id = $1
@@ -777,7 +806,8 @@ const modifyTransactionQuery = `
 	RETURNING t.transaction_id, t.created_at, t.updated_at, t.account_id, t.category_id, t.description,
 			  t.original_description, t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid,
 			  t.ofx_check_number, t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id,
-			  t.is_ignored, t.savings_goal_id, t.notes, t.tags;
+			  t.is_ignored, t.savings_goal_id, t.classified_by, t.suggested_category_id,
+			  t.suggested_description, t.suggestion_confidence, t.notes, t.tags;
 `
 
 func (r *repository) ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error) {
@@ -810,6 +840,151 @@ const removeTransactionQuery = `
 func (r *repository) RemoveTransaction(ctx context.Context, params removeTransactionParams) error {
 	err := r.db.Run(ctx, removeTransactionQuery, params.TransactionID, params.UserID, params.OrganizationID)
 	return err
+}
+
+// ============================================================================
+// Similarity Classification
+// ============================================================================
+
+// CategoryDistributionModel holds the result of a similarity category lookup.
+// Each row represents one category that similar descriptions have been mapped to.
+type CategoryDistributionModel struct {
+	CategoryID           int     `db:"category_id"`
+	SuggestedDescription *string `db:"suggested_description"` // Most common user-edited description for this category
+	AvgSimilarity        float64 `db:"avg_similarity"`
+	Frequency            int     `db:"frequency"`
+	Score                float64 `db:"score"`
+}
+
+type fetchSimilarCategoryDistributionParams struct {
+	OriginalDescription string
+	OrganizationID      int
+	SimilarityThreshold float64
+	LookbackMonths      int
+}
+
+const fetchSimilarCategoryDistributionQuery = `
+	-- financial.fetchSimilarCategoryDistributionQuery
+	-- Returns category distribution for descriptions similar to the input,
+	-- ordered by frequency-weighted similarity score.
+	-- Used to detect ambiguity (2+ rows) vs. unambiguous (1 row) classifications.
+	SELECT
+		t.category_id,
+		MODE() WITHIN GROUP (ORDER BY t.description) AS suggested_description,
+		AVG(similarity(t.original_description, $1))::FLOAT8 AS avg_similarity,
+		COUNT(*)::INT AS frequency,
+		(AVG(similarity(t.original_description, $1)) * LN(COUNT(*) + 1))::FLOAT8 AS score
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE a.organization_id = $2
+		AND t.category_id IS NOT NULL
+		AND t.is_ignored = false
+		AND t.original_description IS NOT NULL
+		AND t.transaction_date >= NOW() - make_interval(months => $3::INT)
+		AND similarity(t.original_description, $1) > $4
+	GROUP BY t.category_id
+	ORDER BY score DESC;
+`
+
+func (r *repository) FetchSimilarCategoryDistribution(ctx context.Context, params fetchSimilarCategoryDistributionParams) ([]CategoryDistributionModel, error) {
+	var result []CategoryDistributionModel
+	err := r.db.Query(ctx, &result, fetchSimilarCategoryDistributionQuery,
+		params.OriginalDescription, params.OrganizationID, params.LookbackMonths, params.SimilarityThreshold)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type setTransactionSimilarityResultParams struct {
+	TransactionID        int
+	CategoryID           *int    // Set when auto-classifying; nil for suggestion-only
+	Description          *string // Set when auto-classifying with suggested description
+	IsClassified         bool    // true when auto-classifying
+	ClassifiedBy         *string // "similarity" when auto-classifying; nil for suggestion-only
+	SuggestedCategoryID  *int    // Best suggestion (set for both ambiguous and low-confidence)
+	SuggestedDescription *string // Best description from similar past transactions
+	SuggestionConfidence *float64
+}
+
+const setTransactionSimilarityResultQuery = `
+	-- financial.setTransactionSimilarityResultQuery
+	UPDATE transactions
+	SET category_id = COALESCE($2, category_id),
+		description = COALESCE($3, description),
+		is_classified = CASE WHEN $4 THEN true ELSE is_classified END,
+		classified_by = COALESCE($5, classified_by),
+		suggested_category_id = $6,
+		suggested_description = $7,
+		suggestion_confidence = $8,
+		updated_at = NOW()
+	WHERE transaction_id = $1;
+`
+
+func (r *repository) SetTransactionSimilarityResult(ctx context.Context, params setTransactionSimilarityResultParams) error {
+	return r.db.Run(ctx, setTransactionSimilarityResultQuery,
+		params.TransactionID, params.CategoryID, params.Description,
+		params.IsClassified, params.ClassifiedBy,
+		params.SuggestedCategoryID, params.SuggestedDescription, params.SuggestionConfidence)
+}
+
+type fetchTransactionsNeedingReviewParams struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+const fetchTransactionsNeedingReviewQuery = `
+	-- financial.fetchTransactionsNeedingReviewQuery
+	-- Returns transactions that need user review:
+	-- 1. Auto-classified by similarity (user should confirm/fix)
+	-- 2. Has a suggestion but not yet categorized (user should accept/change)
+	SELECT
+		t.transaction_id,
+		t.created_at,
+		t.updated_at,
+		t.account_id,
+		t.category_id,
+		t.description,
+		t.original_description,
+		t.amount,
+		t.transaction_date,
+		t.transaction_type,
+		t.ofx_fitid,
+		t.ofx_check_number,
+		t.ofx_memo,
+		t.raw_ofx_data,
+		t.is_classified,
+		t.classification_rule_id,
+		t.is_ignored,
+		t.savings_goal_id,
+		t.classified_by,
+		t.suggested_category_id,
+		t.suggested_description,
+		t.suggestion_confidence,
+		t.notes,
+		t.tags
+	FROM transactions t
+	INNER JOIN accounts a ON a.account_id = t.account_id
+	WHERE a.organization_id = $1
+		AND t.is_ignored = false
+		AND EXTRACT(MONTH FROM t.transaction_date) = $2
+		AND EXTRACT(YEAR FROM t.transaction_date) = $3
+		AND (
+			t.classified_by = 'similarity'
+			OR (t.suggested_category_id IS NOT NULL AND t.category_id IS NULL)
+		)
+	ORDER BY t.transaction_date DESC, t.created_at DESC;
+`
+
+func (r *repository) FetchTransactionsNeedingReview(ctx context.Context, params fetchTransactionsNeedingReviewParams) ([]TransactionModel, error) {
+	var result []TransactionModel
+	err := r.db.Query(ctx, &result, fetchTransactionsNeedingReviewQuery,
+		params.OrganizationID, params.Month, params.Year)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // ============================================================================
@@ -1783,11 +1958,13 @@ const removePlannedEntryQuery = `
 	DELETE FROM planned_entries
 	WHERE planned_entry_id = $1
 		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $3
+	RETURNING planned_entry_id;
 `
 
 func (r *repository) RemovePlannedEntry(ctx context.Context, params removePlannedEntryParams) error {
-	return r.db.Run(ctx, removePlannedEntryQuery,
+	var deletedID int
+	return r.db.Query(ctx, &deletedID, removePlannedEntryQuery,
 		params.PlannedEntryID, params.UserID, params.OrganizationID)
 }
 
@@ -2732,6 +2909,10 @@ const fetchGoalContributionsQuery = `
 		t.classification_rule_id,
 		t.is_ignored,
 		t.savings_goal_id,
+		t.classified_by,
+		t.suggested_category_id,
+		t.suggested_description,
+		t.suggestion_confidence,
 		t.notes,
 		t.tags
 	FROM transactions t

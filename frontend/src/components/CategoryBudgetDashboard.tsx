@@ -1741,6 +1741,9 @@ export default function CategoryBudgetDashboard() {
               onPlannedEntryClick={handlePlannedEntryClickInBudget}
               onAddPlannedEntry={handleAddPlannedEntryFromModal}
               onUpdatePlannedEntryAmount={handleUpdatePlannedEntryAmountInline}
+              onDismissEntry={(entryId, reason) => handleDismissExpandedEntry(entryId, selectedMonth, selectedYear, reason)}
+              onUndismissEntry={(entryId) => handleUndismissExpandedEntry(entryId, selectedMonth, selectedYear)}
+              onDeleteEntry={(entryId) => handleDeletePlannedEntry(entryId, selectedMonth, selectedYear)}
             />
           );
         })()}

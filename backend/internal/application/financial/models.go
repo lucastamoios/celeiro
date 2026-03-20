@@ -77,6 +77,12 @@ type TransactionModel struct {
 	// Savings Goal (orthogonal to category)
 	SavingsGoalID *int `db:"savings_goal_id"`
 
+	// Similarity classification
+	ClassifiedBy         *string  `db:"classified_by"`           // manual, pattern, planned_entry, similarity
+	SuggestedCategoryID  *int     `db:"suggested_category_id"`   // Best category suggestion (when ambiguous or low confidence)
+	SuggestedDescription *string  `db:"suggested_description"`   // Best description from similar past transactions
+	SuggestionConfidence *float64 `db:"suggestion_confidence"`   // 0.0 to 1.0
+
 	// Metadata
 	Notes *string        `db:"notes"`
 	Tags  pq.StringArray `db:"tags"`

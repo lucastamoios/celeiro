@@ -273,6 +273,8 @@ export default function TransactionList() {
 
     let totalImported = 0;
     let totalDuplicates = 0;
+    let totalSimilarityMatched = 0;
+    let totalSuggested = 0;
     let failedFiles: string[] = [];
 
     for (const file of ofxFiles) {
@@ -310,9 +312,19 @@ export default function TransactionList() {
           result?.data?.duplicate_count ??
           result?.data?.duplicateCount ??
           0;
+        const similarityMatched =
+          result?.data?.SimilarityMatchedCount ??
+          result?.data?.similarity_matched_count ??
+          0;
+        const suggested =
+          result?.data?.SuggestedCount ??
+          result?.data?.suggested_count ??
+          0;
 
         totalImported += typeof imported === 'number' ? imported : 0;
         totalDuplicates += typeof duplicates === 'number' ? duplicates : 0;
+        totalSimilarityMatched += typeof similarityMatched === 'number' ? similarityMatched : 0;
+        totalSuggested += typeof suggested === 'number' ? suggested : 0;
       } catch (err) {
         failedFiles.push(`${file.name}: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
       }
@@ -325,8 +337,10 @@ export default function TransactionList() {
 
     if (totalImported > 0 || totalDuplicates > 0) {
       const filesText = ofxFiles.length > 1 ? `${ofxFiles.length} arquivos` : '1 arquivo';
-      setUploadSuccess(`✅ ${filesText}: ${totalImported} transações importadas (${totalDuplicates} duplicadas).`);
-      setTimeout(() => setUploadSuccess(null), 5000);
+      const autoClassifiedText = totalSimilarityMatched > 0 ? `, ${totalSimilarityMatched} já categorizadas` : '';
+      const suggestedText = totalSuggested > 0 ? `, ${totalSuggested} com sugestão para revisar` : '';
+      setUploadSuccess(`${filesText}: ${totalImported} transações importadas (${totalDuplicates} duplicadas${autoClassifiedText}${suggestedText}).`);
+      setTimeout(() => setUploadSuccess(null), 7000);
     }
 
     // Refresh the transaction list
@@ -457,6 +471,33 @@ export default function TransactionList() {
 
   const handleInlineCategorySave = useCallback(async (transaction: Transaction, categoryId: number | null) => {
     await handleInlineSave(transaction, { category_id: categoryId });
+  }, [handleInlineSave]);
+
+  const handleAcceptSuggestion = useCallback(async (transaction: Transaction) => {
+    const patch: Record<string, unknown> = {
+      category_id: transaction.suggested_category_id,
+      // Clear suggestion fields optimistically so badges disappear immediately
+      suggested_category_id: null,
+      suggested_description: null,
+      suggestion_confidence: null,
+      classified_by: 'manual',
+    };
+    if (transaction.suggested_description) {
+      patch.description = transaction.suggested_description;
+    }
+    await handleInlineSave(transaction, patch);
+  }, [handleInlineSave]);
+
+  const handleConfirmAutoClassification = useCallback(async (transaction: Transaction) => {
+    // Optimistically clear the similarity badge before the API call
+    const patch: Record<string, unknown> = {
+      category_id: transaction.category_id,
+      classified_by: 'manual',
+      suggested_category_id: null,
+      suggested_description: null,
+      suggestion_confidence: null,
+    };
+    await handleInlineSave(transaction, patch);
   }, [handleInlineSave]);
 
   const handleCreateTransaction = async () => {
@@ -969,6 +1010,25 @@ export default function TransactionList() {
                       transactionType={transaction.transaction_type}
                       onSave={(catId) => handleInlineCategorySave(transaction, catId)}
                     />
+                    {transaction.classified_by === 'similarity' && transaction.category_id && (
+                      <button
+                        className="text-xs bg-wheat-50 text-wheat-700 px-2 py-0.5 rounded-full font-medium hover:bg-wheat-100 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-wheat-300"
+                        title="Confirmar categoria"
+                        onClick={() => handleConfirmAutoClassification(transaction)}
+                      >
+                        ✓ Auto
+                      </button>
+                    )}
+                    {!transaction.category_id && transaction.suggested_category_id && categories.get(transaction.suggested_category_id) && (
+                      <button
+                        className="text-xs bg-terra-50 text-terra-700 px-2 py-0.5 rounded-full font-medium hover:bg-terra-100 transition-colors max-w-[200px] truncate focus:outline-none focus:ring-2 focus:ring-terra-300"
+                        title={`Usar: ${transaction.suggested_description ?? categories.get(transaction.suggested_category_id)!.name} → ${categories.get(transaction.suggested_category_id)!.name}`}
+                        onClick={() => handleAcceptSuggestion(transaction)}
+                      >
+                        {categories.get(transaction.suggested_category_id)!.icon}{' '}
+                        {transaction.suggested_description ?? 'Sugestão'}
+                      </button>
+                    )}
                     {transaction.is_ignored && (
                       <span className="text-xs bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-medium">
                         IGNORADA
@@ -1063,12 +1123,33 @@ export default function TransactionList() {
                         {formatCurrency(transaction.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-500">
-                        <InlineCategoryPicker
-                          categoryId={transaction.category_id}
-                          categories={categories}
-                          transactionType={transaction.transaction_type}
-                          onSave={(catId) => handleInlineCategorySave(transaction, catId)}
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <InlineCategoryPicker
+                            categoryId={transaction.category_id}
+                            categories={categories}
+                            transactionType={transaction.transaction_type}
+                            onSave={(catId) => handleInlineCategorySave(transaction, catId)}
+                          />
+                          {transaction.classified_by === 'similarity' && transaction.category_id && (
+                            <button
+                              className="text-xs bg-wheat-50 text-wheat-700 px-2 py-0.5 rounded-full font-medium hover:bg-wheat-100 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-wheat-300"
+                              title="Confirmar categoria"
+                              onClick={() => handleConfirmAutoClassification(transaction)}
+                            >
+                              ✓ Auto
+                            </button>
+                          )}
+                          {!transaction.category_id && transaction.suggested_category_id && categories.get(transaction.suggested_category_id) && (
+                            <button
+                              className="text-xs bg-terra-50 text-terra-700 px-2 py-0.5 rounded-full font-medium hover:bg-terra-100 transition-colors max-w-[180px] truncate focus:outline-none focus:ring-2 focus:ring-terra-300"
+                              title={`Usar: ${transaction.suggested_description ?? categories.get(transaction.suggested_category_id)!.name} → ${categories.get(transaction.suggested_category_id)!.name}`}
+                              onClick={() => handleAcceptSuggestion(transaction)}
+                            >
+                              {categories.get(transaction.suggested_category_id)!.icon}{' '}
+                              {transaction.suggested_description ?? 'Sugestão'}
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="w-12 px-2 py-4">
                         <ActionMenu
