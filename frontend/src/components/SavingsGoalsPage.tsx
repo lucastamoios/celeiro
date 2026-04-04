@@ -9,6 +9,9 @@ import type {
   UpdateSavingsGoalRequest,
   SavingsGoalType,
 } from '../types/savingsGoals';
+import type { Category } from '../types/category';
+import { financialUrl } from '../config/api';
+import type { ApiResponse } from '../types/transaction';
 import {
   getGoalTypeLabel,
   getGoalTypeDescription,
@@ -34,6 +37,7 @@ export default function SavingsGoalsPage() {
   const organizationId = activeOrganization?.organization_id?.toString() || '';
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [progressMap, setProgressMap] = useState<Record<number, SavingsGoalProgress>>({});
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +56,8 @@ export default function SavingsGoalsPage() {
     icon: string;
     color: string;
     notes: string;
+    category_id: string;
+    monthly_contribution: string;
   }>({
     name: '',
     goal_type: 'reserva',
@@ -60,6 +66,8 @@ export default function SavingsGoalsPage() {
     icon: '🎯',
     color: GOAL_COLORS[0],
     notes: '',
+    category_id: '',
+    monthly_contribution: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -110,6 +118,18 @@ export default function SavingsGoalsPage() {
       setLoading(true);
       setError(null);
 
+      // Fetch categories for the dropdown
+      const categoriesResponse = await fetch(financialUrl('categories'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Active-Organization': organizationId,
+        },
+      });
+      if (categoriesResponse.ok) {
+        const categoriesData: ApiResponse<Category[]> = await categoriesResponse.json();
+        setCategories(categoriesData.data || []);
+      }
+
       const fetchedGoals = await listSavingsGoals(
         {
           is_completed: showCompleted ? undefined : false,
@@ -159,6 +179,8 @@ export default function SavingsGoalsPage() {
       icon: '🎯',
       color: GOAL_COLORS[0],
       notes: '',
+      category_id: '',
+      monthly_contribution: '',
     });
     setEditingGoal(null);
     setFormError(null);
@@ -178,6 +200,8 @@ export default function SavingsGoalsPage() {
       icon: goal.icon || '🎯',
       color: goal.color || GOAL_COLORS[0],
       notes: goal.notes || '',
+      category_id: goal.category_id?.toString() || '',
+      monthly_contribution: goal.monthly_contribution || '',
     });
     setEditingGoal(goal);
     setShowForm(true);
@@ -217,6 +241,8 @@ export default function SavingsGoalsPage() {
           icon: formData.icon,
           color: formData.color,
           notes: formData.notes || undefined,
+          category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
+          monthly_contribution: formData.monthly_contribution ? parseFloat(formData.monthly_contribution) : undefined,
         };
         await updateSavingsGoal(editingGoal.savings_goal_id, updateData, { token, organizationId });
       } else {
@@ -229,6 +255,8 @@ export default function SavingsGoalsPage() {
           icon: formData.icon,
           color: formData.color,
           notes: formData.notes || undefined,
+          category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
+          monthly_contribution: formData.monthly_contribution ? parseFloat(formData.monthly_contribution) : undefined,
         };
         await createSavingsGoal(createData, { token, organizationId });
       }
@@ -616,6 +644,53 @@ export default function SavingsGoalsPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Categoria
+                  </label>
+                  <select
+                    value={formData.category_id}
+                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">Sem categoria</option>
+                    {categories.map((category) => (
+                      <option key={category.category_id} value={category.category_id}>
+                        {category.icon} {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Monthly Contribution (only for investimento) */}
+                {formData.goal_type === 'investimento' && (
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
+                      Contribuição Mensal
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">
+                        R$
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.monthly_contribution}
+                        onChange={(e) =>
+                          setFormData({ ...formData, monthly_contribution: e.target.value })
+                        }
+                        placeholder="0,00"
+                        className="w-full pl-10 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent tabular-nums"
+                      />
+                    </div>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Valor que pretende investir por mês
+                    </p>
+                  </div>
+                )}
 
                 {/* Notes */}
                 <div>
