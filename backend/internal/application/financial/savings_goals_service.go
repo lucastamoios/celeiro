@@ -469,11 +469,13 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 		return fmt.Errorf("fetch savings goals: %w", err)
 	}
 
-	// 2. Fetch existing planned entries to check for duplicates
+	// 2. Fetch non-recurrent entries with savings_goal_id to check for duplicates
+	isNotRecurrent := false
 	existingEntries, err := s.Repository.FetchPlannedEntries(ctx, fetchPlannedEntriesParams{
 		UserID:         userID,
 		OrganizationID: orgID,
 		IsActive:       &isActive,
+		IsRecurrent:    &isNotRecurrent,
 	})
 	if err != nil {
 		return fmt.Errorf("fetch planned entries: %w", err)
@@ -492,7 +494,7 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 	now := s.system.Time.Now()
 	requestedMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 
-	fmt.Printf("[GOAL-ENTRIES] generating entries for %d/%d - goals_found=%d existing_entries=%d\n", month, year, len(goals), len(existingEntries))
+	fmt.Printf("[GOAL-ENTRIES] generating entries for %d/%d - goals_found=%d existing_goal_entries=%d\n", month, year, len(goals), len(existingGoalIDs))
 
 	for _, goal := range goals {
 		// Skip goals without a category
