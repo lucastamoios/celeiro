@@ -492,9 +492,13 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 	now := s.system.Time.Now()
 	requestedMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 
+	s.logger.Info(ctx, "generating savings goal entries",
+		"month", month, "year", year, "goals_found", len(goals), "existing_entries", len(existingEntries))
+
 	for _, goal := range goals {
 		// Skip goals without a category
 		if goal.CategoryID == nil {
+			s.logger.Info(ctx, "skipping goal: no category", "goal_id", goal.SavingsGoalID, "goal_name", goal.Name)
 			continue
 		}
 
@@ -502,20 +506,27 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 		if goal.StartDate != nil {
 			startMonth := time.Date(goal.StartDate.Year(), goal.StartDate.Month(), 1, 0, 0, 0, 0, time.UTC)
 			if requestedMonth.Before(startMonth) {
+				s.logger.Info(ctx, "skipping goal: before start date", "goal_id", goal.SavingsGoalID, "goal_name", goal.Name, "start_date", goal.StartDate)
 				continue
 			}
 		}
 
 		// Skip if already has an entry for this month
 		if existingGoalIDs[goal.SavingsGoalID] {
+			s.logger.Info(ctx, "skipping goal: entry already exists", "goal_id", goal.SavingsGoalID, "goal_name", goal.Name)
 			continue
 		}
 
 		// Calculate the amount for this month
 		amount, ok := s.calculateGoalMonthlyAmount(ctx, goal, now, requestedMonth)
 		if !ok {
+			s.logger.Info(ctx, "skipping goal: amount calculation returned false",
+				"goal_id", goal.SavingsGoalID, "goal_name", goal.Name, "goal_type", goal.GoalType)
 			continue
 		}
+
+		s.logger.Info(ctx, "creating planned entry for goal",
+			"goal_id", goal.SavingsGoalID, "goal_name", goal.Name, "amount", amount.String(), "category_id", *goal.CategoryID)
 
 		// Create the planned entry
 		goalID := goal.SavingsGoalID
@@ -530,10 +541,12 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 			IsRecurrent:    false,
 		})
 		if err != nil {
-			// Log and continue - don't let one goal failure block the others
-			fmt.Printf("warning: failed to create entry for goal %d: %v\n", goal.SavingsGoalID, err)
+			s.logger.Warn(ctx, "failed to create entry for goal",
+				"goal_id", goal.SavingsGoalID, "goal_name", goal.Name, "error", err.Error())
 			continue
 		}
+
+		s.logger.Info(ctx, "created planned entry for goal", "goal_id", goal.SavingsGoalID, "goal_name", goal.Name)
 	}
 
 	return nil
