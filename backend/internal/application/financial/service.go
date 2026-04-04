@@ -1565,8 +1565,9 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 	}
 
 	// Auto-generate planned entries for savings goals
+	fmt.Printf("[GOAL-ENTRIES] GetPlannedEntriesForMonth called for %d/%d\n", params.Month, params.Year)
 	if err := s.generateSavingsGoalEntries(ctx, params.UserID, params.OrganizationID, params.Month, params.Year); err != nil {
-		s.logger.Warn(ctx, "failed to generate savings goal entries", "error", err.Error())
+		fmt.Printf("[GOAL-ENTRIES] ERROR in generateSavingsGoalEntries: %v\n", err)
 	}
 
 	// 2. Fetch statuses for the given month

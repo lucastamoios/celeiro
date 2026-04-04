@@ -492,13 +492,12 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 	now := s.system.Time.Now()
 	requestedMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 
-	s.logger.Info(ctx, "generating savings goal entries",
-		"month", month, "year", year, "goals_found", len(goals), "existing_entries", len(existingEntries))
+	fmt.Printf("[GOAL-ENTRIES] generating entries for %d/%d - goals_found=%d existing_entries=%d\n", month, year, len(goals), len(existingEntries))
 
 	for _, goal := range goals {
 		// Skip goals without a category
 		if goal.CategoryID == nil {
-			s.logger.Info(ctx, "skipping goal: no category", "goal_id", goal.SavingsGoalID, "goal_name", goal.Name)
+			fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): no category\n", goal.SavingsGoalID, goal.Name)
 			continue
 		}
 
@@ -506,27 +505,25 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 		if goal.StartDate != nil {
 			startMonth := time.Date(goal.StartDate.Year(), goal.StartDate.Month(), 1, 0, 0, 0, 0, time.UTC)
 			if requestedMonth.Before(startMonth) {
-				s.logger.Info(ctx, "skipping goal: before start date", "goal_id", goal.SavingsGoalID, "goal_name", goal.Name, "start_date", goal.StartDate)
+				fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): before start date %v\n", goal.SavingsGoalID, goal.Name, goal.StartDate)
 				continue
 			}
 		}
 
 		// Skip if already has an entry for this month
 		if existingGoalIDs[goal.SavingsGoalID] {
-			s.logger.Info(ctx, "skipping goal: entry already exists", "goal_id", goal.SavingsGoalID, "goal_name", goal.Name)
+			fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): entry already exists\n", goal.SavingsGoalID, goal.Name)
 			continue
 		}
 
 		// Calculate the amount for this month
 		amount, ok := s.calculateGoalMonthlyAmount(ctx, goal, now, requestedMonth)
 		if !ok {
-			s.logger.Info(ctx, "skipping goal: amount calculation returned false",
-				"goal_id", goal.SavingsGoalID, "goal_name", goal.Name, "goal_type", goal.GoalType)
+			fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): amount calc returned false (type=%s)\n", goal.SavingsGoalID, goal.Name, goal.GoalType)
 			continue
 		}
 
-		s.logger.Info(ctx, "creating planned entry for goal",
-			"goal_id", goal.SavingsGoalID, "goal_name", goal.Name, "amount", amount.String(), "category_id", *goal.CategoryID)
+		fmt.Printf("[GOAL-ENTRIES] creating entry for goal %d (%s): amount=%s category=%d\n", goal.SavingsGoalID, goal.Name, amount.String(), *goal.CategoryID)
 
 		// Create the planned entry
 		goalID := goal.SavingsGoalID
@@ -541,12 +538,11 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 			IsRecurrent:    false,
 		})
 		if err != nil {
-			s.logger.Warn(ctx, "failed to create entry for goal",
-				"goal_id", goal.SavingsGoalID, "goal_name", goal.Name, "error", err.Error())
+			fmt.Printf("[GOAL-ENTRIES] ERROR creating entry for goal %d (%s): %v\n", goal.SavingsGoalID, goal.Name, err)
 			continue
 		}
 
-		s.logger.Info(ctx, "created planned entry for goal", "goal_id", goal.SavingsGoalID, "goal_name", goal.Name)
+		fmt.Printf("[GOAL-ENTRIES] created entry for goal %d (%s)\n", goal.SavingsGoalID, goal.Name)
 	}
 
 	return nil
