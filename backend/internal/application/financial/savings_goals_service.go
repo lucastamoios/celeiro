@@ -40,6 +40,7 @@ type CreateSavingsGoalInput struct {
 	TargetAmount        decimal.Decimal
 	InitialAmount       decimal.Decimal // Pre-existing balance when goal is created
 	DueDate             *string         // Format: "2006-01-02"
+	StartDate           *string         // Format: "2006-01-02"
 	Icon                *string
 	Color               *string
 	Notes               *string
@@ -54,6 +55,7 @@ type UpdateSavingsGoalInput struct {
 	Name                *string
 	TargetAmount        *decimal.Decimal
 	DueDate             *string // Format: "2006-01-02", use empty string to clear
+	StartDate           *string // Format: "2006-01-02", use empty string to clear
 	Icon                *string
 	Color               *string
 	Notes               *string
@@ -227,6 +229,13 @@ func (s *service) CreateSavingsGoal(ctx context.Context, input CreateSavingsGoal
 		}
 	}
 
+	// Validate start date format if provided
+	if input.StartDate != nil && *input.StartDate != "" {
+		if _, err := time.Parse("2006-01-02", *input.StartDate); err != nil {
+			return SavingsGoal{}, fmt.Errorf("invalid start_date format: %w", err)
+		}
+	}
+
 	// Validate target amount
 	if input.TargetAmount.LessThanOrEqual(decimal.Zero) {
 		return SavingsGoal{}, fmt.Errorf("target_amount must be greater than zero")
@@ -240,6 +249,7 @@ func (s *service) CreateSavingsGoal(ctx context.Context, input CreateSavingsGoal
 		TargetAmount:        input.TargetAmount,
 		InitialAmount:       input.InitialAmount,
 		DueDate:             input.DueDate,
+		StartDate:           input.StartDate,
 		Icon:                input.Icon,
 		Color:               input.Color,
 		Notes:               input.Notes,
@@ -261,6 +271,13 @@ func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoal
 		}
 	}
 
+	// Validate start date format if provided (empty string is valid - means clear)
+	if input.StartDate != nil && *input.StartDate != "" {
+		if _, err := time.Parse("2006-01-02", *input.StartDate); err != nil {
+			return SavingsGoal{}, fmt.Errorf("invalid start_date format: %w", err)
+		}
+	}
+
 	// Validate target amount if provided
 	if input.TargetAmount != nil && input.TargetAmount.LessThanOrEqual(decimal.Zero) {
 		return SavingsGoal{}, fmt.Errorf("target_amount must be greater than zero")
@@ -272,7 +289,8 @@ func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoal
 		OrganizationID:      input.OrganizationID,
 		Name:                input.Name,
 		TargetAmount:        input.TargetAmount,
-		DueDate:             input.DueDate, // Empty string clears, nil leaves unchanged
+		DueDate:             input.DueDate,    // Empty string clears, nil leaves unchanged
+		StartDate:           input.StartDate, // Empty string clears, nil leaves unchanged
 		Icon:                input.Icon,
 		Color:               input.Color,
 		Notes:               input.Notes,
@@ -478,6 +496,14 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 		// Skip goals without a category
 		if goal.CategoryID == nil {
 			continue
+		}
+
+		// Skip if before start date
+		if goal.StartDate != nil {
+			startMonth := time.Date(goal.StartDate.Year(), goal.StartDate.Month(), 1, 0, 0, 0, 0, time.UTC)
+			if requestedMonth.Before(startMonth) {
+				continue
+			}
 		}
 
 		// Skip if already has an entry for this month

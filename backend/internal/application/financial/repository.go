@@ -2203,6 +2203,7 @@ const fetchSavingsGoalsQuery = `
 		target_amount,
 		initial_amount,
 		due_date,
+		start_date,
 		icon,
 		color,
 		is_active,
@@ -2245,6 +2246,7 @@ const fetchSavingsGoalByIDQuery = `
 		target_amount,
 		initial_amount,
 		due_date,
+		start_date,
 		icon,
 		color,
 		is_active,
@@ -2273,6 +2275,7 @@ type insertSavingsGoalParams struct {
 	TargetAmount        decimal.Decimal
 	InitialAmount       decimal.Decimal // Pre-existing balance when goal is created
 	DueDate             *string         // YYYY-MM-DD format
+	StartDate           *string         // YYYY-MM-DD format
 	Icon                *string
 	Color               *string
 	Notes               *string
@@ -2290,12 +2293,13 @@ const insertSavingsGoalQuery = `
 		target_amount,
 		initial_amount,
 		due_date,
+		start_date,
 		icon,
 		color,
 		notes,
 		category_id,
 		monthly_contribution
-	) VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10, $11, $12)
+	) VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8::date, $9, $10, $11, $12, $13)
 	RETURNING
 		savings_goal_id,
 		created_at,
@@ -2307,6 +2311,7 @@ const insertSavingsGoalQuery = `
 		target_amount,
 		initial_amount,
 		due_date,
+		start_date,
 		icon,
 		color,
 		is_active,
@@ -2321,7 +2326,7 @@ func (r *repository) InsertSavingsGoal(ctx context.Context, params insertSavings
 	var goal SavingsGoalModel
 	err := r.db.Query(ctx, &goal, insertSavingsGoalQuery,
 		params.UserID, params.OrganizationID, params.Name, params.GoalType,
-		params.TargetAmount, params.InitialAmount, params.DueDate, params.Icon, params.Color, params.Notes,
+		params.TargetAmount, params.InitialAmount, params.DueDate, params.StartDate, params.Icon, params.Color, params.Notes,
 		params.CategoryID, params.MonthlyContribution)
 	return goal, err
 }
@@ -2333,6 +2338,7 @@ type modifySavingsGoalParams struct {
 	Name                *string
 	TargetAmount        *decimal.Decimal
 	DueDate             *string // YYYY-MM-DD format, empty string to clear
+	StartDate           *string // YYYY-MM-DD format, empty string to clear
 	Icon                *string
 	Color               *string
 	Notes               *string
@@ -2349,18 +2355,19 @@ const modifySavingsGoalQuery = `
 		name = COALESCE($3, name),
 		target_amount = COALESCE($4, target_amount),
 		due_date = CASE WHEN $5 = '' THEN NULL WHEN $5 IS NOT NULL THEN $5::date ELSE due_date END,
-		icon = COALESCE($6, icon),
-		color = COALESCE($7, color),
-		notes = COALESCE($8, notes),
-		is_active = COALESCE($9, is_active),
-		is_completed = COALESCE($10, is_completed),
+		start_date = CASE WHEN $6 = '' THEN NULL WHEN $6 IS NOT NULL THEN $6::date ELSE start_date END,
+		icon = COALESCE($7, icon),
+		color = COALESCE($8, color),
+		notes = COALESCE($9, notes),
+		is_active = COALESCE($10, is_active),
+		is_completed = COALESCE($11, is_completed),
 		completed_at = CASE
-			WHEN $10 = true AND is_completed = false THEN CURRENT_TIMESTAMP
-			WHEN $10 = false THEN NULL
+			WHEN $11 = true AND is_completed = false THEN CURRENT_TIMESTAMP
+			WHEN $11 = false THEN NULL
 			ELSE completed_at
 		END,
-		category_id = COALESCE($11, category_id),
-		monthly_contribution = COALESCE($12, monthly_contribution),
+		category_id = COALESCE($12, category_id),
+		monthly_contribution = COALESCE($13, monthly_contribution),
 		updated_at = CURRENT_TIMESTAMP
 	WHERE savings_goal_id = $1
 		AND organization_id = $2
@@ -2375,6 +2382,7 @@ const modifySavingsGoalQuery = `
 		target_amount,
 		initial_amount,
 		due_date,
+		start_date,
 		icon,
 		color,
 		is_active,
@@ -2389,7 +2397,7 @@ func (r *repository) ModifySavingsGoal(ctx context.Context, params modifySavings
 	var goal SavingsGoalModel
 	err := r.db.Query(ctx, &goal, modifySavingsGoalQuery,
 		params.SavingsGoalID, params.OrganizationID,
-		params.Name, params.TargetAmount, params.DueDate,
+		params.Name, params.TargetAmount, params.DueDate, params.StartDate,
 		params.Icon, params.Color, params.Notes, params.IsActive, params.IsCompleted,
 		params.CategoryID, params.MonthlyContribution)
 	return goal, err
@@ -2441,6 +2449,7 @@ const addContributionQuery = `
 		target_amount,
 		initial_amount,
 		due_date,
+		start_date,
 		icon,
 		color,
 		is_active,

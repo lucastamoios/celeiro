@@ -13,6 +13,7 @@ export interface SavingsGoal {
   target_amount: string; // Decimal as string from backend
   initial_amount: string; // Pre-existing balance (decimal as string)
   due_date?: string; // ISO 8601 date format (YYYY-MM-DD)
+  start_date?: string; // ISO 8601 date format (YYYY-MM-DD)
   icon?: string;
   color?: string;
   is_active: boolean;
@@ -86,6 +87,7 @@ export interface CreateSavingsGoalRequest {
   target_amount: number;
   initial_amount?: number; // Pre-existing balance when creating
   due_date?: string; // Format: "2006-01-02"
+  start_date?: string; // Format: "2006-01-02"
   icon?: string;
   color?: string;
   notes?: string;
@@ -97,6 +99,7 @@ export interface UpdateSavingsGoalRequest {
   name?: string;
   target_amount?: number;
   due_date?: string; // Format: "2006-01-02", empty string clears
+  start_date?: string; // Format: "2006-01-02", empty string clears
   icon?: string;
   color?: string;
   notes?: string;

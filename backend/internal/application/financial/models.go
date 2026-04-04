@@ -298,6 +298,7 @@ type SavingsGoalModel struct {
 	TargetAmount  decimal.Decimal `db:"target_amount"`
 	InitialAmount decimal.Decimal `db:"initial_amount"` // Pre-existing balance when goal was created
 	DueDate       *time.Time      `db:"due_date"`       // Required for reserva, optional for investimento
+	StartDate     *time.Time      `db:"start_date"`
 
 	Icon  *string `db:"icon"`  // Emoji icon
 	Color *string `db:"color"` // Hex color

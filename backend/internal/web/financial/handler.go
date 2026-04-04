@@ -2048,6 +2048,7 @@ func (h *Handler) CreateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		TargetAmount        float64  `json:"target_amount"`
 		InitialAmount       float64  `json:"initial_amount"` // Pre-existing balance
 		DueDate             *string  `json:"due_date,omitempty"`
+		StartDate           *string  `json:"start_date,omitempty"`
 		Icon                *string  `json:"icon,omitempty"`
 		Color               *string  `json:"color,omitempty"`
 		Notes               *string  `json:"notes,omitempty"`
@@ -2074,6 +2075,7 @@ func (h *Handler) CreateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		TargetAmount:        decimal.NewFromFloat(req.TargetAmount),
 		InitialAmount:       decimal.NewFromFloat(req.InitialAmount),
 		DueDate:             req.DueDate,
+		StartDate:           req.StartDate,
 		Icon:                req.Icon,
 		Color:               req.Color,
 		Notes:               req.Notes,
@@ -2105,6 +2107,7 @@ func (h *Handler) UpdateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		Name                *string  `json:"name,omitempty"`
 		TargetAmount        *float64 `json:"target_amount,omitempty"`
 		DueDate             *string  `json:"due_date,omitempty"`
+		StartDate           *string  `json:"start_date,omitempty"`
 		Icon                *string  `json:"icon,omitempty"`
 		Color               *string  `json:"color,omitempty"`
 		Notes               *string  `json:"notes,omitempty"`
@@ -2138,6 +2141,7 @@ func (h *Handler) UpdateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		Name:                req.Name,
 		TargetAmount:        targetAmount,
 		DueDate:             req.DueDate,
+		StartDate:           req.StartDate,
 		Icon:                req.Icon,
 		Color:               req.Color,
 		Notes:               req.Notes,

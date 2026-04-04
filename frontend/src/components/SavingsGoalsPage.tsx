@@ -53,6 +53,7 @@ export default function SavingsGoalsPage() {
     goal_type: SavingsGoalType;
     target_amount: string;
     due_date: string;
+    start_date: string;
     icon: string;
     color: string;
     notes: string;
@@ -63,6 +64,7 @@ export default function SavingsGoalsPage() {
     goal_type: 'reserva',
     target_amount: '',
     due_date: '',
+    start_date: '',
     icon: '🎯',
     color: GOAL_COLORS[0],
     notes: '',
@@ -176,6 +178,7 @@ export default function SavingsGoalsPage() {
       goal_type: 'reserva',
       target_amount: '',
       due_date: '',
+      start_date: '',
       icon: '🎯',
       color: GOAL_COLORS[0],
       notes: '',
@@ -197,6 +200,7 @@ export default function SavingsGoalsPage() {
       goal_type: goal.goal_type,
       target_amount: goal.target_amount,
       due_date: goal.due_date || '',
+      start_date: goal.start_date || '',
       icon: goal.icon || '🎯',
       color: goal.color || GOAL_COLORS[0],
       notes: goal.notes || '',
@@ -238,6 +242,7 @@ export default function SavingsGoalsPage() {
           name: formData.name,
           target_amount: parseFloat(formData.target_amount),
           due_date: formData.due_date || undefined,
+          start_date: formData.start_date || undefined,
           icon: formData.icon,
           color: formData.color,
           notes: formData.notes || undefined,
@@ -252,6 +257,7 @@ export default function SavingsGoalsPage() {
           goal_type: formData.goal_type,
           target_amount: parseFloat(formData.target_amount),
           due_date: formData.due_date || undefined,
+          start_date: formData.start_date || undefined,
           icon: formData.icon,
           color: formData.color,
           notes: formData.notes || undefined,
@@ -579,6 +585,22 @@ export default function SavingsGoalsPage() {
                       required
                     />
                   </div>
+                </div>
+
+                {/* Start Date */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Data de inicio
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="input tabular-nums"
+                  />
+                  <p className="text-xs text-stone-500 mt-1">
+                    Entradas planejadas nao serao geradas antes desta data
+                  </p>
                 </div>
 
                 {/* Due Date (required for reserva) */}

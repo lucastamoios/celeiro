@@ -485,7 +485,8 @@ type SavingsGoal struct {
 	GoalType       string          `json:"goal_type"` // reserva, investimento
 	TargetAmount   decimal.Decimal `json:"target_amount"`
 	InitialAmount  decimal.Decimal `json:"initial_amount"`     // Pre-existing balance when goal was created
-	DueDate        *string         `json:"due_date,omitempty"` // ISO 8601 date format
+	DueDate        *string         `json:"due_date,omitempty"`   // ISO 8601 date format
+	StartDate      *string         `json:"start_date,omitempty"` // ISO 8601 date format
 	Icon           *string         `json:"icon,omitempty"`
 	Color          *string         `json:"color,omitempty"`
 	IsActive       bool            `json:"is_active"`
@@ -520,6 +521,10 @@ func (s SavingsGoal) FromModel(model *SavingsGoalModel) SavingsGoal {
 	if model.DueDate != nil {
 		formatted := model.DueDate.Format("2006-01-02")
 		dto.DueDate = &formatted
+	}
+	if model.StartDate != nil {
+		formatted := model.StartDate.Format("2006-01-02")
+		dto.StartDate = &formatted
 	}
 	if model.CompletedAt != nil {
 		formatted := model.CompletedAt.Format(time.RFC3339)
