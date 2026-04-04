@@ -434,6 +434,140 @@ func calculateOnTrackStatus(now, createdAt, dueDate time.Time, targetAmount, cur
 	return currentAmount.GreaterThanOrEqual(expectedAmount)
 }
 
+// generateSavingsGoalEntries creates planned entries for savings goals that don't
+// have one for the given month yet. Called lazily when budget page loads.
+func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID, month, year int) error {
+	isActive := true
+	isCompleted := false
+
+	// 1. Fetch all active, non-completed savings goals
+	goals, err := s.Repository.FetchSavingsGoals(ctx, fetchSavingsGoalsParams{
+		UserID:         userID,
+		OrganizationID: orgID,
+		IsActive:       &isActive,
+		IsCompleted:    &isCompleted,
+	})
+	if err != nil {
+		return fmt.Errorf("fetch savings goals: %w", err)
+	}
+
+	// 2. Fetch existing planned entries to check for duplicates
+	existingEntries, err := s.Repository.FetchPlannedEntries(ctx, fetchPlannedEntriesParams{
+		UserID:         userID,
+		OrganizationID: orgID,
+		IsActive:       &isActive,
+	})
+	if err != nil {
+		return fmt.Errorf("fetch planned entries: %w", err)
+	}
+
+	// Build set of savings_goal_id that already have an entry this month
+	existingGoalIDs := make(map[int]bool)
+	for _, entry := range existingEntries {
+		if entry.SavingsGoalID != nil {
+			if int(entry.CreatedAt.Month()) == month && entry.CreatedAt.Year() == year {
+				existingGoalIDs[*entry.SavingsGoalID] = true
+			}
+		}
+	}
+
+	now := s.system.Time.Now()
+	requestedMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+
+	for _, goal := range goals {
+		// Skip goals without a category
+		if goal.CategoryID == nil {
+			continue
+		}
+
+		// Skip if already has an entry for this month
+		if existingGoalIDs[goal.SavingsGoalID] {
+			continue
+		}
+
+		// Calculate the amount for this month
+		amount, ok := s.calculateGoalMonthlyAmount(ctx, goal, now, requestedMonth)
+		if !ok {
+			continue
+		}
+
+		// Create the planned entry
+		goalID := goal.SavingsGoalID
+		_, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
+			UserID:         userID,
+			OrganizationID: orgID,
+			CategoryID:     *goal.CategoryID,
+			SavingsGoalID:  &goalID,
+			Description:    goal.Name,
+			Amount:         amount,
+			EntryType:      PlannedEntryTypeExpense,
+			IsRecurrent:    false,
+		})
+		if err != nil {
+			return fmt.Errorf("create entry for goal %d: %w", goal.SavingsGoalID, err)
+		}
+	}
+
+	return nil
+}
+
+// calculateGoalMonthlyAmount returns the amount for a savings goal planned entry.
+// Returns (amount, true) if an entry should be created, or (zero, false) to skip.
+func (s *service) calculateGoalMonthlyAmount(ctx context.Context, goal SavingsGoalModel, now time.Time, requestedMonth time.Time) (decimal.Decimal, bool) {
+	// Calculate current amount (initial + transactions)
+	transactions, err := s.Repository.FetchGoalContributions(ctx, fetchGoalContributionsParams{
+		SavingsGoalID:  goal.SavingsGoalID,
+		UserID:         goal.UserID,
+		OrganizationID: goal.OrganizationID,
+	})
+	if err != nil {
+		return decimal.Zero, false
+	}
+
+	currentAmount := goal.InitialAmount
+	for _, tx := range transactions {
+		if tx.TransactionType == TransactionTypeCredit {
+			currentAmount = currentAmount.Add(tx.Amount)
+		} else {
+			currentAmount = currentAmount.Sub(tx.Amount)
+		}
+	}
+
+	// Skip if goal already reached
+	if currentAmount.GreaterThanOrEqual(goal.TargetAmount) {
+		return decimal.Zero, false
+	}
+
+	remaining := goal.TargetAmount.Sub(currentAmount)
+
+	switch goal.GoalType {
+	case SavingsGoalTypeReserva:
+		if goal.DueDate == nil {
+			return decimal.Zero, false
+		}
+		if goal.DueDate.Before(requestedMonth) {
+			return decimal.Zero, false
+		}
+		monthsRemaining := calculateMonthsRemaining(requestedMonth, *goal.DueDate)
+		if monthsRemaining <= 0 {
+			return remaining, true
+		}
+		return remaining.Div(decimal.NewFromInt(int64(monthsRemaining))), true
+
+	case SavingsGoalTypeInvestimento:
+		if goal.MonthlyContribution == nil || goal.MonthlyContribution.IsZero() {
+			return decimal.Zero, false
+		}
+		if goal.MonthlyContribution.GreaterThan(remaining) {
+			return remaining, true
+		}
+		return *goal.MonthlyContribution, true
+
+	default:
+		return decimal.Zero, false
+	}
+}
+
 func calculateMonthsBetween(start, end time.Time) int {
 	if end.Before(start) {
 		return 0

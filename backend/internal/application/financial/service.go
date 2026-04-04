@@ -1564,6 +1564,11 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 		return nil, errors.Wrap(err, "failed to fetch planned entries")
 	}
 
+	// Auto-generate planned entries for savings goals
+	if err := s.generateSavingsGoalEntries(ctx, params.UserID, params.OrganizationID, params.Month, params.Year); err != nil {
+		s.logger.Warn(ctx, "failed to generate savings goal entries", "error", err.Error())
+	}
+
 	// 2. Fetch statuses for the given month
 	statuses, err := s.Repository.FetchPlannedEntryStatusesByMonth(ctx, fetchPlannedEntryStatusesByMonthParams{
 		UserID:         params.UserID,
