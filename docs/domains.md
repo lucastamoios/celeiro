@@ -171,6 +171,12 @@ Long-term savings target ("Reserva" or "Investimento").
 | current_amount | Current progress |
 | goal_type | reserva (short-term) or investimento (long-term) |
 | status | active, completed, cancelled |
+| category_id | Optional category for auto-generated planned entries |
+| monthly_contribution | Monthly amount for investimento goals |
+
+**Auto-generated Planned Entries**: When a savings goal has a category_id, planned entries are auto-generated monthly when the budget page is loaded.
+- Reserva goals calculate amount from (target - current) / months_remaining
+- Investimento goals use the fixed monthly_contribution amount
 
 ### PlannedEntryTag
 

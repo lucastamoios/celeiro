@@ -108,7 +108,7 @@ erDiagram
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| savings_goals | Long-term savings targets | name, target_amount, goal_type (reserva/investimento), status |
+| savings_goals | Long-term savings targets | name, target_amount, goal_type (reserva/investimento), status, category_id, monthly_contribution |
 | tags | User-defined transaction labels | name, color, user_id, organization_id |
 | transaction_tags | Transaction-tag mapping | transaction_id, tag_id |
 
