@@ -1220,6 +1220,8 @@ const fetchPlannedEntriesQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
+		target_month,
+		target_year,
 		is_active
 	FROM planned_entries
 	WHERE organization_id = $1
@@ -1374,6 +1376,8 @@ type insertPlannedEntryParams struct {
 	EntryType        string
 	IsRecurrent      bool
 	ParentEntryID    *int
+	TargetMonth      *int
+	TargetYear       *int
 }
 
 const insertPlannedEntryQuery = `
@@ -1393,8 +1397,10 @@ const insertPlannedEntryQuery = `
 		expected_day,
 		entry_type,
 		is_recurrent,
-		parent_entry_id
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		parent_entry_id,
+		target_month,
+		target_year
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	RETURNING
 		planned_entry_id,
 		created_at,
@@ -1414,6 +1420,8 @@ const insertPlannedEntryQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
+		target_month,
+		target_year,
 		is_active;
 `
 
@@ -1423,7 +1431,8 @@ func (r *repository) InsertPlannedEntry(ctx context.Context, params insertPlanne
 		params.UserID, params.OrganizationID, params.CategoryID, params.PatternID,
 		params.SavingsGoalID, params.Description, params.Amount, params.AmountMin, params.AmountMax,
 		params.ExpectedDayStart, params.ExpectedDayEnd, params.ExpectedDay,
-		params.EntryType, params.IsRecurrent, params.ParentEntryID)
+		params.EntryType, params.IsRecurrent, params.ParentEntryID,
+		params.TargetMonth, params.TargetYear)
 	return entry, err
 }
 

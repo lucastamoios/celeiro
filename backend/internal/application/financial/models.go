@@ -173,6 +173,10 @@ type PlannedEntryModel struct {
 	IsRecurrent   bool `db:"is_recurrent"`
 	ParentEntryID *int `db:"parent_entry_id"`
 
+	// Target budget month/year (used by savings goal auto-generated entries)
+	TargetMonth *int `db:"target_month"`
+	TargetYear  *int `db:"target_year"`
+
 	IsActive bool `db:"is_active"`
 }
 

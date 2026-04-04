@@ -485,8 +485,8 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 	// Build set of savings_goal_id that already have an entry this month
 	existingGoalIDs := make(map[int]bool)
 	for _, entry := range existingEntries {
-		if entry.SavingsGoalID != nil {
-			if int(entry.CreatedAt.Month()) == month && entry.CreatedAt.Year() == year {
+		if entry.SavingsGoalID != nil && entry.TargetMonth != nil && entry.TargetYear != nil {
+			if *entry.TargetMonth == month && *entry.TargetYear == year {
 				existingGoalIDs[*entry.SavingsGoalID] = true
 			}
 		}
@@ -530,6 +530,8 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 
 		// Create the planned entry
 		goalID := goal.SavingsGoalID
+		targetMonth := month
+		targetYear := year
 		_, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
 			UserID:         userID,
 			OrganizationID: orgID,
@@ -539,6 +541,8 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 			Amount:         amount,
 			EntryType:      PlannedEntryTypeExpense,
 			IsRecurrent:    false,
+			TargetMonth:    &targetMonth,
+			TargetYear:     &targetYear,
 		})
 		if err != nil {
 			// Duplicate key errors are expected during parallel requests - silently skip
