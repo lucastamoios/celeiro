@@ -64,7 +64,10 @@ export default function CategoryBudgetDashboard() {
   const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudgetData[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   // Per-month actual spending: { "month-year": { categoryId: "amount" } }
+  // actualSpending includes planned entry amounts + unmatched transactions (used by budget cards)
   const [actualSpending, setActualSpending] = useState<Record<string, Record<number, string>>>({});
+  // transactionOnlySpending includes only real transactions (used for header total)
+  const [transactionOnlySpending, setTransactionOnlySpending] = useState<Record<string, Record<number, string>>>({});
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
 
@@ -465,6 +468,20 @@ export default function CategoryBudgetDashboard() {
       });
 
       setActualSpending(spending);
+
+      // Build transaction-only spending (no planned entry amounts)
+      const txOnlySpending: Record<string, Record<number, string>> = {};
+      transactions.forEach(tx => {
+        if (tx.is_ignored || !tx.category_id || tx.transaction_type === 'credit') return;
+        const txDate = parseTransactionDate(tx.transaction_date);
+        const month = txDate.getMonth() + 1;
+        const year = txDate.getFullYear();
+        const key = `${month}-${year}`;
+        if (!txOnlySpending[key]) txOnlySpending[key] = {};
+        const current = parseFloat(txOnlySpending[key][tx.category_id] || '0');
+        txOnlySpending[key][tx.category_id] = (current + parseFloat(tx.amount)).toFixed(2);
+      });
+      setTransactionOnlySpending(txOnlySpending);
     } catch (err) {
       console.error('Failed to calculate actual spending:', err);
     }
@@ -1228,9 +1245,10 @@ export default function CategoryBudgetDashboard() {
     .filter(e => e.EntryType === 'expense' && e.Status !== 'dismissed')
     .reduce((sum, e) => sum + (parseFloat(e.AmountMax || e.Amount || '0') || 0), 0);
   const totalEstimated = totalControlled + totalPlannedEntries;
-  // Sum spending only for expense categories
+  // Sum actual transaction spending only (no planned entry amounts) for expense categories
+  const selectedMonthTxSpending = transactionOnlySpending[selectedMonthKey] || {};
   const totalSpent = expenseBudgets.reduce(
-    (sum, b) => sum + parseFloat(selectedMonthSpending[b.CategoryID] || '0'), 0
+    (sum, b) => sum + parseFloat(selectedMonthTxSpending[b.CategoryID] || '0'), 0
   );
   const spentPercentage = totalEstimated > 0 ? Math.round((totalSpent / totalEstimated) * 100) : 0;
 
