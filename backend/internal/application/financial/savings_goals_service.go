@@ -33,28 +33,32 @@ type GetSavingsGoalProgressInput struct {
 }
 
 type CreateSavingsGoalInput struct {
-	UserID         int
-	OrganizationID int
-	Name           string
-	GoalType       string // "reserva" or "investimento"
-	TargetAmount   decimal.Decimal
-	InitialAmount  decimal.Decimal // Pre-existing balance when goal is created
-	DueDate        *string         // Format: "2006-01-02"
-	Icon           *string
-	Color          *string
-	Notes          *string
+	UserID              int
+	OrganizationID      int
+	Name                string
+	GoalType            string // "reserva" or "investimento"
+	TargetAmount        decimal.Decimal
+	InitialAmount       decimal.Decimal // Pre-existing balance when goal is created
+	DueDate             *string         // Format: "2006-01-02"
+	Icon                *string
+	Color               *string
+	Notes               *string
+	CategoryID          *int
+	MonthlyContribution *decimal.Decimal
 }
 
 type UpdateSavingsGoalInput struct {
-	SavingsGoalID  int
-	UserID         int
-	OrganizationID int
-	Name           *string
-	TargetAmount   *decimal.Decimal
-	DueDate        *string // Format: "2006-01-02", use empty string to clear
-	Icon           *string
-	Color          *string
-	Notes          *string
+	SavingsGoalID       int
+	UserID              int
+	OrganizationID      int
+	Name                *string
+	TargetAmount        *decimal.Decimal
+	DueDate             *string // Format: "2006-01-02", use empty string to clear
+	Icon                *string
+	Color               *string
+	Notes               *string
+	CategoryID          *int
+	MonthlyContribution *decimal.Decimal
 }
 
 type DeleteSavingsGoalInput struct {
@@ -229,16 +233,18 @@ func (s *service) CreateSavingsGoal(ctx context.Context, input CreateSavingsGoal
 	}
 
 	model, err := s.Repository.InsertSavingsGoal(ctx, insertSavingsGoalParams{
-		UserID:         input.UserID,
-		OrganizationID: input.OrganizationID,
-		Name:           input.Name,
-		GoalType:       input.GoalType,
-		TargetAmount:   input.TargetAmount,
-		InitialAmount:  input.InitialAmount,
-		DueDate:        input.DueDate,
-		Icon:           input.Icon,
-		Color:          input.Color,
-		Notes:          input.Notes,
+		UserID:              input.UserID,
+		OrganizationID:      input.OrganizationID,
+		Name:                input.Name,
+		GoalType:            input.GoalType,
+		TargetAmount:        input.TargetAmount,
+		InitialAmount:       input.InitialAmount,
+		DueDate:             input.DueDate,
+		Icon:                input.Icon,
+		Color:               input.Color,
+		Notes:               input.Notes,
+		CategoryID:          input.CategoryID,
+		MonthlyContribution: input.MonthlyContribution,
 	})
 	if err != nil {
 		return SavingsGoal{}, fmt.Errorf("failed to create savings goal: %w", err)
@@ -261,15 +267,17 @@ func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoal
 	}
 
 	model, err := s.Repository.ModifySavingsGoal(ctx, modifySavingsGoalParams{
-		SavingsGoalID:  input.SavingsGoalID,
-		UserID:         input.UserID,
-		OrganizationID: input.OrganizationID,
-		Name:           input.Name,
-		TargetAmount:   input.TargetAmount,
-		DueDate:        input.DueDate, // Empty string clears, nil leaves unchanged
-		Icon:           input.Icon,
-		Color:          input.Color,
-		Notes:          input.Notes,
+		SavingsGoalID:       input.SavingsGoalID,
+		UserID:              input.UserID,
+		OrganizationID:      input.OrganizationID,
+		Name:                input.Name,
+		TargetAmount:        input.TargetAmount,
+		DueDate:             input.DueDate, // Empty string clears, nil leaves unchanged
+		Icon:                input.Icon,
+		Color:               input.Color,
+		Notes:               input.Notes,
+		CategoryID:          input.CategoryID,
+		MonthlyContribution: input.MonthlyContribution,
 	})
 	if err != nil {
 		return SavingsGoal{}, fmt.Errorf("failed to update savings goal: %w", err)
