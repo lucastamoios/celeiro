@@ -19,6 +19,8 @@ export interface SavingsGoal {
   is_completed: boolean;
   completed_at?: string; // ISO 8601 datetime
   notes?: string;
+  category_id?: number;
+  monthly_contribution?: string; // Decimal as string
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +89,8 @@ export interface CreateSavingsGoalRequest {
   icon?: string;
   color?: string;
   notes?: string;
+  category_id?: number;
+  monthly_contribution?: number;
 }
 
 export interface UpdateSavingsGoalRequest {
@@ -96,6 +100,8 @@ export interface UpdateSavingsGoalRequest {
   icon?: string;
   color?: string;
   notes?: string;
+  category_id?: number;
+  monthly_contribution?: number;
 }
 
 export interface AddContributionRequest {
