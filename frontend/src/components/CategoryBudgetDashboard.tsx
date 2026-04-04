@@ -102,14 +102,14 @@ export default function CategoryBudgetDashboard() {
 
   // Fetch savings goals for the goal selector in PlannedEntryForm
   const fetchSavingsGoals = useCallback(async () => {
-    if (!token) return;
+    if (!token || !organizationId) return;
     try {
-      const goals = await listSavingsGoals({ is_completed: false }, { token });
+      const goals = await listSavingsGoals({ is_completed: false }, { token, organizationId });
       setSavingsGoals(goals || []);
     } catch (err) {
       console.error('Failed to fetch savings goals:', err);
     }
-  }, [token]);
+  }, [token, organizationId]);
 
   useEffect(() => {
     fetchSavingsGoals();
