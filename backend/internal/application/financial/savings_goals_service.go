@@ -530,7 +530,9 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 			IsRecurrent:    false,
 		})
 		if err != nil {
-			return fmt.Errorf("create entry for goal %d: %w", goal.SavingsGoalID, err)
+			// Log and continue - don't let one goal failure block the others
+			fmt.Printf("warning: failed to create entry for goal %d: %v\n", goal.SavingsGoalID, err)
+			continue
 		}
 	}
 
