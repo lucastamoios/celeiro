@@ -1305,6 +1305,8 @@ const fetchPlannedEntryByIDQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
+		target_month,
+		target_year,
 		is_active
 	FROM planned_entries
 	WHERE planned_entry_id = $1
@@ -1345,6 +1347,8 @@ const fetchPlannedEntriesByParentQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
+		target_month,
+		target_year,
 		is_active
 	FROM planned_entries
 	WHERE parent_entry_id = $1
@@ -1501,6 +1505,8 @@ const modifyPlannedEntryQuery = `
 		entry_type,
 		is_recurrent,
 		parent_entry_id,
+		target_month,
+		target_year,
 		is_active;
 `
 
