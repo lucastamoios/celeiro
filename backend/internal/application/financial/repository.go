@@ -34,19 +34,8 @@ type Repository interface {
 	ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error)
 	RemoveTransaction(ctx context.Context, params removeTransactionParams) error
 
-	// Budgets
-	FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error)
-	FetchBudgetByID(ctx context.Context, params fetchBudgetByIDParams) (BudgetModel, error)
-	InsertBudget(ctx context.Context, params insertBudgetParams) (BudgetModel, error)
-	ModifyBudget(ctx context.Context, params modifyBudgetParams) (BudgetModel, error)
-	RemoveBudget(ctx context.Context, params removeBudgetParams) error
-
-	// Budget Items
-	FetchBudgetItems(ctx context.Context, params fetchBudgetItemsParams) ([]BudgetItemModel, error)
-	InsertBudgetItem(ctx context.Context, params insertBudgetItemParams) (BudgetItemModel, error)
-	ModifyBudgetItem(ctx context.Context, params modifyBudgetItemParams) (BudgetItemModel, error)
-	RemoveBudgetItem(ctx context.Context, params removeBudgetItemParams) error
-	FetchBudgetSpending(ctx context.Context, params fetchBudgetSpendingParams) (map[int]decimal.Decimal, error)
+	// Spending Aggregation
+	FetchSpendingByCategory(ctx context.Context, params fetchSpendingByCategoryParams) (map[int]decimal.Decimal, error)
 
 	// Classification Rules
 	FetchClassificationRules(ctx context.Context, params fetchClassificationRulesParams) ([]ClassificationRuleModel, error)
@@ -812,261 +801,6 @@ func (r *repository) RemoveTransaction(ctx context.Context, params removeTransac
 	return err
 }
 
-// ============================================================================
-// Budgets
-// ============================================================================
-
-type fetchBudgetsParams struct {
-	UserID         int
-	OrganizationID int
-	Year           *int
-	Month          *int
-}
-
-const fetchBudgetsQuery = `
-	-- financial.fetchBudgetsQuery
-	SELECT
-		budget_id,
-		created_at,
-		updated_at,
-		user_id,
-		organization_id,
-		name,
-		month,
-		year,
-		budget_type,
-		amount,
-		is_active
-	FROM budgets
-	WHERE organization_id = $1
-		AND (year = $2 OR $2 IS NULL)
-		AND (month = $3 OR $3 IS NULL)
-	ORDER BY year DESC, month DESC;
-`
-
-func (r *repository) FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error) {
-	var result []BudgetModel
-	err := r.db.Query(ctx, &result, fetchBudgetsQuery,
-		params.OrganizationID, params.Year, params.Month)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-type fetchBudgetByIDParams struct {
-	BudgetID       int
-	OrganizationID int
-}
-
-const fetchBudgetByIDQuery = `
-	-- financial.fetchBudgetByIDQuery
-	SELECT
-		budget_id,
-		created_at,
-		updated_at,
-		user_id,
-		organization_id,
-		name,
-		month,
-		year,
-		budget_type,
-		amount,
-		is_active
-	FROM budgets
-	WHERE budget_id = $1
-		AND organization_id = $2;
-`
-
-func (r *repository) FetchBudgetByID(ctx context.Context, params fetchBudgetByIDParams) (BudgetModel, error) {
-	var result BudgetModel
-	err := r.db.Query(ctx, &result, fetchBudgetByIDQuery, params.BudgetID, params.OrganizationID)
-	if err != nil {
-		return BudgetModel{}, err
-	}
-	return result, nil
-}
-
-type insertBudgetParams struct {
-	UserID         int
-	OrganizationID int
-	Name           string
-	Month          int
-	Year           int
-	BudgetType     string
-	Amount         decimal.Decimal
-}
-
-const insertBudgetQuery = `
-	-- financial.insertBudgetQuery
-	INSERT INTO budgets (user_id, organization_id, name, month, year, budget_type, amount)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)
-	RETURNING budget_id, created_at, updated_at, user_id, organization_id, name, month, year,
-			  budget_type, amount, is_active;
-`
-
-func (r *repository) InsertBudget(ctx context.Context, params insertBudgetParams) (BudgetModel, error) {
-	var result BudgetModel
-	err := r.db.Query(ctx, &result, insertBudgetQuery,
-		params.UserID, params.OrganizationID, params.Name, params.Month, params.Year,
-		params.BudgetType, params.Amount)
-	if err != nil {
-		return BudgetModel{}, err
-	}
-	return result, nil
-}
-
-type modifyBudgetParams struct {
-	BudgetID       int
-	UserID         int
-	OrganizationID int
-	Name           *string
-	BudgetType     *string
-	Amount         *decimal.Decimal
-	IsActive       *bool
-}
-
-const modifyBudgetQuery = `
-	-- financial.modifyBudgetQuery
-	UPDATE budgets
-	SET name = COALESCE($3, name),
-		budget_type = COALESCE($4, budget_type),
-		amount = COALESCE($5, amount),
-		is_active = COALESCE($6, is_active),
-		updated_at = NOW()
-	WHERE budget_id = $1 AND organization_id = $2
-	RETURNING budget_id, created_at, updated_at, user_id, organization_id, name, month, year,
-			  budget_type, amount, is_active;
-`
-
-func (r *repository) ModifyBudget(ctx context.Context, params modifyBudgetParams) (BudgetModel, error) {
-	var result BudgetModel
-	err := r.db.Query(ctx, &result, modifyBudgetQuery,
-		params.BudgetID, params.OrganizationID,
-		params.Name, params.BudgetType, params.Amount, params.IsActive)
-	if err != nil {
-		return BudgetModel{}, err
-	}
-	return result, nil
-}
-
-type removeBudgetParams struct {
-	BudgetID       int
-	UserID         int
-	OrganizationID int
-}
-
-const removeBudgetQuery = `
-	-- financial.removeBudgetQuery
-	DELETE FROM budgets
-	WHERE budget_id = $1 AND organization_id = $2;
-`
-
-func (r *repository) RemoveBudget(ctx context.Context, params removeBudgetParams) error {
-	err := r.db.Run(ctx, removeBudgetQuery, params.BudgetID, params.OrganizationID)
-	return err
-}
-
-// ============================================================================
-// Budget Items
-// ============================================================================
-
-type fetchBudgetItemsParams struct {
-	BudgetID       int
-	OrganizationID int
-}
-
-const fetchBudgetItemsQuery = `
-	-- financial.fetchBudgetItemsQuery
-	SELECT
-		bi.budget_item_id,
-		bi.created_at,
-		bi.updated_at,
-		bi.budget_id,
-		bi.category_id,
-		bi.planned_amount
-	FROM budget_items bi
-	INNER JOIN budgets b ON b.budget_id = bi.budget_id
-	WHERE bi.budget_id = $1
-		AND b.organization_id = $2;
-`
-
-func (r *repository) FetchBudgetItems(ctx context.Context, params fetchBudgetItemsParams) ([]BudgetItemModel, error) {
-	var result []BudgetItemModel
-	err := r.db.Query(ctx, &result, fetchBudgetItemsQuery, params.BudgetID, params.OrganizationID)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-type insertBudgetItemParams struct {
-	BudgetID      int
-	CategoryID    int
-	PlannedAmount decimal.Decimal
-}
-
-const insertBudgetItemQuery = `
-	-- financial.insertBudgetItemQuery
-	INSERT INTO budget_items (budget_id, category_id, planned_amount)
-	VALUES ($1, $2, $3)
-	RETURNING budget_item_id, created_at, updated_at, budget_id, category_id, planned_amount;
-`
-
-func (r *repository) InsertBudgetItem(ctx context.Context, params insertBudgetItemParams) (BudgetItemModel, error) {
-	var result BudgetItemModel
-	err := r.db.Query(ctx, &result, insertBudgetItemQuery, params.BudgetID, params.CategoryID, params.PlannedAmount)
-	if err != nil {
-		return BudgetItemModel{}, err
-	}
-	return result, nil
-}
-
-type modifyBudgetItemParams struct {
-	BudgetItemID  int
-	UserID        int
-	PlannedAmount *decimal.Decimal
-}
-
-const modifyBudgetItemQuery = `
-	-- financial.modifyBudgetItemQuery
-	UPDATE budget_items bi
-	SET planned_amount = COALESCE($3, bi.planned_amount),
-		updated_at = NOW()
-	FROM budgets b
-	WHERE bi.budget_item_id = $1
-		AND bi.budget_id = b.budget_id
-		AND b.user_id = $2
-	RETURNING bi.budget_item_id, bi.created_at, bi.updated_at, bi.budget_id, bi.category_id, bi.planned_amount;
-`
-
-func (r *repository) ModifyBudgetItem(ctx context.Context, params modifyBudgetItemParams) (BudgetItemModel, error) {
-	var result BudgetItemModel
-	err := r.db.Query(ctx, &result, modifyBudgetItemQuery, params.BudgetItemID, params.UserID, params.PlannedAmount)
-	if err != nil {
-		return BudgetItemModel{}, err
-	}
-	return result, nil
-}
-
-type removeBudgetItemParams struct {
-	BudgetItemID int
-	UserID       int
-}
-
-const removeBudgetItemQuery = `
-	-- financial.removeBudgetItemQuery
-	DELETE FROM budget_items bi
-	USING budgets b
-	WHERE bi.budget_item_id = $1
-		AND bi.budget_id = b.budget_id
-		AND b.user_id = $2;
-`
-
-func (r *repository) RemoveBudgetItem(ctx context.Context, params removeBudgetItemParams) error {
-	err := r.db.Run(ctx, removeBudgetItemQuery, params.BudgetItemID, params.UserID)
-	return err
-}
 
 // ============================================================================
 // Classification Rules
@@ -1232,11 +966,10 @@ func (r *repository) RemoveClassificationRule(ctx context.Context, params remove
 }
 
 // ============================================================================
-// Budget Spending Aggregation
+// Spending Aggregation
 // ============================================================================
 
-type fetchBudgetSpendingParams struct {
-	BudgetID       int
+type fetchSpendingByCategoryParams struct {
 	OrganizationID int
 	Month          int
 	Year           int
@@ -1247,8 +980,8 @@ type CategorySpendingResult struct {
 	TotalSpent decimal.Decimal `db:"total_spent"`
 }
 
-const fetchBudgetSpendingQuery = `
-	-- financial.fetchBudgetSpendingQuery
+const fetchSpendingByCategoryQuery = `
+	-- financial.fetchSpendingByCategoryQuery
 	SELECT
 		t.category_id,
 		COALESCE(SUM(ABS(t.amount)), 0) as total_spent
@@ -1263,9 +996,9 @@ const fetchBudgetSpendingQuery = `
 	GROUP BY t.category_id;
 `
 
-func (r *repository) FetchBudgetSpending(ctx context.Context, params fetchBudgetSpendingParams) (map[int]decimal.Decimal, error) {
+func (r *repository) FetchSpendingByCategory(ctx context.Context, params fetchSpendingByCategoryParams) (map[int]decimal.Decimal, error) {
 	var results []CategorySpendingResult
-	err := r.db.Query(ctx, &results, fetchBudgetSpendingQuery,
+	err := r.db.Query(ctx, &results, fetchSpendingByCategoryQuery,
 		params.OrganizationID, params.Month, params.Year)
 	if err != nil {
 		return nil, err
@@ -2475,7 +2208,9 @@ const fetchSavingsGoalsQuery = `
 		is_active,
 		is_completed,
 		completed_at,
-		notes
+		notes,
+		category_id,
+		monthly_contribution
 	FROM savings_goals
 	WHERE organization_id = $1
 		AND ($2::boolean IS NULL OR is_active = $2)
@@ -2515,7 +2250,9 @@ const fetchSavingsGoalByIDQuery = `
 		is_active,
 		is_completed,
 		completed_at,
-		notes
+		notes,
+		category_id,
+		monthly_contribution
 	FROM savings_goals
 	WHERE savings_goal_id = $1
 		AND organization_id = $2;
@@ -2529,16 +2266,18 @@ func (r *repository) FetchSavingsGoalByID(ctx context.Context, params fetchSavin
 }
 
 type insertSavingsGoalParams struct {
-	UserID         int
-	OrganizationID int
-	Name           string
-	GoalType       string
-	TargetAmount   decimal.Decimal
-	InitialAmount  decimal.Decimal // Pre-existing balance when goal is created
-	DueDate        *string         // YYYY-MM-DD format
-	Icon           *string
-	Color          *string
-	Notes          *string
+	UserID              int
+	OrganizationID      int
+	Name                string
+	GoalType            string
+	TargetAmount        decimal.Decimal
+	InitialAmount       decimal.Decimal // Pre-existing balance when goal is created
+	DueDate             *string         // YYYY-MM-DD format
+	Icon                *string
+	Color               *string
+	Notes               *string
+	CategoryID          *int
+	MonthlyContribution *decimal.Decimal
 }
 
 const insertSavingsGoalQuery = `
@@ -2553,8 +2292,10 @@ const insertSavingsGoalQuery = `
 		due_date,
 		icon,
 		color,
-		notes
-	) VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10)
+		notes,
+		category_id,
+		monthly_contribution
+	) VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10, $11, $12)
 	RETURNING
 		savings_goal_id,
 		created_at,
@@ -2571,29 +2312,34 @@ const insertSavingsGoalQuery = `
 		is_active,
 		is_completed,
 		completed_at,
-		notes;
+		notes,
+		category_id,
+		monthly_contribution;
 `
 
 func (r *repository) InsertSavingsGoal(ctx context.Context, params insertSavingsGoalParams) (SavingsGoalModel, error) {
 	var goal SavingsGoalModel
 	err := r.db.Query(ctx, &goal, insertSavingsGoalQuery,
 		params.UserID, params.OrganizationID, params.Name, params.GoalType,
-		params.TargetAmount, params.InitialAmount, params.DueDate, params.Icon, params.Color, params.Notes)
+		params.TargetAmount, params.InitialAmount, params.DueDate, params.Icon, params.Color, params.Notes,
+		params.CategoryID, params.MonthlyContribution)
 	return goal, err
 }
 
 type modifySavingsGoalParams struct {
-	SavingsGoalID  int
-	UserID         int
-	OrganizationID int
-	Name           *string
-	TargetAmount   *decimal.Decimal
-	DueDate        *string // YYYY-MM-DD format, empty string to clear
-	Icon           *string
-	Color          *string
-	Notes          *string
-	IsActive       *bool
-	IsCompleted    *bool
+	SavingsGoalID       int
+	UserID              int
+	OrganizationID      int
+	Name                *string
+	TargetAmount        *decimal.Decimal
+	DueDate             *string // YYYY-MM-DD format, empty string to clear
+	Icon                *string
+	Color               *string
+	Notes               *string
+	IsActive            *bool
+	IsCompleted         *bool
+	CategoryID          *int
+	MonthlyContribution *decimal.Decimal
 }
 
 const modifySavingsGoalQuery = `
@@ -2613,6 +2359,8 @@ const modifySavingsGoalQuery = `
 			WHEN $10 = false THEN NULL
 			ELSE completed_at
 		END,
+		category_id = COALESCE($11, category_id),
+		monthly_contribution = COALESCE($12, monthly_contribution),
 		updated_at = CURRENT_TIMESTAMP
 	WHERE savings_goal_id = $1
 		AND organization_id = $2
@@ -2632,7 +2380,9 @@ const modifySavingsGoalQuery = `
 		is_active,
 		is_completed,
 		completed_at,
-		notes;
+		notes,
+		category_id,
+		monthly_contribution;
 `
 
 func (r *repository) ModifySavingsGoal(ctx context.Context, params modifySavingsGoalParams) (SavingsGoalModel, error) {
@@ -2640,7 +2390,8 @@ func (r *repository) ModifySavingsGoal(ctx context.Context, params modifySavings
 	err := r.db.Query(ctx, &goal, modifySavingsGoalQuery,
 		params.SavingsGoalID, params.OrganizationID,
 		params.Name, params.TargetAmount, params.DueDate,
-		params.Icon, params.Color, params.Notes, params.IsActive, params.IsCompleted)
+		params.Icon, params.Color, params.Notes, params.IsActive, params.IsCompleted,
+		params.CategoryID, params.MonthlyContribution)
 	return goal, err
 }
 
@@ -2695,7 +2446,9 @@ const addContributionQuery = `
 		is_active,
 		is_completed,
 		completed_at,
-		notes;
+		notes,
+		category_id,
+		monthly_contribution;
 `
 
 func (r *repository) AddContribution(ctx context.Context, params addContributionParams) (SavingsGoalModel, error) {

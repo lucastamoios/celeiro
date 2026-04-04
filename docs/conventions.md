@@ -98,11 +98,7 @@ PostgreSQL TIMESTAMP has no timezone info. Local time stored as-is causes bugs w
 
 ## Budget System
 
-| Type | Calculation |
-|------|-------------|
-| fixed | Uses planned_amount directly |
-| calculated | Sum of all planned entries |
-| maior | MAX(fixed amount, sum of planned entries) |
+Category budgets use `controlled_amount + sum(planned entries)` to determine the total budget for a given category and month. The controlled amount is a discretionary buffer the user sets for spending not tied to any planned entry.
 
 ### Planned Entry Types
 
@@ -197,7 +193,6 @@ Commit format: `<type>: <description>` (types: feat, fix, docs, refactor, test, 
 | Modify recurrent parent for one month | Changes ALL future instances | Create monthly instance, modify that |
 | `time.Now()` without `.UTC()` | Timezone bugs in database | Always `time.Now().UTC()` |
 | Match against `description` | User may have edited it | Use `original_description` (immutable) |
-| Use `budgets` table | Legacy, being deprecated | Use `category_budgets` |
 | Skip `make migrate` after schema change | Table doesn't exist | Run `make migrate` first |
 | Return raw SQL errors to client | Security + UX issue | Wrap in domain error |
 | Use `Modify*` to clear fields to NULL | COALESCE preserves old values | Use dedicated `Clear*` functions (see below) |

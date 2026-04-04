@@ -112,13 +112,10 @@ Monthly budget for a specific category.
 |-------|---------|
 | category_id | Target category |
 | month / year | Budget period |
-| budget_type | fixed, calculated, or maior |
-| planned_amount | Budget amount (for fixed type) |
+| controlled_amount | Discretionary buffer amount set by user |
 
-**Budget Type Calculation**:
-- fixed: Uses planned_amount directly
-- calculated: Sum of planned entries
-- maior: MAX(planned_amount, sum of entries)
+**Budget Calculation**:
+Total budget = sum(planned entries for the category in that month) + controlled_amount. The controlled amount represents a discretionary buffer the user sets for spending that is not tied to any specific planned entry.
 
 ### PlannedEntry
 
@@ -270,7 +267,6 @@ sequenceDiagram
 ### Financial Domain
 - accounts, transactions, transaction_tags
 - categories, tags
-- budgets, budget_items (legacy)
 - category_budgets, monthly_snapshots
 - planned_entries, planned_entry_statuses, planned_entry_tags
 - patterns

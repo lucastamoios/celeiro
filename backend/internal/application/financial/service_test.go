@@ -114,54 +114,8 @@ func (m *MockRepository) FetchUncategorizedTransactions(ctx context.Context, par
 	return args.Get(0).([]TransactionModel), args.Error(1)
 }
 
-// Budgets
-func (m *MockRepository) FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).([]BudgetModel), args.Error(1)
-}
-
-func (m *MockRepository) FetchBudgetByID(ctx context.Context, params fetchBudgetByIDParams) (BudgetModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetModel), args.Error(1)
-}
-
-func (m *MockRepository) InsertBudget(ctx context.Context, params insertBudgetParams) (BudgetModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetModel), args.Error(1)
-}
-
-func (m *MockRepository) ModifyBudget(ctx context.Context, params modifyBudgetParams) (BudgetModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetModel), args.Error(1)
-}
-
-func (m *MockRepository) RemoveBudget(ctx context.Context, params removeBudgetParams) error {
-	args := m.Called(ctx, params)
-	return args.Error(0)
-}
-
-// Budget Items
-func (m *MockRepository) FetchBudgetItems(ctx context.Context, params fetchBudgetItemsParams) ([]BudgetItemModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).([]BudgetItemModel), args.Error(1)
-}
-
-func (m *MockRepository) InsertBudgetItem(ctx context.Context, params insertBudgetItemParams) (BudgetItemModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetItemModel), args.Error(1)
-}
-
-func (m *MockRepository) ModifyBudgetItem(ctx context.Context, params modifyBudgetItemParams) (BudgetItemModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetItemModel), args.Error(1)
-}
-
-func (m *MockRepository) RemoveBudgetItem(ctx context.Context, params removeBudgetItemParams) error {
-	args := m.Called(ctx, params)
-	return args.Error(0)
-}
-
-func (m *MockRepository) FetchBudgetSpending(ctx context.Context, params fetchBudgetSpendingParams) (map[int]decimal.Decimal, error) {
+// Spending Aggregation
+func (m *MockRepository) FetchSpendingByCategory(ctx context.Context, params fetchSpendingByCategoryParams) (map[int]decimal.Decimal, error) {
 	args := m.Called(ctx, params)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -513,61 +467,6 @@ func TestCreateAccount_Success(t *testing.T) {
 	assert.Equal(t, 1, result.AccountID)
 	assert.Equal(t, "Checking Account", result.Name)
 	assert.True(t, result.Balance.Equal(balance))
-	mockRepo.AssertExpectations(t)
-}
-
-func TestGetBudgetByID_Success(t *testing.T) {
-	mockRepo := new(MockRepository)
-	svc := &service{
-		metrics:    nil,
-		Repository: mockRepo,
-		system:     system.NewSystem(),
-	}
-
-	ctx := context.Background()
-	budgetModel := BudgetModel{
-		BudgetID:       1,
-		UserID:         1,
-		OrganizationID: 1,
-		Name:           "Monthly Budget",
-		Month:          10,
-		Year:           2025,
-		BudgetType:     BudgetTypeCalculated,
-		Amount:         decimal.NewFromFloat(5000),
-		IsActive:       true,
-	}
-
-	itemModels := []BudgetItemModel{
-		{BudgetItemID: 1, BudgetID: 1, CategoryID: 1, PlannedAmount: decimal.NewFromFloat(2000)},
-		{BudgetItemID: 2, BudgetID: 1, CategoryID: 2, PlannedAmount: decimal.NewFromFloat(1500)},
-	}
-
-	mockRepo.On("FetchBudgetByID", ctx, fetchBudgetByIDParams{
-		BudgetID:       1,
-		OrganizationID: 1,
-	}).Return(budgetModel, nil)
-
-	mockRepo.On("FetchBudgetItems", ctx, fetchBudgetItemsParams{
-		BudgetID:       1,
-		OrganizationID: 1,
-	}).Return(itemModels, nil)
-
-	result, err := svc.GetBudgetByID(ctx, GetBudgetByIDInput{
-		BudgetID:       1,
-		UserID:         1,
-		OrganizationID: 1,
-	})
-
-	assert.NoError(t, err)
-	assert.Equal(t, 1, result.BudgetID)
-	assert.Len(t, result.Items, 2)
-
-	// Test calculated budget amount
-	calculatedAmount := result.CalculatedBudgetAmount()
-	expectedAmount := decimal.NewFromFloat(3500) // 2000 + 1500
-	assert.True(t, calculatedAmount.Equal(expectedAmount),
-		"Expected %s, got %s", expectedAmount.String(), calculatedAmount.String())
-
 	mockRepo.AssertExpectations(t)
 }
 

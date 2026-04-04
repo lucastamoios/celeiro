@@ -628,116 +628,8 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// Budgets
+// Budget Pacing
 // ============================================================================
-
-func (h *Handler) ListBudgets(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	budgets, err := h.app.FinancialService.GetBudgets(r.Context(), financialApp.GetBudgetsInput{
-		UserID:         userID,
-		OrganizationID: organizationID,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(budgets, w)
-}
-
-func (h *Handler) CreateBudget(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	var req struct {
-		Name       string  `json:"name"`
-		Month      int     `json:"month"`
-		Year       int     `json:"year"`
-		BudgetType string  `json:"budget_type"`
-		Amount     float64 `json:"amount"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	budget, err := h.app.FinancialService.CreateBudget(r.Context(), financialApp.CreateBudgetInput{
-		UserID:         userID,
-		OrganizationID: organizationID,
-		Name:           req.Name,
-		Month:          req.Month,
-		Year:           req.Year,
-		BudgetType:     req.BudgetType,
-		Amount:         decimal.NewFromFloat(req.Amount),
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(budget, w)
-}
-
-func (h *Handler) GetBudgetByID(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	budgetID, err := strconv.Atoi(chi.URLParam(r, "budgetId"))
-	if err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	budget, err := h.app.FinancialService.GetBudgetByID(r.Context(), financialApp.GetBudgetByIDInput{
-		BudgetID:       budgetID,
-		UserID:         userID,
-		OrganizationID: organizationID,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(budget, w)
-}
-
-func (h *Handler) GetBudgetProgress(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	budgetID, err := strconv.Atoi(chi.URLParam(r, "budgetId"))
-	if err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	progress, err := h.app.FinancialService.CalculateBudgetProgress(r.Context(), financialApp.CalculateBudgetProgressInput{
-		BudgetID:       budgetID,
-		UserID:         userID,
-		OrganizationID: organizationID,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(progress, w)
-}
 
 // GetControllableCategoryPacing returns budget pacing data for controllable categories.
 // Query params: month (1-12), year (YYYY). Defaults to current month if not provided.
@@ -783,171 +675,6 @@ func (h *Handler) GetControllableCategoryPacing(w http.ResponseWriter, r *http.R
 	}
 
 	responses.NewSuccess(pacing, w)
-}
-
-// ============================================================================
-// Budget Items
-// ============================================================================
-
-func (h *Handler) CreateBudgetItem(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	budgetID, err := strconv.Atoi(chi.URLParam(r, "budgetId"))
-	if err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	var req struct {
-		CategoryID    int     `json:"category_id"`
-		PlannedAmount float64 `json:"planned_amount"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	// Validation: planned_amount must be > 0
-	if req.PlannedAmount <= 0 {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	// Verify budget ownership (GetBudgetByID checks ownership)
-	_, err = h.app.FinancialService.GetBudgetByID(r.Context(), financialApp.GetBudgetByIDInput{
-		BudgetID:       budgetID,
-		UserID:         userID,
-		OrganizationID: organizationID,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	// Verify category exists and organization has access
-	_, err = h.app.FinancialService.GetCategoryByID(r.Context(), financialApp.GetCategoryByIDInput{
-		CategoryID:     req.CategoryID,
-		OrganizationID: organizationID,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	budgetItem, err := h.app.FinancialService.CreateBudgetItem(r.Context(), financialApp.CreateBudgetItemInput{
-		BudgetID:      budgetID,
-		CategoryID:    req.CategoryID,
-		PlannedAmount: decimal.NewFromFloat(req.PlannedAmount),
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(budgetItem, w)
-}
-
-func (h *Handler) UpdateBudgetItem(w http.ResponseWriter, r *http.Request) {
-	userID, _, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	budgetItemID, err := strconv.Atoi(chi.URLParam(r, "itemId"))
-	if err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	var req struct {
-		PlannedAmount *float64 `json:"planned_amount"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	// Validation: if planned_amount is provided, it must be > 0
-	if req.PlannedAmount != nil && *req.PlannedAmount <= 0 {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	// Convert amount to decimal if provided
-	var plannedAmountDecimal *decimal.Decimal
-	if req.PlannedAmount != nil {
-		amt := decimal.NewFromFloat(*req.PlannedAmount)
-		plannedAmountDecimal = &amt
-	}
-
-	budgetItem, err := h.app.FinancialService.UpdateBudgetItem(r.Context(), financialApp.UpdateBudgetItemInput{
-		BudgetItemID:  budgetItemID,
-		UserID:        userID,
-		PlannedAmount: plannedAmountDecimal,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(budgetItem, w)
-}
-
-func (h *Handler) DeleteBudgetItem(w http.ResponseWriter, r *http.Request) {
-	userID, _, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	budgetItemID, err := strconv.Atoi(chi.URLParam(r, "itemId"))
-	if err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	err = h.app.FinancialService.DeleteBudgetItem(r.Context(), financialApp.DeleteBudgetItemInput{
-		BudgetItemID: budgetItemID,
-		UserID:       userID,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(map[string]string{"message": "budget item deleted successfully"}, w)
-}
-
-func (h *Handler) GetBudgetSpending(w http.ResponseWriter, r *http.Request) {
-	_, organizationID, err := h.getSessionInfo(r)
-	if err != nil {
-		responses.NewError(w, errors.ErrUnauthorized)
-		return
-	}
-
-	budgetID, err := strconv.Atoi(chi.URLParam(r, "budgetId"))
-	if err != nil {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
-	spending, err := h.app.FinancialService.GetBudgetSpending(r.Context(), financialApp.GetBudgetSpendingInput{
-		BudgetID:       budgetID,
-		OrganizationID: organizationID,
-	})
-	if err != nil {
-		responses.NewError(w, err)
-		return
-	}
-
-	responses.NewSuccess(spending, w)
 }
 
 // ============================================================================
@@ -2316,14 +2043,16 @@ func (h *Handler) CreateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name          string  `json:"name"`
-		GoalType      string  `json:"goal_type"`
-		TargetAmount  float64 `json:"target_amount"`
-		InitialAmount float64 `json:"initial_amount"` // Pre-existing balance
-		DueDate       *string `json:"due_date,omitempty"`
-		Icon          *string `json:"icon,omitempty"`
-		Color         *string `json:"color,omitempty"`
-		Notes         *string `json:"notes,omitempty"`
+		Name                string   `json:"name"`
+		GoalType            string   `json:"goal_type"`
+		TargetAmount        float64  `json:"target_amount"`
+		InitialAmount       float64  `json:"initial_amount"` // Pre-existing balance
+		DueDate             *string  `json:"due_date,omitempty"`
+		Icon                *string  `json:"icon,omitempty"`
+		Color               *string  `json:"color,omitempty"`
+		Notes               *string  `json:"notes,omitempty"`
+		CategoryID          *int     `json:"category_id,omitempty"`
+		MonthlyContribution *float64 `json:"monthly_contribution,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2331,17 +2060,25 @@ func (h *Handler) CreateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var monthlyContribution *decimal.Decimal
+	if req.MonthlyContribution != nil {
+		mc := decimal.NewFromFloat(*req.MonthlyContribution)
+		monthlyContribution = &mc
+	}
+
 	goal, err := h.app.FinancialService.CreateSavingsGoal(r.Context(), financialApp.CreateSavingsGoalInput{
-		UserID:         userID,
-		OrganizationID: organizationID,
-		Name:           req.Name,
-		GoalType:       req.GoalType,
-		TargetAmount:   decimal.NewFromFloat(req.TargetAmount),
-		InitialAmount:  decimal.NewFromFloat(req.InitialAmount),
-		DueDate:        req.DueDate,
-		Icon:           req.Icon,
-		Color:          req.Color,
-		Notes:          req.Notes,
+		UserID:              userID,
+		OrganizationID:      organizationID,
+		Name:                req.Name,
+		GoalType:            req.GoalType,
+		TargetAmount:        decimal.NewFromFloat(req.TargetAmount),
+		InitialAmount:       decimal.NewFromFloat(req.InitialAmount),
+		DueDate:             req.DueDate,
+		Icon:                req.Icon,
+		Color:               req.Color,
+		Notes:               req.Notes,
+		CategoryID:          req.CategoryID,
+		MonthlyContribution: monthlyContribution,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -2365,12 +2102,14 @@ func (h *Handler) UpdateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name         *string  `json:"name,omitempty"`
-		TargetAmount *float64 `json:"target_amount,omitempty"`
-		DueDate      *string  `json:"due_date,omitempty"`
-		Icon         *string  `json:"icon,omitempty"`
-		Color        *string  `json:"color,omitempty"`
-		Notes        *string  `json:"notes,omitempty"`
+		Name                *string  `json:"name,omitempty"`
+		TargetAmount        *float64 `json:"target_amount,omitempty"`
+		DueDate             *string  `json:"due_date,omitempty"`
+		Icon                *string  `json:"icon,omitempty"`
+		Color               *string  `json:"color,omitempty"`
+		Notes               *string  `json:"notes,omitempty"`
+		CategoryID          *int     `json:"category_id,omitempty"`
+		MonthlyContribution *float64 `json:"monthly_contribution,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2385,16 +2124,25 @@ func (h *Handler) UpdateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		targetAmount = &amt
 	}
 
+	// Convert monthly contribution to decimal if provided
+	var monthlyContribution *decimal.Decimal
+	if req.MonthlyContribution != nil {
+		mc := decimal.NewFromFloat(*req.MonthlyContribution)
+		monthlyContribution = &mc
+	}
+
 	goal, err := h.app.FinancialService.UpdateSavingsGoal(r.Context(), financialApp.UpdateSavingsGoalInput{
-		SavingsGoalID:  goalID,
-		UserID:         userID,
-		OrganizationID: organizationID,
-		Name:           req.Name,
-		TargetAmount:   targetAmount,
-		DueDate:        req.DueDate,
-		Icon:           req.Icon,
-		Color:          req.Color,
-		Notes:          req.Notes,
+		SavingsGoalID:       goalID,
+		UserID:              userID,
+		OrganizationID:      organizationID,
+		Name:                req.Name,
+		TargetAmount:        targetAmount,
+		DueDate:             req.DueDate,
+		Icon:                req.Icon,
+		Color:               req.Color,
+		Notes:               req.Notes,
+		CategoryID:          req.CategoryID,
+		MonthlyContribution: monthlyContribution,
 	})
 	if err != nil {
 		responses.NewError(w, err)

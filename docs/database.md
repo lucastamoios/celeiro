@@ -10,14 +10,12 @@
 | Accounts | `accounts` |
 | Transactions | `transactions`, `transaction_tags` |
 | Categories | `categories` (includes `is_controllable`) |
-| Budgets | `category_budgets` (current), `monthly_snapshots` |
+| Budgets | `category_budgets`, `monthly_snapshots` |
 | Planning | `planned_entries`, `planned_entry_statuses`, `planned_entry_tags` |
 | Patterns | `patterns` |
 | Tags | `tags`, `transaction_tags`, `planned_entry_tags` |
 | Savings | `savings_goals` |
 | Tags | `tags`, `transaction_tags` |
-
-**Deprecated tables:** `budgets`, `budget_items` (use `category_budgets` instead)
 
 **Key constraints:**
 - `(account_id, ofx_fitid)` unique - prevents OFX duplicates
@@ -87,14 +85,10 @@ erDiagram
 
 ### Budgets
 
-**Use `category_budgets` for new code. Legacy tables exist but are deprecated.**
-
-| Table | Status | Purpose |
-|-------|--------|---------|
-| category_budgets | **Current** | Budget per category per month |
-| monthly_snapshots | Current | Historical budget records |
-| budgets | Deprecated | Old monthly budget model |
-| budget_items | Deprecated | Items in old budget model |
+| Table | Purpose |
+|-------|---------|
+| category_budgets | Budget per category per month (controlled_amount + sum of planned entries) |
+| monthly_snapshots | Historical budget records |
 
 ### Planned Entries
 
@@ -127,16 +121,12 @@ erDiagram
 | FITID uniqueness per account | Prevents OFX import duplicates |
 | is_classified flag on transactions | Faster queries than NULL category check |
 | System vs user categories | user_id NULL + is_system=true for system categories |
-| Dual budget models | Legacy (budgets) + current (category_budgets) |
 | Dual description fields | original_description immutable for pattern matching |
 
 ## Enums
 
 ### Account Types
 checking, savings, credit_card, investment
-
-### Budget Types
-fixed (uses planned_amount), calculated (sum of entries), maior (MAX of both)
 
 ### Transaction Types
 debit (money out), credit (money in)

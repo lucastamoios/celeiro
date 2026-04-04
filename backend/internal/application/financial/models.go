@@ -84,41 +84,6 @@ type TransactionModel struct {
 
 type TransactionsModel []TransactionModel
 
-// Budget represents a monthly budget
-type BudgetModel struct {
-	BudgetID  int       `db:"budget_id"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
-
-	UserID         int `db:"user_id"`
-	OrganizationID int `db:"organization_id"`
-
-	Name  string `db:"name"`
-	Month int    `db:"month"`
-	Year  int    `db:"year"`
-
-	BudgetType string          `db:"budget_type"` // fixed, calculated, hybrid
-	Amount     decimal.Decimal `db:"amount"`
-
-	IsActive bool `db:"is_active"`
-}
-
-type BudgetsModel []BudgetModel
-
-// BudgetItem represents a category allocation within a budget
-type BudgetItemModel struct {
-	BudgetItemID int       `db:"budget_item_id"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
-
-	BudgetID   int `db:"budget_id"`
-	CategoryID int `db:"category_id"`
-
-	PlannedAmount decimal.Decimal `db:"planned_amount"`
-}
-
-type BudgetItemsModel []BudgetItemModel
-
 // ClassificationRule represents an automatic transaction classification rule
 type ClassificationRuleModel struct {
 	RuleID    int       `db:"rule_id"`
@@ -141,13 +106,6 @@ type ClassificationRuleModel struct {
 }
 
 type ClassificationRulesModel []ClassificationRuleModel
-
-// BudgetType constants
-const (
-	BudgetTypeFixed      = "fixed"
-	BudgetTypeCalculated = "calculated"
-	BudgetTypeMaior      = "maior"
-)
 
 // AccountType constants
 const (
@@ -349,6 +307,9 @@ type SavingsGoalModel struct {
 	CompletedAt *time.Time `db:"completed_at"`
 
 	Notes *string `db:"notes"`
+
+	CategoryID          *int             `db:"category_id"`
+	MonthlyContribution *decimal.Decimal `db:"monthly_contribution"`
 }
 
 type SavingsGoalsModel []SavingsGoalModel

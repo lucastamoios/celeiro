@@ -100,18 +100,6 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 		r.Post("/accounts/{accountId}/transactions/import", mw.RequireSession(fh.ImportOFX, []accounts.Permission{}))
 		r.Patch("/accounts/{accountId}/transactions/{transactionId}", mw.RequireSession(fh.UpdateTransaction, []accounts.Permission{}))
 
-		// Budgets
-		r.Get("/budgets", mw.RequireSession(fh.ListBudgets, []accounts.Permission{}))
-		r.Post("/budgets", mw.RequireSession(fh.CreateBudget, []accounts.Permission{}))
-		r.Get("/budgets/{budgetId}", mw.RequireSession(fh.GetBudgetByID, []accounts.Permission{}))
-		r.Get("/budgets/{budgetId}/spending", mw.RequireSession(fh.GetBudgetSpending, []accounts.Permission{}))
-		r.Get("/budgets/{budgetId}/progress", mw.RequireSession(fh.GetBudgetProgress, []accounts.Permission{}))
-
-		// Budget Items
-		r.Post("/budgets/{budgetId}/items", mw.RequireSession(fh.CreateBudgetItem, []accounts.Permission{}))
-		r.Patch("/budgets/{budgetId}/items/{itemId}", mw.RequireSession(fh.UpdateBudgetItem, []accounts.Permission{}))
-		r.Delete("/budgets/{budgetId}/items/{itemId}", mw.RequireSession(fh.DeleteBudgetItem, []accounts.Permission{}))
-
 		// Category Budgets
 		r.Get("/budgets/categories", mw.RequireSession(fh.ListCategoryBudgets, []accounts.Permission{}))
 		r.Post("/budgets/categories", mw.RequireSession(fh.CreateCategoryBudget, []accounts.Permission{}))

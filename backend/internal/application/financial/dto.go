@@ -145,78 +145,6 @@ func (t Transactions) FromModel(models []TransactionModel) Transactions {
 	return transactions
 }
 
-// Budget DTO
-type Budget struct {
-	BudgetID       int
-	UserID         int
-	OrganizationID int
-	Name           string
-	Month          int
-	Year           int
-	BudgetType     string
-	Amount         decimal.Decimal
-	IsActive       bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-}
-
-func (b Budget) FromModel(model *BudgetModel) Budget {
-	return Budget{
-		BudgetID:       model.BudgetID,
-		UserID:         model.UserID,
-		OrganizationID: model.OrganizationID,
-		Name:           model.Name,
-		Month:          model.Month,
-		Year:           model.Year,
-		BudgetType:     model.BudgetType,
-		Amount:         model.Amount,
-		IsActive:       model.IsActive,
-		CreatedAt:      model.CreatedAt,
-		UpdatedAt:      model.UpdatedAt,
-	}
-}
-
-type Budgets []Budget
-
-func (b Budgets) FromModel(models []BudgetModel) Budgets {
-	budgets := make(Budgets, len(models))
-	for i, model := range models {
-		budgets[i] = Budget{}.FromModel(&model)
-	}
-	return budgets
-}
-
-// BudgetItem DTO
-type BudgetItem struct {
-	BudgetItemID  int
-	BudgetID      int
-	CategoryID    int
-	PlannedAmount decimal.Decimal
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-}
-
-func (b BudgetItem) FromModel(model *BudgetItemModel) BudgetItem {
-	return BudgetItem{
-		BudgetItemID:  model.BudgetItemID,
-		BudgetID:      model.BudgetID,
-		CategoryID:    model.CategoryID,
-		PlannedAmount: model.PlannedAmount,
-		CreatedAt:     model.CreatedAt,
-		UpdatedAt:     model.UpdatedAt,
-	}
-}
-
-type BudgetItems []BudgetItem
-
-func (b BudgetItems) FromModel(models []BudgetItemModel) BudgetItems {
-	items := make(BudgetItems, len(models))
-	for i, model := range models {
-		items[i] = BudgetItem{}.FromModel(&model)
-	}
-	return items
-}
-
 // ClassificationRule DTO
 type ClassificationRule struct {
 	RuleID               int
@@ -258,38 +186,6 @@ func (c ClassificationRules) FromModel(models []ClassificationRuleModel) Classif
 		rules[i] = ClassificationRule{}.FromModel(&model)
 	}
 	return rules
-}
-
-// Budget with Items (composite)
-type BudgetWithItems struct {
-	Budget
-	Items []BudgetItem
-}
-
-// CalculatedBudgetAmount calculates the effective budget amount based on type
-func (b BudgetWithItems) CalculatedBudgetAmount() decimal.Decimal {
-	switch b.BudgetType {
-	case BudgetTypeFixed:
-		return b.Amount
-	case BudgetTypeCalculated:
-		return b.sumBudgetItems()
-	case BudgetTypeMaior:
-		itemsSum := b.sumBudgetItems()
-		if itemsSum.GreaterThan(b.Amount) {
-			return itemsSum
-		}
-		return b.Amount
-	default:
-		return b.Amount
-	}
-}
-
-func (b BudgetWithItems) sumBudgetItems() decimal.Decimal {
-	sum := decimal.Zero
-	for _, item := range b.Items {
-		sum = sum.Add(item.PlannedAmount)
-	}
-	return sum
 }
 
 // CategoryBudget DTO
@@ -595,9 +491,11 @@ type SavingsGoal struct {
 	IsActive       bool            `json:"is_active"`
 	IsCompleted    bool            `json:"is_completed"`
 	CompletedAt    *string         `json:"completed_at,omitempty"` // ISO 8601 datetime
-	Notes          *string         `json:"notes,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	Notes               *string         `json:"notes,omitempty"`
+	CategoryID          *int             `json:"category_id,omitempty"`
+	MonthlyContribution *decimal.Decimal `json:"monthly_contribution,omitempty"`
+	CreatedAt           time.Time        `json:"created_at"`
+	UpdatedAt           time.Time        `json:"updated_at"`
 }
 
 func (s SavingsGoal) FromModel(model *SavingsGoalModel) SavingsGoal {
@@ -611,11 +509,13 @@ func (s SavingsGoal) FromModel(model *SavingsGoalModel) SavingsGoal {
 		InitialAmount:  model.InitialAmount,
 		Icon:           model.Icon,
 		Color:          model.Color,
-		IsActive:       model.IsActive,
-		IsCompleted:    model.IsCompleted,
-		Notes:          model.Notes,
-		CreatedAt:      model.CreatedAt,
-		UpdatedAt:      model.UpdatedAt,
+		IsActive:            model.IsActive,
+		IsCompleted:         model.IsCompleted,
+		Notes:               model.Notes,
+		CategoryID:          model.CategoryID,
+		MonthlyContribution: model.MonthlyContribution,
+		CreatedAt:           model.CreatedAt,
+		UpdatedAt:           model.UpdatedAt,
 	}
 	if model.DueDate != nil {
 		formatted := model.DueDate.Format("2006-01-02")

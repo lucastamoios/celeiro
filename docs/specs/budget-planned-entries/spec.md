@@ -7,7 +7,7 @@ Document the budgeting and planned-entry capabilities (planned entries, matching
 ## Scope
 
 This capability covers:
-- Category budgets (fixed / calculated / maior)
+- Category budgets (controlled_amount + sum of planned entries)
 - Planned entries (monthly status, match/unmatch, dismiss/undismiss)
 - Planned entry tags (and transfer to transactions on match)
 - Controllable categories + pacing widget

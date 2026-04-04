@@ -37,7 +37,6 @@ export const API_CONFIG = {
       categories: '/financial/categories',
       accounts: '/financial/accounts',
       transactions: '/financial/transactions',
-      budgets: '/financial/budgets',
     },
   },
 };
