@@ -3,6 +3,7 @@ package financial
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -540,7 +541,12 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 			IsRecurrent:    false,
 		})
 		if err != nil {
-			fmt.Printf("[GOAL-ENTRIES] ERROR creating entry for goal %d (%s): %v\n", goal.SavingsGoalID, goal.Name, err)
+			// Duplicate key errors are expected during parallel requests - silently skip
+			if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique constraint") {
+				fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): already exists (concurrent create)\n", goal.SavingsGoalID, goal.Name)
+			} else {
+				fmt.Printf("[GOAL-ENTRIES] ERROR creating entry for goal %d (%s): %v\n", goal.SavingsGoalID, goal.Name, err)
+			}
 			continue
 		}
 
