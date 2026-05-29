@@ -1716,6 +1716,8 @@ export default function CategoryBudgetDashboard() {
               }}
               initialCategoryId={preselectedCategoryForEntry ?? undefined}
               initialIsRecurrent={false}
+              targetMonth={selectedMonth}
+              targetYear={selectedYear}
             />
           )}
         </Modal>

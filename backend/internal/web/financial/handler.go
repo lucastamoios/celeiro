@@ -1049,6 +1049,8 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		EntryType          string   `json:"entry_type"`
 		IsRecurrent        bool     `json:"is_recurrent"`
 		ParentEntryID      *int     `json:"parent_entry_id,omitempty"`
+		TargetMonth        *int     `json:"target_month,omitempty"`
+		TargetYear         *int     `json:"target_year,omitempty"`
 		SavingsGoalID      *int     `json:"savings_goal_id,omitempty"`
 		TagIDs             []int    `json:"tag_ids,omitempty"`
 	}
@@ -1106,6 +1108,8 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 		EntryType:        req.EntryType,
 		IsRecurrent:      req.IsRecurrent,
 		ParentEntryID:    req.ParentEntryID,
+		TargetMonth:      req.TargetMonth,
+		TargetYear:       req.TargetYear,
 		SavingsGoalID:    req.SavingsGoalID,
 		TagIDs:           req.TagIDs,
 	})

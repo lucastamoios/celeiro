@@ -29,6 +29,9 @@ interface NewPlannedEntryFormProps {
   initialAmount?: string;
   /** Recurrent defaults true from transaction context, false from budget page */
   initialIsRecurrent?: boolean;
+  /** Target budget month for one-off entries */
+  targetMonth?: number;
+  targetYear?: number;
 }
 
 export default function NewPlannedEntryForm({
@@ -42,6 +45,8 @@ export default function NewPlannedEntryForm({
   initialMatchText,
   initialAmount = '',
   initialIsRecurrent = false,
+  targetMonth,
+  targetYear,
 }: NewPlannedEntryFormProps) {
   const { token } = useAuth();
   const { activeOrganization } = useOrganization();
@@ -125,6 +130,8 @@ export default function NewPlannedEntryForm({
           entry_type: 'expense',
           expected_day_start: parsedDay,
           expected_day_end: parsedDay,
+          target_month: isRecurrent ? undefined : targetMonth,
+          target_year: isRecurrent ? undefined : targetYear,
           savings_goal_id: savingsGoalId ? parseInt(savingsGoalId) : undefined,
           tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         },

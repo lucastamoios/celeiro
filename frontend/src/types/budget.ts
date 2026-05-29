@@ -109,6 +109,8 @@ export interface CreatePlannedEntryRequest {
   entry_type: 'expense' | 'income';
   is_recurrent: boolean;
   parent_entry_id?: number;
+  target_month?: number;
+  target_year?: number;
   expected_day?: number;
   pattern_id?: number;
   description_pattern?: string; // Pattern for auto-matching transaction descriptions

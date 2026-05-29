@@ -1301,6 +1301,8 @@ type CreatePlannedEntryInput struct {
 	EntryType        string
 	IsRecurrent      bool
 	ParentEntryID    *int
+	TargetMonth      *int
+	TargetYear       *int
 	SavingsGoalID    *int
 	TagIDs           []int // Tags to assign - will transfer to matched transactions
 }
@@ -1326,6 +1328,8 @@ func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEn
 		EntryType:        params.EntryType,
 		IsRecurrent:      params.IsRecurrent,
 		ParentEntryID:    params.ParentEntryID,
+		TargetMonth:      params.TargetMonth,
+		TargetYear:       params.TargetYear,
 		SavingsGoalID:    params.SavingsGoalID,
 	})
 	if err != nil {
@@ -1582,10 +1586,9 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 		return nil, errors.Wrap(err, "failed to fetch non-recurrent planned entries")
 	}
 	for _, entry := range allNonRecurrent {
-		if entry.SavingsGoalID != nil && entry.TargetMonth != nil && entry.TargetYear != nil {
-			if *entry.TargetMonth == params.Month && *entry.TargetYear == params.Year {
-				entries = append(entries, entry)
-			}
+		if entry.TargetMonth != nil && entry.TargetYear != nil &&
+			*entry.TargetMonth == params.Month && *entry.TargetYear == params.Year {
+			entries = append(entries, entry)
 		}
 	}
 
