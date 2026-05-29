@@ -198,14 +198,13 @@ export default function Dashboard() {
         });
 
       // Convert to array and calculate percentages
-      const categoryExpenses: CategoryExpense[] = Array.from(categoryMap.values())
+      let categoryExpenses: CategoryExpense[] = Array.from(categoryMap.values())
         .map(({ category, amount }) => ({
           category,
           amount,
           percentage: expenses > 0 ? (amount / expenses) * 100 : 0,
         }))
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 8);
+        .sort((a, b) => b.amount - a.amount);
 
       // Calculate expenses by tag
       const tagMap = new Map<string, number>();
@@ -322,12 +321,30 @@ export default function Dashboard() {
           totalPlannedIncome,
           variance,
           variancePercent,
-          budgetsByCategory: budgetsByCategory.slice(0, 5),
+          budgetsByCategory,
           plannedEntries: plannedEntriesStats,
         };
+
+        if (totalPlannedIncome > 0) {
+          const minimumControlledAmount = totalPlannedIncome * 0.01;
+          const smallControlledCategoryIds = new Set(
+            budgetsByCategory
+              .filter(({ category, planned }) =>
+                category.category_type === 'expense' &&
+                planned > 0 &&
+                planned < minimumControlledAmount
+              )
+              .map(({ category }) => category.category_id)
+          );
+
+          categoryExpenses = categoryExpenses
+            .filter(({ category }) => !smallControlledCategoryIds.has(category.category_id));
+        }
       } catch (budgetErr) {
         console.warn('Failed to fetch budget data:', budgetErr);
       }
+
+      categoryExpenses = categoryExpenses.slice(0, 8);
 
       setStats({
         totalIncome: income,
