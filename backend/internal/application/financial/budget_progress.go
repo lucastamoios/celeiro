@@ -79,21 +79,61 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		return nil, err
 	}
 
-	// Create map of category ID -> controlled amount
-	// Include all categories that have a non-zero controlled amount
-	budgetMap := make(map[int]decimal.Decimal)
-	for _, b := range categoryBudgets {
-		if !b.ControlledAmount.IsZero() {
-			budgetMap[b.CategoryID] = b.ControlledAmount
-		}
-	}
-
-	// Build controllable categories from those with non-zero controlled amounts
 	categoryMap := make(map[int]CategoryModel)
 	for _, cat := range categories {
 		categoryMap[cat.CategoryID] = cat
 	}
 
+	totalPlannedIncome := decimal.Zero
+	for _, b := range categoryBudgets {
+		if category, ok := categoryMap[b.CategoryID]; ok && category.CategoryType == "income" {
+			totalPlannedIncome = totalPlannedIncome.Add(b.ControlledAmount)
+		}
+	}
+
+	plannedEntries, err := s.GetPlannedEntriesForMonth(ctx, GetPlannedEntriesForMonthInput{
+		UserID:         input.UserID,
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range plannedEntries {
+		if entry.Status == PlannedEntryStatusDismissed {
+			continue
+		}
+		if entry.EntryType == PlannedEntryTypeIncome {
+			amount := entry.Amount
+			if entry.AmountMax != nil {
+				amount = *entry.AmountMax
+			}
+			totalPlannedIncome = totalPlannedIncome.Add(amount)
+		}
+	}
+
+	minimumControlledAmount := decimal.Zero
+	if totalPlannedIncome.IsPositive() {
+		minimumControlledAmount = totalPlannedIncome.Mul(decimal.NewFromFloat(0.01))
+	}
+
+	// Create map of category ID -> controlled amount
+	// Include all categories that have a non-zero controlled amount
+	budgetMap := make(map[int]decimal.Decimal)
+	for _, b := range categoryBudgets {
+		category, ok := categoryMap[b.CategoryID]
+		if !ok {
+			continue
+		}
+		if category.CategoryType == "expense" &&
+			b.ControlledAmount.IsPositive() &&
+			(minimumControlledAmount.IsZero() || b.ControlledAmount.GreaterThanOrEqual(minimumControlledAmount)) {
+			budgetMap[b.CategoryID] = b.ControlledAmount
+		}
+	}
+
+	// Build controllable categories from those with non-zero controlled amounts
 	controllableCategories := []CategoryModel{}
 	for catID := range budgetMap {
 		if cat, ok := categoryMap[catID]; ok {
