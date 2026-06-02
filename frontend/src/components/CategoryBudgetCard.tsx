@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { CategoryBudget, PlannedEntryWithStatus, PlannedEntryStatusType } from '../types/budget';
 import { getVarianceStatus, VARIANCE_THRESHOLDS, getStatusBadgeClasses, getStatusLabel } from '../types/budget';
 import { useDropdownClose } from '../hooks/useDropdownClose';
+import DropdownMenu from './ui/DropdownMenu';
 
 interface CategoryBudgetCardProps {
   budget: CategoryBudget;
@@ -213,11 +214,10 @@ export default function CategoryBudgetCard({
   const [showDismissModal, setShowDismissModal] = useState(false);
   const [dismissingEntryId, setDismissingEntryId] = useState<number | null>(null);
   const [dismissReason, setDismissReason] = useState('');
-  const [expandedEntryActions, setExpandedEntryActions] = useState<number | null>(null);
 
-  // Handle click outside and Escape key for dropdown menus
+  // Handle click outside and Escape key for the category-level actions menu.
+  // The per-entry menu manages its own open state inside DropdownMenu.
   const actionsMenuRef = useDropdownClose(showActions, () => setShowActions(false));
-  const entryActionsMenuRef = useDropdownClose(expandedEntryActions !== null, () => setExpandedEntryActions(null));
 
   // Handle ESC key to close modals
   useEffect(() => {
@@ -561,27 +561,24 @@ export default function CategoryBudgetCard({
               entry={entry}
               onEditEntry={onEditEntry}
               actions={
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedEntryActions(expandedEntryActions === entry.PlannedEntryID ? null : entry.PlannedEntryID);
-                    }}
-                    className="p-1 hover:bg-stone-100 rounded-full transition-colors"
-                    aria-label="Ações"
-                  >
+                <DropdownMenu
+                  width={176}
+                  buttonAriaLabel="Ações"
+                  buttonClassName="p-1 hover:bg-stone-100 rounded-full transition-colors"
+                  buttonContent={
                     <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                     </svg>
-                  </button>
-
-                  {expandedEntryActions === entry.PlannedEntryID && (
-                    <div ref={entryActionsMenuRef} className="absolute right-0 mt-1 w-40 bg-stone-50 rounded-lg shadow-warm-lg border border-stone-200 py-1 z-20">
+                  }
+                >
+                  {(close) => (
+                    <>
                       {(entry.Status === 'pending' || entry.Status === 'missed') && onMatchEntry && (
                         <button
+                          type="button"
                           onClick={() => {
                             onMatchEntry(entry.PlannedEntryID);
-                            setExpandedEntryActions(null);
+                            close();
                           }}
                           className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
@@ -590,9 +587,10 @@ export default function CategoryBudgetCard({
                       )}
                       {entry.Status === 'matched' && onUnmatchEntry && (
                         <button
+                          type="button"
                           onClick={() => {
                             onUnmatchEntry(entry.PlannedEntryID);
-                            setExpandedEntryActions(null);
+                            close();
                           }}
                           className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
@@ -601,10 +599,11 @@ export default function CategoryBudgetCard({
                       )}
                       {(entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
                         <button
+                          type="button"
                           onClick={() => {
                             setDismissingEntryId(entry.PlannedEntryID);
                             setShowDismissModal(true);
-                            setExpandedEntryActions(null);
+                            close();
                           }}
                           className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
@@ -613,9 +612,10 @@ export default function CategoryBudgetCard({
                       )}
                       {entry.Status === 'dismissed' && onUndismissEntry && (
                         <button
+                          type="button"
                           onClick={() => {
                             onUndismissEntry(entry.PlannedEntryID);
-                            setExpandedEntryActions(null);
+                            close();
                           }}
                           className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
@@ -624,9 +624,10 @@ export default function CategoryBudgetCard({
                       )}
                       {onEditEntry && (
                         <button
+                          type="button"
                           onClick={() => {
                             onEditEntry(entry);
-                            setExpandedEntryActions(null);
+                            close();
                           }}
                           className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-50 text-stone-700"
                         >
@@ -635,10 +636,10 @@ export default function CategoryBudgetCard({
                       )}
                       {entry.Status === 'matched' && entry.MatchedTransactionID && !entry.PatternID && onCreatePatternFromMatch && month && year && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          type="button"
+                          onClick={() => {
                             onCreatePatternFromMatch(entry, month, year);
-                            setExpandedEntryActions(null);
+                            close();
                           }}
                           className="w-full text-left px-3 py-1.5 text-sm text-wheat-700 hover:bg-wheat-50 flex items-center gap-2"
                         >
@@ -648,20 +649,21 @@ export default function CategoryBudgetCard({
                       )}
                       {onDeleteEntry && (
                         <button
+                          type="button"
                           onClick={() => {
                             if (confirm(`Excluir "${entry.Description}"?`)) {
                               onDeleteEntry(entry.PlannedEntryID);
                             }
-                            setExpandedEntryActions(null);
+                            close();
                           }}
                           className="w-full text-left px-3 py-1.5 text-sm hover:bg-rust-50 text-rust-600"
                         >
                           Excluir
                         </button>
                       )}
-                    </div>
+                    </>
                   )}
-                </>
+                </DropdownMenu>
               }
             />
           ))}
