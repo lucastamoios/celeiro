@@ -335,6 +335,16 @@ type TagModel struct {
 
 type TagsModel []TagModel
 
+// TagSpendingModel is the aggregated expense total for a tag in a given month
+type TagSpendingModel struct {
+	TagID            int             `db:"tag_id"`
+	Name             string          `db:"name"`
+	Icon             string          `db:"icon"`
+	Color            string          `db:"color"`
+	Total            decimal.Decimal `db:"total"`
+	TransactionCount int             `db:"transaction_count"`
+}
+
 // TransactionTagModel represents the many-to-many relationship between transactions and tags
 type TransactionTagModel struct {
 	TransactionTagID int       `db:"transaction_tag_id"`

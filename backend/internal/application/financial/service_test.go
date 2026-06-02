@@ -346,6 +346,11 @@ func (m *MockRepository) FetchTags(ctx context.Context, params fetchTagsParams) 
 	return args.Get(0).([]TagModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchTagSpendingByMonth(ctx context.Context, params fetchTagSpendingByMonthParams) ([]TagSpendingModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagSpendingModel), args.Error(1)
+}
+
 func (m *MockRepository) FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(TagModel), args.Error(1)

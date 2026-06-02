@@ -95,6 +95,7 @@ type Repository interface {
 
 	// Tags
 	FetchTags(ctx context.Context, params fetchTagsParams) ([]TagModel, error)
+	FetchTagSpendingByMonth(ctx context.Context, params fetchTagSpendingByMonthParams) ([]TagSpendingModel, error)
 	FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error)
 	InsertTag(ctx context.Context, params insertTagParams) (TagModel, error)
 	ModifyTag(ctx context.Context, params modifyTagParams) (TagModel, error)
@@ -2581,6 +2582,44 @@ func (r *repository) FetchTags(ctx context.Context, params fetchTagsParams) ([]T
 	var tags []TagModel
 	err := r.db.Query(ctx, &tags, fetchTagsQuery, params.OrganizationID)
 	return tags, err
+}
+
+type fetchTagSpendingByMonthParams struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// Aggregates expense (debit) spending per tag for a single month, scoped to the
+// organization. Only tags with at least one matching transaction are returned.
+const fetchTagSpendingByMonthQuery = `
+	-- financial.fetchTagSpendingByMonthQuery
+	SELECT
+		t.tag_id,
+		t.name,
+		t.icon,
+		t.color,
+		COALESCE(SUM(tx.amount), 0) AS total,
+		COUNT(tx.transaction_id) AS transaction_count
+	FROM tags t
+	INNER JOIN transaction_tags tt ON tt.tag_id = t.tag_id
+	INNER JOIN transactions tx ON tx.transaction_id = tt.transaction_id
+	INNER JOIN accounts a ON a.account_id = tx.account_id
+	WHERE t.organization_id = $1
+		AND a.organization_id = $1
+		AND tx.transaction_type = 'debit'
+		AND tx.is_ignored = false
+		AND EXTRACT(MONTH FROM tx.transaction_date) = $2
+		AND EXTRACT(YEAR FROM tx.transaction_date) = $3
+	GROUP BY t.tag_id, t.name, t.icon, t.color
+	ORDER BY total DESC;
+`
+
+func (r *repository) FetchTagSpendingByMonth(ctx context.Context, params fetchTagSpendingByMonthParams) ([]TagSpendingModel, error) {
+	var spending []TagSpendingModel
+	err := r.db.Query(ctx, &spending, fetchTagSpendingByMonthQuery,
+		params.OrganizationID, params.Month, params.Year)
+	return spending, err
 }
 
 type fetchTagByIDParams struct {

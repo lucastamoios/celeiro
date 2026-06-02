@@ -119,6 +119,7 @@ type Service interface {
 
 	// Tags
 	GetTags(ctx context.Context, input GetTagsInput) ([]Tag, error)
+	GetTagSpending(ctx context.Context, input GetTagSpendingInput) ([]TagSpending, error)
 	GetTagByID(ctx context.Context, input GetTagByIDInput) (Tag, error)
 	CreateTag(ctx context.Context, input CreateTagInput) (Tag, error)
 	UpdateTag(ctx context.Context, input UpdateTagInput) (Tag, error)
@@ -2331,6 +2332,25 @@ func (s *service) GetTags(ctx context.Context, input GetTagsInput) ([]Tag, error
 	}
 
 	return Tags{}.FromModel(models), nil
+}
+
+type GetTagSpendingInput struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput) ([]TagSpending, error) {
+	models, err := s.Repository.FetchTagSpendingByMonth(ctx, fetchTagSpendingByMonthParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch tag spending")
+	}
+
+	return TagSpendings{}.FromModel(models), nil
 }
 
 type GetTagByIDInput struct {

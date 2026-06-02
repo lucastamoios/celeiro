@@ -159,6 +159,7 @@ func NewRouter(application *application.Application, logger logging.Logger, cfg 
 
 		// Tags
 		r.Get("/tags", mw.RequireSession(fh.ListTags, []accounts.Permission{}))
+		r.Get("/tags/spending", mw.RequireSession(fh.ListTagSpending, []accounts.Permission{}))
 		r.Post("/tags", mw.RequireSession(fh.CreateTag, []accounts.Permission{}))
 		r.Get("/tags/{id}", mw.RequireSession(fh.GetTag, []accounts.Permission{}))
 		r.Patch("/tags/{id}", mw.RequireSession(fh.UpdateTag, []accounts.Permission{}))

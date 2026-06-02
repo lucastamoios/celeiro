@@ -2417,6 +2417,38 @@ func (h *Handler) ListTags(w http.ResponseWriter, r *http.Request) {
 	responses.NewSuccess(tags, w)
 }
 
+func (h *Handler) ListTagSpending(w http.ResponseWriter, r *http.Request) {
+	_, organizationID, err := h.getSessionInfo(r)
+	if err != nil {
+		responses.NewError(w, errors.ErrUnauthorized)
+		return
+	}
+
+	month, err := strconv.Atoi(r.URL.Query().Get("month"))
+	if err != nil || month < 1 || month > 12 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	year, err := strconv.Atoi(r.URL.Query().Get("year"))
+	if err != nil || year < 1900 {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+
+	spending, err := h.app.FinancialService.GetTagSpending(r.Context(), financialApp.GetTagSpendingInput{
+		OrganizationID: organizationID,
+		Month:          month,
+		Year:           year,
+	})
+	if err != nil {
+		responses.NewError(w, err)
+		return
+	}
+
+	responses.NewSuccess(spending, w)
+}
+
 func (h *Handler) GetTag(w http.ResponseWriter, r *http.Request) {
 	userID, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
