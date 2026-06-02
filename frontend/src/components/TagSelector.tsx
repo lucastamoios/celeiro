@@ -94,6 +94,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
           {selectedTags.map(tag => (
             <button
               key={tag.tag_id}
+              type="button"
               onClick={() => toggleTag(tag.tag_id)}
               disabled={disabled}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 border-wheat-500 bg-wheat-50 text-wheat-800 transition-all ${
@@ -117,6 +118,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
 
       {/* Expand/Collapse button */}
       <button
+        type="button"
         onClick={() => setIsExpanded(!isExpanded)}
         disabled={disabled}
         className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
@@ -143,6 +145,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
           {unselectedTags.map(tag => (
             <button
               key={tag.tag_id}
+              type="button"
               onClick={() => toggleTag(tag.tag_id)}
               disabled={disabled}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border border-stone-300 bg-stone-50 text-stone-700 transition-all ${
