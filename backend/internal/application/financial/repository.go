@@ -2629,13 +2629,13 @@ type fetchTagPlannedByMonthParams struct {
 	Year           int
 }
 
-// Aggregates the planned expense amount still to reserve per tag for a single
-// month, scoped to the organization. Includes recurrent active entries (apply
-// every month) plus one-time active entries targeting this month/year. Entries
-// already matched (the spending happened, with tags transferred to the
-// transaction) or dismissed for the month are excluded, so the amount reflects
-// only what is still expected to be set aside. Only tags with a positive
-// remaining planned amount are returned.
+// Aggregates the planned expense budget per tag for a single month, scoped to
+// the organization. Includes recurrent active entries (apply every month) plus
+// one-time active entries targeting this month/year. Entries dismissed for the
+// month are excluded because the user explicitly removed them from this month's
+// plan; entries already matched are kept, since the budget still planned for
+// them (they show as spent on the actual side). Only tags with a positive
+// planned budget are returned.
 const fetchTagPlannedByMonthQuery = `
 	-- financial.fetchTagPlannedByMonthQuery
 	SELECT
@@ -2659,7 +2659,7 @@ const fetchTagPlannedByMonthQuery = `
 			pe.is_recurrent = true
 			OR (pe.target_month = $2 AND pe.target_year = $3)
 		)
-		AND (pes.status IS NULL OR pes.status NOT IN ('matched', 'dismissed'))
+		AND (pes.status IS NULL OR pes.status <> 'dismissed')
 	GROUP BY t.tag_id, t.name, t.icon, t.color
 	HAVING COALESCE(SUM(pe.amount), 0) > 0
 	ORDER BY total DESC;

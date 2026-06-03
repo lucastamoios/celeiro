@@ -345,8 +345,8 @@ type TagSpendingModel struct {
 	TransactionCount int             `db:"transaction_count"`
 }
 
-// TagPlannedModel is the planned expense amount still to reserve for a tag in a
-// given month (matched and dismissed entries excluded).
+// TagPlannedModel is the planned expense budget for a tag in a given month
+// (dismissed entries excluded).
 type TagPlannedModel struct {
 	TagID int             `db:"tag_id"`
 	Name  string          `db:"name"`

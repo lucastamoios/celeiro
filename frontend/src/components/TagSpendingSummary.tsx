@@ -57,9 +57,9 @@ export default function TagSpendingSummary({ month, year, refreshKey }: TagSpend
     return null;
   }
 
-  const total = spending.reduce((sum, t) => sum + (parseFloat(t.total) || 0), 0);
+  const totalSpent = spending.reduce((sum, t) => sum + (parseFloat(t.total) || 0), 0);
   const totalPlanned = spending.reduce((sum, t) => sum + (parseFloat(t.planned) || 0), 0);
-  const maxTotal = spending.reduce((max, t) => Math.max(max, parseFloat(t.total) || 0), 0);
+  const totalBalance = totalPlanned - totalSpent;
 
   return (
     <div className="mt-6 card">
@@ -68,13 +68,13 @@ export default function TagSpendingSummary({ month, year, refreshKey }: TagSpend
         <h2 className="font-display text-lg font-semibold text-stone-900">Planejado e Gasto por Tag</h2>
       </div>
       <p className="text-sm text-stone-500 mb-4">
-        Comparação entre o planejado e o gasto em cada tag neste mês.
+        Orçamento planejado contra o gasto real de cada tag neste mês.
       </p>
 
       {loading && (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 bg-stone-100 rounded-lg" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-pulse">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-stone-100 rounded-xl" />
           ))}
         </div>
       )}
@@ -85,51 +85,84 @@ export default function TagSpendingSummary({ month, year, refreshKey }: TagSpend
 
       {!loading && !error && (
         <>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {spending.map((tag) => {
-              const value = parseFloat(tag.total) || 0;
-              const widthPct = maxTotal > 0 ? Math.max(2, (value / maxTotal) * 100) : 0;
+              const spent = parseFloat(tag.total) || 0;
+              const planned = parseFloat(tag.planned) || 0;
+              const balance = planned - spent;
+              const over = spent > planned;
+              const pctUsed = planned > 0 ? (spent / planned) * 100 : spent > 0 ? 100 : 0;
+
               return (
-                <div key={tag.tag_id}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: tag.color || '#6B7280' }}
-                      />
-                      <span className="flex-shrink-0">{tag.icon}</span>
-                      <span className="font-medium text-stone-800 truncate">{tag.name}</span>
-                      {tag.transaction_count > 0 && (
-                        <span className="text-xs text-stone-400 flex-shrink-0">
-                          ({tag.transaction_count} {tag.transaction_count === 1 ? 'transação' : 'transações'})
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <span className="font-semibold text-stone-900 tabular-nums block">
-                        {formatCurrencyBRL(tag.total)}
+                <div key={tag.tag_id} className="rounded-xl border border-stone-200 p-4">
+                  <div className="flex items-center gap-2 mb-3 min-w-0">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: tag.color || '#6B7280' }}
+                    />
+                    <span className="flex-shrink-0">{tag.icon}</span>
+                    <span className="font-medium text-stone-900 truncate">{tag.name}</span>
+                    {tag.transaction_count > 0 && (
+                      <span className="text-xs text-stone-400 flex-shrink-0">
+                        ({tag.transaction_count} {tag.transaction_count === 1 ? 'transação' : 'transações'})
                       </span>
-                      <span className="text-xs text-stone-500 tabular-nums">
-                        de {formatCurrencyBRL(tag.planned)} planejado
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-stone-500">Planejado</span>
+                      <span className="tabular-nums text-stone-800">{formatCurrencyBRL(planned)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-stone-500">Gasto</span>
+                      <span className="tabular-nums text-stone-800">{formatCurrencyBRL(spent)}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1.5 border-t border-stone-100">
+                      <span className="font-medium text-stone-600">Saldo</span>
+                      <span className={`font-semibold tabular-nums ${over ? 'text-rust-600' : 'text-sage-700'}`}>
+                        {formatCurrencyBRL(balance)}
                       </span>
                     </div>
                   </div>
-                  <div className="mt-1.5 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+
+                  <div className="mt-3 h-1.5 bg-stone-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full"
-                      style={{ width: `${widthPct}%`, backgroundColor: tag.color || '#C6943A' }}
+                      className={`h-full rounded-full ${over ? 'bg-rust-500' : 'bg-wheat-500'}`}
+                      style={{ width: `${Math.min(100, pctUsed)}%` }}
                     />
                   </div>
+                  <p className={`text-xs mt-1 ${over ? 'text-rust-600' : 'text-stone-400'}`}>
+                    {planned > 0
+                      ? over
+                        ? `${pctUsed.toFixed(0)}% — acima do planejado`
+                        : `${pctUsed.toFixed(0)}% usado`
+                      : 'Sem planejamento'}
+                  </p>
                 </div>
               );
             })}
           </div>
 
-          <div className="flex items-center justify-between pt-4 mt-4 border-t border-stone-200">
-            <span className="text-sm font-medium text-stone-600">Total gasto</span>
-            <div className="text-right">
-              <span className="font-bold text-stone-900 tabular-nums block">{formatCurrencyBRL(total)}</span>
-              <span className="text-xs text-stone-500 tabular-nums">de {formatCurrencyBRL(totalPlanned)} planejado</span>
+          <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="font-medium text-stone-700">Total do mês</span>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">Planejado</span>
+                <span className="tabular-nums text-stone-800">{formatCurrencyBRL(totalPlanned)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">Gasto</span>
+                <span className="tabular-nums text-stone-800">{formatCurrencyBRL(totalSpent)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-stone-200">
+                <span className="font-medium text-stone-600">Saldo</span>
+                <span className={`font-bold tabular-nums ${totalBalance < 0 ? 'text-rust-600' : 'text-sage-700'}`}>
+                  {formatCurrencyBRL(totalBalance)}
+                </span>
+              </div>
             </div>
           </div>
         </>

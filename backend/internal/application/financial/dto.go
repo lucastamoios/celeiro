@@ -616,16 +616,16 @@ func (t Tags) FromModel(models []TagModel) Tags {
 	return tags
 }
 
-// TagSpending DTO - aggregated planned and spent totals for a tag in a given
-// month. Total is what was spent; Planned is what remains to reserve (matched
-// and dismissed planned entries excluded). The service composes both sources,
-// so there is no single-model conversion helper.
+// TagSpending DTO - per-tag budget-vs-actual for a given month. Total is what
+// was spent; Planned is the planned budget (dismissed entries excluded). The
+// frontend derives the balance as Planned - Total. The service composes both
+// sources, so there is no single-model conversion helper.
 type TagSpending struct {
 	TagID            int    `json:"tag_id"`
 	Name             string `json:"name"`
 	Icon             string `json:"icon"`
 	Color            string `json:"color"`
-	Total            string `json:"total"`   // spent: sum of expense transactions
-	Planned          string `json:"planned"` // planned still to reserve: sum of unmatched planned expense entries
+	Total            string `json:"total"`   // spent: sum of expense transactions carrying the tag
+	Planned          string `json:"planned"` // planned budget: sum of planned expense entries for the month
 	TransactionCount int    `json:"transaction_count"`
 }

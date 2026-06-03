@@ -2342,10 +2342,9 @@ type GetTagSpendingInput struct {
 }
 
 // GetTagSpending returns, per tag, the amount spent this month and the planned
-// amount still to reserve (matched/dismissed planned entries excluded). A tag is
-// listed when it has spending or remaining planned, so the user can see both
-// what has gone out and what to set aside. Sorted by spent then planned, both
-// descending.
+// budget (dismissed planned entries excluded). A tag is listed when it has
+// spending or a planned budget, so the user sees both what has gone out and the
+// budget to compare it against. Sorted by spent then planned, both descending.
 func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput) ([]TagSpending, error) {
 	spentModels, err := s.Repository.FetchTagSpendingByMonth(ctx, fetchTagSpendingByMonthParams{
 		OrganizationID: input.OrganizationID,
