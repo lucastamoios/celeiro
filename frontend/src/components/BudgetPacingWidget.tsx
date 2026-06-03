@@ -25,9 +25,16 @@ interface PacingData {
 interface BudgetPacingWidgetProps {
   month?: number;
   year?: number;
+  /**
+   * Total planned income for the month. When > 0, controllable categories whose
+   * budget is below 1% of it are hidden, matching the dashboard's category
+   * expense filter. Passed in so the widget uses the same income figure as the
+   * rest of the dashboard rather than recomputing it.
+   */
+  plannedIncome?: number;
 }
 
-export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetProps) {
+export default function BudgetPacingWidget({ month, year, plannedIncome = 0 }: BudgetPacingWidgetProps) {
   const { token } = useAuth();
   const [pacingData, setPacingData] = useState<PacingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,8 +140,15 @@ export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetPr
     return null; // Silently hide on error
   }
 
-  // Only show if there are controllable categories
-  if (pacingData.categories.length === 0) {
+  // Hide trivial categories: those whose budget is below 1% of planned income.
+  // When no planned income is known we have no basis to filter, so keep all.
+  const minimumBudget = plannedIncome > 0 ? plannedIncome * 0.01 : 0;
+  const visibleCategories = minimumBudget > 0
+    ? pacingData.categories.filter((c) => parseFloat(c.budget) >= minimumBudget)
+    : pacingData.categories;
+
+  // Only show if there are controllable categories left after filtering
+  if (visibleCategories.length === 0) {
     return null;
   }
 
@@ -145,7 +159,7 @@ export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetPr
     under_pace: 2,
     no_budget: 3,
   };
-  const sortedCategories = [...pacingData.categories].sort((a, b) => {
+  const sortedCategories = [...visibleCategories].sort((a, b) => {
     const orderDiff = statusOrder[a.status] - statusOrder[b.status];
     if (orderDiff !== 0) return orderDiff;
     // Within same status, sort by variance descending (most over-budget first)

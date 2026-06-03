@@ -181,24 +181,11 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		})
 	}
 
-	// Filter out trivial categories: only keep those whose budget is at least
-	// 1% of the month's planned income. If no planned income is configured we
-	// have no basis to filter, so everything is kept.
-	plannedIncome, err := s.plannedIncomeForMonth(ctx, input.OrganizationID, input.Month, input.Year)
-	if err != nil {
-		return nil, err
-	}
-	if plannedIncome.IsPositive() {
-		threshold := plannedIncome.Mul(decimal.NewFromFloat(0.01))
-		filtered := make([]CategoryPacing, 0, len(categoryPacingList))
-		for _, cp := range categoryPacingList {
-			if cp.Budget.GreaterThanOrEqual(threshold) {
-				filtered = append(filtered, cp)
-			}
-		}
-		categoryPacingList = filtered
-	}
-
+	// Note: trivial categories (budget below 1% of planned income) are filtered
+	// out on the dashboard, which already computes total planned income from both
+	// income-category budgets and planned income entries. Keeping that filter in
+	// one place (the frontend) ensures the pacing widget hides exactly the same
+	// categories as the rest of the dashboard.
 	return &ControllableCategoryPacing{
 		Month:              input.Month,
 		Year:               input.Year,
@@ -207,32 +194,4 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		ProgressPercentage: progressPercentage,
 		Categories:         categoryPacingList,
 	}, nil
-}
-
-// plannedIncomeForMonth sums the active planned income entries that apply to the
-// given month: recurrent entries (every month) plus one-time entries targeting
-// this specific month and year.
-func (s *service) plannedIncomeForMonth(ctx context.Context, organizationID, month, year int) (decimal.Decimal, error) {
-	isActive := true
-	entries, err := s.Repository.FetchPlannedEntries(ctx, fetchPlannedEntriesParams{
-		OrganizationID: organizationID,
-		IsActive:       &isActive,
-	})
-	if err != nil {
-		return decimal.Zero, err
-	}
-
-	total := decimal.Zero
-	for _, e := range entries {
-		if e.EntryType != PlannedEntryTypeIncome {
-			continue
-		}
-		appliesToMonth := e.IsRecurrent ||
-			(e.TargetMonth != nil && *e.TargetMonth == month &&
-				e.TargetYear != nil && *e.TargetYear == year)
-		if appliesToMonth {
-			total = total.Add(e.Amount)
-		}
-	}
-	return total, nil
 }

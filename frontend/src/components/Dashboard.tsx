@@ -530,7 +530,11 @@ export default function Dashboard() {
       )}
 
       {/* Budget Pacing Widget - Hero position */}
-      <BudgetPacingWidget month={selectedMonth} year={selectedYear} />
+      <BudgetPacingWidget
+        month={selectedMonth}
+        year={selectedYear}
+        plannedIncome={stats.budgetSummary?.totalPlannedIncome ?? 0}
+      />
 
       {/* Financial Overview Card */}
       <div className="card mb-8">
