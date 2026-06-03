@@ -356,6 +356,11 @@ func (m *MockRepository) FetchTagPlannedByMonth(ctx context.Context, params fetc
 	return args.Get(0).([]TagPlannedModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchIncomeBudgetForMonth(ctx context.Context, params fetchIncomeBudgetForMonthParams) (decimal.Decimal, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(decimal.Decimal), args.Error(1)
+}
+
 func (m *MockRepository) FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(TagModel), args.Error(1)
@@ -505,6 +510,64 @@ func TestGetTransactions_DefaultLimit(t *testing.T) {
 
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
+}
+
+// pacingTestSetup wires the four repository calls GetControllableCategoryPacing
+// makes: categories, budgets, transactions, and income budget (for the filter).
+func pacingTestSetup(mockRepo *MockRepository, categories []CategoryModel, budgets []CategoryBudgetModel, plannedIncome decimal.Decimal) {
+	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return([]TransactionModel{}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(plannedIncome, nil)
+}
+
+func TestGetControllableCategoryPacing_FiltersBelowOnePercentOfIncome(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	categories := []CategoryModel{
+		{CategoryID: 10, Name: "Família", Icon: "🛏️", IsControllable: true},
+		{CategoryID: 20, Name: "Compras Essenciais", Icon: "👕", IsControllable: true},
+	}
+	// Planned income 39000 -> 1% threshold is 390.00.
+	budgets := []CategoryBudgetModel{
+		{CategoryID: 10, ControlledAmount: decimal.NewFromInt(1)},   // below threshold -> hidden
+		{CategoryID: 20, ControlledAmount: decimal.NewFromInt(500)}, // above threshold -> shown
+	}
+	pacingTestSetup(mockRepo, categories, budgets, decimal.NewFromInt(39000))
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.Equal(t, "Compras Essenciais", result.Categories[0].CategoryName)
+}
+
+func TestGetControllableCategoryPacing_NoIncomeShowsAll(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	categories := []CategoryModel{
+		{CategoryID: 10, Name: "Família", Icon: "🛏️", IsControllable: true},
+		{CategoryID: 20, Name: "Compras Essenciais", Icon: "👕", IsControllable: true},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: 10, ControlledAmount: decimal.NewFromInt(1)},
+		{CategoryID: 20, ControlledAmount: decimal.NewFromInt(500)},
+	}
+	// No planned income: nothing to filter against, so everything shows.
+	pacingTestSetup(mockRepo, categories, budgets, decimal.Zero)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 2)
 }
 
 func TestGetTagSpending_UnionsPlannedAndSpent(t *testing.T) {

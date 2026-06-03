@@ -181,11 +181,30 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		})
 	}
 
-	// Note: trivial categories (budget below 1% of planned income) are filtered
-	// out on the dashboard, which already computes total planned income from both
-	// income-category budgets and planned income entries. Keeping that filter in
-	// one place (the frontend) ensures the pacing widget hides exactly the same
-	// categories as the rest of the dashboard.
+	// Hide trivial categories: keep only those whose budget is at least 1% of the
+	// month's planned income. Planned income is the controlled amount of
+	// income-type category budgets (the same "Receita Estimado" figure the budget
+	// dashboard shows). If there is no planned income we have no basis to filter,
+	// so everything is kept.
+	plannedIncome, err := s.Repository.FetchIncomeBudgetForMonth(ctx, fetchIncomeBudgetForMonthParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if plannedIncome.IsPositive() {
+		threshold := plannedIncome.Mul(decimal.NewFromFloat(0.01))
+		filtered := make([]CategoryPacing, 0, len(categoryPacingList))
+		for _, cp := range categoryPacingList {
+			if cp.Budget.GreaterThanOrEqual(threshold) {
+				filtered = append(filtered, cp)
+			}
+		}
+		categoryPacingList = filtered
+	}
+
 	return &ControllableCategoryPacing{
 		Month:              input.Month,
 		Year:               input.Year,

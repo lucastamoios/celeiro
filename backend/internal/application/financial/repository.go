@@ -97,6 +97,7 @@ type Repository interface {
 	FetchTags(ctx context.Context, params fetchTagsParams) ([]TagModel, error)
 	FetchTagSpendingByMonth(ctx context.Context, params fetchTagSpendingByMonthParams) ([]TagSpendingModel, error)
 	FetchTagPlannedByMonth(ctx context.Context, params fetchTagPlannedByMonthParams) ([]TagPlannedModel, error)
+	FetchIncomeBudgetForMonth(ctx context.Context, params fetchIncomeBudgetForMonthParams) (decimal.Decimal, error)
 	FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error)
 	InsertTag(ctx context.Context, params insertTagParams) (TagModel, error)
 	ModifyTag(ctx context.Context, params modifyTagParams) (TagModel, error)
@@ -2670,6 +2671,44 @@ func (r *repository) FetchTagPlannedByMonth(ctx context.Context, params fetchTag
 	err := r.db.Query(ctx, &planned, fetchTagPlannedByMonthQuery,
 		params.OrganizationID, params.Month, params.Year)
 	return planned, err
+}
+
+type fetchIncomeBudgetForMonthParams struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+type incomeBudgetSum struct {
+	Total decimal.Decimal `db:"total"`
+}
+
+// Sums the controlled (planned) amounts of income-type category budgets for a
+// month, scoped to the organization. This is the same figure the budget
+// dashboard shows as planned income ("Receita Estimado"), computed here so the
+// pacing widget can filter against it server-side.
+const fetchIncomeBudgetForMonthQuery = `
+	-- financial.fetchIncomeBudgetForMonthQuery
+	SELECT COALESCE(SUM(cb.controlled_amount), 0) AS total
+	FROM category_budgets cb
+	INNER JOIN categories c ON c.category_id = cb.category_id
+	WHERE cb.organization_id = $1
+		AND cb.month = $2
+		AND cb.year = $3
+		AND c.category_type = 'income';
+`
+
+func (r *repository) FetchIncomeBudgetForMonth(ctx context.Context, params fetchIncomeBudgetForMonthParams) (decimal.Decimal, error) {
+	var rows []incomeBudgetSum
+	err := r.db.Query(ctx, &rows, fetchIncomeBudgetForMonthQuery,
+		params.OrganizationID, params.Month, params.Year)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	if len(rows) == 0 {
+		return decimal.Zero, nil
+	}
+	return rows[0].Total, nil
 }
 
 type fetchTagByIDParams struct {
