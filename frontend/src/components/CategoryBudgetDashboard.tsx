@@ -1689,6 +1689,7 @@ export default function CategoryBudgetDashboard() {
                 ParentEntryID: editingEntry.ParentEntryID,
                 PatternID: editingEntry.PatternID,
                 SavingsGoalID: editingEntry.SavingsGoalID,
+                TagIDs: editingEntry.TagIDs,
                 CreatedAt: '',
                 UpdatedAt: '',
               }}
@@ -1807,6 +1808,7 @@ export default function CategoryBudgetDashboard() {
                 ParentEntryID: editingPlannedEntryFromBudget.ParentEntryID,
                 PatternID: editingPlannedEntryFromBudget.PatternID,
                 SavingsGoalID: editingPlannedEntryFromBudget.SavingsGoalID,
+                TagIDs: editingPlannedEntryFromBudget.TagIDs,
                 CreatedAt: '',
                 UpdatedAt: '',
               }}
