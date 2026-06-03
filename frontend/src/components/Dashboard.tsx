@@ -10,6 +10,7 @@ import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import BudgetPacingWidget from './BudgetPacingWidget';
+import TagSpendingSummary from './TagSpendingSummary';
 import { getCategoryColor } from '../utils/colors';
 
 interface Account {
@@ -960,6 +961,9 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Planned vs spent per tag for the selected month */}
+      <TagSpendingSummary month={selectedMonth} year={selectedYear} />
     </div>
   );
 }

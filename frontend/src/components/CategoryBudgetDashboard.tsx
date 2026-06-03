@@ -34,7 +34,6 @@ import { parseTransactionDate } from '../utils/date';
 import TransactionMatcherModal from './TransactionMatcherModal';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
 import TransactionEditModal from './TransactionEditModal';
-import TagSpendingSummary from './TagSpendingSummary';
 import Modal from './ui/Modal';
 
 interface MonthlyBudgetData {
@@ -71,8 +70,6 @@ export default function CategoryBudgetDashboard() {
   const [transactionOnlySpending, setTransactionOnlySpending] = useState<Record<string, Record<number, string>>>({});
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
-  // Bumped whenever spending data is recalculated, so dependent summaries refetch.
-  const [dataVersion, setDataVersion] = useState(0);
 
   // Expanded month state - key is "month-year"
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
@@ -485,7 +482,6 @@ export default function CategoryBudgetDashboard() {
         txOnlySpending[key][tx.category_id] = (current + parseFloat(tx.amount)).toFixed(2);
       });
       setTransactionOnlySpending(txOnlySpending);
-      setDataVersion(v => v + 1);
     } catch (err) {
       console.error('Failed to calculate actual spending:', err);
     }
@@ -1577,15 +1573,6 @@ export default function CategoryBudgetDashboard() {
               hideHeader={true}
             />
         ))}
-
-        {/* Cost per tag for the selected month */}
-        {categories.length > 0 && (
-          <TagSpendingSummary
-            month={selectedMonth}
-            year={selectedYear}
-            refreshKey={dataVersion}
-          />
-        )}
 
         {/* Create/Edit Budget Modal */}
         <Modal
