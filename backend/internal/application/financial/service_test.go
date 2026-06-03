@@ -570,6 +570,25 @@ func TestGetControllableCategoryPacing_NoIncomeShowsAll(t *testing.T) {
 	assert.Len(t, result.Categories, 2)
 }
 
+func TestGetPlannedEntryByID_ReturnsTagIDs(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("FetchPlannedEntryByID", mock.Anything, mock.Anything).
+		Return(PlannedEntryModel{PlannedEntryID: 7, Description: "Escola", EntryType: "expense"}, nil)
+	mockRepo.On("FetchTagsByPlannedEntryID", mock.Anything, mock.Anything).
+		Return([]TagModel{{TagID: 3}, {TagID: 9}}, nil)
+
+	entry, err := svc.GetPlannedEntryByID(ctx, GetPlannedEntryByIDInput{
+		PlannedEntryID: 7, UserID: 1, OrganizationID: 1,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, []int{3, 9}, entry.TagIDs)
+	mockRepo.AssertExpectations(t)
+}
+
 func TestGetTagSpending_UnionsPlannedAndSpent(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := &service{Repository: mockRepo, system: system.NewSystem()}

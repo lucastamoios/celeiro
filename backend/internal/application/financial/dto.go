@@ -256,6 +256,9 @@ type PlannedEntry struct {
 	ParentEntryID *int `json:",omitempty"`
 	IsActive      bool
 
+	// Tags assigned to the entry; transferred to a transaction when matched.
+	TagIDs []int
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

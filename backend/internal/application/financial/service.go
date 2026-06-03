@@ -1266,7 +1266,32 @@ func (s *service) GetPlannedEntries(ctx context.Context, params GetPlannedEntrie
 		return nil, errors.Wrap(err, "failed to fetch planned entries")
 	}
 
-	return PlannedEntries{}.FromModel(models), nil
+	entries := PlannedEntries{}.FromModel(models)
+	for i := range entries {
+		entries[i].TagIDs = s.plannedEntryTagIDs(ctx, entries[i].PlannedEntryID)
+	}
+	return entries, nil
+}
+
+// plannedEntryTagIDs returns the tag IDs assigned to a planned entry. On a fetch
+// error it logs and returns an empty slice rather than failing the caller, so a
+// tag lookup problem never breaks listing planned entries.
+func (s *service) plannedEntryTagIDs(ctx context.Context, plannedEntryID int) []int {
+	tags, err := s.Repository.FetchTagsByPlannedEntryID(ctx, fetchTagsByPlannedEntryIDParams{
+		PlannedEntryID: plannedEntryID,
+	})
+	if err != nil {
+		s.logger.Warn(ctx, "failed to fetch tags for planned entry",
+			"planned_entry_id", plannedEntryID,
+			"error", err.Error(),
+		)
+		return []int{}
+	}
+	ids := make([]int, len(tags))
+	for i, t := range tags {
+		ids[i] = t.TagID
+	}
+	return ids
 }
 
 type GetPlannedEntryByIDInput struct {
@@ -1285,7 +1310,9 @@ func (s *service) GetPlannedEntryByID(ctx context.Context, params GetPlannedEntr
 		return PlannedEntry{}, errors.Wrap(err, "failed to fetch planned entry")
 	}
 
-	return PlannedEntry{}.FromModel(&model), nil
+	entry := PlannedEntry{}.FromModel(&model)
+	entry.TagIDs = s.plannedEntryTagIDs(ctx, entry.PlannedEntryID)
+	return entry, nil
 }
 
 type CreatePlannedEntryInput struct {
@@ -1352,7 +1379,9 @@ func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEn
 		}
 	}
 
-	return PlannedEntry{}.FromModel(&model), nil
+	entry := PlannedEntry{}.FromModel(&model)
+	entry.TagIDs = s.plannedEntryTagIDs(ctx, entry.PlannedEntryID)
+	return entry, nil
 }
 
 type UpdatePlannedEntryInput struct {
@@ -1410,7 +1439,9 @@ func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEn
 		}
 	}
 
-	return PlannedEntry{}.FromModel(&model), nil
+	entry := PlannedEntry{}.FromModel(&model)
+	entry.TagIDs = s.plannedEntryTagIDs(ctx, entry.PlannedEntryID)
+	return entry, nil
 }
 
 type DeletePlannedEntryInput struct {
@@ -1634,6 +1665,7 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 	result := make([]PlannedEntryWithStatus, 0, len(entries))
 	for _, entry := range entries {
 		entryDTO := PlannedEntry{}.FromModel(&entry)
+		entryDTO.TagIDs = s.plannedEntryTagIDs(ctx, entry.PlannedEntryID)
 		statusDTO := PlannedEntryWithStatus{
 			PlannedEntry: entryDTO,
 		}
