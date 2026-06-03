@@ -19,12 +19,13 @@ export interface UpdateTagRequest {
   color?: string;
 }
 
-/** Aggregated expense total for a tag in a given month. */
+/** Aggregated planned and spent totals for a tag in a given month. */
 export interface TagSpending {
   tag_id: number;
   name: string;
   icon: string;
   color: string;
   total: string;
+  planned: string;
   transaction_count: number;
 }

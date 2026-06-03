@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -2340,8 +2341,13 @@ type GetTagSpendingInput struct {
 	Year           int
 }
 
+// GetTagSpending returns, per tag, the amount spent this month and the planned
+// amount still to reserve (matched/dismissed planned entries excluded). A tag is
+// listed when it has spending or remaining planned, so the user can see both
+// what has gone out and what to set aside. Sorted by spent then planned, both
+// descending.
 func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput) ([]TagSpending, error) {
-	models, err := s.Repository.FetchTagSpendingByMonth(ctx, fetchTagSpendingByMonthParams{
+	spentModels, err := s.Repository.FetchTagSpendingByMonth(ctx, fetchTagSpendingByMonthParams{
 		OrganizationID: input.OrganizationID,
 		Month:          input.Month,
 		Year:           input.Year,
@@ -2350,7 +2356,74 @@ func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput)
 		return nil, errors.Wrap(err, "failed to fetch tag spending")
 	}
 
-	return TagSpendings{}.FromModel(models), nil
+	plannedModels, err := s.Repository.FetchTagPlannedByMonth(ctx, fetchTagPlannedByMonthParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch tag planned amounts")
+	}
+
+	type tagAggregate struct {
+		tag     TagModel
+		spent   decimal.Decimal
+		planned decimal.Decimal
+		txCount int
+	}
+
+	byTag := make(map[int]*tagAggregate)
+	get := func(id int, name, icon, color string) *tagAggregate {
+		agg, ok := byTag[id]
+		if !ok {
+			agg = &tagAggregate{
+				tag:     TagModel{TagID: id, Name: name, Icon: icon, Color: color},
+				spent:   decimal.Zero,
+				planned: decimal.Zero,
+			}
+			byTag[id] = agg
+		}
+		return agg
+	}
+
+	for _, m := range spentModels {
+		agg := get(m.TagID, m.Name, m.Icon, m.Color)
+		agg.spent = m.Total
+		agg.txCount = m.TransactionCount
+	}
+	for _, p := range plannedModels {
+		agg := get(p.TagID, p.Name, p.Icon, p.Color)
+		agg.planned = p.Total
+	}
+
+	aggregates := make([]*tagAggregate, 0, len(byTag))
+	for _, agg := range byTag {
+		aggregates = append(aggregates, agg)
+	}
+	sort.Slice(aggregates, func(i, j int) bool {
+		if c := aggregates[i].spent.Cmp(aggregates[j].spent); c != 0 {
+			return c > 0
+		}
+		if c := aggregates[i].planned.Cmp(aggregates[j].planned); c != 0 {
+			return c > 0
+		}
+		return aggregates[i].tag.TagID < aggregates[j].tag.TagID
+	})
+
+	result := make([]TagSpending, len(aggregates))
+	for i, agg := range aggregates {
+		result[i] = TagSpending{
+			TagID:            agg.tag.TagID,
+			Name:             agg.tag.Name,
+			Icon:             agg.tag.Icon,
+			Color:            agg.tag.Color,
+			Total:            agg.spent.StringFixed(2),
+			Planned:          agg.planned.StringFixed(2),
+			TransactionCount: agg.txCount,
+		}
+	}
+
+	return result, nil
 }
 
 type GetTagByIDInput struct {

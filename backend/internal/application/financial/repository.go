@@ -96,6 +96,7 @@ type Repository interface {
 	// Tags
 	FetchTags(ctx context.Context, params fetchTagsParams) ([]TagModel, error)
 	FetchTagSpendingByMonth(ctx context.Context, params fetchTagSpendingByMonthParams) ([]TagSpendingModel, error)
+	FetchTagPlannedByMonth(ctx context.Context, params fetchTagPlannedByMonthParams) ([]TagPlannedModel, error)
 	FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error)
 	InsertTag(ctx context.Context, params insertTagParams) (TagModel, error)
 	ModifyTag(ctx context.Context, params modifyTagParams) (TagModel, error)
@@ -2620,6 +2621,55 @@ func (r *repository) FetchTagSpendingByMonth(ctx context.Context, params fetchTa
 	err := r.db.Query(ctx, &spending, fetchTagSpendingByMonthQuery,
 		params.OrganizationID, params.Month, params.Year)
 	return spending, err
+}
+
+type fetchTagPlannedByMonthParams struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// Aggregates the planned expense amount still to reserve per tag for a single
+// month, scoped to the organization. Includes recurrent active entries (apply
+// every month) plus one-time active entries targeting this month/year. Entries
+// already matched (the spending happened, with tags transferred to the
+// transaction) or dismissed for the month are excluded, so the amount reflects
+// only what is still expected to be set aside. Only tags with a positive
+// remaining planned amount are returned.
+const fetchTagPlannedByMonthQuery = `
+	-- financial.fetchTagPlannedByMonthQuery
+	SELECT
+		t.tag_id,
+		t.name,
+		t.icon,
+		t.color,
+		COALESCE(SUM(pe.amount), 0) AS total
+	FROM tags t
+	INNER JOIN planned_entry_tags pet ON pet.tag_id = t.tag_id
+	INNER JOIN planned_entries pe ON pe.planned_entry_id = pet.planned_entry_id
+	LEFT JOIN planned_entry_statuses pes
+		ON pes.planned_entry_id = pe.planned_entry_id
+		AND pes.month = $2
+		AND pes.year = $3
+	WHERE t.organization_id = $1
+		AND pe.organization_id = $1
+		AND pe.is_active = true
+		AND pe.entry_type = 'expense'
+		AND (
+			pe.is_recurrent = true
+			OR (pe.target_month = $2 AND pe.target_year = $3)
+		)
+		AND (pes.status IS NULL OR pes.status NOT IN ('matched', 'dismissed'))
+	GROUP BY t.tag_id, t.name, t.icon, t.color
+	HAVING COALESCE(SUM(pe.amount), 0) > 0
+	ORDER BY total DESC;
+`
+
+func (r *repository) FetchTagPlannedByMonth(ctx context.Context, params fetchTagPlannedByMonthParams) ([]TagPlannedModel, error) {
+	var planned []TagPlannedModel
+	err := r.db.Query(ctx, &planned, fetchTagPlannedByMonthQuery,
+		params.OrganizationID, params.Month, params.Year)
+	return planned, err
 }
 
 type fetchTagByIDParams struct {

@@ -58,16 +58,17 @@ export default function TagSpendingSummary({ month, year, refreshKey }: TagSpend
   }
 
   const total = spending.reduce((sum, t) => sum + (parseFloat(t.total) || 0), 0);
+  const totalPlanned = spending.reduce((sum, t) => sum + (parseFloat(t.planned) || 0), 0);
   const maxTotal = spending.reduce((max, t) => Math.max(max, parseFloat(t.total) || 0), 0);
 
   return (
     <div className="mt-6 card">
       <div className="flex items-center gap-2 mb-1">
         <Tags className="w-5 h-5 text-wheat-600" />
-        <h2 className="font-display text-lg font-semibold text-stone-900">Gastos por Tag</h2>
+        <h2 className="font-display text-lg font-semibold text-stone-900">Planejado e Gasto por Tag</h2>
       </div>
       <p className="text-sm text-stone-500 mb-4">
-        Soma das despesas marcadas com cada tag neste mês.
+        Comparação entre o planejado e o gasto em cada tag neste mês.
       </p>
 
       {loading && (
@@ -98,13 +99,20 @@ export default function TagSpendingSummary({ month, year, refreshKey }: TagSpend
                       />
                       <span className="flex-shrink-0">{tag.icon}</span>
                       <span className="font-medium text-stone-800 truncate">{tag.name}</span>
-                      <span className="text-xs text-stone-400 flex-shrink-0">
-                        ({tag.transaction_count} {tag.transaction_count === 1 ? 'transação' : 'transações'})
+                      {tag.transaction_count > 0 && (
+                        <span className="text-xs text-stone-400 flex-shrink-0">
+                          ({tag.transaction_count} {tag.transaction_count === 1 ? 'transação' : 'transações'})
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="font-semibold text-stone-900 tabular-nums block">
+                        {formatCurrencyBRL(tag.total)}
+                      </span>
+                      <span className="text-xs text-stone-500 tabular-nums">
+                        de {formatCurrencyBRL(tag.planned)} planejado
                       </span>
                     </div>
-                    <span className="font-semibold text-stone-900 tabular-nums flex-shrink-0">
-                      {formatCurrencyBRL(tag.total)}
-                    </span>
                   </div>
                   <div className="mt-1.5 h-1.5 bg-stone-100 rounded-full overflow-hidden">
                     <div
@@ -118,8 +126,11 @@ export default function TagSpendingSummary({ month, year, refreshKey }: TagSpend
           </div>
 
           <div className="flex items-center justify-between pt-4 mt-4 border-t border-stone-200">
-            <span className="text-sm font-medium text-stone-600">Total marcado</span>
-            <span className="font-bold text-stone-900 tabular-nums">{formatCurrencyBRL(total)}</span>
+            <span className="text-sm font-medium text-stone-600">Total gasto</span>
+            <div className="text-right">
+              <span className="font-bold text-stone-900 tabular-nums block">{formatCurrencyBRL(total)}</span>
+              <span className="text-xs text-stone-500 tabular-nums">de {formatCurrencyBRL(totalPlanned)} planejado</span>
+            </div>
           </div>
         </>
       )}

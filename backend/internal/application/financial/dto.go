@@ -616,33 +616,16 @@ func (t Tags) FromModel(models []TagModel) Tags {
 	return tags
 }
 
-// TagSpending DTO - aggregated expense total for a tag in a given month
+// TagSpending DTO - aggregated planned and spent totals for a tag in a given
+// month. Total is what was spent; Planned is what remains to reserve (matched
+// and dismissed planned entries excluded). The service composes both sources,
+// so there is no single-model conversion helper.
 type TagSpending struct {
 	TagID            int    `json:"tag_id"`
 	Name             string `json:"name"`
 	Icon             string `json:"icon"`
 	Color            string `json:"color"`
-	Total            string `json:"total"`
+	Total            string `json:"total"`   // spent: sum of expense transactions
+	Planned          string `json:"planned"` // planned still to reserve: sum of unmatched planned expense entries
 	TransactionCount int    `json:"transaction_count"`
-}
-
-func (t TagSpending) FromModel(model *TagSpendingModel) TagSpending {
-	return TagSpending{
-		TagID:            model.TagID,
-		Name:             model.Name,
-		Icon:             model.Icon,
-		Color:            model.Color,
-		Total:            model.Total.StringFixed(2),
-		TransactionCount: model.TransactionCount,
-	}
-}
-
-type TagSpendings []TagSpending
-
-func (t TagSpendings) FromModel(models []TagSpendingModel) TagSpendings {
-	spendings := make(TagSpendings, len(models))
-	for i, model := range models {
-		spendings[i] = TagSpending{}.FromModel(&model)
-	}
-	return spendings
 }

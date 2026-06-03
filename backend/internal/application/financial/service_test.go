@@ -351,6 +351,11 @@ func (m *MockRepository) FetchTagSpendingByMonth(ctx context.Context, params fet
 	return args.Get(0).([]TagSpendingModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchTagPlannedByMonth(ctx context.Context, params fetchTagPlannedByMonthParams) ([]TagPlannedModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagPlannedModel), args.Error(1)
+}
+
 func (m *MockRepository) FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(TagModel), args.Error(1)
@@ -594,4 +599,46 @@ func TestGetControllableCategoryPacing_OneTimeIncomeTargetsMonth(t *testing.T) {
 	assert.NoError(t, err)
 	// Income counted is only 6500 (threshold 65), so the 1.00 budget is hidden.
 	assert.Len(t, result.Categories, 0)
+}
+
+func TestGetTagSpending_UnionsPlannedAndSpent(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	orgID := 1
+
+	// Tag 1: spent and planned.    Tag 2: spent only.    Tag 3: planned only (no spending yet).
+	spendingModels := []TagSpendingModel{
+		{TagID: 1, Name: "Mercado", Icon: "🛒", Color: "#C6943A", Total: decimal.NewFromInt(450), TransactionCount: 3},
+		{TagID: 2, Name: "Lazer", Icon: "🎮", Color: "#6B7280", Total: decimal.NewFromInt(120), TransactionCount: 1},
+	}
+	plannedModels := []TagPlannedModel{
+		{TagID: 1, Name: "Mercado", Icon: "🛒", Color: "#C6943A", Total: decimal.NewFromInt(500)},
+		{TagID: 3, Name: "Escola", Icon: "🏫", Color: "#A67A2A", Total: decimal.NewFromInt(800)},
+	}
+	mockRepo.On("FetchTagSpendingByMonth", mock.Anything, mock.Anything).Return(spendingModels, nil)
+	mockRepo.On("FetchTagPlannedByMonth", mock.Anything, mock.Anything).Return(plannedModels, nil)
+
+	result, err := svc.GetTagSpending(ctx, GetTagSpendingInput{OrganizationID: orgID, Month: 6, Year: 2026})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 3)
+
+	// Sorted by spent desc, then planned desc: Mercado (450), Lazer (120), Escola (0 spent).
+	assert.Equal(t, "Mercado", result[0].Name)
+	assert.Equal(t, "450.00", result[0].Total)
+	assert.Equal(t, "500.00", result[0].Planned)
+	assert.Equal(t, 3, result[0].TransactionCount)
+
+	assert.Equal(t, "Lazer", result[1].Name)
+	assert.Equal(t, "120.00", result[1].Total)
+	assert.Equal(t, "0.00", result[1].Planned)
+
+	// Planned-only tag still appears so the user knows what to set aside.
+	assert.Equal(t, "Escola", result[2].Name)
+	assert.Equal(t, "0.00", result[2].Total)
+	assert.Equal(t, "800.00", result[2].Planned)
+	assert.Equal(t, 0, result[2].TransactionCount)
+
+	mockRepo.AssertExpectations(t)
 }
