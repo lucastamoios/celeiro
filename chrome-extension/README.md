@@ -1,6 +1,8 @@
-# Celeiro Amazon Sync - Chrome Extension
+# Celeiro Amazon Sync - Browser Extension
 
-Chrome extension to sync Amazon orders with Celeiro, enabling automatic categorization of bank transactions.
+Browser extension (Chrome and Firefox) to sync Amazon orders with Celeiro, enabling automatic categorization of bank transactions.
+
+The same code runs in both browsers: the manifest declares `background.service_worker` (used by Chrome) and `background.scripts` (used by Firefox) side by side, and all APIs are called through the `chrome.*` namespace with promises, which Firefox supports in Manifest V3. The minimum Firefox version is 142 (required by the `data_collection_permissions` manifest key, which Mozilla now mandates for new extensions).
 
 ## Installation
 
@@ -30,6 +32,18 @@ Or simply create the PNGs manually with any image editor.
 2. Enable "Developer mode" (top right corner)
 3. Click "Load unpacked"
 4. Select the `chrome-extension` folder
+
+### 3. Install in Firefox
+
+For development (temporary, removed when Firefox closes):
+
+1. Open `about:debugging#/runtime/this-firefox` in Firefox
+2. Click "Load Temporary Add-on..."
+3. Select `chrome-extension/manifest.json`
+
+For a permanent install, the extension must be signed: zip the folder contents and submit it to [addons.mozilla.org](https://addons.mozilla.org/developers/) (self-distribution / unlisted is fine), then install the signed `.xpi` it gives back.
+
+**Important (Firefox only)**: Firefox treats `host_permissions` as optional in Manifest V3, so after installing you must grant site access manually. Go to `about:addons` → Celeiro Amazon Sync → Permissions, and enable access to amazon.com.br (and your API host if it is not localhost). Without this, the sync cannot inject the extraction script after navigating between order pages.
 
 ## Usage
 
@@ -168,8 +182,12 @@ chrome-extension/
    - The `extractOrders()` function is injected into the Amazon page
    - Order extraction logs appear in THIS console, not in the popup
 
-3. **Service Worker**:
+3. **Service Worker** (Chrome):
    - Open `chrome://extensions/`
    - Click "Service Worker" to see background logs
+
+4. **Background script** (Firefox):
+   - Open `about:debugging#/runtime/this-firefox`
+   - Click "Inspect" on the extension to see background logs
 
 **Tip**: When the extension navigates to a new page, DevTools attached to the previous page may disconnect. Reopen DevTools after navigation if needed.
