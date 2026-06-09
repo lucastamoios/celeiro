@@ -3,8 +3,14 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { CategoryBudget, PlannedEntryWithStatus, PlannedEntryStatusType } from '../types/budget';
 import { getVarianceStatus, VARIANCE_THRESHOLDS, getStatusBadgeClasses, getStatusLabel } from '../types/budget';
-import { useDropdownClose } from '../hooks/useDropdownClose';
 import DropdownMenu from './ui/DropdownMenu';
+
+// Shared grid template for the budget ledger. The dashboard header row and every
+// category row use the same track sizing so the columns line up vertically.
+// Tracks: Categoria (flexible) | Estimado | Realizado | Variação | Status | actions.
+// Display (grid vs hidden) is set by the caller so it only applies from sm upward.
+export const LEDGER_GRID =
+  'grid-cols-[minmax(0,1.8fr)_7rem_7rem_11rem_6rem_4.5rem] items-center gap-4';
 
 interface CategoryBudgetCardProps {
   budget: CategoryBudget;
@@ -209,15 +215,10 @@ export default function CategoryBudgetCard({
   isDropTargetDisabled = false,
   isDropTargetHighlighted = false,
 }: CategoryBudgetCardProps) {
-  const [showActions, setShowActions] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDismissModal, setShowDismissModal] = useState(false);
   const [dismissingEntryId, setDismissingEntryId] = useState<number | null>(null);
   const [dismissReason, setDismissReason] = useState('');
-
-  // Handle click outside and Escape key for the category-level actions menu.
-  // The per-entry menu manages its own open state inside DropdownMenu.
-  const actionsMenuRef = useDropdownClose(showActions, () => setShowActions(false));
 
   // Handle ESC key to close modals
   useEffect(() => {
@@ -321,223 +322,232 @@ export default function CategoryBudgetCard({
     dismissed: plannedEntries.filter(e => e.Status === 'dismissed').length,
   };
 
+  const hasEntries = entryStats.total > 0;
+
+  // Clicking a row expands its planned entries when it has them; rows without
+  // entries fall back to opening the category's transactions modal.
+  const handleSummaryClick = () => {
+    if (hasEntries) {
+      setIsExpanded((v) => !v);
+    } else if (onCardClick) {
+      onCardClick();
+    }
+  };
+
+  const chevronIcon = (
+    <svg
+      className={`w-4 h-4 shrink-0 text-stone-400 transition-transform ${isExpanded ? '' : '-rotate-90'} ${hasEntries ? '' : 'invisible'}`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+
+  const inlineBadges = (
+    <>
+      {budget.IsConsolidated && (
+        <span className="shrink-0 text-xs px-2 py-0.5 rounded bg-sage-100 text-sage-700 whitespace-nowrap">Consolidado</span>
+      )}
+      {entryStats.missed > 0 && (
+        <span className="shrink-0 text-xs px-2 py-0.5 rounded bg-rust-100 text-rust-700 whitespace-nowrap">
+          ⚠️ {entryStats.missed} atrasada{entryStats.missed > 1 ? 's' : ''}
+        </span>
+      )}
+    </>
+  );
+
+  const entryDots = hasEntries ? (
+    <span className="inline-flex items-center gap-1 shrink-0">
+      {entryStats.matched > 0 && <span className="w-1.5 h-1.5 rounded-full bg-sage-500" title={`${entryStats.matched} recebidas`} />}
+      {entryStats.pending > 0 && <span className="w-1.5 h-1.5 rounded-full bg-terra-500" title={`${entryStats.pending} pendentes`} />}
+      {entryStats.missed > 0 && <span className="w-1.5 h-1.5 rounded-full bg-rust-500" title={`${entryStats.missed} atrasadas`} />}
+      {entryStats.dismissed > 0 && <span className="w-1.5 h-1.5 rounded-full bg-stone-400" title={`${entryStats.dismissed} dispensadas`} />}
+    </span>
+  ) : null;
+
+  const statusBadge = (
+    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(varianceStatus)}`}>
+      {getStatusText(varianceStatus)}
+    </span>
+  );
+
+  const varianceContent = (
+    <span className={`tabular-nums ${getVarianceColor()}`}>
+      {variance >= 0 ? '+' : ''}
+      {formatCurrencyBRL(variance.toFixed(2))}
+      <span className="text-xs ml-1 opacity-80">
+        ({variancePercent >= 0 ? '+' : ''}{variancePercent.toFixed(1)}%)
+      </span>
+    </span>
+  );
+
+  const receiptButton = onCardClick ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onCardClick();
+      }}
+      className="p-1.5 hover:bg-stone-100 rounded-full transition-colors"
+      aria-label="Ver transações"
+      title="Ver transações"
+    >
+      <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    </button>
+  ) : null;
+
+  const categoryActions = !budget.IsConsolidated ? (
+    <DropdownMenu
+      width={192}
+      buttonAriaLabel="Ações"
+      buttonClassName="p-1.5 hover:bg-stone-100 rounded-full transition-colors"
+      buttonContent={
+        <svg className="w-5 h-5 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+        </svg>
+      }
+    >
+      {(close) => (
+        <>
+          {onEdit && (
+            <button type="button" onClick={() => { onEdit(budget); close(); }} className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 text-stone-700">
+              Editar orçamento
+            </button>
+          )}
+          {onConsolidate && canConsolidate && (
+            <button type="button" onClick={() => { onConsolidate(budget.CategoryBudgetID); close(); }} className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 text-stone-700">
+              Consolidar
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`Tem certeza que deseja excluir o orçamento de "${categoryName}"?`)) {
+                  onDelete(budget.CategoryBudgetID);
+                }
+                close();
+              }}
+              className="w-full text-left px-4 py-2 text-sm hover:bg-rust-50 text-rust-600"
+            >
+              Excluir
+            </button>
+          )}
+        </>
+      )}
+    </DropdownMenu>
+  ) : null;
+
+  const hasWarning =
+    (!isIncome && (varianceStatus === 'warning' || varianceStatus === 'critical')) ||
+    (isIncome && variance < 0 && Math.abs(variancePercent) >= VARIANCE_THRESHOLDS.MINOR);
+
   return (
-    <div className={`bg-stone-50 rounded-lg shadow-warm-sm border overflow-hidden transition-shadow ${
-      entryStats.missed > 0 ? 'border-rust-200' : 'border-stone-200'
-    } hover:shadow-warm-md`}>
-      {/* Main Card Content - Clickable area */}
+    <div
+      className={`relative transition-colors ${entryStats.missed > 0 ? 'border-l-4 border-rust-400' : ''} ${
+        isDropTargetHighlighted
+          ? isDropTargetDisabled
+            ? 'bg-rust-50 ring-1 ring-inset ring-rust-400'
+            : 'bg-sage-50 ring-1 ring-inset ring-sage-400'
+          : ''
+      } ${isDropTargetDisabled ? 'opacity-70' : ''}`}
+      data-dnd-drop-id={dndDropId}
+    >
+      {/* Desktop ledger row */}
       <div
-        className={`p-4 ${onCardClick ? 'cursor-pointer hover:bg-stone-50 transition-colors' : ''} ${
-          isDropTargetDisabled ? 'opacity-70' : ''
-        } ${
-          isDropTargetHighlighted
-            ? isDropTargetDisabled
-              ? 'ring-2 ring-rust-500 ring-offset-2'
-              : 'ring-2 ring-sage-500 ring-offset-2'
-            : ''
-        }`}
-        data-dnd-drop-id={dndDropId}
-        onClick={() => {
-          // Only trigger card click if not clicking on interactive elements
-          if (onCardClick && !showActions) {
-            onCardClick();
+        role="button"
+        tabIndex={0}
+        onClick={handleSummaryClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleSummaryClick();
           }
         }}
+        className={`hidden sm:grid ${LEDGER_GRID} px-4 py-3 cursor-pointer hover:bg-stone-100/60 transition-colors`}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <h3 className="font-display text-lg font-semibold text-stone-900">{categoryName}</h3>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              {budget.IsConsolidated && (
-                <span className="text-xs px-2 py-1 rounded bg-sage-100 text-sage-700">
-                  Consolidado
-                </span>
-              )}
-              {/* Entry status indicators */}
-              {entryStats.total > 0 && (
-                <span className="text-xs px-2 py-1 rounded bg-stone-100 text-stone-600">
-                  {entryStats.total} {entryStats.total === 1 ? 'entrada' : 'entradas'}
-                </span>
-              )}
-              {entryStats.missed > 0 && (
-                <span className="text-xs px-2 py-1 rounded bg-rust-100 text-rust-700">
-                  ⚠️ {entryStats.missed} atrasada{entryStats.missed > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          </div>
-
-        {/* Actions Menu */}
-        {!budget.IsConsolidated && (
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowActions(!showActions);
-              }}
-              className="p-2 hover:bg-stone-100 rounded-full transition-colors"
-              aria-label="Ações"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-stone-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                />
-              </svg>
-            </button>
-
-            {showActions && (
-              <div ref={actionsMenuRef} className="absolute right-0 mt-2 w-48 bg-stone-50 rounded-lg shadow-warm-lg border border-stone-200 py-1 z-10">
-                {onEdit && (
-                  <button
-                    onClick={() => {
-                      onEdit(budget);
-                      setShowActions(false);
-                    }}
-                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
-                  >
-                    Editar orçamento
-                  </button>
-                )}
-                {onConsolidate && canConsolidate && (
-                  <button
-                    onClick={() => {
-                      onConsolidate(budget.CategoryBudgetID);
-                      setShowActions(false);
-                    }}
-                    className="w-full text-left px-4 py-2 hover:bg-stone-50 text-stone-700"
-                  >
-                    Consolidar
-                  </button>
-                )}
-                {onDelete && (
-                  <button
-                    onClick={() => {
-                      if (confirm(`Tem certeza que deseja excluir o orçamento de "${categoryName}"?`)) {
-                        onDelete(budget.CategoryBudgetID);
-                      }
-                      setShowActions(false);
-                    }}
-                    className="w-full text-left px-4 py-2 hover:bg-rust-50 text-rust-600"
-                  >
-                    Excluir
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2 min-w-0">
+          {chevronIcon}
+          <span className="font-display font-semibold text-stone-900 truncate">{categoryName}</span>
+          {entryDots}
+          {inlineBadges}
+        </div>
+        <div className="text-right tabular-nums font-medium text-stone-900">{formatCurrencyBRL(estimatedNum)}</div>
+        <div className="text-right tabular-nums font-medium text-stone-900">{formatCurrencyBRL(actualSpent)}</div>
+        <div className="text-right text-sm font-medium whitespace-nowrap">{varianceContent}</div>
+        <div className="flex justify-center">{statusBadge}</div>
+        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+          {receiptButton}
+          {categoryActions}
+        </div>
       </div>
 
-      {/* Budget Details */}
-      <div className="grid grid-cols-2 gap-4 mb-3">
-        <div>
-          <div className="text-sm text-stone-600">Estimado</div>
-          <div className="text-lg font-semibold text-stone-900 tabular-nums">
-            {formatCurrencyBRL(estimatedNum)}
+      {/* Mobile stacked row */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handleSummaryClick}
+        className="sm:hidden px-4 py-3 cursor-pointer"
+      >
+        <div className="flex items-center gap-2">
+          {chevronIcon}
+          <span className="font-display font-semibold text-stone-900 truncate flex-1">{categoryName}</span>
+          {statusBadge}
+          <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+            {receiptButton}
+            {categoryActions}
           </div>
-          {controlledNum > 0 && plannedEntriesSum > 0 && (
-            <div className="text-xs text-stone-400 tabular-nums mt-0.5">
-              {formatCurrencyBRL(controlledNum)} controlado + {formatCurrencyBRL(plannedEntriesSum)} planejado
+        </div>
+        {(budget.IsConsolidated || hasEntries) && (
+          <div className="flex items-center gap-2 mt-1 ml-6">
+            {entryDots}
+            {inlineBadges}
+          </div>
+        )}
+        <div className="grid grid-cols-3 gap-2 mt-2 ml-6">
+          <div>
+            <div className="text-xs text-stone-500">Estimado</div>
+            <div className="text-sm tabular-nums font-medium text-stone-900">{formatCurrencyBRL(estimatedNum)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-stone-500">{isIncome ? 'Ganho' : 'Gasto'}</div>
+            <div className="text-sm tabular-nums font-medium text-stone-900">{formatCurrencyBRL(actualSpent)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-stone-500">Variação</div>
+            <div className="text-sm font-medium">{varianceContent}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Variance warning (full width, only when present) */}
+      {hasWarning && (
+        <div className="px-4 pb-3 sm:pl-6 space-y-2">
+          {varianceStatus === 'warning' && !isIncome && (
+            <div className="text-xs text-terra-700 bg-terra-50 px-3 py-2 rounded border border-terra-200">
+              <strong>⚠️ Atenção:</strong> Gasto {variancePercent.toFixed(1)}% acima do planejado
+            </div>
+          )}
+          {varianceStatus === 'critical' && !isIncome && (
+            <div className="text-xs text-rust-700 bg-rust-50 px-3 py-2 rounded border border-rust-200">
+              <strong>🚨 Crítico:</strong> Gasto {variancePercent.toFixed(1)}% acima do planejado
+            </div>
+          )}
+          {isIncome && variance < 0 && Math.abs(variancePercent) >= VARIANCE_THRESHOLDS.MINOR && (
+            <div className="text-xs text-terra-700 bg-terra-50 px-3 py-2 rounded border border-terra-200">
+              <strong>⚠️ Atenção:</strong> Ganho {Math.abs(variancePercent).toFixed(1)}% abaixo do planejado
             </div>
           )}
         </div>
-        <div>
-          <div className="text-sm text-stone-600">{isIncome ? 'Ganho' : 'Gasto'}</div>
-          <div className="text-lg font-semibold text-stone-900 tabular-nums">
-            {formatCurrencyBRL(actualSpent)}
-          </div>
-        </div>
-      </div>
-
-      {/* Variance */}
-      <div className="border-t border-stone-200 pt-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-stone-600">Variação</div>
-            <div className={`text-lg font-medium tabular-nums ${getVarianceColor()}`}>
-              {variance >= 0 ? '+' : ''}
-              {formatCurrencyBRL(variance.toFixed(2))}
-              <span className="text-sm ml-1">
-                ({variancePercent >= 0 ? '+' : ''}
-                {variancePercent.toFixed(1)}%)
-              </span>
-            </div>
-          </div>
-          <div>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(varianceStatus)}`}>
-              {getStatusText(varianceStatus)}
-            </span>
-          </div>
-        </div>
-
-        {/* Variance Warning */}
-        {varianceStatus === 'warning' && !isIncome && (
-          <div className="mt-2 text-xs text-terra-700 bg-terra-50 px-3 py-2 rounded border border-terra-200">
-            <strong>⚠️ Atenção:</strong> Gasto {variancePercent.toFixed(1)}% acima do planejado
-          </div>
-        )}
-        {varianceStatus === 'critical' && !isIncome && (
-          <div className="mt-2 text-xs text-rust-700 bg-rust-50 px-3 py-2 rounded border border-rust-200">
-            <strong>🚨 Crítico:</strong> Gasto {variancePercent.toFixed(1)}% acima do planejado
-          </div>
-        )}
-        {/* Income below target warning */}
-        {isIncome && variance < 0 && Math.abs(variancePercent) >= VARIANCE_THRESHOLDS.MINOR && (
-          <div className="mt-2 text-xs text-terra-700 bg-terra-50 px-3 py-2 rounded border border-terra-200">
-            <strong>⚠️ Atenção:</strong> Ganho {Math.abs(variancePercent).toFixed(1)}% abaixo do planejado
-          </div>
-        )}
-      </div>
-
-      {/* Consolidated Info */}
-      {budget.IsConsolidated && budget.ConsolidatedAt && (
-        <div className="mt-3 text-xs text-stone-500 border-t border-stone-200 pt-3">
-          Consolidado em {new Date(budget.ConsolidatedAt).toLocaleDateString('pt-BR')}
-        </div>
-      )}
-      </div>
-
-      {/* Expand/Collapse Button for Entries */}
-      {entryStats.total > 0 && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(!isExpanded);
-          }}
-          className="w-full px-4 py-2 bg-stone-50 hover:bg-stone-100 border-t border-stone-200 flex items-center justify-center gap-2 text-sm text-stone-600 transition-colors"
-        >
-          <svg
-            className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-          {isExpanded ? 'Ocultar' : 'Ver'} {entryStats.total} {entryStats.total === 1 ? 'entrada planejada' : 'entradas planejadas'}
-          {/* Mini status dots */}
-          <div className="flex items-center gap-1 ml-2">
-            {entryStats.matched > 0 && <span className="w-2 h-2 rounded-full bg-sage-500" title={`${entryStats.matched} recebidas`} />}
-            {entryStats.pending > 0 && <span className="w-2 h-2 rounded-full bg-terra-500" title={`${entryStats.pending} pendentes`} />}
-            {entryStats.missed > 0 && <span className="w-2 h-2 rounded-full bg-rust-500" title={`${entryStats.missed} atrasadas`} />}
-            {entryStats.dismissed > 0 && <span className="w-2 h-2 rounded-full bg-stone-400" title={`${entryStats.dismissed} dispensadas`} />}
-          </div>
-        </button>
       )}
 
       {/* Expanded Entries Section */}
       {isExpanded && entryStats.total > 0 && (
-        <div className="border-t border-stone-200 bg-stone-50 p-3 space-y-2">
+        <div className="border-t border-stone-200 bg-stone-100/50 p-3 space-y-2">
           {/* Estimado breakdown */}
           {(controlledNum > 0 || plannedEntriesSum > 0) && (
             <div className="px-3 py-2 bg-stone-100 rounded-lg text-sm mb-2 space-y-1">
