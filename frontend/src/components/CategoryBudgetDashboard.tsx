@@ -19,6 +19,7 @@ import {
   updatePlannedEntry,
   deletePlannedEntry,
   getPlannedEntriesForMonth,
+  createPlannedEntry,
   matchPlannedEntry,
   unmatchPlannedEntry,
   dismissPlannedEntry,
@@ -1108,6 +1109,46 @@ export default function CategoryBudgetDashboard() {
     }
   };
 
+  // One-click conversion: create a planned entry from a transaction and match
+  // the transaction to it for the selected month. The entry is non-recurrent
+  // and targeted at this month; the user can open it afterwards to make it
+  // recurrent or adjust amounts.
+  const handleConvertTransactionToPlannedEntry = async (tx: Transaction) => {
+    if (!token || !tx.category_id) return;
+
+    try {
+      const entry = await createPlannedEntry(
+        {
+          category_id: tx.category_id,
+          description: tx.description,
+          amount: Math.abs(parseFloat(tx.amount)),
+          expected_day: parseTransactionDate(tx.transaction_date).getDate(),
+          entry_type: tx.transaction_type === 'credit' ? 'income' : 'expense',
+          is_recurrent: false,
+          target_month: selectedMonth,
+          target_year: selectedYear,
+        },
+        { token, organizationId }
+      );
+
+      await matchPlannedEntry(
+        entry.PlannedEntryID,
+        {
+          transaction_id: tx.transaction_id,
+          month: selectedMonth,
+          year: selectedYear,
+        },
+        { token, organizationId }
+      );
+
+      await fetchAllData();
+      setSuccessMessage('Transação transformada em entrada planejada!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao transformar transação em entrada planejada');
+    }
+  };
+
   // Edit handler for planned entries
   const handleEditPlannedEntry = (entry: PlannedEntryWithStatus, month: number, year: number) => {
     setEditingEntry(entry);
@@ -1193,7 +1234,7 @@ export default function CategoryBudgetDashboard() {
       await copyToClipboard(exportText);
       setSuccessMessage('Orçamento copiado para a área de transferência!');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
+    } catch {
       setError('Falha ao copiar orçamento');
     }
   };
@@ -1762,6 +1803,7 @@ export default function CategoryBudgetDashboard() {
               onPlannedEntryClick={handlePlannedEntryClickInBudget}
               onAddPlannedEntry={handleAddPlannedEntryFromModal}
               onUpdatePlannedEntryAmount={handleUpdatePlannedEntryAmountInline}
+              onConvertToPlannedEntry={handleConvertTransactionToPlannedEntry}
             />
           );
         })()}
