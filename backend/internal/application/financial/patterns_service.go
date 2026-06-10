@@ -457,7 +457,6 @@ func (s *service) applyPatternToTransaction(ctx context.Context, tx *Transaction
 	// Update transaction with the determined values
 	_, err = s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
 		TransactionID:  tx.TransactionID,
-		UserID:         userID,
 		OrganizationID: organizationID,
 		Description:    &description,
 		CategoryID:     &categoryID,
@@ -479,7 +478,6 @@ func (s *service) applyPatternToTransaction(ctx context.Context, tx *Transaction
 				if entry.SavingsGoalID != nil {
 					_, err := s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
 						TransactionID:  tx.TransactionID,
-						UserID:         userID,
 						OrganizationID: organizationID,
 						SavingsGoalID:  entry.SavingsGoalID,
 					})

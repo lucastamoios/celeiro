@@ -739,7 +739,6 @@ func (r *repository) BulkInsertTransactions(ctx context.Context, params bulkInse
 
 type modifyTransactionParams struct {
 	TransactionID  int
-	UserID         int
 	OrganizationID int
 	CategoryID     *int
 	SavingsGoalID  *int // Use -1 to clear (set to NULL)
@@ -749,23 +748,28 @@ type modifyTransactionParams struct {
 	IsIgnored      *bool
 }
 
+// Writes are scoped to the organization, not the individual user. Celeiro is a
+// shared family workspace: any member of an organization can edit any account's
+// transactions within it (reads are organization-scoped too, see
+// fetchTransactionByIDQuery and the list queries). Gating this on a.user_id let
+// a member see a transaction in another member's account but fail to edit it,
+// because the UPDATE matched zero rows.
 const modifyTransactionQuery = `
 	-- financial.modifyTransactionQuery
 	UPDATE transactions t
-	SET category_id = COALESCE($4, t.category_id),
-		savings_goal_id = CASE WHEN $5 = -1 THEN NULL ELSE COALESCE($5, t.savings_goal_id) END,
-		description = COALESCE($6, t.description),
+	SET category_id = COALESCE($3, t.category_id),
+		savings_goal_id = CASE WHEN $4 = -1 THEN NULL ELSE COALESCE($4, t.savings_goal_id) END,
+		description = COALESCE($5, t.description),
 		-- Preserve original_description on first edit (if it's NULL, copy current description)
 		original_description = COALESCE(t.original_description, t.description),
-		amount = COALESCE($7, t.amount),
-		notes = COALESCE($8, t.notes),
-		is_ignored = COALESCE($9, t.is_ignored),
+		amount = COALESCE($6, t.amount),
+		notes = COALESCE($7, t.notes),
+		is_ignored = COALESCE($8, t.is_ignored),
 		updated_at = NOW()
 	FROM accounts a
 	WHERE t.transaction_id = $1
 		AND t.account_id = a.account_id
-		AND a.user_id = $2
-		AND a.organization_id = $3
+		AND a.organization_id = $2
 	RETURNING t.transaction_id, t.created_at, t.updated_at, t.account_id, t.category_id, t.description,
 			  t.original_description, t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid,
 			  t.ofx_check_number, t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id,
@@ -775,7 +779,7 @@ const modifyTransactionQuery = `
 func (r *repository) ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error) {
 	var result TransactionModel
 	err := r.db.Query(ctx, &result, modifyTransactionQuery,
-		params.TransactionID, params.UserID, params.OrganizationID,
+		params.TransactionID, params.OrganizationID,
 		params.CategoryID, params.SavingsGoalID, params.Description, params.Amount, params.Notes, params.IsIgnored)
 	if err != nil {
 		return TransactionModel{}, err
@@ -785,22 +789,22 @@ func (r *repository) ModifyTransaction(ctx context.Context, params modifyTransac
 
 type removeTransactionParams struct {
 	TransactionID  int
-	UserID         int
 	OrganizationID int
 }
 
+// Organization-scoped like modifyTransactionQuery: any member of the organization
+// may delete a transaction in any of its accounts.
 const removeTransactionQuery = `
 	-- financial.removeTransactionQuery
 	DELETE FROM transactions t
 	USING accounts a
 	WHERE t.transaction_id = $1
 		AND t.account_id = a.account_id
-		AND a.user_id = $2
-		AND a.organization_id = $3;
+		AND a.organization_id = $2;
 `
 
 func (r *repository) RemoveTransaction(ctx context.Context, params removeTransactionParams) error {
-	err := r.db.Run(ctx, removeTransactionQuery, params.TransactionID, params.UserID, params.OrganizationID)
+	err := r.db.Run(ctx, removeTransactionQuery, params.TransactionID, params.OrganizationID)
 	return err
 }
 

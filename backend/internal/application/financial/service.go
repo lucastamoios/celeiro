@@ -652,7 +652,6 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 
 type UpdateTransactionInput struct {
 	TransactionID  int
-	UserID         int
 	OrganizationID int
 	CategoryID     *int
 	Description    *string
@@ -680,7 +679,6 @@ func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactio
 
 	model, err := s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
 		TransactionID:  params.TransactionID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 		CategoryID:     params.CategoryID,
 		Description:    params.Description,
@@ -697,14 +695,12 @@ func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactio
 
 type DeleteTransactionInput struct {
 	TransactionID  int
-	UserID         int
 	OrganizationID int
 }
 
 func (s *service) DeleteTransaction(ctx context.Context, params DeleteTransactionInput) error {
 	err := s.Repository.RemoveTransaction(ctx, removeTransactionParams{
 		TransactionID:  params.TransactionID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
@@ -1790,7 +1786,6 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 	// Always copy the description; copy category and savings_goal if they exist
 	modifyParams := modifyTransactionParams{
 		TransactionID:  params.TransactionID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 		Description:    &entry.Description,
 	}
@@ -1936,7 +1931,6 @@ func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlanned
 		if err == nil && tx.OriginalDescription != nil {
 			_, err = s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
 				TransactionID:  tx.TransactionID,
-				UserID:         params.UserID,
 				OrganizationID: params.OrganizationID,
 				Description:    tx.OriginalDescription,
 			})
@@ -2228,7 +2222,6 @@ func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersI
 			// Update transaction description
 			_, err := s.UpdateTransaction(ctx, UpdateTransactionInput{
 				TransactionID:  bestMatch.TransactionID,
-				UserID:         params.UserID,
 				OrganizationID: params.OrganizationID,
 				Description:    &newDesc,
 			})

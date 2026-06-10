@@ -577,7 +577,7 @@ func (h *Handler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
-	userID, organizationID, err := h.getSessionInfo(r)
+	_, organizationID, err := h.getSessionInfo(r)
 	if err != nil {
 		responses.NewError(w, errors.ErrUnauthorized)
 		return
@@ -611,7 +611,6 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 
 	transaction, err := h.app.FinancialService.UpdateTransaction(r.Context(), financialApp.UpdateTransactionInput{
 		TransactionID:  transactionID,
-		UserID:         userID,
 		OrganizationID: organizationID,
 		CategoryID:     req.CategoryID,
 		Description:    req.Description,
