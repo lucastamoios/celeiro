@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Category } from '../types/category';
 import type { PlannedEntry } from '../types/budget';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import { useModalDismiss } from '../hooks/useModalDismiss';
 
@@ -96,6 +97,8 @@ export default function PatternCreator({
   variant
 }: PatternCreatorProps) {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
 
   // Determine initial values
   const existingDescPattern = existingPattern?.description_pattern || '';
@@ -174,7 +177,7 @@ export default function PatternCreator({
         const response = await fetch(financialUrl('planned-entries?is_active=true'), {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         });
         if (response.ok) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Target, Plus, RefreshCw, XCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import type { Category } from '../types/category';
 import type { ApiResponse } from '../types/transaction';
@@ -33,6 +34,8 @@ interface AdvancedPattern {
 
 export default function PatternManager() {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [patterns, setPatterns] = useState<AdvancedPattern[]>([]);
   const [categories, setCategories] = useState<Map<number, Category>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -86,14 +89,14 @@ export default function PatternManager() {
 
     const headers = {
       'Authorization': `Bearer ${token}`,
-      'X-Active-Organization': '1'
+      'X-Active-Organization': activeOrganizationId
     };
 
     try {
       const [categoriesRes, patternsRes, plannedEntries] = await Promise.all([
         fetch(financialUrl('categories'), { headers }),
         fetch(financialUrl('patterns'), { headers }),
-        getPlannedEntries({ is_active: true }, { token, organizationId: '1' }),
+        getPlannedEntries({ is_active: true }, { token, organizationId: activeOrganizationId }),
       ]);
 
       if (!categoriesRes.ok || !patternsRes.ok) {
@@ -153,7 +156,7 @@ export default function PatternManager() {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
@@ -208,7 +211,7 @@ export default function PatternManager() {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         }
       );
@@ -240,7 +243,7 @@ export default function PatternManager() {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -282,7 +285,7 @@ export default function PatternManager() {
     try {
       await updatePlannedEntry(entryId, { pattern_id: linkingPattern.pattern_id }, {
         token,
-        organizationId: '1',
+        organizationId: activeOrganizationId,
       });
 
       setSuccess(`✅ Padrão vinculado à entrada planejada!`);
@@ -329,7 +332,7 @@ export default function PatternManager() {
         description_pattern: linkingPattern.description_pattern,
       }, {
         token,
-        organizationId: '1',
+        organizationId: activeOrganizationId,
       });
 
       setSuccess(`✅ Entrada planejada criada e vinculada ao padrão!`);
@@ -362,7 +365,7 @@ export default function PatternManager() {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         }
       );

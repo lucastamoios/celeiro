@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { setPassword } from '../api/auth';
 import { API_CONFIG } from '../config/api';
 import { Mail, LogOut, AlertCircle, Lock, Check, Eye, EyeOff, Inbox, Copy, ExternalLink } from 'lucide-react';
@@ -17,6 +18,8 @@ interface UserInfo {
 export default function AccountSettings() {
   const navigate = useNavigate();
   const { userEmail, logout, token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [showConfirmLogout, setShowConfirmLogout] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +49,7 @@ export default function AccountSettings() {
           {
             headers: {
               'Authorization': `Bearer ${token}`,
-              'X-Active-Organization': '1',
+              'X-Active-Organization': activeOrganizationId,
             },
           }
         );

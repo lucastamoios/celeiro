@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import type { PlannedEntry } from '../types/budget';
 import type { Category } from '../types/category';
@@ -28,6 +29,8 @@ export default function PlannedEntryLinkModal({
   onLink,
 }: PlannedEntryLinkModalProps) {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [entries, setEntries] = useState<PlannedEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +64,7 @@ export default function PlannedEntryLinkModal({
         const response = await fetch(financialUrl('planned-entries'), {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         });
 

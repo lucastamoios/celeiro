@@ -3,6 +3,7 @@ import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import { CATEGORY_COLORS } from '../utils/colors';
 import { parseTransactionDate } from '../utils/date';
@@ -29,6 +30,8 @@ export default function TransactionEditModal({
   onSave,
 }: TransactionEditModalProps) {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [description, setDescription] = useState(transaction.description);
   const [categoryId, setCategoryId] = useState<number | null>(transaction.category_id);
   const [notes, setNotes] = useState(transaction.notes || '');
@@ -71,7 +74,7 @@ export default function TransactionEditModal({
       try {
         const entry = await getPlannedEntryForTransaction(
           transaction.transaction_id,
-          { token, organizationId: '1' }
+          { token, organizationId: activeOrganizationId }
         );
         setLinkedPlannedEntry(entry);
       } catch (err) {
@@ -96,7 +99,7 @@ export default function TransactionEditModal({
       try {
         const tags = await getTransactionTags(
           transaction.transaction_id,
-          { token, organizationId: '1' }
+          { token, organizationId: activeOrganizationId }
         );
         setSelectedTagIds((tags || []).map(tag => tag.tag_id));
       } catch (err) {
@@ -125,7 +128,7 @@ export default function TransactionEditModal({
         linkedPlannedEntry.PlannedEntryID,
         month,
         year,
-        { token, organizationId: '1' }
+        { token, organizationId: activeOrganizationId }
       );
       setLinkedPlannedEntry(null);
     } catch (err) {
@@ -143,7 +146,7 @@ export default function TransactionEditModal({
       try {
         const entry = await getPlannedEntryForTransaction(
           transaction.transaction_id,
-          { token, organizationId: '1' }
+          { token, organizationId: activeOrganizationId }
         );
         setLinkedPlannedEntry(entry);
 
@@ -172,7 +175,7 @@ export default function TransactionEditModal({
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -192,7 +195,7 @@ export default function TransactionEditModal({
       await setTransactionTags(
         transaction.transaction_id,
         selectedTagIds,
-        { token, organizationId: '1' }
+        { token, organizationId: activeOrganizationId }
       );
 
       onSave();
@@ -216,7 +219,7 @@ export default function TransactionEditModal({
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ ...patternData, apply_retroactively: applyRetroactivelyOnCreate }),
@@ -234,7 +237,7 @@ export default function TransactionEditModal({
         await updatePlannedEntry(
           planned_entry_id,
           { pattern_id: createdPattern.pattern_id },
-          { token, organizationId: '1' }
+          { token, organizationId: activeOrganizationId }
         );
       }
 
@@ -273,7 +276,7 @@ export default function TransactionEditModal({
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

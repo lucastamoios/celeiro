@@ -220,7 +220,7 @@ export default function CategoryBudgetDashboard() {
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': organizationId,
           },
         }
       );
@@ -312,7 +312,7 @@ export default function CategoryBudgetDashboard() {
       const accountsResponse = await fetch(financialUrl('accounts'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': organizationId,
         },
       });
 
@@ -336,7 +336,7 @@ export default function CategoryBudgetDashboard() {
           fetch(financialUrl(`accounts/${account.AccountID}/transactions`), {
             headers: {
               'Authorization': `Bearer ${token}`,
-              'X-Active-Organization': '1',
+              'X-Active-Organization': organizationId,
             },
           })
             .then(res => res.ok ? res.json() : { data: [] })
@@ -372,7 +372,7 @@ export default function CategoryBudgetDashboard() {
       const categoriesResponse = await fetch(financialUrl('categories'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': organizationId,
         },
       });
       const categoriesData: ApiResponse<Category[]> = await categoriesResponse.json();
@@ -497,7 +497,7 @@ export default function CategoryBudgetDashboard() {
       const accountsResponse = await fetch(financialUrl('accounts'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': organizationId,
         },
       });
 
@@ -520,7 +520,7 @@ export default function CategoryBudgetDashboard() {
         fetch(financialUrl(`accounts/${account.AccountID}/transactions`), {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': organizationId,
           },
         })
           .then(res => res.ok ? res.json() : { data: [] })

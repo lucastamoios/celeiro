@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 
 interface CategoryPacing {
@@ -29,6 +30,8 @@ interface BudgetPacingWidgetProps {
 
 export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetProps) {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [pacingData, setPacingData] = useState<PacingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +54,7 @@ export default function BudgetPacingWidget({ month, year }: BudgetPacingWidgetPr
       const response = await fetch(`${financialUrl('budgets/categories/pacing')}${params.toString() ? `?${params.toString()}` : ''}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
       });
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import type { Tag } from '../types/tag';
 import { getTags, createTag, updateTag, deleteTag } from '../api/tags';
 import { CATEGORY_COLORS, getCategoryColorStyle } from '../utils/colors';
@@ -45,6 +46,8 @@ function getTagColor(tag: Tag) {
 
 export default function TagManager() {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export default function TagManager() {
     setError(null);
 
     try {
-      const fetchedTags = await getTags({ token, organizationId: '1' });
+      const fetchedTags = await getTags({ token, organizationId: activeOrganizationId });
       setTags(fetchedTags || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar tags');
@@ -116,7 +119,7 @@ export default function TagManager() {
           icon: newTagIcon,
           color: newTagColor,
         },
-        { token, organizationId: '1' }
+        { token, organizationId: activeOrganizationId }
       );
 
       setSuccess('Tag criada com sucesso!');
@@ -155,7 +158,7 @@ export default function TagManager() {
       await updateTag(
         editingTag.tag_id,
         { name: editName.trim(), icon: editIcon, color: editColor },
-        { token, organizationId: '1' }
+        { token, organizationId: activeOrganizationId }
       );
 
       setSuccess('Tag atualizada com sucesso!');
@@ -186,7 +189,7 @@ export default function TagManager() {
     if (!token) return;
 
     try {
-      await deleteTag(tagId, { token, organizationId: '1' });
+      await deleteTag(tagId, { token, organizationId: activeOrganizationId });
 
       setSuccess('Tag excluida com sucesso!');
       setDeletingTag(null);

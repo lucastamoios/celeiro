@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import type { Tag } from '../types/tag';
 import { getTags } from '../api/tags';
 
@@ -11,6 +12,8 @@ interface TagSelectorProps {
 
 export default function TagSelector({ selectedTagIds, onChange, disabled }: TagSelectorProps) {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +30,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
     }
 
     try {
-      const fetchedTags = await getTags({ token, organizationId: '1' });
+      const fetchedTags = await getTags({ token, organizationId: activeOrganizationId });
       setTags(fetchedTags || []);
     } catch (err) {
       setError('Erro ao carregar tags');
