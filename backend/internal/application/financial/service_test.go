@@ -84,6 +84,11 @@ func (m *MockRepository) FetchTransactionsByMonth(ctx context.Context, params fe
 	return args.Get(0).([]TransactionModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchMatchedTransactionIDs(ctx context.Context, params fetchMatchedTransactionIDsParams) ([]int, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]int), args.Error(1)
+}
+
 func (m *MockRepository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(TransactionModel), args.Error(1)
@@ -518,6 +523,7 @@ func pacingTestSetup(mockRepo *MockRepository, categories []CategoryModel, budge
 	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
 	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
 	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return([]TransactionModel{}, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
 	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(plannedIncome, nil)
 }
 
@@ -589,6 +595,7 @@ func TestGetControllableCategoryPacing_IncludesSystemCategories(t *testing.T) {
 	})).Return(categories, nil)
 	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
 	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return([]TransactionModel{}, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
 	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.NewFromInt(45000), nil)
 
 	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
@@ -625,6 +632,41 @@ func TestGetControllableCategoryPacing_ExcludesIncomeCategories(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result.Categories, 1)
 	assert.Equal(t, "Mercado", result.Categories[0].CategoryName)
+}
+
+func TestGetControllableCategoryPacing_ExcludesPlannedSpending(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	// The pacing budget is the controlled amount only (planned entries are
+	// budgeted separately), so spending matched to a planned entry must not
+	// count toward the pace; only unplanned (controlled) spending does.
+	categoryID := 58
+	categories := []CategoryModel{
+		{CategoryID: categoryID, Name: "Mercado", CategoryType: "expense"},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: categoryID, ControlledAmount: decimal.NewFromInt(3500)},
+	}
+	transactions := []TransactionModel{
+		{TransactionID: 7, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(250)}, // matched to a planned entry
+		{TransactionID: 8, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(100)}, // unplanned
+	}
+	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return(transactions, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{7}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.NewFromInt(45000), nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.True(t, result.Categories[0].Spent.Equal(decimal.NewFromInt(100)),
+		"spent should count only unplanned spending, got %s", result.Categories[0].Spent)
 }
 
 func TestGetPlannedEntryByID_ReturnsTagIDs(t *testing.T) {

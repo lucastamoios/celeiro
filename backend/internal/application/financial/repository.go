@@ -63,6 +63,7 @@ type Repository interface {
 	// Planned Entry Statuses
 	FetchPlannedEntryStatus(ctx context.Context, params fetchPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
 	FetchPlannedEntryStatusesByMonth(ctx context.Context, params fetchPlannedEntryStatusesByMonthParams) ([]PlannedEntryStatusModel, error)
+	FetchMatchedTransactionIDs(ctx context.Context, params fetchMatchedTransactionIDsParams) ([]int, error)
 	FetchPlannedEntryStatusByTransactionID(ctx context.Context, params fetchPlannedEntryStatusByTransactionIDParams) (PlannedEntryStatusModel, error)
 	UpsertPlannedEntryStatus(ctx context.Context, params upsertPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
 	ModifyPlannedEntryStatus(ctx context.Context, params modifyPlannedEntryStatusParams) (PlannedEntryStatusModel, error)
@@ -1987,6 +1988,28 @@ func (r *repository) FetchPlannedEntryStatusesByMonth(ctx context.Context, param
 	err := r.db.Query(ctx, &statuses, fetchPlannedEntryStatusesByMonthQuery,
 		params.UserID, params.OrganizationID, params.Month, params.Year)
 	return statuses, err
+}
+
+type fetchMatchedTransactionIDsParams struct {
+	OrganizationID int
+}
+
+// Transaction IDs matched to any planned entry in the organization, regardless
+// of the status month: a transaction can be matched to an entry from an earlier
+// month (a late payment), and it is still planned spending.
+const fetchMatchedTransactionIDsQuery = `
+	-- financial.fetchMatchedTransactionIDsQuery
+	SELECT DISTINCT pes.matched_transaction_id
+	FROM planned_entry_statuses pes
+	INNER JOIN planned_entries pe ON pe.planned_entry_id = pes.planned_entry_id
+	WHERE pe.organization_id = $1
+		AND pes.matched_transaction_id IS NOT NULL;
+`
+
+func (r *repository) FetchMatchedTransactionIDs(ctx context.Context, params fetchMatchedTransactionIDsParams) ([]int, error) {
+	var ids []int
+	err := r.db.Query(ctx, &ids, fetchMatchedTransactionIDsQuery, params.OrganizationID)
+	return ids, err
 }
 
 type fetchPlannedEntryStatusByTransactionIDParams struct {

@@ -128,9 +128,27 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		return nil, err
 	}
 
-	// Calculate spending by category
+	// The pacing budget is the controlled amount only; planned entries are
+	// budgeted separately. Spending matched to a planned entry is therefore
+	// excluded, so the pace compares unplanned (controlled) spending against the
+	// controlled budget.
+	matchedIDs, err := s.Repository.FetchMatchedTransactionIDs(ctx, fetchMatchedTransactionIDsParams{
+		OrganizationID: input.OrganizationID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	matchedSet := make(map[int]struct{}, len(matchedIDs))
+	for _, id := range matchedIDs {
+		matchedSet[id] = struct{}{}
+	}
+
+	// Calculate unplanned spending by category
 	spendingByCategory := make(map[int]decimal.Decimal)
 	for _, tx := range transactions {
+		if _, isPlanned := matchedSet[tx.TransactionID]; isPlanned {
+			continue
+		}
 		if tx.TransactionType == TransactionTypeDebit && tx.CategoryID != nil && !tx.IsIgnored {
 			catID := *tx.CategoryID
 			current := spendingByCategory[catID]
