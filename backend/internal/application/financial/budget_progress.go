@@ -59,10 +59,13 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 	daysInMonth := time.Date(input.Year, time.Month(input.Month+1), 0, 0, 0, 0, 0, time.UTC).Day()
 	progressPercentage := float64(currentDay) / float64(daysInMonth) * 100
 
-	// Fetch all categories for the organization
+	// Fetch all categories for the organization, including system ones: budgets
+	// are routinely set on system categories (Transporte, Moradia, Dívida), and
+	// excluding them silently dropped those from the pacing widget no matter how
+	// large their budget was. Only the 1% threshold below decides visibility.
 	categories, err := s.Repository.FetchCategories(ctx, fetchCategoriesParams{
 		OrganizationID: &input.OrganizationID,
-		IncludeSystem:  false,
+		IncludeSystem:  true,
 	})
 	if err != nil {
 		return nil, err
@@ -94,9 +97,12 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		categoryMap[cat.CategoryID] = cat
 	}
 
+	// Income categories (Receita) also carry controlled amounts but pacing is
+	// about expense control; previously they were only excluded by the accident
+	// of being system categories.
 	controllableCategories := []CategoryModel{}
 	for catID := range budgetMap {
-		if cat, ok := categoryMap[catID]; ok {
+		if cat, ok := categoryMap[catID]; ok && cat.CategoryType != "income" {
 			controllableCategories = append(controllableCategories, cat)
 		}
 	}

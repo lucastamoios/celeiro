@@ -570,6 +570,63 @@ func TestGetControllableCategoryPacing_NoIncomeShowsAll(t *testing.T) {
 	assert.Len(t, result.Categories, 2)
 }
 
+func TestGetControllableCategoryPacing_IncludesSystemCategories(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	// System categories (Transporte, Moradia, Dívida...) carry budgets too; the
+	// pacing list must request them, otherwise they silently disappear from the
+	// widget regardless of budget size.
+	categories := []CategoryModel{
+		{CategoryID: 10, Name: "Transporte", IsSystem: true, CategoryType: "expense"},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: 10, ControlledAmount: decimal.NewFromInt(1700)},
+	}
+	mockRepo.On("FetchCategories", mock.Anything, mock.MatchedBy(func(params fetchCategoriesParams) bool {
+		return params.IncludeSystem
+	})).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return([]TransactionModel{}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.NewFromInt(45000), nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.Equal(t, "Transporte", result.Categories[0].CategoryName)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetControllableCategoryPacing_ExcludesIncomeCategories(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	// Income categories (Receita) have large controlled amounts but pacing is
+	// about expense control; they must not appear even above the 1% threshold.
+	categories := []CategoryModel{
+		{CategoryID: 53, Name: "Receita", IsSystem: true, CategoryType: "income"},
+		{CategoryID: 58, Name: "Mercado", CategoryType: "expense"},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: 53, ControlledAmount: decimal.NewFromInt(45000)},
+		{CategoryID: 58, ControlledAmount: decimal.NewFromInt(3500)},
+	}
+	pacingTestSetup(mockRepo, categories, budgets, decimal.NewFromInt(45000))
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.Equal(t, "Mercado", result.Categories[0].CategoryName)
+}
+
 func TestGetPlannedEntryByID_ReturnsTagIDs(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := &service{Repository: mockRepo, system: system.NewSystem()}
