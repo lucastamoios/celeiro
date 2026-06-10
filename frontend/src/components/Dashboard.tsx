@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, TrendingDown, X, ChevronLeft, ChevronRight, CalendarDays, Tags, Upload, PieChart, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
 import { parseTransactionDate } from '../utils/date';
@@ -72,6 +73,8 @@ interface DashboardStats {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const {
     selectedMonth, selectedYear,
     goToPreviousMonth, goToNextMonth, goToCurrentMonth, isCurrentMonth: isCurrentSelectedMonth,
@@ -118,13 +121,13 @@ export default function Dashboard() {
         fetch(financialUrl('accounts'), {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         }),
         fetch(financialUrl('categories'), {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         }),
       ]);
@@ -145,7 +148,7 @@ export default function Dashboard() {
           {
             headers: {
               'Authorization': `Bearer ${token}`,
-              'X-Active-Organization': '1',
+              'X-Active-Organization': activeOrganizationId,
             },
           }
         );
@@ -237,7 +240,7 @@ export default function Dashboard() {
       const uncatResponse = await fetch(financialUrl('transactions/uncategorized'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
       });
 
@@ -326,20 +329,14 @@ export default function Dashboard() {
           plannedEntries: plannedEntriesStats,
         };
 
+        // Hide categories whose actual spending this month is below 1% of
+        // planned income. The breakdown shows actual spending, so the threshold
+        // is applied to the spent amount (not the controlled budget): any
+        // category that spends more than 1% of income is kept, regardless of how
+        // it was budgeted.
         if (totalPlannedIncome > 0) {
-          const minimumControlledAmount = totalPlannedIncome * 0.01;
-          const smallControlledCategoryIds = new Set(
-            budgetsByCategory
-              .filter(({ category, planned }) =>
-                category.category_type === 'expense' &&
-                planned > 0 &&
-                planned < minimumControlledAmount
-              )
-              .map(({ category }) => category.category_id)
-          );
-
-          categoryExpenses = categoryExpenses
-            .filter(({ category }) => !smallControlledCategoryIds.has(category.category_id));
+          const minimumSpend = totalPlannedIncome * 0.01;
+          categoryExpenses = categoryExpenses.filter(({ amount }) => amount >= minimumSpend);
         }
       } catch (budgetErr) {
         console.warn('Failed to fetch budget data:', budgetErr);
