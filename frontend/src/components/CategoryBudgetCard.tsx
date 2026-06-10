@@ -324,25 +324,39 @@ export default function CategoryBudgetCard({
 
   const hasEntries = entryStats.total > 0;
 
-  // Clicking a row expands its planned entries when it has them; rows without
-  // entries fall back to opening the category's transactions modal.
+  // Clicking a row opens the category's transactions modal; the chevron toggles
+  // the planned entries. Rows without a modal handler fall back to expanding.
   const handleSummaryClick = () => {
-    if (hasEntries) {
-      setIsExpanded((v) => !v);
-    } else if (onCardClick) {
+    if (onCardClick) {
       onCardClick();
+    } else if (hasEntries) {
+      setIsExpanded((v) => !v);
     }
   };
 
-  const chevronIcon = (
-    <svg
-      className={`w-4 h-4 shrink-0 text-stone-400 transition-transform ${isExpanded ? '' : '-rotate-90'} ${hasEntries ? '' : 'invisible'}`}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
+  const chevronIcon = hasEntries ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsExpanded((v) => !v);
+      }}
+      className="p-1 -m-1 shrink-0 rounded hover:bg-stone-200/70 transition-colors"
+      aria-expanded={isExpanded}
+      aria-label={isExpanded ? 'Ocultar entradas planejadas' : 'Ver entradas planejadas'}
+      title={isExpanded ? 'Ocultar entradas planejadas' : 'Ver entradas planejadas'}
     >
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
+      <svg
+        className={`w-4 h-4 text-stone-400 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+  ) : (
+    <span className="w-4 h-4 shrink-0" aria-hidden="true" />
   );
 
   const inlineBadges = (
@@ -382,23 +396,6 @@ export default function CategoryBudgetCard({
       </span>
     </span>
   );
-
-  const receiptButton = onCardClick ? (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onCardClick();
-      }}
-      className="p-1.5 hover:bg-stone-100 rounded-full transition-colors"
-      aria-label="Ver transações"
-      title="Ver transações"
-    >
-      <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    </button>
-  ) : null;
 
   const categoryActions = !budget.IsConsolidated ? (
     <DropdownMenu
@@ -481,7 +478,6 @@ export default function CategoryBudgetCard({
         <div className="text-right text-sm font-medium whitespace-nowrap">{varianceContent}</div>
         <div className="flex justify-center">{statusBadge}</div>
         <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-          {receiptButton}
           {categoryActions}
         </div>
       </div>
@@ -498,7 +494,6 @@ export default function CategoryBudgetCard({
           <span className="font-display font-semibold text-stone-900 truncate flex-1">{categoryName}</span>
           {statusBadge}
           <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-            {receiptButton}
             {categoryActions}
           </div>
         </div>
