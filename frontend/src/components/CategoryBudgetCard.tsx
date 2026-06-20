@@ -252,10 +252,17 @@ export default function CategoryBudgetCard({
 
 
 
-  // Calculate planned entries sum for this category (expense entries, not dismissed)
+  // Calculate planned entries sum for this category (expense entries, not dismissed).
+  // Matched entries contribute the actual transaction amount; unmatched entries
+  // contribute the top of their range (or the display amount).
   const plannedEntriesSum = plannedEntries
     .filter(e => e.EntryType === 'expense' && e.Status !== 'dismissed')
-    .reduce((sum, e) => sum + (parseFloat(e.AmountMax || e.Amount || '0') || 0), 0);
+    .reduce((sum, e) => {
+      const amount = e.Status === 'matched' && e.MatchedAmount
+        ? parseFloat(e.MatchedAmount)
+        : parseFloat(e.AmountMax || e.Amount || '0');
+      return sum + (amount || 0);
+    }, 0);
 
   // Estimado = controlled + planned entries
   const controlledNum = parseFloat(budget.ControlledAmount || '0') || 0;

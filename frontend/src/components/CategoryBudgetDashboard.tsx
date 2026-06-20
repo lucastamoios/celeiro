@@ -406,10 +406,11 @@ export default function CategoryBudgetDashboard() {
             return;
           }
 
-          // Use MatchedAmount if matched, otherwise use Amount (expected)
+          // Matched entries use the actual transaction amount; unmatched entries
+          // use the top of their range (or the display amount).
           const amount = entry.Status === 'matched' && entry.MatchedAmount
             ? parseFloat(entry.MatchedAmount)
-            : parseFloat(entry.Amount);
+            : parseFloat(entry.AmountMax || entry.Amount);
 
           if (!isNaN(amount) && amount > 0) {
             const currentAmount = parseFloat(spending[key][entry.CategoryID] || '0');
