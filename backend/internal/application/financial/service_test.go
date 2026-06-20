@@ -408,6 +408,16 @@ func (m *MockRepository) SetPlannedEntryTags(ctx context.Context, params setPlan
 	return args.Error(0)
 }
 
+func (m *MockRepository) FetchTagsBySavingsGoalID(ctx context.Context, params fetchTagsBySavingsGoalIDParams) ([]TagModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagModel), args.Error(1)
+}
+
+func (m *MockRepository) SetSavingsGoalTags(ctx context.Context, params setSavingsGoalTagsParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
 // ============================================================================
 // Service Tests
 // ============================================================================

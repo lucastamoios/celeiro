@@ -2057,6 +2057,7 @@ func (h *Handler) CreateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		Notes               *string  `json:"notes,omitempty"`
 		CategoryID          *int     `json:"category_id,omitempty"`
 		MonthlyContribution *float64 `json:"monthly_contribution,omitempty"`
+		TagIDs              []int    `json:"tag_ids,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2084,6 +2085,7 @@ func (h *Handler) CreateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		Notes:               req.Notes,
 		CategoryID:          req.CategoryID,
 		MonthlyContribution: monthlyContribution,
+		TagIDs:              req.TagIDs,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -2116,6 +2118,7 @@ func (h *Handler) UpdateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		Notes               *string  `json:"notes,omitempty"`
 		CategoryID          *int     `json:"category_id,omitempty"`
 		MonthlyContribution *float64 `json:"monthly_contribution,omitempty"`
+		TagIDs              *[]int   `json:"tag_ids,omitempty"` // nil = no change, [] = clear tags
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2150,6 +2153,7 @@ func (h *Handler) UpdateSavingsGoal(w http.ResponseWriter, r *http.Request) {
 		Notes:               req.Notes,
 		CategoryID:          req.CategoryID,
 		MonthlyContribution: monthlyContribution,
+		TagIDs:              req.TagIDs,
 	})
 	if err != nil {
 		responses.NewError(w, err)

@@ -30,6 +30,7 @@ import {
   addContribution,
 } from '../api/savingsGoals';
 import SavingsGoalCard from './SavingsGoalCard';
+import TagSelector from './TagSelector';
 
 export default function SavingsGoalsPage() {
   const { token } = useAuth();
@@ -71,6 +72,7 @@ export default function SavingsGoalsPage() {
     category_id: '',
     monthly_contribution: '',
   });
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -185,6 +187,7 @@ export default function SavingsGoalsPage() {
       category_id: '',
       monthly_contribution: '',
     });
+    setSelectedTagIds([]);
     setEditingGoal(null);
     setFormError(null);
   };
@@ -207,6 +210,7 @@ export default function SavingsGoalsPage() {
       category_id: goal.category_id?.toString() || '',
       monthly_contribution: goal.monthly_contribution || '',
     });
+    setSelectedTagIds(goal.tag_ids || []);
     setEditingGoal(goal);
     setShowForm(true);
   };
@@ -248,6 +252,7 @@ export default function SavingsGoalsPage() {
           notes: formData.notes || undefined,
           category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
           monthly_contribution: formData.monthly_contribution ? parseFloat(formData.monthly_contribution) : undefined,
+          tag_ids: selectedTagIds,
         };
         await updateSavingsGoal(editingGoal.savings_goal_id, updateData, { token, organizationId });
       } else {
@@ -263,6 +268,7 @@ export default function SavingsGoalsPage() {
           notes: formData.notes || undefined,
           category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
           monthly_contribution: formData.monthly_contribution ? parseFloat(formData.monthly_contribution) : undefined,
+          tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         };
         await createSavingsGoal(createData, { token, organizationId });
       }
@@ -684,6 +690,17 @@ export default function SavingsGoalsPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Tags
+                  </label>
+                  <TagSelector selectedTagIds={selectedTagIds} onChange={setSelectedTagIds} />
+                  <p className="text-xs text-stone-500 mt-1">
+                    Aplicadas às entradas geradas por esta meta e às transações vinculadas
+                  </p>
                 </div>
 
                 {/* Monthly Contribution (only for investimento) */}

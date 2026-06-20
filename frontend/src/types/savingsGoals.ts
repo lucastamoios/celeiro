@@ -22,6 +22,7 @@ export interface SavingsGoal {
   notes?: string;
   category_id?: number;
   monthly_contribution?: string; // Decimal as string
+  tag_ids: number[]; // Tags copied onto generated entries, then to matched transactions
   created_at: string;
   updated_at: string;
 }
@@ -93,6 +94,7 @@ export interface CreateSavingsGoalRequest {
   notes?: string;
   category_id?: number;
   monthly_contribution?: number;
+  tag_ids?: number[]; // Tags to apply - copied onto generated entries, then to matched transactions
 }
 
 export interface UpdateSavingsGoalRequest {
@@ -105,6 +107,7 @@ export interface UpdateSavingsGoalRequest {
   notes?: string;
   category_id?: number;
   monthly_contribution?: number;
+  tag_ids?: number[]; // nil = no change, [] = clear tags
 }
 
 export interface AddContributionRequest {

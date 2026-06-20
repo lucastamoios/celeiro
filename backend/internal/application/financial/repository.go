@@ -91,6 +91,8 @@ type Repository interface {
 	ModifySavingsGoal(ctx context.Context, params modifySavingsGoalParams) (SavingsGoalModel, error)
 	RemoveSavingsGoal(ctx context.Context, params removeSavingsGoalParams) error
 	AddContribution(ctx context.Context, params addContributionParams) (SavingsGoalModel, error)
+	FetchTagsBySavingsGoalID(ctx context.Context, params fetchTagsBySavingsGoalIDParams) ([]TagModel, error)
+	SetSavingsGoalTags(ctx context.Context, params setSavingsGoalTagsParams) error
 	FetchGoalContributions(ctx context.Context, params fetchGoalContributionsParams) ([]TransactionModel, error)
 	FetchGoalMonthlyContributions(ctx context.Context, params fetchGoalMonthlyContributionsParams) ([]GoalMonthlyContributionModel, error)
 
@@ -808,7 +810,6 @@ func (r *repository) RemoveTransaction(ctx context.Context, params removeTransac
 	err := r.db.Run(ctx, removeTransactionQuery, params.TransactionID, params.OrganizationID)
 	return err
 }
-
 
 // ============================================================================
 // Classification Rules
@@ -2510,6 +2511,60 @@ func (r *repository) AddContribution(ctx context.Context, params addContribution
 	err := r.db.Query(ctx, &goal, addContributionQuery,
 		params.SavingsGoalID, params.OrganizationID, params.Amount)
 	return goal, err
+}
+
+type fetchTagsBySavingsGoalIDParams struct {
+	SavingsGoalID int
+}
+
+const fetchTagsBySavingsGoalIDQuery = `
+	-- financial.fetchTagsBySavingsGoalIDQuery
+	SELECT t.tag_id, t.created_at, t.updated_at, t.user_id, t.organization_id, t.name, t.icon, t.color
+	FROM tags t
+	JOIN savings_goal_tags sgt ON sgt.tag_id = t.tag_id
+	WHERE sgt.savings_goal_id = $1
+	ORDER BY t.name ASC;
+`
+
+func (r *repository) FetchTagsBySavingsGoalID(ctx context.Context, params fetchTagsBySavingsGoalIDParams) ([]TagModel, error) {
+	var tags []TagModel
+	err := r.db.Query(ctx, &tags, fetchTagsBySavingsGoalIDQuery, params.SavingsGoalID)
+	return tags, err
+}
+
+type setSavingsGoalTagsParams struct {
+	SavingsGoalID int
+	TagIDs        []int
+}
+
+const deleteSavingsGoalTagsQuery = `
+	-- financial.deleteSavingsGoalTagsQuery
+	DELETE FROM savings_goal_tags WHERE savings_goal_id = $1;
+`
+
+const insertSavingsGoalTagQuery = `
+	-- financial.insertSavingsGoalTagQuery
+	INSERT INTO savings_goal_tags (savings_goal_id, tag_id)
+	VALUES ($1, $2)
+	ON CONFLICT (savings_goal_id, tag_id) DO NOTHING;
+`
+
+func (r *repository) SetSavingsGoalTags(ctx context.Context, params setSavingsGoalTagsParams) error {
+	// First, delete all existing tags for this goal
+	err := r.db.Run(ctx, deleteSavingsGoalTagsQuery, params.SavingsGoalID)
+	if err != nil {
+		return err
+	}
+
+	// Then, insert all new tags
+	for _, tagID := range params.TagIDs {
+		err = r.db.Run(ctx, insertSavingsGoalTagQuery, params.SavingsGoalID, tagID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type fetchGoalContributionsParams struct {

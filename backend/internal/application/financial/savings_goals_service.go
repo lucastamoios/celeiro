@@ -47,6 +47,7 @@ type CreateSavingsGoalInput struct {
 	Notes               *string
 	CategoryID          *int
 	MonthlyContribution *decimal.Decimal
+	TagIDs              []int
 }
 
 type UpdateSavingsGoalInput struct {
@@ -62,6 +63,7 @@ type UpdateSavingsGoalInput struct {
 	Notes               *string
 	CategoryID          *int
 	MonthlyContribution *decimal.Decimal
+	TagIDs              *[]int // nil = no change, [] = clear tags
 }
 
 type DeleteSavingsGoalInput struct {
@@ -111,7 +113,11 @@ func (s *service) GetSavingsGoals(ctx context.Context, input GetSavingsGoalsInpu
 		return nil, fmt.Errorf("failed to fetch savings goals: %w", err)
 	}
 
-	return SavingsGoals{}.FromModel(models), nil
+	goals := SavingsGoals{}.FromModel(models)
+	for i := range goals {
+		goals[i].TagIDs = s.savingsGoalTagIDs(ctx, goals[i].SavingsGoalID)
+	}
+	return goals, nil
 }
 
 func (s *service) GetSavingsGoalByID(ctx context.Context, input GetSavingsGoalByIDInput) (SavingsGoal, error) {
@@ -124,7 +130,29 @@ func (s *service) GetSavingsGoalByID(ctx context.Context, input GetSavingsGoalBy
 		return SavingsGoal{}, fmt.Errorf("failed to fetch savings goal: %w", err)
 	}
 
-	return SavingsGoal{}.FromModel(&model), nil
+	goal := SavingsGoal{}.FromModel(&model)
+	goal.TagIDs = s.savingsGoalTagIDs(ctx, goal.SavingsGoalID)
+	return goal, nil
+}
+
+// savingsGoalTagIDs returns the tag IDs configured on a savings goal, or an
+// empty slice if none are set or the lookup fails.
+func (s *service) savingsGoalTagIDs(ctx context.Context, savingsGoalID int) []int {
+	tags, err := s.Repository.FetchTagsBySavingsGoalID(ctx, fetchTagsBySavingsGoalIDParams{
+		SavingsGoalID: savingsGoalID,
+	})
+	if err != nil {
+		s.logger.Warn(ctx, "failed to fetch tags for savings goal",
+			"savings_goal_id", savingsGoalID,
+			"error", err.Error(),
+		)
+		return []int{}
+	}
+	ids := make([]int, len(tags))
+	for i, t := range tags {
+		ids[i] = t.TagID
+	}
+	return ids
 }
 
 func (s *service) GetSavingsGoalProgress(ctx context.Context, input GetSavingsGoalProgressInput) (SavingsGoalProgress, error) {
@@ -263,7 +291,24 @@ func (s *service) CreateSavingsGoal(ctx context.Context, input CreateSavingsGoal
 		return SavingsGoal{}, fmt.Errorf("failed to create savings goal: %w", err)
 	}
 
-	return SavingsGoal{}.FromModel(&model), nil
+	goal := SavingsGoal{}.FromModel(&model)
+
+	// Set tags if provided
+	if len(input.TagIDs) > 0 {
+		if err := s.Repository.SetSavingsGoalTags(ctx, setSavingsGoalTagsParams{
+			SavingsGoalID: goal.SavingsGoalID,
+			TagIDs:        input.TagIDs,
+		}); err != nil {
+			s.logger.Warn(ctx, "failed to set savings goal tags",
+				"savings_goal_id", goal.SavingsGoalID,
+				"error", err.Error(),
+			)
+			// Continue - goal was created successfully, tags are optional
+		}
+	}
+
+	goal.TagIDs = s.savingsGoalTagIDs(ctx, goal.SavingsGoalID)
+	return goal, nil
 }
 
 func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoalInput) (SavingsGoal, error) {
@@ -292,7 +337,7 @@ func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoal
 		OrganizationID:      input.OrganizationID,
 		Name:                input.Name,
 		TargetAmount:        input.TargetAmount,
-		DueDate:             input.DueDate,    // Empty string clears, nil leaves unchanged
+		DueDate:             input.DueDate,   // Empty string clears, nil leaves unchanged
 		StartDate:           input.StartDate, // Empty string clears, nil leaves unchanged
 		Icon:                input.Icon,
 		Color:               input.Color,
@@ -304,7 +349,24 @@ func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoal
 		return SavingsGoal{}, fmt.Errorf("failed to update savings goal: %w", err)
 	}
 
-	return SavingsGoal{}.FromModel(&model), nil
+	goal := SavingsGoal{}.FromModel(&model)
+
+	// Update tags only when explicitly provided (nil = leave unchanged, [] = clear)
+	if input.TagIDs != nil {
+		if err := s.Repository.SetSavingsGoalTags(ctx, setSavingsGoalTagsParams{
+			SavingsGoalID: goal.SavingsGoalID,
+			TagIDs:        *input.TagIDs,
+		}); err != nil {
+			s.logger.Warn(ctx, "failed to set savings goal tags",
+				"savings_goal_id", goal.SavingsGoalID,
+				"error", err.Error(),
+			)
+			// Continue - goal was updated successfully, tags are optional
+		}
+	}
+
+	goal.TagIDs = s.savingsGoalTagIDs(ctx, goal.SavingsGoalID)
+	return goal, nil
 }
 
 func (s *service) DeleteSavingsGoal(ctx context.Context, input DeleteSavingsGoalInput) error {
@@ -534,7 +596,7 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 		goalID := goal.SavingsGoalID
 		targetMonth := month
 		targetYear := year
-		_, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
+		entry, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
 			UserID:         userID,
 			OrganizationID: orgID,
 			CategoryID:     *goal.CategoryID,
@@ -554,6 +616,17 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 				fmt.Printf("[GOAL-ENTRIES] ERROR creating entry for goal %d (%s): %v\n", goal.SavingsGoalID, goal.Name, err)
 			}
 			continue
+		}
+
+		// Copy the goal's tags onto the generated entry. These transfer to the
+		// transaction when it is later matched against this entry.
+		if tagIDs := s.savingsGoalTagIDs(ctx, goal.SavingsGoalID); len(tagIDs) > 0 {
+			if err := s.Repository.SetPlannedEntryTags(ctx, setPlannedEntryTagsParams{
+				PlannedEntryID: entry.PlannedEntryID,
+				TagIDs:         tagIDs,
+			}); err != nil {
+				fmt.Printf("[GOAL-ENTRIES] WARN failed to set tags for entry %d (goal %d): %v\n", entry.PlannedEntryID, goal.SavingsGoalID, err)
+			}
 		}
 
 		fmt.Printf("[GOAL-ENTRIES] created entry for goal %d (%s)\n", goal.SavingsGoalID, goal.Name)

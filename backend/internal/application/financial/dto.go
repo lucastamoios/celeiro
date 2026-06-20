@@ -481,38 +481,39 @@ type AmountRange struct {
 
 // SavingsGoal DTO
 type SavingsGoal struct {
-	SavingsGoalID  int             `json:"savings_goal_id"`
-	UserID         int             `json:"user_id"`
-	OrganizationID int             `json:"organization_id"`
-	Name           string          `json:"name"`
-	GoalType       string          `json:"goal_type"` // reserva, investimento
-	TargetAmount   decimal.Decimal `json:"target_amount"`
-	InitialAmount  decimal.Decimal `json:"initial_amount"`     // Pre-existing balance when goal was created
-	DueDate        *string         `json:"due_date,omitempty"`   // ISO 8601 date format
-	StartDate      *string         `json:"start_date,omitempty"` // ISO 8601 date format
-	Icon           *string         `json:"icon,omitempty"`
-	Color          *string         `json:"color,omitempty"`
-	IsActive       bool            `json:"is_active"`
-	IsCompleted    bool            `json:"is_completed"`
-	CompletedAt    *string         `json:"completed_at,omitempty"` // ISO 8601 datetime
-	Notes               *string         `json:"notes,omitempty"`
+	SavingsGoalID       int              `json:"savings_goal_id"`
+	UserID              int              `json:"user_id"`
+	OrganizationID      int              `json:"organization_id"`
+	Name                string           `json:"name"`
+	GoalType            string           `json:"goal_type"` // reserva, investimento
+	TargetAmount        decimal.Decimal  `json:"target_amount"`
+	InitialAmount       decimal.Decimal  `json:"initial_amount"`       // Pre-existing balance when goal was created
+	DueDate             *string          `json:"due_date,omitempty"`   // ISO 8601 date format
+	StartDate           *string          `json:"start_date,omitempty"` // ISO 8601 date format
+	Icon                *string          `json:"icon,omitempty"`
+	Color               *string          `json:"color,omitempty"`
+	IsActive            bool             `json:"is_active"`
+	IsCompleted         bool             `json:"is_completed"`
+	CompletedAt         *string          `json:"completed_at,omitempty"` // ISO 8601 datetime
+	Notes               *string          `json:"notes,omitempty"`
 	CategoryID          *int             `json:"category_id,omitempty"`
 	MonthlyContribution *decimal.Decimal `json:"monthly_contribution,omitempty"`
+	TagIDs              []int            `json:"tag_ids"` // Tags copied onto generated entries, then to matched transactions
 	CreatedAt           time.Time        `json:"created_at"`
 	UpdatedAt           time.Time        `json:"updated_at"`
 }
 
 func (s SavingsGoal) FromModel(model *SavingsGoalModel) SavingsGoal {
 	dto := SavingsGoal{
-		SavingsGoalID:  model.SavingsGoalID,
-		UserID:         model.UserID,
-		OrganizationID: model.OrganizationID,
-		Name:           model.Name,
-		GoalType:       model.GoalType,
-		TargetAmount:   model.TargetAmount,
-		InitialAmount:  model.InitialAmount,
-		Icon:           model.Icon,
-		Color:          model.Color,
+		SavingsGoalID:       model.SavingsGoalID,
+		UserID:              model.UserID,
+		OrganizationID:      model.OrganizationID,
+		Name:                model.Name,
+		GoalType:            model.GoalType,
+		TargetAmount:        model.TargetAmount,
+		InitialAmount:       model.InitialAmount,
+		Icon:                model.Icon,
+		Color:               model.Color,
 		IsActive:            model.IsActive,
 		IsCompleted:         model.IsCompleted,
 		Notes:               model.Notes,
