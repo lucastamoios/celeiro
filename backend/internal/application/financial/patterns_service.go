@@ -539,6 +539,10 @@ func (s *service) applyPatternToTransaction(ctx context.Context, tx *Transaction
 				s.updatePlannedEntryAmountFromTransaction(ctx, fullEntry, *tx, userID, organizationID)
 			}
 
+			// Transfer the planned entry's tags onto the transaction, same as the
+			// manual match path, so tagged spending is captured on auto-match too.
+			s.transferPlannedEntryTagsToTransaction(ctx, entry.PlannedEntryID, tx.TransactionID)
+
 			s.logger.Info(ctx, "Auto-matched planned entry via advanced pattern",
 				"planned_entry_id", entry.PlannedEntryID,
 				"pattern_id", pattern.PatternID,

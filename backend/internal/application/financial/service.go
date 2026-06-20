@@ -1807,63 +1807,73 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 	}
 
 	// 6. Transfer tags from planned entry to transaction (merge with existing)
+	s.transferPlannedEntryTagsToTransaction(ctx, params.PlannedEntryID, params.TransactionID)
+
+	return PlannedEntryStatus{}.FromModel(&statusModel), nil
+}
+
+// transferPlannedEntryTagsToTransaction copies the planned entry's tags onto the
+// transaction, merging with any tags the transaction already carries. This is how
+// a tag reaches transaction_tags (and therefore the per-tag spending view), so it
+// must run on every match path, manual and automatic alike. Failures are logged
+// and swallowed: a match should never fail because tag bookkeeping did.
+func (s *service) transferPlannedEntryTagsToTransaction(ctx context.Context, plannedEntryID, transactionID int) {
 	entryTags, err := s.Repository.FetchTagsByPlannedEntryID(ctx, fetchTagsByPlannedEntryIDParams{
-		PlannedEntryID: params.PlannedEntryID,
+		PlannedEntryID: plannedEntryID,
 	})
 	if err != nil {
 		s.logger.Warn(ctx, "failed to fetch planned entry tags for transfer",
-			"planned_entry_id", params.PlannedEntryID,
+			"planned_entry_id", plannedEntryID,
 			"error", err.Error(),
 		)
-	} else if len(entryTags) > 0 {
-		// Get existing transaction tags
-		existingTags, err := s.Repository.FetchTagsByTransactionID(ctx, fetchTagsByTransactionIDParams{
-			TransactionID: params.TransactionID,
-		})
-		if err != nil {
-			s.logger.Warn(ctx, "failed to fetch existing transaction tags",
-				"transaction_id", params.TransactionID,
-				"error", err.Error(),
-			)
-		} else {
-			// Merge tags (entry tags + existing tags, no duplicates)
-			tagIDSet := make(map[int]bool)
-			for _, tag := range existingTags {
-				tagIDSet[tag.TagID] = true
-			}
-			for _, tag := range entryTags {
-				tagIDSet[tag.TagID] = true
-			}
-
-			// Convert to slice
-			mergedTagIDs := make([]int, 0, len(tagIDSet))
-			for tagID := range tagIDSet {
-				mergedTagIDs = append(mergedTagIDs, tagID)
-			}
-
-			// Set merged tags on transaction
-			err = s.Repository.SetTransactionTags(ctx, setTransactionTagsParams{
-				TransactionID: params.TransactionID,
-				TagIDs:        mergedTagIDs,
-			})
-			if err != nil {
-				s.logger.Warn(ctx, "failed to transfer tags to transaction",
-					"transaction_id", params.TransactionID,
-					"tag_count", len(mergedTagIDs),
-					"error", err.Error(),
-				)
-			} else {
-				s.logger.Info(ctx, "transferred tags from planned entry to transaction",
-					"planned_entry_id", params.PlannedEntryID,
-					"transaction_id", params.TransactionID,
-					"tags_transferred", len(entryTags),
-					"total_tags", len(mergedTagIDs),
-				)
-			}
-		}
+		return
+	}
+	if len(entryTags) == 0 {
+		return
 	}
 
-	return PlannedEntryStatus{}.FromModel(&statusModel), nil
+	existingTags, err := s.Repository.FetchTagsByTransactionID(ctx, fetchTagsByTransactionIDParams{
+		TransactionID: transactionID,
+	})
+	if err != nil {
+		s.logger.Warn(ctx, "failed to fetch existing transaction tags",
+			"transaction_id", transactionID,
+			"error", err.Error(),
+		)
+		return
+	}
+
+	// Merge entry tags with existing transaction tags, no duplicates.
+	tagIDSet := make(map[int]bool)
+	for _, tag := range existingTags {
+		tagIDSet[tag.TagID] = true
+	}
+	for _, tag := range entryTags {
+		tagIDSet[tag.TagID] = true
+	}
+	mergedTagIDs := make([]int, 0, len(tagIDSet))
+	for tagID := range tagIDSet {
+		mergedTagIDs = append(mergedTagIDs, tagID)
+	}
+
+	if err := s.Repository.SetTransactionTags(ctx, setTransactionTagsParams{
+		TransactionID: transactionID,
+		TagIDs:        mergedTagIDs,
+	}); err != nil {
+		s.logger.Warn(ctx, "failed to transfer tags to transaction",
+			"transaction_id", transactionID,
+			"tag_count", len(mergedTagIDs),
+			"error", err.Error(),
+		)
+		return
+	}
+
+	s.logger.Info(ctx, "transferred tags from planned entry to transaction",
+		"planned_entry_id", plannedEntryID,
+		"transaction_id", transactionID,
+		"tags_transferred", len(entryTags),
+		"total_tags", len(mergedTagIDs),
+	)
 }
 
 func (s *service) updatePlannedEntryAmountFromTransaction(
