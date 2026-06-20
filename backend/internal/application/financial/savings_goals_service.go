@@ -151,11 +151,13 @@ func (s *service) GetSavingsGoalProgress(ctx context.Context, input GetSavingsGo
 	// 3. Calculate current amount (initial amount + sum of transaction amounts)
 	currentAmount := goal.InitialAmount
 	for _, tx := range transactions {
-		// Credits add to savings, debits subtract
+		// A linked debit is money set aside toward the goal (it leaves the
+		// checking account), so it adds to progress. A credit is money pulled
+		// back out of the goal (a withdrawal), so it subtracts.
 		if tx.TransactionType == TransactionTypeCredit {
-			currentAmount = currentAmount.Add(tx.Amount)
-		} else {
 			currentAmount = currentAmount.Sub(tx.Amount)
+		} else {
+			currentAmount = currentAmount.Add(tx.Amount)
 		}
 	}
 
