@@ -28,4 +28,13 @@ export interface TagSpending {
   total: string;
   planned: string;
   transaction_count: number;
+  planned_entries?: TagPlannedEntry[];
+}
+
+export interface TagPlannedEntry {
+  planned_entry_id: number;
+  description: string;
+  amount: string;
+  status: string;
+  paid: boolean;
 }

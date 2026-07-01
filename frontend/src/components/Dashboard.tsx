@@ -801,7 +801,7 @@ export default function Dashboard() {
             className="w-full flex items-center justify-between"
           >
             <h2 className="font-display text-lg font-semibold text-stone-900">
-              Detalhamento de Gastos
+              Gastos Reais do Mês
             </h2>
             <div className="flex items-center gap-2 text-stone-500">
               <span className="text-sm">

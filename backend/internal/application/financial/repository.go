@@ -100,6 +100,7 @@ type Repository interface {
 	FetchTags(ctx context.Context, params fetchTagsParams) ([]TagModel, error)
 	FetchTagSpendingByMonth(ctx context.Context, params fetchTagSpendingByMonthParams) ([]TagSpendingModel, error)
 	FetchTagPlannedByMonth(ctx context.Context, params fetchTagPlannedByMonthParams) ([]TagPlannedModel, error)
+	FetchTagPlannedEntriesByMonth(ctx context.Context, params fetchTagPlannedEntriesByMonthParams) ([]TagPlannedEntryModel, error)
 	FetchIncomeBudgetForMonth(ctx context.Context, params fetchIncomeBudgetForMonthParams) (decimal.Decimal, error)
 	FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error)
 	InsertTag(ctx context.Context, params insertTagParams) (TagModel, error)
@@ -2753,6 +2754,53 @@ func (r *repository) FetchTagPlannedByMonth(ctx context.Context, params fetchTag
 	err := r.db.Query(ctx, &planned, fetchTagPlannedByMonthQuery,
 		params.OrganizationID, params.Month, params.Year)
 	return planned, err
+}
+
+type fetchTagPlannedEntriesByMonthParams struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// Lists planned entries under each tag for a month, excluding dismissed entries.
+// A matched status means the planned entry was paid.
+const fetchTagPlannedEntriesByMonthQuery = `
+	-- financial.fetchTagPlannedEntriesByMonthQuery
+	SELECT
+		t.tag_id,
+		pe.planned_entry_id,
+		pe.description,
+		pe.amount,
+		COALESCE(pes.status, 'scheduled') AS status,
+		COALESCE(pes.status = 'matched', false) AS paid
+	FROM tags t
+	INNER JOIN planned_entry_tags pet ON pet.tag_id = t.tag_id
+	INNER JOIN planned_entries pe ON pe.planned_entry_id = pet.planned_entry_id
+	LEFT JOIN planned_entry_statuses pes
+		ON pes.planned_entry_id = pe.planned_entry_id
+		AND pes.month = $2
+		AND pes.year = $3
+	WHERE t.organization_id = $1
+		AND pe.organization_id = $1
+		AND pe.is_active = true
+		AND pe.entry_type = 'expense'
+		AND (
+			pe.is_recurrent = true
+			OR (pe.target_month = $2 AND pe.target_year = $3)
+		)
+		AND (pes.status IS NULL OR pes.status <> 'dismissed')
+	ORDER BY
+		t.tag_id,
+		paid ASC,
+		COALESCE(pe.expected_day_start, pe.expected_day, 32),
+		pe.description;
+`
+
+func (r *repository) FetchTagPlannedEntriesByMonth(ctx context.Context, params fetchTagPlannedEntriesByMonthParams) ([]TagPlannedEntryModel, error) {
+	var entries []TagPlannedEntryModel
+	err := r.db.Query(ctx, &entries, fetchTagPlannedEntriesByMonthQuery,
+		params.OrganizationID, params.Month, params.Year)
+	return entries, err
 }
 
 type fetchIncomeBudgetForMonthParams struct {

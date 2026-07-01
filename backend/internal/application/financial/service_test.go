@@ -361,6 +361,11 @@ func (m *MockRepository) FetchTagPlannedByMonth(ctx context.Context, params fetc
 	return args.Get(0).([]TagPlannedModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchTagPlannedEntriesByMonth(ctx context.Context, params fetchTagPlannedEntriesByMonthParams) ([]TagPlannedEntryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagPlannedEntryModel), args.Error(1)
+}
+
 func (m *MockRepository) FetchIncomeBudgetForMonth(ctx context.Context, params fetchIncomeBudgetForMonthParams) (decimal.Decimal, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(decimal.Decimal), args.Error(1)
@@ -713,8 +718,13 @@ func TestGetTagSpending_UnionsPlannedAndSpent(t *testing.T) {
 		{TagID: 1, Name: "Mercado", Icon: "🛒", Color: "#C6943A", Total: decimal.NewFromInt(500)},
 		{TagID: 3, Name: "Escola", Icon: "🏫", Color: "#A67A2A", Total: decimal.NewFromInt(800)},
 	}
+	plannedEntryModels := []TagPlannedEntryModel{
+		{TagID: 1, PlannedEntryID: 10, Description: "Supermercado", Amount: decimal.NewFromInt(500), Status: PlannedEntryStatusMatched, Paid: true},
+		{TagID: 3, PlannedEntryID: 11, Description: "Mensalidade", Amount: decimal.NewFromInt(800), Status: PlannedEntryStatusScheduled, Paid: false},
+	}
 	mockRepo.On("FetchTagSpendingByMonth", mock.Anything, mock.Anything).Return(spendingModels, nil)
 	mockRepo.On("FetchTagPlannedByMonth", mock.Anything, mock.Anything).Return(plannedModels, nil)
+	mockRepo.On("FetchTagPlannedEntriesByMonth", mock.Anything, mock.Anything).Return(plannedEntryModels, nil)
 
 	result, err := svc.GetTagSpending(ctx, GetTagSpendingInput{OrganizationID: orgID, Month: 6, Year: 2026})
 
@@ -726,6 +736,8 @@ func TestGetTagSpending_UnionsPlannedAndSpent(t *testing.T) {
 	assert.Equal(t, "450.00", result[0].Total)
 	assert.Equal(t, "500.00", result[0].Planned)
 	assert.Equal(t, 3, result[0].TransactionCount)
+	assert.Len(t, result[0].PlannedEntries, 1)
+	assert.True(t, result[0].PlannedEntries[0].Paid)
 
 	assert.Equal(t, "Lazer", result[1].Name)
 	assert.Equal(t, "120.00", result[1].Total)
@@ -736,6 +748,8 @@ func TestGetTagSpending_UnionsPlannedAndSpent(t *testing.T) {
 	assert.Equal(t, "0.00", result[2].Total)
 	assert.Equal(t, "800.00", result[2].Planned)
 	assert.Equal(t, 0, result[2].TransactionCount)
+	assert.Len(t, result[2].PlannedEntries, 1)
+	assert.False(t, result[2].PlannedEntries[0].Paid)
 
 	mockRepo.AssertExpectations(t)
 }

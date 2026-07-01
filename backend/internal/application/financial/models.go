@@ -355,6 +355,16 @@ type TagPlannedModel struct {
 	Total decimal.Decimal `db:"total"`
 }
 
+// TagPlannedEntryModel is a planned expense entry grouped under a tag.
+type TagPlannedEntryModel struct {
+	TagID          int             `db:"tag_id"`
+	PlannedEntryID int             `db:"planned_entry_id"`
+	Description    string          `db:"description"`
+	Amount         decimal.Decimal `db:"amount"`
+	Status         string          `db:"status"`
+	Paid           bool            `db:"paid"`
+}
+
 // TransactionTagModel represents the many-to-many relationship between transactions and tags
 type TransactionTagModel struct {
 	TransactionTagID int       `db:"transaction_tag_id"`

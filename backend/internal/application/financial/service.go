@@ -2376,10 +2376,10 @@ type GetTagSpendingInput struct {
 	Year           int
 }
 
-// GetTagSpending returns, per tag, the amount spent this month and the planned
-// budget (dismissed planned entries excluded). A tag is listed when it has
-// spending or a planned budget, so the user sees both what has gone out and the
-// budget to compare it against. Sorted by spent then planned, both descending.
+// GetTagSpending returns, per tag, the amount spent this month, the planned
+// budget, and the planned entries that make up that budget (dismissed planned
+// entries excluded). A tag is listed when it has spending or a planned budget.
+// Sorted by spent then planned, both descending.
 func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput) ([]TagSpending, error) {
 	spentModels, err := s.Repository.FetchTagSpendingByMonth(ctx, fetchTagSpendingByMonthParams{
 		OrganizationID: input.OrganizationID,
@@ -2399,11 +2399,21 @@ func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput)
 		return nil, errors.Wrap(err, "failed to fetch tag planned amounts")
 	}
 
+	plannedEntryModels, err := s.Repository.FetchTagPlannedEntriesByMonth(ctx, fetchTagPlannedEntriesByMonthParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch tag planned entries")
+	}
+
 	type tagAggregate struct {
-		tag     TagModel
-		spent   decimal.Decimal
-		planned decimal.Decimal
-		txCount int
+		tag            TagModel
+		spent          decimal.Decimal
+		planned        decimal.Decimal
+		txCount        int
+		plannedEntries []TagPlannedEntry
 	}
 
 	byTag := make(map[int]*tagAggregate)
@@ -2428,6 +2438,19 @@ func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput)
 	for _, p := range plannedModels {
 		agg := get(p.TagID, p.Name, p.Icon, p.Color)
 		agg.planned = p.Total
+	}
+	for _, entry := range plannedEntryModels {
+		agg, ok := byTag[entry.TagID]
+		if !ok {
+			continue
+		}
+		agg.plannedEntries = append(agg.plannedEntries, TagPlannedEntry{
+			PlannedEntryID: entry.PlannedEntryID,
+			Description:    entry.Description,
+			Amount:         entry.Amount.StringFixed(2),
+			Status:         entry.Status,
+			Paid:           entry.Paid,
+		})
 	}
 
 	aggregates := make([]*tagAggregate, 0, len(byTag))
@@ -2454,6 +2477,7 @@ func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput)
 			Total:            agg.spent.StringFixed(2),
 			Planned:          agg.planned.StringFixed(2),
 			TransactionCount: agg.txCount,
+			PlannedEntries:   agg.plannedEntries,
 		}
 	}
 
