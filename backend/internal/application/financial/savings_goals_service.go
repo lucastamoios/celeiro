@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	internalerrors "github.com/catrutech/celeiro/internal/errors"
 	"github.com/shopspring/decimal"
 )
 
@@ -288,6 +289,9 @@ func (s *service) CreateSavingsGoal(ctx context.Context, input CreateSavingsGoal
 		MonthlyContribution: input.MonthlyContribution,
 	})
 	if err != nil {
+		if isSavingsGoalNameConflict(err) {
+			return SavingsGoal{}, internalerrors.ErrSavingsGoalNameExists
+		}
 		return SavingsGoal{}, fmt.Errorf("failed to create savings goal: %w", err)
 	}
 
@@ -346,6 +350,9 @@ func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoal
 		MonthlyContribution: input.MonthlyContribution,
 	})
 	if err != nil {
+		if isSavingsGoalNameConflict(err) {
+			return SavingsGoal{}, internalerrors.ErrSavingsGoalNameExists
+		}
 		return SavingsGoal{}, fmt.Errorf("failed to update savings goal: %w", err)
 	}
 
@@ -409,10 +416,23 @@ func (s *service) ReopenSavingsGoal(ctx context.Context, input ReopenSavingsGoal
 		IsCompleted:    &isCompleted,
 	})
 	if err != nil {
+		if isSavingsGoalNameConflict(err) {
+			return SavingsGoal{}, internalerrors.ErrSavingsGoalNameExists
+		}
 		return SavingsGoal{}, fmt.Errorf("failed to reopen savings goal: %w", err)
 	}
 
 	return SavingsGoal{}.FromModel(&model), nil
+}
+
+func isSavingsGoalNameConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := err.Error()
+	return strings.Contains(message, "idx_savings_goals_open_org_name") ||
+		strings.Contains(message, "savings_goals_organization_id_name_key")
 }
 
 func (s *service) GetGoalSummary(ctx context.Context, input GetGoalSummaryInput) (SavingsGoalDetail, error) {

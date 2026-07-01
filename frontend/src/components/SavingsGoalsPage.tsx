@@ -277,7 +277,12 @@ export default function SavingsGoalsPage() {
       resetForm();
       fetchGoals();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save goal');
+      const message = err instanceof Error ? err.message : 'Failed to save goal';
+      setFormError(
+        message === 'savings goal name already exists'
+          ? 'Ja existe uma meta aberta com esse nome'
+          : message
+      );
     } finally {
       setSaving(false);
     }

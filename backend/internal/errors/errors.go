@@ -24,6 +24,7 @@ var (
 	ErrInviteAlreadyAccepted = pkgerrors.New("invite has already been accepted")
 	ErrInvalidToken          = pkgerrors.New("invalid or expired token")
 	ErrRecaptchaFailed       = pkgerrors.New("recaptcha verification failed")
+	ErrSavingsGoalNameExists = pkgerrors.New("savings goal name already exists")
 
 	// Transaction pattern draft errors
 	ErrTransactionCategoryRequired    = pkgerrors.New("transaction has no category")

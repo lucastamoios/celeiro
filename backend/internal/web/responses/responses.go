@@ -37,6 +37,7 @@ var errorMappings = map[error]ErrorMapping{
 	errors.ErrInvalidSession:                 {Status: http.StatusUnauthorized, Code: "INVALID_SESSION"},
 	errors.ErrActivationFailed:               {Status: http.StatusUnauthorized, Code: "ACTIVATION_FAILED"},
 	errors.ErrInvalidCode:                    {Status: http.StatusUnauthorized, Code: "INVALID_CODE"},
+	errors.ErrSavingsGoalNameExists:          {Status: http.StatusConflict, Code: "SAVINGS_GOAL_NAME_EXISTS"},
 	errors.ErrTransactionCategoryRequired:    {Status: http.StatusBadRequest, Code: "TRANSACTION_CATEGORY_REQUIRED"},
 	errors.ErrTransactionDescriptionRequired: {Status: http.StatusBadRequest, Code: "TRANSACTION_DESCRIPTION_REQUIRED"},
 }

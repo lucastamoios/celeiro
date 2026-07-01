@@ -2,8 +2,10 @@ package financial
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	internalerrors "github.com/catrutech/celeiro/internal/errors"
 	"github.com/catrutech/celeiro/pkg/system"
 
 	"github.com/shopspring/decimal"
@@ -751,5 +753,25 @@ func TestGetTagSpending_UnionsPlannedAndSpent(t *testing.T) {
 	assert.Len(t, result[2].PlannedEntries, 1)
 	assert.False(t, result[2].PlannedEntries[0].Paid)
 
+	mockRepo.AssertExpectations(t)
+}
+
+func TestCreateSavingsGoal_ReturnsNameExistsForOpenGoalNameConflict(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("InsertSavingsGoal", mock.Anything, mock.Anything).
+		Return(SavingsGoalModel{}, errors.New(`ERROR: duplicate key value violates unique constraint "idx_savings_goals_open_org_name"`))
+
+	_, err := svc.CreateSavingsGoal(ctx, CreateSavingsGoalInput{
+		UserID:         1,
+		OrganizationID: 1,
+		Name:           "Reserva",
+		GoalType:       SavingsGoalTypeInvestimento,
+		TargetAmount:   decimal.NewFromInt(1000),
+	})
+
+	assert.ErrorIs(t, err, internalerrors.ErrSavingsGoalNameExists)
 	mockRepo.AssertExpectations(t)
 }
