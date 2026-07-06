@@ -36,6 +36,7 @@ func TestTransactions_FromModel(t *testing.T) {
 			Amount:          decimal.NewFromFloat(150.75),
 			TransactionType: TransactionTypeDebit,
 			CategoryID:      &categoryID,
+			NeedsReview:    true,
 			Tags:            []string{"groceries", "monthly"},
 		},
 	}
@@ -48,6 +49,7 @@ func TestTransactions_FromModel(t *testing.T) {
 	assert.Equal(t, TransactionTypeDebit, transactions[0].TransactionType)
 	assert.NotNil(t, transactions[0].CategoryID)
 	assert.Equal(t, 1, *transactions[0].CategoryID)
+	assert.True(t, transactions[0].NeedsReview)
 	assert.Len(t, transactions[0].Tags, 2)
 	assert.Contains(t, transactions[0].Tags, "groceries")
 }

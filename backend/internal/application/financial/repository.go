@@ -470,6 +470,7 @@ const fetchTransactionsQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.needs_review,
 		t.savings_goal_id,
 		t.notes,
 		t.tags
@@ -516,6 +517,7 @@ const fetchTransactionByIDQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.needs_review,
 		t.savings_goal_id,
 		t.notes,
 		t.tags
@@ -560,6 +562,7 @@ const fetchUncategorizedTransactionsQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.needs_review,
 		t.savings_goal_id,
 		t.notes,
 		t.tags
@@ -606,6 +609,7 @@ const fetchTransactionsForPatternMatchingQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.needs_review,
 		t.savings_goal_id,
 		t.notes,
 		t.tags
@@ -651,6 +655,7 @@ const fetchTransactionsByMonthQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.needs_review,
 		t.savings_goal_id,
 		t.notes,
 		t.tags
@@ -708,7 +713,7 @@ const insertTransactionQuery = `
 		updated_at = NOW()
 	RETURNING transaction_id, created_at, updated_at, account_id, category_id, description, original_description, amount,
 			  transaction_date, transaction_type, ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data,
-			  is_classified, classification_rule_id, is_ignored, notes, tags;
+			  is_classified, classification_rule_id, is_ignored, needs_review, notes, tags;
 `
 
 func (r *repository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
@@ -750,6 +755,7 @@ type modifyTransactionParams struct {
 	Amount         *decimal.Decimal
 	Notes          *string
 	IsIgnored      *bool
+	NeedsReview    *bool
 }
 
 // Writes are scoped to the organization, not the individual user. Celeiro is a
@@ -769,6 +775,7 @@ const modifyTransactionQuery = `
 		amount = COALESCE($6, t.amount),
 		notes = COALESCE($7, t.notes),
 		is_ignored = COALESCE($8, t.is_ignored),
+		needs_review = COALESCE($9, t.needs_review),
 		updated_at = NOW()
 	FROM accounts a
 	WHERE t.transaction_id = $1
@@ -777,14 +784,14 @@ const modifyTransactionQuery = `
 	RETURNING t.transaction_id, t.created_at, t.updated_at, t.account_id, t.category_id, t.description,
 			  t.original_description, t.amount, t.transaction_date, t.transaction_type, t.ofx_fitid,
 			  t.ofx_check_number, t.ofx_memo, t.raw_ofx_data, t.is_classified, t.classification_rule_id,
-			  t.is_ignored, t.savings_goal_id, t.notes, t.tags;
+			  t.is_ignored, t.needs_review, t.savings_goal_id, t.notes, t.tags;
 `
 
 func (r *repository) ModifyTransaction(ctx context.Context, params modifyTransactionParams) (TransactionModel, error) {
 	var result TransactionModel
 	err := r.db.Query(ctx, &result, modifyTransactionQuery,
 		params.TransactionID, params.OrganizationID,
-		params.CategoryID, params.SavingsGoalID, params.Description, params.Amount, params.Notes, params.IsIgnored)
+		params.CategoryID, params.SavingsGoalID, params.Description, params.Amount, params.Notes, params.IsIgnored, params.NeedsReview)
 	if err != nil {
 		return TransactionModel{}, err
 	}
@@ -1047,6 +1054,7 @@ const fetchCategoryBudgetsQuery = `
 		month,
 		year,
 		controlled_amount,
+		granularity,
 		is_consolidated,
 		consolidated_at
 	FROM category_budgets
@@ -1082,6 +1090,7 @@ const fetchCategoryBudgetByIDQuery = `
 		month,
 		year,
 		controlled_amount,
+		granularity,
 		is_consolidated,
 		consolidated_at
 	FROM category_budgets
@@ -1103,6 +1112,7 @@ type insertCategoryBudgetParams struct {
 	Month            int
 	Year             int
 	ControlledAmount decimal.Decimal
+	Granularity      *int
 }
 
 const insertCategoryBudgetQuery = `
@@ -1113,8 +1123,9 @@ const insertCategoryBudgetQuery = `
 		category_id,
 		month,
 		year,
-		controlled_amount
-	) VALUES ($1, $2, $3, $4, $5, $6)
+		controlled_amount,
+		granularity
+	) VALUES ($1, $2, $3, $4, $5, $6, $7)
 	RETURNING
 		category_budget_id,
 		created_at,
@@ -1125,6 +1136,7 @@ const insertCategoryBudgetQuery = `
 		month,
 		year,
 		controlled_amount,
+		granularity,
 		is_consolidated,
 		consolidated_at;
 `
@@ -1133,7 +1145,7 @@ func (r *repository) InsertCategoryBudget(ctx context.Context, params insertCate
 	var budget CategoryBudgetModel
 	err := r.db.Query(ctx, &budget, insertCategoryBudgetQuery,
 		params.UserID, params.OrganizationID, params.CategoryID,
-		params.Month, params.Year, params.ControlledAmount)
+		params.Month, params.Year, params.ControlledAmount, params.Granularity)
 	return budget, err
 }
 
@@ -1142,6 +1154,8 @@ type modifyCategoryBudgetParams struct {
 	UserID           int
 	OrganizationID   int
 	ControlledAmount *decimal.Decimal
+	Granularity      *int
+	GranularitySet   bool
 	IsConsolidated   *bool
 }
 
@@ -1150,8 +1164,9 @@ const modifyCategoryBudgetQuery = `
 	UPDATE category_budgets
 	SET
 		controlled_amount = COALESCE($4, controlled_amount),
-		is_consolidated = COALESCE($5, is_consolidated),
-		consolidated_at = CASE WHEN $5 = true AND is_consolidated = false THEN CURRENT_TIMESTAMP ELSE consolidated_at END,
+		granularity = CASE WHEN $6 THEN $5 ELSE granularity END,
+		is_consolidated = COALESCE($7, is_consolidated),
+		consolidated_at = CASE WHEN $7 = true AND is_consolidated = false THEN CURRENT_TIMESTAMP ELSE consolidated_at END,
 		updated_at = CURRENT_TIMESTAMP
 	WHERE category_budget_id = $1
 		AND user_id = $2
@@ -1166,6 +1181,7 @@ const modifyCategoryBudgetQuery = `
 		month,
 		year,
 		controlled_amount,
+		granularity,
 		is_consolidated,
 		consolidated_at;
 `
@@ -1174,7 +1190,7 @@ func (r *repository) ModifyCategoryBudget(ctx context.Context, params modifyCate
 	var budget CategoryBudgetModel
 	err := r.db.Query(ctx, &budget, modifyCategoryBudgetQuery,
 		params.CategoryBudgetID, params.UserID, params.OrganizationID,
-		params.ControlledAmount, params.IsConsolidated)
+		params.ControlledAmount, params.Granularity, params.GranularitySet, params.IsConsolidated)
 	return budget, err
 }
 
@@ -2594,6 +2610,7 @@ const fetchGoalContributionsQuery = `
 		t.is_classified,
 		t.classification_rule_id,
 		t.is_ignored,
+		t.needs_review,
 		t.savings_goal_id,
 		t.notes,
 		t.tags

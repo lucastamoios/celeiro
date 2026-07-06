@@ -6,6 +6,7 @@ cli:
 cli.accounts:
 	@SERVICE=$$(gum choose \
 		"registerUser" \
+		"mergeOrganizations" \
 		--header "Select a command" \
 	); \
 	make cli.accounts.$$SERVICE
@@ -23,3 +24,15 @@ cli.accounts.registerUser:
 		-o "$$ORGANIZATION_NAME" \
 		-r "$$ROLE" || \
 	echo "User registration cancelled."
+
+cli.accounts.mergeOrganizations:
+	$(eval export SERVICE_VERSION=$(shell git rev-parse --short=6 HEAD))
+	@SOURCE_EMAIL=$$(gum input --placeholder "Source user email"); \
+	TARGET_EMAIL=$$(gum input --placeholder "Target user email"); \
+	ROLE=$$(gum choose "regular_user" "regular_manager" "admin"); \
+	EXECUTE=$$(gum confirm "Execute merge now? Choose No for dry run." && echo "--execute" || true); \
+	go run ./cmd/cli/main.go accounts mergeOrganizations \
+		--source-email "$$SOURCE_EMAIL" \
+		--target-email "$$TARGET_EMAIL" \
+		--role "$$ROLE" \
+		$$EXECUTE

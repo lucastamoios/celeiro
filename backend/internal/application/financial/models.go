@@ -72,7 +72,8 @@ type TransactionModel struct {
 	ClassificationRuleID *int `db:"classification_rule_id"`
 
 	// Status
-	IsIgnored bool `db:"is_ignored"`
+	IsIgnored   bool `db:"is_ignored"`
+	NeedsReview bool `db:"needs_review"`
 
 	// Savings Goal (orthogonal to category)
 	SavingsGoalID *int `db:"savings_goal_id"`
@@ -135,6 +136,7 @@ type CategoryBudgetModel struct {
 	Year  int `db:"year"`
 
 	ControlledAmount decimal.Decimal `db:"controlled_amount"`
+	Granularity      *int            `db:"granularity"`
 
 	IsConsolidated bool       `db:"is_consolidated"`
 	ConsolidatedAt *time.Time `db:"consolidated_at"`

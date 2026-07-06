@@ -10,6 +10,7 @@ export interface CategoryBudget {
   Month: number;
   Year: number;
   ControlledAmount: string; // Decimal as string - user-editable discretionary buffer
+  Granularity?: number | null; // Expected controlled purchases per month. Null = infer from previous month.
   IsConsolidated: boolean;
   ConsolidatedAt?: string;
   CreatedAt: string;
@@ -21,10 +22,12 @@ export interface CreateCategoryBudgetRequest {
   month: number;
   year: number;
   controlled_amount: number;
+  granularity?: number | null;
 }
 
 export interface UpdateCategoryBudgetRequest {
   controlled_amount?: number;
+  granularity?: number | null;
 }
 
 // Planned Entry Types

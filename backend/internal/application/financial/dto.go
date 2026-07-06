@@ -104,6 +104,7 @@ type Transaction struct {
 	IsClassified         bool            `json:"is_classified"`
 	ClassificationRuleID *int            `json:"classification_rule_id,omitempty"`
 	IsIgnored            bool            `json:"is_ignored"`
+	NeedsReview          bool            `json:"needs_review"`
 	Notes                *string         `json:"notes,omitempty"`
 	Tags                 []string        `json:"tags"`
 	CreatedAt            time.Time       `json:"created_at"`
@@ -128,6 +129,7 @@ func (t Transaction) FromModel(model *TransactionModel) Transaction {
 		IsClassified:         model.IsClassified,
 		ClassificationRuleID: model.ClassificationRuleID,
 		IsIgnored:            model.IsIgnored,
+		NeedsReview:          model.NeedsReview,
 		Notes:                model.Notes,
 		Tags:                 model.Tags,
 		CreatedAt:            model.CreatedAt,
@@ -197,6 +199,7 @@ type CategoryBudget struct {
 	Month            int
 	Year             int
 	ControlledAmount decimal.Decimal
+	Granularity      *int
 	IsConsolidated   bool
 	ConsolidatedAt   *time.Time
 	CreatedAt        time.Time
@@ -212,6 +215,7 @@ func (c CategoryBudget) FromModel(model *CategoryBudgetModel) CategoryBudget {
 		Month:            model.Month,
 		Year:             model.Year,
 		ControlledAmount: model.ControlledAmount,
+		Granularity:      model.Granularity,
 		IsConsolidated:   model.IsConsolidated,
 		ConsolidatedAt:   model.ConsolidatedAt,
 		CreatedAt:        model.CreatedAt,

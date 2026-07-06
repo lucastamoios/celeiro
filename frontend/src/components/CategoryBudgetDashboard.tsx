@@ -44,6 +44,14 @@ interface MonthlyBudgetData {
   isConsolidated: boolean;
 }
 
+function parseBudgetGranularity(value: string): number | null | false {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!/^\d+$/.test(trimmed)) return false;
+  const parsed = parseInt(trimmed, 10);
+  return parsed >= 2 ? parsed : false;
+}
+
 export default function CategoryBudgetDashboard() {
   const navigate = useNavigate();
   const { token } = useAuth();
@@ -100,6 +108,7 @@ export default function CategoryBudgetDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [controlledAmount, setControlledAmount] = useState<string>('');
+  const [budgetGranularity, setBudgetGranularity] = useState<string>('');
 
   // Savings goals for planned entry linking
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
@@ -563,6 +572,11 @@ export default function CategoryBudgetDashboard() {
       setError('Controlled amount must be a valid number >= 0');
       return;
     }
+    const parsedGranularity = parseBudgetGranularity(budgetGranularity);
+    if (parsedGranularity === false) {
+      setError('Compras/mês deve ficar vazio ou ser um número inteiro maior que 1');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -573,6 +587,7 @@ export default function CategoryBudgetDashboard() {
         month: selectedMonth,
         year: selectedYear,
         controlled_amount: parsedAmount,
+        granularity: parsedGranularity,
       };
 
       await createCategoryBudget(data, { token, organizationId });
@@ -594,6 +609,7 @@ export default function CategoryBudgetDashboard() {
     setEditingBudget(budget);
     setSelectedCategoryId(budget.CategoryID.toString());
     setControlledAmount(budget.ControlledAmount);
+    setBudgetGranularity(budget.Granularity?.toString() ?? '');
     setShowCreateBudgetModal(true);
   };
 
@@ -611,6 +627,11 @@ export default function CategoryBudgetDashboard() {
       setError('Controlled amount must be a valid number (0 or greater)');
       return;
     }
+    const parsedGranularity = parseBudgetGranularity(budgetGranularity);
+    if (parsedGranularity === false) {
+      setError('Compras/mês deve ficar vazio ou ser um número inteiro maior que 1');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -620,6 +641,7 @@ export default function CategoryBudgetDashboard() {
         editingBudget.CategoryBudgetID,
         {
           controlled_amount: parsedAmount,
+          granularity: parsedGranularity,
         },
         { token, organizationId }
       );
@@ -1243,6 +1265,7 @@ export default function CategoryBudgetDashboard() {
   const resetBudgetForm = () => {
     setSelectedCategoryId('');
     setControlledAmount('');
+    setBudgetGranularity('');
   };
 
   const handleCancelBudgetForm = () => {
@@ -1684,6 +1707,30 @@ export default function CategoryBudgetDashboard() {
                   className="input pl-10"
                 />
               </div>
+            </div>
+
+            {/* Controlled Purchase Granularity */}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">
+                Compras/mês (Opcional)
+              </label>
+              <p className="text-xs text-stone-500 mb-2">
+                Vazio usa a quantidade de compras controladas do mês anterior
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={budgetGranularity}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || /^\d*$/.test(value)) {
+                    setBudgetGranularity(value);
+                  }
+                }}
+                disabled={isSubmitting}
+                placeholder="Ex.: 5"
+                className="input"
+              />
             </div>
           </div>
         </Modal>

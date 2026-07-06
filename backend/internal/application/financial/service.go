@@ -658,6 +658,7 @@ type UpdateTransactionInput struct {
 	Amount         *decimal.Decimal
 	Notes          *string
 	IsIgnored      *bool
+	NeedsReview    *bool
 }
 
 func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactionInput) (Transaction, error) {
@@ -685,6 +686,7 @@ func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactio
 		Amount:         params.Amount,
 		Notes:          params.Notes,
 		IsIgnored:      params.IsIgnored,
+		NeedsReview:    params.NeedsReview,
 	})
 	if err != nil {
 		return Transaction{}, errors.Wrap(err, "failed to update transaction")
@@ -881,6 +883,7 @@ type CreateCategoryBudgetInput struct {
 	Month            int
 	Year             int
 	ControlledAmount decimal.Decimal
+	Granularity      *int
 }
 
 func (s *service) CreateCategoryBudget(ctx context.Context, params CreateCategoryBudgetInput) (CategoryBudget, error) {
@@ -891,6 +894,7 @@ func (s *service) CreateCategoryBudget(ctx context.Context, params CreateCategor
 		Month:            params.Month,
 		Year:             params.Year,
 		ControlledAmount: params.ControlledAmount,
+		Granularity:      params.Granularity,
 	})
 	if err != nil {
 		return CategoryBudget{}, errors.Wrap(err, "failed to create category budget")
@@ -904,6 +908,8 @@ type UpdateCategoryBudgetInput struct {
 	UserID           int
 	OrganizationID   int
 	ControlledAmount *decimal.Decimal
+	Granularity      *int
+	GranularitySet   bool
 }
 
 func (s *service) UpdateCategoryBudget(ctx context.Context, params UpdateCategoryBudgetInput) (CategoryBudget, error) {
@@ -912,6 +918,8 @@ func (s *service) UpdateCategoryBudget(ctx context.Context, params UpdateCategor
 		UserID:           params.UserID,
 		OrganizationID:   params.OrganizationID,
 		ControlledAmount: params.ControlledAmount,
+		Granularity:      params.Granularity,
+		GranularitySet:   params.GranularitySet,
 	})
 	if err != nil {
 		return CategoryBudget{}, errors.Wrap(err, "failed to update category budget")
@@ -1084,6 +1092,7 @@ func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyC
 			Month:            params.TargetMonth,
 			Year:             params.TargetYear,
 			ControlledAmount: src.ControlledAmount,
+			Granularity:      src.Granularity,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create budget for category %d: %w", src.CategoryID, err)

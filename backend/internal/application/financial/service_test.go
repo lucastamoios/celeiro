@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	internalerrors "github.com/catrutech/celeiro/internal/errors"
 	"github.com/catrutech/celeiro/pkg/system"
@@ -684,6 +685,91 @@ func TestGetControllableCategoryPacing_ExcludesPlannedSpending(t *testing.T) {
 	assert.Len(t, result.Categories, 1)
 	assert.True(t, result.Categories[0].Spent.Equal(decimal.NewFromInt(100)),
 		"spent should count only unplanned spending, got %s", result.Categories[0].Spent)
+}
+
+func TestGetControllableCategoryPacing_UsesBudgetGranularityForExpectedSpend(t *testing.T) {
+	mockRepo := new(MockRepository)
+	sys := system.NewStubSystem()
+	sys.Time.SetTimes(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC))
+	svc := &service{Repository: mockRepo, system: sys.ToSystem()}
+	ctx := context.Background()
+
+	categoryID := 58
+	categories := []CategoryModel{
+		{CategoryID: categoryID, Name: "Mercado", CategoryType: "expense"},
+	}
+	granularity := 5
+	budgets := []CategoryBudgetModel{
+		{CategoryID: categoryID, ControlledAmount: decimal.NewFromInt(1000), Granularity: &granularity},
+	}
+	transactions := []TransactionModel{
+		{TransactionID: 8, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(200)},
+	}
+	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return(transactions, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.Zero, nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.True(t, result.Categories[0].Expected.Equal(decimal.NewFromInt(250)),
+		"expected should allow the first granularity chunk, got %s", result.Categories[0].Expected)
+	assert.Equal(t, 5, result.Categories[0].Granularity)
+	assert.Equal(t, "configured", result.Categories[0].GranularitySource)
+	assert.Equal(t, PaceStatusUnderPace, result.Categories[0].Status)
+}
+
+func TestGetControllableCategoryPacing_DerivesGranularityFromPreviousMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	sys := system.NewStubSystem()
+	sys.Time.SetTimes(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC))
+	svc := &service{Repository: mockRepo, system: sys.ToSystem()}
+	ctx := context.Background()
+
+	categoryID := 58
+	categories := []CategoryModel{
+		{CategoryID: categoryID, Name: "Mercado", CategoryType: "expense"},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: categoryID, ControlledAmount: decimal.NewFromInt(1000), Granularity: nil},
+	}
+	currentTransactions := []TransactionModel{
+		{TransactionID: 8, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(200)},
+	}
+	previousTransactions := []TransactionModel{
+		{TransactionID: 1, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(50)},
+		{TransactionID: 2, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(60)},
+		{TransactionID: 3, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(70)},
+		{TransactionID: 4, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(80)},
+		{TransactionID: 5, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(90)},
+	}
+	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.MatchedBy(func(params fetchTransactionsByMonthParams) bool {
+		return params.Month == 6 && params.Year == 2026
+	})).Return(currentTransactions, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.MatchedBy(func(params fetchTransactionsByMonthParams) bool {
+		return params.Month == 5 && params.Year == 2026
+	})).Return(previousTransactions, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.Zero, nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.True(t, result.Categories[0].Expected.Equal(decimal.NewFromInt(250)),
+		"expected should use previous month count as granularity, got %s", result.Categories[0].Expected)
+	assert.Equal(t, 5, result.Categories[0].Granularity)
+	assert.Equal(t, "previous_month", result.Categories[0].GranularitySource)
+	assert.Equal(t, PaceStatusUnderPace, result.Categories[0].Status)
 }
 
 func TestGetPlannedEntryByID_ReturnsTagIDs(t *testing.T) {

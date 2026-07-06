@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Coins, XCircle, CheckSquare, Square, X, Upload, CreditCard, Calendar } from 'lucide-react';
+import { Coins, XCircle, CheckSquare, Square, X, Upload, CreditCard, Calendar, CircleHelp } from 'lucide-react';
 import type { Transaction, ApiResponse } from '../types/transaction';
 import type { Category } from '../types/category';
 import { useAuth } from '../contexts/AuthContext';
@@ -456,7 +456,15 @@ export default function TransactionList() {
   }, [handleInlineSave]);
 
   const handleInlineCategorySave = useCallback(async (transaction: Transaction, categoryId: number | null) => {
-    await handleInlineSave(transaction, { category_id: categoryId });
+    await handleInlineSave(transaction, {
+      category_id: categoryId,
+      ...(categoryId ? { needs_review: false } : {}),
+    });
+  }, [handleInlineSave]);
+
+  const handleNeedsReviewToggle = useCallback(async (transaction: Transaction, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    await handleInlineSave(transaction, { needs_review: !transaction.needs_review });
   }, [handleInlineSave]);
 
   const handleCreateTransaction = async () => {
@@ -974,6 +982,26 @@ export default function TransactionList() {
                         IGNORADA
                       </span>
                     )}
+                    <button
+                      onClick={(e) => handleNeedsReviewToggle(transaction, e)}
+                      className={`inline-flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${
+                        transaction.needs_review
+                          ? 'border-rust-300 bg-rust-50 text-rust-600'
+                          : 'border-stone-200 text-stone-400 hover:border-wheat-300 hover:bg-wheat-50 hover:text-wheat-700'
+                      }`}
+                      title={
+                        transaction.needs_review
+                          ? 'Remover do Detalhar no celular'
+                          : 'Pedir detalhe no celular'
+                      }
+                      aria-label={
+                        transaction.needs_review
+                          ? 'Remover do Detalhar no celular'
+                          : 'Pedir detalhe no celular'
+                      }
+                    >
+                      <CircleHelp className="w-4 h-4" />
+                    </button>
                     <div className="ml-auto">
                       <ActionMenu
                         transaction={transaction}
@@ -1017,6 +1045,9 @@ export default function TransactionList() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                     Categoria
+                  </th>
+                  <th className="w-12 px-2 py-3">
+                    <span className="sr-only">Detalhar</span>
                   </th>
                   <th className="w-12 px-2 py-3">
                   </th>
@@ -1069,6 +1100,28 @@ export default function TransactionList() {
                           transactionType={transaction.transaction_type}
                           onSave={(catId) => handleInlineCategorySave(transaction, catId)}
                         />
+                      </td>
+                      <td className="w-12 px-2 py-4">
+                        <button
+                          onClick={(e) => handleNeedsReviewToggle(transaction, e)}
+                          className={`inline-flex items-center justify-center w-8 h-8 rounded-full border transition-colors ${
+                            transaction.needs_review
+                              ? 'border-rust-300 bg-rust-50 text-rust-600'
+                              : 'border-stone-200 text-stone-400 hover:border-wheat-300 hover:bg-wheat-50 hover:text-wheat-700'
+                          }`}
+                          title={
+                            transaction.needs_review
+                              ? 'Remover do Detalhar no celular'
+                              : 'Pedir detalhe no celular'
+                          }
+                          aria-label={
+                            transaction.needs_review
+                              ? 'Remover do Detalhar no celular'
+                              : 'Pedir detalhe no celular'
+                          }
+                        >
+                          <CircleHelp className="w-4 h-4" />
+                        </button>
                       </td>
                       <td className="w-12 px-2 py-4">
                         <ActionMenu

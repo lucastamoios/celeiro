@@ -38,6 +38,7 @@ type Service interface {
 	AcceptOrganizationInvite(ctx context.Context, params AcceptOrganizationInviteInput) (Authentication, error)
 	GetPendingInvites(ctx context.Context, params GetPendingInvitesInput) ([]OrganizationInvite, error)
 	CancelOrganizationInvite(ctx context.Context, params CancelOrganizationInviteInput) error
+	MergeOrganizations(ctx context.Context, params OrganizationMergeInput) (OrganizationMergeOutput, error)
 
 	// Backoffice (System-wide)
 	GetAllUsers(ctx context.Context) ([]SystemUser, error)

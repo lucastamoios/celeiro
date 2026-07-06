@@ -19,11 +19,13 @@ export interface Transaction {
   transaction_date: string
   transaction_type: string
   is_ignored: boolean
+  needs_review?: boolean
   tags?: string[]
 }
 
 export interface UpdateTransactionRequest {
   description?: string
+  needs_review?: boolean
 }
 
 export interface Category {
@@ -47,6 +49,8 @@ export interface CategoryPacing {
   spent: string
   expected: string
   variance: string
+  granularity?: number
+  granularity_source?: "configured" | "previous_month" | "minimum"
   status: "under_pace" | "on_pace" | "over_pace" | "no_budget"
 }
 

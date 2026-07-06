@@ -595,6 +595,7 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		Amount      *float64 `json:"amount"`
 		Notes       *string  `json:"notes"`
 		IsIgnored   *bool    `json:"is_ignored"`
+		NeedsReview *bool    `json:"needs_review"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -617,6 +618,7 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		Amount:         amountDecimal,
 		Notes:          req.Notes,
 		IsIgnored:      req.IsIgnored,
+		NeedsReview:    req.NeedsReview,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -761,9 +763,14 @@ func (h *Handler) CreateCategoryBudget(w http.ResponseWriter, r *http.Request) {
 		Month            int     `json:"month"`
 		Year             int     `json:"year"`
 		ControlledAmount float64 `json:"controlled_amount"`
+		Granularity      *int    `json:"granularity,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.NewError(w, errors.ErrInvalidRequestBody)
+		return
+	}
+	if req.Granularity != nil && *req.Granularity < 2 {
 		responses.NewError(w, errors.ErrInvalidRequestBody)
 		return
 	}
@@ -775,6 +782,7 @@ func (h *Handler) CreateCategoryBudget(w http.ResponseWriter, r *http.Request) {
 		Month:            req.Month,
 		Year:             req.Year,
 		ControlledAmount: decimal.NewFromFloat(req.ControlledAmount),
+		Granularity:      req.Granularity,
 	})
 	if err != nil {
 		responses.NewError(w, err)
@@ -798,7 +806,8 @@ func (h *Handler) UpdateCategoryBudget(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		ControlledAmount *float64 `json:"controlled_amount,omitempty"`
+		ControlledAmount *float64        `json:"controlled_amount,omitempty"`
+		Granularity      json.RawMessage `json:"granularity,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -811,12 +820,24 @@ func (h *Handler) UpdateCategoryBudget(w http.ResponseWriter, r *http.Request) {
 		amt := decimal.NewFromFloat(*req.ControlledAmount)
 		controlledAmount = &amt
 	}
+	var granularity *int
+	granularitySet := req.Granularity != nil
+	if granularitySet && string(req.Granularity) != "null" {
+		var value int
+		if err := json.Unmarshal(req.Granularity, &value); err != nil || value < 2 {
+			responses.NewError(w, errors.ErrInvalidRequestBody)
+			return
+		}
+		granularity = &value
+	}
 
 	budget, err := h.app.FinancialService.UpdateCategoryBudget(r.Context(), financialApp.UpdateCategoryBudgetInput{
 		CategoryBudgetID: budgetID,
 		UserID:           userID,
 		OrganizationID:   organizationID,
 		ControlledAmount: controlledAmount,
+		Granularity:      granularity,
+		GranularitySet:   granularitySet,
 	})
 	if err != nil {
 		responses.NewError(w, err)

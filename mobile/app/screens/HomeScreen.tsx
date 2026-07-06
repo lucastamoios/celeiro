@@ -59,6 +59,8 @@ interface RhythmCategory {
   spent: number
   expected: number
   variance: number
+  granularity: number
+  granularity_source?: CategoryPacing["granularity_source"]
   status: CategoryPacing["status"] | "no_budget"
 }
 
@@ -142,7 +144,10 @@ export default function HomeScreen(_props: HomeScreenProps) {
           .filter((transaction) => !transaction.is_ignored)
         const uncategorizedForMonth = allTransactions
           .filter((transaction) => isSelectedMonth(transaction, month, year))
-          .filter((transaction) => !transaction.is_ignored && transaction.category_id == null)
+          .filter(
+            (transaction) =>
+              !transaction.is_ignored && transaction.category_id == null && transaction.needs_review === true,
+          )
           .sort((a, b) => dateValue(b.transaction_date) - dateValue(a.transaction_date))
 
         const goalProgress = await Promise.all(
@@ -267,6 +272,7 @@ export default function HomeScreen(_props: HomeScreenProps) {
     try {
       const response = await api.updateTransaction(transaction.account_id, transaction.transaction_id, {
         description: nextDescription,
+        needs_review: false,
       })
       if (response.status !== 200) throw new Error(response.message)
       await loadDashboard(true)
@@ -388,7 +394,7 @@ export default function HomeScreen(_props: HomeScreenProps) {
                     />
                   ))
                 ) : (
-                  <EmptyText text="Tudo nomeado ou categorizado neste mês." />
+                  <EmptyText text="Nada pedido para detalhar neste mês." />
                 )}
               </ScrollView>
             </Page>
@@ -455,9 +461,7 @@ function PacingRow({
   category: RhythmCategory
   planned?: PlannedCategorySummary
 }) {
-  const variance = category.variance
   const color = category.status === "over_pace" ? colors.red : colors.green
-  const amountLabel = category.is_controllable ? rhythmAmountLabel(variance) : money(category.spent)
   return (
     <View style={$row}>
       <View style={$rowText}>
@@ -465,29 +469,19 @@ function PacingRow({
           {category.category_icon ? `${category.category_icon} ` : ""}
           {category.category_name}
         </Text>
-        <Text style={$rowSubtitle}>
-          {category.is_controllable
-            ? `Gasto ${money(category.spent)} de ${money(category.budget)}`
-            : `Gasto ${money(category.spent)}`}
-        </Text>
         {category.is_controllable ? (
-          <BudgetProgressBar
-            spent={category.spent}
-            budget={category.budget}
-            expected={category.expected}
-            color={color}
-          />
+          <>
+            <Text style={$rhythmHint}>{rhythmHint(category)}</Text>
+            <BudgetProgressBar
+              spent={category.spent}
+              budget={category.budget}
+              expected={category.expected}
+              color={color}
+            />
+          </>
         ) : null}
         {planned && planned.total > 0 ? <PlannedBoxes planned={planned} /> : null}
       </View>
-      <Text
-        style={[
-          ($rowAmount as object),
-          { color: category.is_controllable && variance > 0 ? colors.red : colors.ink },
-        ]}
-      >
-        {amountLabel}
-      </Text>
     </View>
   )
 }
@@ -786,6 +780,8 @@ function buildRhythmCategories(
         spent: moneyValue(pacing?.spent) || spentByCategory[categoryID] || 0,
         expected: moneyValue(pacing?.expected),
         variance: moneyValue(pacing?.variance),
+        granularity: pacing?.granularity ?? 0,
+        granularity_source: pacing?.granularity_source,
         status: pacing?.status ?? "no_budget",
       }
     })
@@ -824,10 +820,18 @@ function moneyValue(value: string | number | null | undefined) {
   return Number(String(value).replace(",", ".")) || 0
 }
 
-function rhythmAmountLabel(variance: number) {
-  const absolute = Math.abs(variance)
-  if (absolute < 1) return "no ritmo"
-  return `${money(absolute)} ${variance > 0 ? "acima" : "abaixo"}`
+function rhythmHint(category: RhythmCategory) {
+  const source =
+    category.granularity_source === "previous_month"
+      ? "baseado no mês anterior"
+      : category.granularity_source === "minimum"
+        ? "ritmo mínimo"
+        : null
+  const cadence =
+    category.granularity > 0 && category.granularity_source !== "minimum"
+      ? `${category.granularity} compras/mes${source ? ` (${source})` : ""} · `
+      : ""
+  return `${cadence}Liberado ate agora ${money(category.expected)}`
 }
 
 function safeRatio(value: number, total: number) {
@@ -1078,12 +1082,10 @@ const $rowSubtitle = {
   marginTop: spacing.xxs,
 }
 
-const $rowAmount = {
-  color: colors.ink,
-  fontSize: 13,
-  fontWeight: "800" as const,
-  maxWidth: 92,
-  textAlign: "right" as const,
+const $rhythmHint = {
+  color: colors.muted,
+  fontSize: 11,
+  marginTop: spacing.xxs,
 }
 
 const $plannedRow: ViewStyle = {

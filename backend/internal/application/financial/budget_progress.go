@@ -2,6 +2,7 @@ package financial
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -23,14 +24,16 @@ const (
 
 // CategoryPacing represents pacing data for a single controllable category
 type CategoryPacing struct {
-	CategoryID   int                  `json:"category_id"`
-	CategoryName string               `json:"category_name"`
-	CategoryIcon string               `json:"category_icon"`
-	Budget       decimal.Decimal      `json:"budget"`   // Monthly budget for this category
-	Spent        decimal.Decimal      `json:"spent"`    // Actual spent so far
-	Expected     decimal.Decimal      `json:"expected"` // Expected spend at current day
-	Variance     decimal.Decimal      `json:"variance"` // Spent - Expected (positive = over pace)
-	Status       CategoryPacingStatus `json:"status"`
+	CategoryID        int                  `json:"category_id"`
+	CategoryName      string               `json:"category_name"`
+	CategoryIcon      string               `json:"category_icon"`
+	Budget            decimal.Decimal      `json:"budget"`   // Monthly budget for this category
+	Spent             decimal.Decimal      `json:"spent"`    // Actual spent so far
+	Expected          decimal.Decimal      `json:"expected"` // Expected spend at current day
+	Variance          decimal.Decimal      `json:"variance"` // Spent - Expected (positive = over pace)
+	Granularity       int                  `json:"granularity"`
+	GranularitySource string               `json:"granularity_source"` // configured, previous_month, or minimum
+	Status            CategoryPacingStatus `json:"status"`
 }
 
 // ControllableCategoryPacing contains pacing data for all controllable categories
@@ -82,12 +85,16 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		return nil, err
 	}
 
-	// Create map of category ID -> controlled amount
+	// Create map of category ID -> category budget
 	// Include all categories that have a non-zero controlled amount
-	budgetMap := make(map[int]decimal.Decimal)
+	budgetMap := make(map[int]CategoryBudgetModel)
+	needsPreviousGranularity := false
 	for _, b := range categoryBudgets {
 		if !b.ControlledAmount.IsZero() {
-			budgetMap[b.CategoryID] = b.ControlledAmount
+			budgetMap[b.CategoryID] = b
+			if b.Granularity == nil {
+				needsPreviousGranularity = true
+			}
 		}
 	}
 
@@ -143,23 +150,27 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		matchedSet[id] = struct{}{}
 	}
 
-	// Calculate unplanned spending by category
-	spendingByCategory := make(map[int]decimal.Decimal)
-	for _, tx := range transactions {
-		if _, isPlanned := matchedSet[tx.TransactionID]; isPlanned {
-			continue
+	granularityByCategory := make(map[int]int)
+	if needsPreviousGranularity {
+		previousMonth, previousYear := previousMonth(input.Month, input.Year)
+		previousTransactions, err := s.Repository.FetchTransactionsByMonth(ctx, fetchTransactionsByMonthParams{
+			OrganizationID: input.OrganizationID,
+			Month:          previousMonth,
+			Year:           previousYear,
+		})
+		if err != nil {
+			return nil, err
 		}
-		if tx.TransactionType == TransactionTypeDebit && tx.CategoryID != nil && !tx.IsIgnored {
-			catID := *tx.CategoryID
-			current := spendingByCategory[catID]
-			spendingByCategory[catID] = current.Add(tx.Amount)
-		}
+		granularityByCategory = countControlledTransactionsByCategory(previousTransactions, matchedSet)
 	}
+
+	// Calculate unplanned spending by category
+	spendingByCategory := sumControlledSpendingByCategory(transactions, matchedSet)
 
 	// Build pacing data for each controllable category
 	categoryPacingList := make([]CategoryPacing, 0, len(controllableCategories))
 	for _, cat := range controllableCategories {
-		budget := budgetMap[cat.CategoryID]
+		budget := budgetMap[cat.CategoryID].ControlledAmount
 		spent := spendingByCategory[cat.CategoryID]
 		if spent.IsZero() {
 			spent = decimal.Zero
@@ -169,13 +180,21 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		var expected decimal.Decimal
 		var variance decimal.Decimal
 		var status CategoryPacingStatus
+		var granularity int
+		var granularitySource string
 
 		if budget.IsZero() {
 			expected = decimal.Zero
 			variance = decimal.Zero
+			granularity = 0
+			granularitySource = "minimum"
 			status = PaceStatusNoBudget
 		} else {
-			expected = budget.Mul(decimal.NewFromInt(int64(currentDay))).Div(decimal.NewFromInt(int64(daysInMonth)))
+			granularity, granularitySource = effectiveGranularity(
+				budgetMap[cat.CategoryID].Granularity,
+				granularityByCategory[cat.CategoryID],
+			)
+			expected = expectedSpendForGranularity(budget, currentDay, daysInMonth, granularity)
 			variance = spent.Sub(expected)
 
 			// Determine status
@@ -194,14 +213,16 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		}
 
 		categoryPacingList = append(categoryPacingList, CategoryPacing{
-			CategoryID:   cat.CategoryID,
-			CategoryName: cat.Name,
-			CategoryIcon: cat.Icon,
-			Budget:       budget,
-			Spent:        spent,
-			Expected:     expected,
-			Variance:     variance,
-			Status:       status,
+			CategoryID:        cat.CategoryID,
+			CategoryName:      cat.Name,
+			CategoryIcon:      cat.Icon,
+			Budget:            budget,
+			Spent:             spent,
+			Expected:          expected,
+			Variance:          variance,
+			Granularity:       granularity,
+			GranularitySource: granularitySource,
+			Status:            status,
 		})
 	}
 
@@ -237,4 +258,69 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		ProgressPercentage: progressPercentage,
 		Categories:         categoryPacingList,
 	}, nil
+}
+
+func previousMonth(month int, year int) (int, int) {
+	if month == 1 {
+		return 12, year - 1
+	}
+	return month - 1, year
+}
+
+func effectiveGranularity(configured *int, fallbackCount int) (int, string) {
+	if configured != nil && *configured >= 2 {
+		return *configured, "configured"
+	}
+	if fallbackCount >= 2 {
+		return fallbackCount, "previous_month"
+	}
+	return 2, "minimum"
+}
+
+func expectedSpendForGranularity(budget decimal.Decimal, currentDay int, daysInMonth int, granularity int) decimal.Decimal {
+	if budget.IsZero() {
+		return decimal.Zero
+	}
+	if daysInMonth <= 0 {
+		return budget
+	}
+	granularity, _ = effectiveGranularity(&granularity, 0)
+	daysPerChunk := float64(daysInMonth) / float64(granularity)
+	currentChunk := int(math.Ceil(float64(currentDay) / daysPerChunk))
+	if currentChunk < 1 {
+		currentChunk = 1
+	}
+	expected := budget.Mul(decimal.NewFromInt(int64(currentChunk))).Div(decimal.NewFromInt(int64(granularity - 1)))
+	if expected.GreaterThan(budget) {
+		return budget
+	}
+	return expected
+}
+
+func countControlledTransactionsByCategory(transactions []TransactionModel, matchedSet map[int]struct{}) map[int]int {
+	counts := make(map[int]int)
+	for _, tx := range transactions {
+		if _, isPlanned := matchedSet[tx.TransactionID]; isPlanned {
+			continue
+		}
+		if tx.TransactionType == TransactionTypeDebit && tx.CategoryID != nil && !tx.IsIgnored {
+			counts[*tx.CategoryID]++
+		}
+	}
+	return counts
+}
+
+func sumControlledSpendingByCategory(transactions []TransactionModel, matchedSet map[int]struct{}) map[int]decimal.Decimal {
+	spendingByCategory := make(map[int]decimal.Decimal)
+	for _, tx := range transactions {
+		if _, isPlanned := matchedSet[tx.TransactionID]; isPlanned {
+			continue
+		}
+		if tx.TransactionType == TransactionTypeDebit && tx.CategoryID != nil && !tx.IsIgnored {
+			catID := *tx.CategoryID
+			current := spendingByCategory[catID]
+			spendingByCategory[catID] = current.Add(tx.Amount)
+		}
+	}
+	return spendingByCategory
 }
