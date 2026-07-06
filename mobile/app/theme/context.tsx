@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
 } from "react"
 import { StyleProp, useColorScheme } from "react-native"
 import {
@@ -13,9 +14,8 @@ import {
   DefaultTheme as NavDefaultTheme,
   Theme as NavTheme,
 } from "@react-navigation/native"
-import { useMMKVString } from "react-native-mmkv"
 
-import { storage } from "@/utils/storage"
+import { loadString, remove, saveString } from "@/utils/storage"
 
 import { setImperativeTheming } from "./context.utils"
 import { darkTheme, lightTheme } from "./theme"
@@ -58,7 +58,19 @@ export const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
   // The operating system theme:
   const systemColorScheme = useColorScheme()
   // Our saved theme context: can be "light", "dark", or undefined (system theme)
-  const [themeScheme, setThemeScheme] = useMMKVString("ignite.themeScheme", storage)
+  const [themeScheme, setThemeSchemeState] = useState<ThemeContextModeT>(undefined)
+
+  useEffect(() => {
+    void loadString("ignite.themeScheme").then((storedTheme) => {
+      if (storedTheme === "light" || storedTheme === "dark") setThemeSchemeState(storedTheme)
+    })
+  }, [])
+
+  const setThemeScheme = useCallback((newTheme: ThemeContextModeT) => {
+    setThemeSchemeState(newTheme)
+    if (newTheme) saveString("ignite.themeScheme", newTheme)
+    else remove("ignite.themeScheme")
+  }, [])
 
   /**
    * This function is used to set the theme context and is exported from the useAppTheme() hook.
