@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Celeiro Amazon Sync</title>
+  <title>Celeiro Importador</title>
   <style>
     * {
       box-sizing: border-box;
@@ -13,7 +13,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      width: 320px;
+      width: 340px;
       padding: 16px;
       background: #f8f9fa;
     }
@@ -396,12 +396,31 @@
     .current-month-display strong {
       font-weight: 600;
     }
+
+    .forwarding-description {
+      color: #6c757d;
+      font-size: 12px;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .forwarding-email {
+      display: block;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      background: #f0fdf4;
+      color: #166534;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="logo">C</div>
-    <h1>Celeiro Amazon Sync</h1>
+    <h1>Celeiro Importador</h1>
     <div class="header-actions">
       <button id="settingsBtn" class="btn-icon" title="Configurações">
         ⚙️
@@ -448,6 +467,18 @@
   <!-- Current Month Display (shown when authenticated) -->
   <div id="currentMonthDisplay" class="current-month-display hidden">
     Sincronizando: <strong id="currentMonthText">-</strong>
+  </div>
+
+  <!-- Gmail forwarding setup (shown when authenticated) -->
+  <div id="gmailForwardingSection" class="section hidden">
+    <div class="section-title">Importação por email</div>
+    <p class="forwarding-description">
+      Configure o Gmail para encaminhar automaticamente extratos ao seu endereço pessoal do Celeiro.
+    </p>
+    <code id="forwardingEmail" class="forwarding-email">-</code>
+    <button id="gmailForwardingBtn" class="btn btn-secondary">
+      ✉️ Configurar encaminhamento do Gmail
+    </button>
   </div>
 
   <!-- Configuration Section (hidden by default, toggle via settings) -->

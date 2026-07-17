@@ -1,6 +1,6 @@
-# Celeiro Amazon Sync - Browser Extension
+# Celeiro Importer - Browser Extension
 
-Browser extension (Chrome and Firefox) to sync Amazon orders with Celeiro, enabling automatic categorization of bank transactions.
+Browser extension (Chrome and Firefox) to configure Gmail statement forwarding and sync Amazon orders with Celeiro.
 
 The same code runs in both browsers: the manifest declares `background.service_worker` (used by Chrome) and `background.scripts` (used by Firefox) side by side, and all APIs are called through the `chrome.*` namespace with promises, which Firefox supports in Manifest V3. The minimum Firefox version is 142 (required by the `data_collection_permissions` manifest key, which Mozilla now mandates for new extensions).
 
@@ -43,7 +43,7 @@ For development (temporary, removed when Firefox closes):
 
 For a permanent install, the extension must be signed: zip the folder contents and submit it to [addons.mozilla.org](https://addons.mozilla.org/developers/) (self-distribution / unlisted is fine), then install the signed `.xpi` it gives back.
 
-**Important (Firefox only)**: Firefox treats `host_permissions` as optional in Manifest V3, so after installing you must grant site access manually. Go to `about:addons` → Celeiro Amazon Sync → Permissions, and enable access to amazon.com.br (and your API host if it is not localhost). Without this, the sync cannot inject the extraction script after navigating between order pages.
+**Important (Firefox only)**: Firefox treats `host_permissions` as optional in Manifest V3, so after installing you must grant site access manually. Go to `about:addons` → Celeiro Importador → Permissions, and enable access to amazon.com.br, mail.google.com, and your API host if it is not localhost. Without this, the extension cannot configure Gmail or extract Amazon orders.
 
 ## Usage
 
@@ -64,6 +64,16 @@ For a permanent install, the extension must be signed: zip the folder contents a
    - Extract information from each order
    - Paginate automatically
    - Send data to Celeiro
+
+### Gmail forwarding
+
+1. Log in to Celeiro through the extension.
+2. Click **Configurar encaminhamento do Gmail**.
+3. The extension opens Gmail's forwarding settings and adds the authenticated user's personal `email_id@laguiar.dev` address.
+4. Celeiro confirms Google's verification email only when the Gmail requester and destination belong to that same Celeiro user.
+5. The extension enables forwarding and saves Gmail's settings after confirmation.
+
+The destination is derived from the authenticated Celeiro session and cannot be replaced with an arbitrary address.
 
 ### "Open Amazon Orders" Button
 
@@ -163,6 +173,7 @@ chrome-extension/
 ├── popup.html         # Popup interface
 ├── popup.js           # Popup logic
 ├── content.js         # Script injected into Amazon pages
+├── gmail-forwarding-flow.js # Tested Gmail forwarding state machine
 ├── background.js      # Service worker for long operations
 ├── icons/             # Extension icons
 └── README.md          # This file

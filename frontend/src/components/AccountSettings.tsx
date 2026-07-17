@@ -6,6 +6,7 @@ import { setPassword } from '../api/auth';
 import { API_CONFIG } from '../config/api';
 import { Mail, LogOut, AlertCircle, Lock, Check, Eye, EyeOff, Inbox, Copy, ExternalLink } from 'lucide-react';
 import PluggyConnectionCard from './PluggyConnectionCard';
+import ExtensionInstallCard from './ExtensionInstallCard';
 
 interface UserInfo {
   id: number;
@@ -66,7 +67,7 @@ export default function AccountSettings() {
     }
 
     fetchUserInfo();
-  }, [token]);
+  }, [token, activeOrganizationId]);
 
   // Use email from auth context
   const displayEmail = userEmail || userInfo?.email || 'Email não disponível';
@@ -330,6 +331,8 @@ export default function AccountSettings() {
           )}
         </div>
       </div>
+
+      <ExtensionInstallCard />
 
       {/* Email Import Section */}
       {importEmail && (
