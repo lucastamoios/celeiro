@@ -5,7 +5,6 @@ import { useOrganization } from '../contexts/OrganizationContext';
 import { setPassword } from '../api/auth';
 import { API_CONFIG } from '../config/api';
 import { Mail, LogOut, AlertCircle, Lock, Check, Eye, EyeOff, Inbox, Copy, ExternalLink } from 'lucide-react';
-import PluggyConnectionCard from './PluggyConnectionCard';
 import ExtensionInstallCard from './ExtensionInstallCard';
 
 interface UserInfo {
@@ -108,7 +107,10 @@ export default function AccountSettings() {
     setPasswordSuccess(false);
 
     try {
-      await setPassword(oldPassword, newPassword, { token });
+      await setPassword(oldPassword, newPassword, {
+        token,
+        organizationId: activeOrganizationId,
+      });
       setPasswordSuccess(true);
       setOldPassword('');
       setNewPassword('');
@@ -128,8 +130,6 @@ export default function AccountSettings() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <PluggyConnectionCard />
-
       {/* Account Info Section */}
       <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
         <div className="p-6 border-b border-stone-100">
