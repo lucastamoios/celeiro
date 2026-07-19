@@ -5,7 +5,7 @@ Date: 2026-07-18
 Run ID: `QA-20260718T171147Z`
 
 Targets: `https://celeiro.laguiar.dev`, `https://api.celeiro.laguiar.dev`
-Status: Paused by user after the main product workflow pass and isolation probes. OFX, final mobile accessibility, and final cleanup remain incomplete.
+Status: All 13 safe confirmed fixes are implemented locally. QA-012 is explicitly deferred pending a reversible financial-record lifecycle decision. Deployment verification, unfinished exploratory coverage, and synthetic-data cleanup remain pending.
 
 ## Remediation progress
 
@@ -13,9 +13,16 @@ Status: Paused by user after the main product workflow pass and isolation probes
 - QA-002 fixed locally in `e0237de`: organization API calls derive their tenant header from the required path organization.
 - QA-003 fixed locally in `e0237de`: account and password settings no longer depend on active-organization state.
 - QA-004 fixed locally in `1b05938`: null planned-entry collections no longer crash pattern management.
-- QA-005 fixed locally: closed months now have a service and database-enforced immutable boundary.
-- QA-006 fixed locally: planned-entry matching preserves and restores a non-empty original transaction description.
-- QA-008 fixed locally: manual transaction creation persists notes and the original description.
+- QA-005 fixed locally in `c807efc`, `dedfc86`, and `e4960ac`: closed months now have service, database, and UI-enforced immutable boundaries for budgets, transactions, OFX imports, and monthly planned-entry status changes.
+- QA-006 fixed locally in `14bd616`: planned-entry matching preserves and restores a non-empty original transaction description.
+- QA-007 fixed locally in `89a19a8`: recurring planned entries no longer appear before their creation month.
+- QA-008 fixed locally in `14bd616`: manual transaction creation persists notes and the original description.
+- QA-009 fixed locally in `89a19a8`: planned-entry edits and deletes refresh month entries and derived totals.
+- QA-010 fixed locally in `89a19a8`: legacy single-day entries use their expected day as the overdue deadline.
+- QA-011 fixed locally in `6c8321d`: explicit foreign organizations and route mismatches return 403; scoped missing resources return 404; zero-row deletes no longer report success.
+- QA-012 deferred for safety: do not expose the existing irreversible transaction hard delete until archive/soft-delete semantics, auditability, and downstream effects are specified.
+- QA-013 fixed locally in `dedfc86`: Gmail forwarding guidance now distinguishes extension-assisted steps from required manual confirmation.
+- QA-014 fixed locally in `dedfc86`: reported English copy, signup heading, missing accents, and generic accessible names are corrected.
 - These fixes are committed but not pushed, deployed, or reverified against production.
 
 ## Safety and test data
@@ -40,7 +47,7 @@ The landing CTAs worked in this run, so the earlier CTA failure was not reproduc
 5. Unlinking a transaction from a planned entry can erase its description.
 6. Recurring planned entries appear in months before their creation or start month.
 
-No cross-user data exposure was confirmed. The isolation API behavior is still defective: foreign organization and resource identifiers are often ignored, requests return the caller's own data, false-success 200 responses, or internal 500 errors instead of a consistent 403 or 404. User A's records were verified unchanged after the probes.
+No cross-user data exposure was confirmed. The defective isolation response contract observed in production has been repaired locally, including a category-delete query whose preparatory update was insufficiently organization-scoped. User A's records were verified unchanged after the original probes; deployment verification is pending.
 
 ## Confirmed issue register
 
@@ -136,7 +143,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Budget integrity
-- Status: Fixed locally, deployment verification pending
+- Status: Fixed locally in `c807efc`, `dedfc86`, and `e4960ac`, deployment verification pending
 - Reproduction:
   1. Close June 2026, creating snapshot ID 52.
   2. Observe the add-budget control remains enabled.
@@ -160,7 +167,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Transactions and planned entries
-- Status: Fixed locally, deployment verification pending
+- Status: Fixed locally in `14bd616`, deployment verification pending
 - Reproduction:
   1. Create and link a transaction to planned entry 379.
   2. Unlink it.
@@ -185,7 +192,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Planned entries
-- Status: Confirmed
+- Status: Fixed locally in `89a19a8`, deployment verification pending
 - Reproduction: Create a recurring planned entry in July 2026, then navigate to June 2026.
 - Expected: It appears only on or after its explicit start month.
 - Actual: It appears in June, before it existed.
@@ -202,7 +209,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Transactions
-- Status: Fixed locally, deployment verification pending
+- Status: Fixed locally in `14bd616`, deployment verification pending
 - Reproduction: Create a manual transaction with notes, reopen it for editing, observe empty notes.
 - Expected: Notes persist on creation.
 - Actual: Notes length is zero after creation. Adding notes through edit persists correctly.
@@ -219,7 +226,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P2
 - Area: Planned entries and budget summary
-- Status: Confirmed
+- Status: Fixed locally in `89a19a8`, deployment verification pending
 - Expected: Row and aggregate totals update after a successful edit.
 - Actual: The edit succeeds, but the displayed total remains stale until reload.
 - Fix:
@@ -232,7 +239,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P2
 - Area: Planned entries
-- Status: Confirmed
+- Status: Fixed locally in `89a19a8`, deployment verification pending
 - Reproduction: On July 18, view an active entry expected on July 21.
 - Expected: Upcoming or pending.
 - Actual: `Atrasado`.
@@ -246,7 +253,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P2
 - Area: Authorization and API error handling
-- Status: Confirmed, no cross-user exposure observed
+- Status: Fixed locally in `6c8321d`, deployment verification pending; no cross-user exposure observed
 - Test performed:
   - User B sent User A's organization ID 9 and A resource IDs across GET, POST, PATCH, PUT, and DELETE probes.
   - Reverse representative reads were sent by User A against organization 10.
@@ -271,18 +278,21 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P2
 - Area: Transaction lifecycle
-- Status: Confirmed capability gap
+- Status: Deferred for safety and product decision
 - Evidence: No delete action in the transaction menu and no transaction DELETE route in `backend/internal/web/router.go`.
 - Expected: If deletion is a supported product requirement, expose a reversible archive or delete flow with confirmation and auditability.
 - Fix decision:
   - Prefer soft delete or archive for financial records.
   - Define effects on budgets, goals, snapshots, planned-entry matches, and imported duplicate detection.
+- Safety note:
+  - No DELETE route or UI action was added. The existing backend hard-delete method remains unreachable from the public router.
+  - Before implementation, choose archive visibility and restore behavior, retain an audit trail, preserve OFX duplicate identity, and define whether linked planned-entry matches are cleared or retained.
 
 ### QA-013: Gmail forwarding copy promises automatic confirmation
 
 - Priority: P2
 - Area: Account settings and Gmail forwarding
-- Status: Confirmed copy defect
+- Status: Fixed locally in `dedfc86`, deployment verification pending
 - Evidence: `frontend/src/components/AccountSettings.tsx` says Gmail confirmation "será feito automaticamente".
 - Expected: Describe the actual manual or extension-assisted confirmation steps and failure states.
 - Fix: Replace the promise with accurate state-dependent guidance.
@@ -291,7 +301,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P3
 - Area: UI quality and accessibility
-- Status: Partially confirmed
+- Status: Fixed locally in `dedfc86` for all reported examples, deployment and assistive-technology verification pending
 - Examples:
   - English strings in Portuguese UI: `No income for this month`, `Create an income budget to track your income allocation`, `On Track`, `Actions`.
   - Signup mode retains the heading `Entrar` and login-oriented subtitle.
@@ -305,6 +315,16 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
   - Centralize user-facing copy in the localization layer.
   - Give icon-only controls contextual Portuguese accessible names.
   - Run keyboard and screen-reader smoke tests after the functional P1 fixes.
+
+## Local verification after remediation
+
+- `GOCACHE=/tmp/celeiro-go-cache mise exec go@1.24.13 -- go test ./internal/... -count=1`: passed, including PostgreSQL/Redis integration setup and migrations through version 53.
+- All six frontend Node regression files: 8 tests passed.
+- `npm run build`: passed.
+- Scoped ESLint on changed frontend files: no errors; existing hook-dependency warnings remain.
+- Repository-wide `npm run lint`: 6 pre-existing errors and 23 warnings remain outside this QA repair scope. The errors are in `IncomePlanningAlert.tsx`, `PatternCreator.tsx`, `TransactionEditModal.tsx`, `AuthContext.tsx`, and `OrganizationContext.tsx`.
+- The Vite-backed Node tests emit a sandbox-only HMR WebSocket `EPERM` warning while still passing; the production build is unaffected.
+- Production/browser re-verification was not run because these commits have not been pushed or deployed.
 
 ## Successful workflows
 
