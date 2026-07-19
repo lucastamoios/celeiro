@@ -428,7 +428,7 @@ export default function PatternManager() {
           <div>
             <h1 className="font-display text-3xl font-bold text-stone-900">Padrões</h1>
             <p className="text-stone-600 mt-2">
-              {totalPatterns} padrão{totalPatterns !== 1 ? 'ões' : ''} cadastrado{totalPatterns !== 1 ? 's' : ''}
+              {totalPatterns === 1 ? '1 padrão cadastrado' : `${totalPatterns} padrões cadastrados`}
             </p>
           </div>
 

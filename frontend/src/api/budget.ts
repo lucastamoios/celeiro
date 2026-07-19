@@ -251,7 +251,7 @@ export async function getPlannedEntries(
   }
 
   const result: ApiResponse<PlannedEntry[]> = await response.json();
-  return result.data;
+  return result.data ?? [];
 }
 
 /**
