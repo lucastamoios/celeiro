@@ -3,16 +3,12 @@ import { API_CONFIG } from '../config/api';
 
 interface RequestOptions {
   token: string;
-  organizationId?: number;
 }
 
-function createHeaders(options: RequestOptions): HeadersInit {
-  if (!options.organizationId) {
-    throw new Error('Organization ID is required - ensure activeOrganization is set');
-  }
+function createHeaders(options: RequestOptions, organizationId: number): HeadersInit {
   return {
     'Authorization': `Bearer ${options.token}`,
-    'X-Active-Organization': String(options.organizationId),
+    'X-Active-Organization': String(organizationId),
     'Content-Type': 'application/json',
   };
 }
@@ -68,7 +64,7 @@ export async function getOrganizationMembers(
     `${API_CONFIG.baseURL}${API_CONFIG.endpoints.organizations.members(organizationId)}`,
     {
       method: 'GET',
-      headers: createHeaders(options),
+      headers: createHeaders(options, organizationId),
     }
   );
 
@@ -89,7 +85,7 @@ export async function setDefaultOrganization(
     `${API_CONFIG.baseURL}${API_CONFIG.endpoints.organizations.default}`,
     {
       method: 'POST',
-      headers: createHeaders(options),
+      headers: createHeaders(options, organizationId),
       body: JSON.stringify({ organization_id: organizationId }),
     }
   );
@@ -120,7 +116,7 @@ export async function updateOrganization(
     `${API_CONFIG.baseURL}${API_CONFIG.endpoints.organizations.update(organizationId)}`,
     {
       method: 'PATCH',
-      headers: createHeaders(options),
+      headers: createHeaders(options, organizationId),
       body: JSON.stringify(data),
     }
   );
@@ -142,7 +138,7 @@ export async function getPendingInvites(
     `${API_CONFIG.baseURL}${API_CONFIG.endpoints.organizations.invites(organizationId)}`,
     {
       method: 'GET',
-      headers: createHeaders(options),
+      headers: createHeaders(options, organizationId),
     }
   );
 
@@ -165,7 +161,7 @@ export async function createOrganizationInvite(
     `${API_CONFIG.baseURL}${API_CONFIG.endpoints.organizations.invites(organizationId)}`,
     {
       method: 'POST',
-      headers: createHeaders(options),
+      headers: createHeaders(options, organizationId),
       body: JSON.stringify({ email, role }),
     }
   );
@@ -188,7 +184,7 @@ export async function cancelOrganizationInvite(
     `${API_CONFIG.baseURL}${API_CONFIG.endpoints.organizations.cancelInvite(organizationId, inviteId)}`,
     {
       method: 'DELETE',
-      headers: createHeaders(options),
+      headers: createHeaders(options, organizationId),
     }
   );
 
