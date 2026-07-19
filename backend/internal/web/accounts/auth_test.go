@@ -175,7 +175,9 @@ func (test *AuthTestSuite) TestValidateCodeRequest() {
 func (test *AuthTestSuite) TestRequestMagicLinkHandler() {
 	test.Run("successful request", func() {
 		userUUID := uuid.New()
-		w := test.requestMagicLink(fmt.Sprintf(`{"email":"%s@example.com"}`, userUUID))
+		email := fmt.Sprintf("%s@example.com", userUUID)
+		test.createMagicLinkUser(email)
+		w := test.requestMagicLink(fmt.Sprintf(`{"email":"%s"}`, email))
 		test.Equal(w.Code, http.StatusOK)
 		var r responses.APIResponse[any]
 		test.NoError(json.NewDecoder(w.Body).Decode(&r))
@@ -198,8 +200,10 @@ func (test *AuthTestSuite) TestRequestMagicLinkHandler() {
 
 	test.Run("code generation error", func() {
 		userUUID := uuid.New()
+		email := fmt.Sprintf("%s@example.com", userUUID)
+		test.createMagicLinkUser(email)
 		test.mailer.(*mailer.LocalMailer).SetTestError(fmt.Errorf("email service error"))
-		w := test.requestMagicLink(fmt.Sprintf(`{"email":"%s@example.com"}`, userUUID))
+		w := test.requestMagicLink(fmt.Sprintf(`{"email":"%s"}`, email))
 		test.Equal(http.StatusInternalServerError, w.Code)
 		var r responses.APIResponse[any]
 		test.NoError(json.NewDecoder(w.Body).Decode(&r))
@@ -226,13 +230,14 @@ func (test *AuthTestSuite) TestValidateCodeHandler() {
 	test.Run("successful validation", func() {
 		userName := test.system.String.GenerateAlphanumeric(10)
 		email := fmt.Sprintf("%s@example.com", userName)
+		test.createMagicLinkUser(email)
 
 		test.requestMagicLink(fmt.Sprintf(`{"email":"%s"}`, email))
 		sentMessages, err := test.mailer.(*mailer.LocalMailer).GetSentEmails()
 		test.Require().NoError(err)
 		test.Require().Len(sentMessages, 1, "expected 1 email to be sent")
 
-		code := sentMessages[0].Message.Data["code"]
+		code := sentMessages[0].Message.Data["Code"]
 		test.Require().NotNil(code)
 		test.Require().IsType(code, "string")
 		codeStr := code.(string) //nolint:forcetypeassert
@@ -243,12 +248,22 @@ func (test *AuthTestSuite) TestValidateCodeHandler() {
 		test.Equal(http.StatusOK, w.Code)
 		test.NoError(json.NewDecoder(w.Body).Decode(&r))
 		test.Equal("1234", r.Data.SessionToken, "expected session token to be 1234")
-		test.True(r.Data.SessionInfo.IsNewUser, "expected is_new_user to be true")
+		test.False(r.Data.SessionInfo.IsNewUser, "magic-link login must not auto-register users")
 		test.Equal(email, r.Data.SessionInfo.User.Email, "expected user email to be "+email)
-		test.Equal(1, r.Data.SessionInfo.User.ID, "expected user id to be 1")
+		test.Positive(r.Data.SessionInfo.User.ID)
 		test.Equal(time.Now().Format(time.RFC3339), r.Data.SessionCreatedAt, "expected session created at to be "+time.Now().Format(time.RFC3339))
 		test.Equal(time.Now().AddDate(0, 1, -1).Format(time.RFC3339), r.Data.SessionExpiresAt, "expected session expires at to be one month from now")
 	})
+}
+
+func (test *AuthTestSuite) createMagicLinkUser(email string) {
+	_, err := test.app.AccountsService.RegisterUser(context.Background(), accounts.RegisterUserInput{
+		Name:             "Magic Link Test",
+		Email:            email,
+		OrganizationName: "Magic Link Test Organization " + uuid.NewString(),
+		Role:             accounts.RoleAdmin,
+	})
+	test.Require().NoError(err)
 }
 
 func (test *AuthTestSuite) requestMagicLink(body string) *httptest.ResponseRecorder {

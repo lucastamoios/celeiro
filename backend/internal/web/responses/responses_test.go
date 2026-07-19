@@ -30,7 +30,12 @@ func TestAPIErrorMapping_NewAPIError_WithClosedMonthDatabaseGuard(t *testing.T) 
 }
 
 func TestAPIErrorMapping_NewAPIError_WithMissingScopedResource(t *testing.T) {
-	response := newAPIError(pkgerrors.Wrap(sql.ErrNoRows, "failed to fetch scoped resource"))
+	response := newAPIError(pkgerrors.Wrap(&database.PgDetailedError{
+		OriginalError: sql.ErrNoRows,
+		Message:       sql.ErrNoRows.Error(),
+		Code:          "NO_ROWS",
+		Query:         "-- financial.fetchScopedResource",
+	}, "failed to fetch scoped resource"))
 
 	assert.Equal(t, http.StatusNotFound, response.Status)
 	assert.Equal(t, "NOT_FOUND", response.Code)

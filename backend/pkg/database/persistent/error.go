@@ -1,6 +1,8 @@
 package database
 
 import (
+	"database/sql"
+	stderrors "errors"
 	"fmt"
 
 	"github.com/lib/pq"
@@ -27,6 +29,15 @@ func NewPgDetailedError(err error, query string, params interface{}) error {
 
 	pqErr, ok := err.(*pq.Error)
 	if !ok {
+		if stderrors.Is(err, sql.ErrNoRows) {
+			return &PgDetailedError{
+				OriginalError: err,
+				Message:       err.Error(),
+				Code:          "NO_ROWS",
+				Query:         query,
+				Params:        params,
+			}
+		}
 		return fmt.Errorf("database error: %w", err)
 	}
 

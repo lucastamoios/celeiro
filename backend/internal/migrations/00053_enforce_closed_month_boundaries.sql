@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION prevent_closed_month_budget_mutation()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -26,7 +27,9 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE FUNCTION prevent_closed_month_transaction_mutation()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -63,11 +66,13 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER transactions_reject_closed_month
 BEFORE INSERT OR UPDATE OR DELETE ON transactions
 FOR EACH ROW EXECUTE FUNCTION prevent_closed_month_transaction_mutation();
 
+-- +goose StatementBegin
 CREATE FUNCTION prevent_closed_month_planned_status_mutation()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -110,6 +115,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER planned_entry_statuses_reject_closed_month
 BEFORE INSERT OR UPDATE OR DELETE ON planned_entry_statuses
@@ -121,6 +127,7 @@ DROP FUNCTION IF EXISTS prevent_closed_month_planned_status_mutation();
 DROP TRIGGER IF EXISTS transactions_reject_closed_month ON transactions;
 DROP FUNCTION IF EXISTS prevent_closed_month_transaction_mutation();
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION prevent_closed_month_budget_mutation()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -153,3 +160,4 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd

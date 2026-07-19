@@ -15,6 +15,7 @@ GROUP BY organization_id, month, year
 HAVING BOOL_AND(is_consolidated)
 ON CONFLICT (organization_id, month, year) DO NOTHING;
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION prevent_closed_month_budget_mutation()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -47,6 +48,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER category_budgets_reject_closed_month
 BEFORE INSERT OR UPDATE OR DELETE ON category_budgets

@@ -1,10 +1,10 @@
 package responses
 
 import (
-	"database/sql"
 	"encoding/json"
 	"github.com/catrutech/celeiro/pkg/logging"
 	"net/http"
+	"strings"
 
 	"github.com/catrutech/celeiro/internal/errors"
 	database "github.com/catrutech/celeiro/pkg/database/persistent"
@@ -27,7 +27,6 @@ type ErrorMapping struct {
 
 // errorMappings maps specific error values to their HTTP responses
 var errorMappings = map[error]ErrorMapping{
-	sql.ErrNoRows:                            {Status: http.StatusNotFound, Code: "NOT_FOUND"},
 	errors.ErrEmailRequired:                  {Status: http.StatusBadRequest, Code: "EMAIL_REQUIRED"},
 	errors.ErrEmailFormatInvalid:             {Status: http.StatusBadRequest, Code: "EMAIL_FORMAT_INVALID"},
 	errors.ErrCodeRequired:                   {Status: http.StatusBadRequest, Code: "CODE_REQUIRED"},
@@ -132,6 +131,14 @@ func newAPIError(err error) APIResponse[any] {
 	}
 
 	var databaseErr *database.PgDetailedError
+	if pkgerrors.As(err, &databaseErr) && databaseErr.Code == "NO_ROWS" && strings.Contains(databaseErr.Query, "financial.") {
+		return APIResponse[any]{
+			Message: "Resource not found",
+			Status:  http.StatusNotFound,
+			Code:    "NOT_FOUND",
+			Error:   err,
+		}
+	}
 	if pkgerrors.As(err, &databaseErr) && databaseErr.Code == "P0001" && databaseErr.Message == errors.ErrMonthClosed.Error() {
 		mapping := errorMappings[errors.ErrMonthClosed]
 		return APIResponse[any]{
