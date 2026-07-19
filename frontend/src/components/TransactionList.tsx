@@ -273,7 +273,7 @@ export default function TransactionList() {
 
     let totalImported = 0;
     let totalDuplicates = 0;
-    let failedFiles: string[] = [];
+    const failedFiles: string[] = [];
 
     for (const file of ofxFiles) {
       try {

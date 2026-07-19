@@ -191,7 +191,7 @@ export default function TagManager() {
     try {
       await deleteTag(tagId, { token, organizationId: activeOrganizationId });
 
-      setSuccess('Tag excluida com sucesso!');
+      setSuccess('Tag excluída com sucesso!');
       setDeletingTag(null);
       await fetchTags();
 
@@ -228,7 +228,7 @@ export default function TagManager() {
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold text-stone-900 mb-2">Tags</h1>
           <p className="text-stone-600">
-            Gerencie suas tags para organizar e filtrar transacoes
+            Gerencie suas tags para organizar e filtrar transações
           </p>
         </div>
 
@@ -239,7 +239,7 @@ export default function TagManager() {
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="ml-auto text-rust-500 hover:text-rust-700">
+            <button onClick={() => setError(null)} className="ml-auto text-rust-500 hover:text-rust-700" aria-label="Fechar mensagem de erro">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
@@ -275,10 +275,10 @@ export default function TagManager() {
               <TagIcon className="w-14 h-14 text-stone-300" />
             </div>
             <p className="text-stone-600 font-medium mb-2">
-              Voce ainda nao criou nenhuma tag.
+              Você ainda não criou nenhuma tag.
             </p>
             <p className="text-stone-500 text-sm">
-              Clique em "Nova Tag" para comecar!
+              Clique em "Nova Tag" para começar!
             </p>
           </div>
         ) : (
@@ -315,6 +315,7 @@ export default function TagManager() {
                           onClick={() => handleStartEdit(tag)}
                           className="p-2 hover:bg-stone-50/80 rounded-lg shadow-sm hover:shadow"
                           title="Editar tag"
+                          aria-label={`Editar tag ${tag.name}`}
                         >
                           <svg className="w-4 h-4 text-stone-600 hover:text-stone-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -324,6 +325,7 @@ export default function TagManager() {
                           onClick={() => handleStartDelete(tag.tag_id)}
                           className="p-2 hover:bg-rust-100 rounded-lg shadow-sm hover:shadow"
                           title="Excluir tag"
+                          aria-label={`Excluir tag ${tag.name}`}
                         >
                           <svg className="w-4 h-4 text-stone-600 hover:text-rust-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -345,7 +347,7 @@ export default function TagManager() {
                           onClick={handleCancelDelete}
                           className="px-2 py-1 bg-stone-300 text-stone-700 text-xs rounded hover:bg-stone-400"
                         >
-                          Nao
+                          Não
                         </button>
                       </div>
                     )}
@@ -370,7 +372,7 @@ export default function TagManager() {
               {/* Header */}
               <div className="bg-stone-200 border-b-[3px] border-wheat-500 px-6 py-5">
                 <h3 className="font-display text-xl font-bold text-stone-900">Nova Tag</h3>
-                <p className="text-stone-600 text-sm mt-1">Crie uma tag para organizar suas transacoes</p>
+                <p className="text-stone-600 text-sm mt-1">Crie uma tag para organizar suas transações</p>
               </div>
 
               {/* Content */}
@@ -378,7 +380,7 @@ export default function TagManager() {
                 {/* Icon Selection */}
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-3">
-                    Escolha um icone
+                    Escolha um ícone
                   </label>
                   <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
                     {AVAILABLE_ICONS.map(icon => (
@@ -386,6 +388,7 @@ export default function TagManager() {
                         key={icon}
                         type="button"
                         onClick={() => setNewTagIcon(icon)}
+                        aria-label={`Selecionar ícone ${icon}`}
                         className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center transition-all duration-200 ${
                           newTagIcon === icon
                             ? 'bg-wheat-500 text-white shadow-lg scale-110'
@@ -409,6 +412,7 @@ export default function TagManager() {
                         key={index}
                         type="button"
                         onClick={() => setNewTagColor(color)}
+                        aria-label={`Selecionar cor ${color}`}
                         className={`w-10 h-10 rounded-xl transition-all duration-200 ${
                           newTagColor === color
                             ? 'ring-2 ring-offset-2 ring-stone-400 scale-110'
@@ -515,7 +519,7 @@ export default function TagManager() {
                 {/* Icon Selection */}
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-3">
-                    Escolha um icone
+                    Escolha um ícone
                   </label>
                   <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
                     {AVAILABLE_ICONS.map(icon => (
@@ -523,6 +527,7 @@ export default function TagManager() {
                         key={icon}
                         type="button"
                         onClick={() => setEditIcon(icon)}
+                        aria-label={`Selecionar ícone ${icon}`}
                         className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center transition-all duration-200 ${
                           editIcon === icon
                             ? 'bg-wheat-500 text-white shadow-lg scale-110'
@@ -546,6 +551,7 @@ export default function TagManager() {
                         key={index}
                         type="button"
                         onClick={() => setEditColor(color)}
+                        aria-label={`Selecionar cor ${color}`}
                         className={`w-10 h-10 rounded-xl transition-all duration-200 ${
                           editColor === color
                             ? 'ring-2 ring-offset-2 ring-stone-400 scale-110'

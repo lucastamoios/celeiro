@@ -190,7 +190,7 @@ export default function PlannedEntryCard({
             <button
               onClick={() => setShowActions(!showActions)}
               className="p-2 hover:bg-stone-100 rounded-full transition-colors"
-              aria-label="Actions"
+              aria-label={`Ações da entrada ${entry.Description}`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

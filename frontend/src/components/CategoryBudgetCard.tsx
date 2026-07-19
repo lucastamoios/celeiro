@@ -294,11 +294,11 @@ export default function CategoryBudgetCard({
   const getStatusText = (status: string) => {
     switch (status) {
       case 'critical':
-        return 'Critical';
+        return 'Crítico';
       case 'warning':
-        return 'Warning';
+        return 'Atenção';
       case 'on_track':
-        return 'On Track';
+        return 'No caminho certo';
       default:
         return status;
     }

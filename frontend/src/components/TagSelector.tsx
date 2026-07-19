@@ -172,7 +172,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
 
       {isExpanded && unselectedTags.length === 0 && selectedTags.length === tags.length && (
         <div className="text-sm text-stone-500 p-3 bg-stone-50 rounded-lg border border-stone-200">
-          Todas as tags ja foram adicionadas.
+          Todas as tags já foram adicionadas.
         </div>
       )}
     </div>

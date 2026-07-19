@@ -113,6 +113,7 @@ func TestBulkImportPerformance_1000Transactions(t *testing.T) {
 		}
 	}
 
+	mockRepo.On("IsMonthClosed", ctx, mock.Anything).Return(false, nil)
 	mockRepo.On("BulkInsertTransactions", ctx, mock.Anything).Return(insertedModels, nil)
 
 	// Mock auto-matching (return empty patterns to skip matching)
@@ -190,6 +191,7 @@ func TestBulkImportPerformance_5000Transactions(t *testing.T) {
 		}
 	}
 
+	mockRepo.On("IsMonthClosed", ctx, mock.Anything).Return(false, nil)
 	mockRepo.On("BulkInsertTransactions", ctx, mock.Anything).Return(insertedModels, nil)
 	mockRepo.On("FetchTransactionByID", ctx, mock.Anything).Return(TransactionModel{
 		TransactionID: 1,
@@ -263,6 +265,7 @@ func TestBulkImportPerformance_10000Transactions(t *testing.T) {
 		}
 	}
 
+	mockRepo.On("IsMonthClosed", ctx, mock.Anything).Return(false, nil)
 	mockRepo.On("BulkInsertTransactions", ctx, mock.Anything).Return(insertedModels, nil)
 	mockRepo.On("FetchTransactionByID", ctx, mock.Anything).Return(TransactionModel{
 		TransactionID: 1,

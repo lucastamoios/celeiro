@@ -407,7 +407,7 @@ export default function AccountSettings() {
                   <div>
                     <p className="font-medium text-stone-800">Configure o encaminhamento</p>
                     <p className="mt-1">
-                      Selecione "Encaminhar para" e use o endereço acima. O Gmail pedirá confirmação - isso será feito automaticamente.
+                      Selecione "Encaminhar para" e use o endereço acima. Se o Gmail pedir confirmação, siga as instruções exibidas; a extensão tentará concluir as etapas compatíveis e avisará se for necessária uma ação manual.
                     </p>
                   </div>
                 </div>

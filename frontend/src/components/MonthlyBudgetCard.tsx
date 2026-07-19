@@ -214,6 +214,7 @@ export default function MonthlyBudgetCard({
     const { active, over } = event;
     setActiveDraggedEntry(null);
 
+    if (isConsolidated) return;
     if (!over) return;
 
     const entryId = active.id;
@@ -246,7 +247,7 @@ export default function MonthlyBudgetCard({
     }
 
     void onMovePlannedEntry?.(entry.PlannedEntryID, toCategoryId);
-  }, [plannedEntries, categoriesById, onMovePlannedEntry, onInvalidPlannedEntryDrop]);
+  }, [isConsolidated, plannedEntries, categoriesById, onMovePlannedEntry, onInvalidPlannedEntryDrop]);
 
   // Get set of category IDs that have budgets
   const budgetCategoryIds = new Set(budgetArray.map(b => b.CategoryID));
@@ -387,10 +388,10 @@ export default function MonthlyBudgetCard({
                   <span className="flex-shrink-0">⚠️</span>
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-terra-900 mb-1">
-                      No income for this month
+                      Nenhuma renda planejada para este mês
                     </h4>
                     <p className="text-sm text-terra-700">
-                      Create an income budget to track your income allocation
+                      Crie um orçamento de renda para acompanhar a distribuição da sua receita
                     </p>
                   </div>
                 </div>
@@ -567,18 +568,18 @@ export default function MonthlyBudgetCard({
                         onEdit={onEditBudget}
                         onDelete={onDeleteBudget}
                         onConsolidate={onConsolidate}
-                        onMatchEntry={onMatchEntry}
-                        onUnmatchEntry={onUnmatchEntry}
-                        onDismissEntry={onDismissEntry}
-                        onUndismissEntry={onUndismissEntry}
-                        onEditEntry={onEditEntry}
-                        onDeleteEntry={onDeleteEntry}
+                        onMatchEntry={isConsolidated ? undefined : onMatchEntry}
+                        onUnmatchEntry={isConsolidated ? undefined : onUnmatchEntry}
+                        onDismissEntry={isConsolidated ? undefined : onDismissEntry}
+                        onUndismissEntry={isConsolidated ? undefined : onUndismissEntry}
+                        onEditEntry={isConsolidated ? undefined : onEditEntry}
+                        onDeleteEntry={isConsolidated ? undefined : onDeleteEntry}
                         onCardClick={onCategoryCardClick ? () => onCategoryCardClick(budget.CategoryID) : undefined}
                         dndDropId={`category-${budget.CategoryID}`}
                         isDropTargetDisabled={
-                          !!activeDraggedEntry &&
+                          isConsolidated || (!!activeDraggedEntry &&
                           ((activeDraggedEntry.EntryType === 'income' && !isIncomeCategory(budget.CategoryID)) ||
-                            (activeDraggedEntry.EntryType === 'expense' && isIncomeCategory(budget.CategoryID)))
+                            (activeDraggedEntry.EntryType === 'expense' && isIncomeCategory(budget.CategoryID))))
                         }
                         isDropTargetHighlighted={!!activeDraggedEntry && isOver}
                       />
@@ -630,12 +631,12 @@ export default function MonthlyBudgetCard({
                       categoryName={category?.name || 'Categoria desconhecida'}
                       month={month}
                       year={year}
-                      onMatch={onMatchEntry}
-                      onUnmatch={onUnmatchEntry}
-                      onDismiss={onDismissEntry}
-                      onUndismiss={onUndismissEntry}
-                      onEdit={onEditEntry}
-                      onDelete={onDeleteEntry}
+                      onMatch={isConsolidated ? undefined : onMatchEntry}
+                      onUnmatch={isConsolidated ? undefined : onUnmatchEntry}
+                      onDismiss={isConsolidated ? undefined : onDismissEntry}
+                      onUndismiss={isConsolidated ? undefined : onUndismissEntry}
+                      onEdit={isConsolidated ? undefined : onEditEntry}
+                      onDelete={isConsolidated ? undefined : onDeleteEntry}
                     />
                   </div>
                 );

@@ -275,6 +275,16 @@ export default function LoginForm() {
 
   return (
     <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="font-display text-2xl font-bold text-stone-900 mb-1">
+          {authMode === 'register' ? 'Criar conta' : 'Entrar'}
+        </h1>
+        <p className="text-stone-500 text-sm">
+          {authMode === 'register'
+            ? 'Crie sua conta para começar a organizar suas finanças'
+            : 'Acesse sua conta para continuar'}
+        </p>
+      </div>
       {/* Auth Mode Toggle */}
       <div className="flex bg-stone-100 rounded-lg p-1">
         <button

@@ -34,10 +34,6 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-stone-50 rounded-2xl shadow-warm-xl p-8 w-full max-w-md">
-          <div className="text-center mb-6">
-            <h1 className="font-display text-2xl font-bold text-stone-900 mb-1">Entrar</h1>
-            <p className="text-stone-500 text-sm">Acesse sua conta para continuar</p>
-          </div>
           <LoginForm />
         </div>
 

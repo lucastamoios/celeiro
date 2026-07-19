@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/catrutech/celeiro/internal/errors"
+	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	pkgerrors "github.com/catrutech/celeiro/pkg/errors"
 )
 
@@ -126,6 +127,17 @@ func newAPIError(err error) APIResponse[any] {
 			Message: errors.ErrInvalidJSONType.Error(),
 			Status:  http.StatusBadRequest,
 			Code:    "INVALID_JSON_TYPE",
+			Error:   err,
+		}
+	}
+
+	var databaseErr *database.PgDetailedError
+	if pkgerrors.As(err, &databaseErr) && databaseErr.Code == "P0001" && databaseErr.Message == errors.ErrMonthClosed.Error() {
+		mapping := errorMappings[errors.ErrMonthClosed]
+		return APIResponse[any]{
+			Message: errors.ErrMonthClosed.Error(),
+			Status:  mapping.Status,
+			Code:    mapping.Code,
 			Error:   err,
 		}
 	}

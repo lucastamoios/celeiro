@@ -1430,7 +1430,9 @@ export default function CategoryBudgetDashboard() {
               </button>
               <button
                 onClick={() => setShowCreateEntryModal(true)}
-                className="btn-secondary text-sm"
+                disabled={selectedMonthClosed}
+                title={selectedMonthClosed ? 'Este mês está fechado' : undefined}
+                className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Entrada
               </button>

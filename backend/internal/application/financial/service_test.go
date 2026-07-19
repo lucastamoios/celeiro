@@ -466,6 +466,53 @@ func TestFinancialService_CreateCategoryBudget_RejectsClosedMonth(t *testing.T) 
 	mockRepo.AssertExpectations(t)
 }
 
+func TestFinancialService_CreateTransaction_RejectsClosedMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{OrganizationID: 9, Month: 6, Year: 2026}).Return(true, nil)
+
+	_, err := svc.CreateTransaction(ctx, CreateTransactionInput{
+		AccountID: 1, UserID: 10, OrganizationID: 9, Description: "Mercado",
+		Amount: decimal.NewFromInt(20), TransactionDate: "2026-06-18", TransactionType: TransactionTypeDebit,
+	})
+
+	assert.ErrorIs(t, err, internalerrors.ErrMonthClosed)
+	mockRepo.AssertNotCalled(t, "InsertTransaction", mock.Anything, mock.Anything)
+}
+
+func TestFinancialService_UpdateTransaction_RejectsClosedMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	tx := TransactionModel{TransactionID: 4, TransactionDate: time.Date(2026, time.June, 18, 0, 0, 0, 0, time.UTC)}
+
+	mockRepo.On("FetchTransactionByID", ctx, fetchTransactionByIDParams{TransactionID: 4, OrganizationID: 9}).Return(tx, nil)
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{OrganizationID: 9, Month: 6, Year: 2026}).Return(true, nil)
+
+	description := "Novo nome"
+	_, err := svc.UpdateTransaction(ctx, UpdateTransactionInput{TransactionID: 4, OrganizationID: 9, Description: &description})
+
+	assert.ErrorIs(t, err, internalerrors.ErrMonthClosed)
+	mockRepo.AssertNotCalled(t, "ModifyTransaction", mock.Anything, mock.Anything)
+}
+
+func TestFinancialService_MatchPlannedEntry_RejectsClosedMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{OrganizationID: 9, Month: 6, Year: 2026}).Return(true, nil)
+
+	_, err := svc.MatchPlannedEntryToTransaction(ctx, MatchPlannedEntryInput{
+		PlannedEntryID: 2, TransactionID: 4, Month: 6, Year: 2026, UserID: 10, OrganizationID: 9,
+	})
+
+	assert.ErrorIs(t, err, internalerrors.ErrMonthClosed)
+	mockRepo.AssertNotCalled(t, "FetchPlannedEntryByID", mock.Anything, mock.Anything)
+}
+
 func TestFinancialService_CloseMonth_MarksMonthClosedAfterSuccess(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := &service{Repository: mockRepo, system: system.NewSystem()}
@@ -603,6 +650,7 @@ func TestFinancialService_CreateTransaction_PreservesDescriptionAndNotes(t *test
 	svc := &service{Repository: mockRepo, system: system.NewSystem()}
 	ctx := context.Background()
 
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{OrganizationID: 9, Month: 7, Year: 2026}).Return(false, nil)
 	mockRepo.On("InsertTransaction", ctx, mock.MatchedBy(func(params insertTransactionParams) bool {
 		return params.Description == "Mercado semanal" &&
 			params.OriginalDescription == "Mercado semanal" &&

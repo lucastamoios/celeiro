@@ -475,6 +475,15 @@ type CreateTransactionInput struct {
 	Notes           string
 }
 
+func parseTransactionDate(value string) (time.Time, error) {
+	for _, layout := range []string{"2006-01-02", time.RFC3339} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, errors.New("invalid transaction date")
+}
+
 // validateCategoryTransactionType validates that the category type matches the transaction type.
 // Income categories can only be assigned to credit transactions (money in).
 // Expense categories can only be assigned to debit transactions (money out).
@@ -501,6 +510,18 @@ func (s *service) validateCategoryTransactionType(ctx context.Context, categoryI
 }
 
 func (s *service) CreateTransaction(ctx context.Context, params CreateTransactionInput) (Transaction, error) {
+	transactionDate, err := parseTransactionDate(params.TransactionDate)
+	if err != nil {
+		return Transaction{}, internalerrors.NewInvalidTimeFormatError("transaction_date")
+	}
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          int(transactionDate.Month()),
+		Year:           transactionDate.Year(),
+	}); err != nil {
+		return Transaction{}, err
+	}
+
 	// Validate category type matches transaction type if category is provided
 	if params.CategoryID != nil {
 		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, params.TransactionType, params.OrganizationID); err != nil {
@@ -590,7 +611,19 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 
 	// Convert OFX transactions to repository insert params
 	insertParams := make([]insertTransactionParams, 0, len(ofxTransactions))
+	checkedMonths := make(map[[2]int]struct{})
 	for _, ofxTx := range ofxTransactions {
+		monthKey := [2]int{ofxTx.DatePosted.Year(), int(ofxTx.DatePosted.Month())}
+		if _, checked := checkedMonths[monthKey]; !checked {
+			if err := s.ensureMonthOpen(ctx, monthClosureParams{
+				OrganizationID: params.OrganizationID,
+				Month:          monthKey[1],
+				Year:           monthKey[0],
+			}); err != nil {
+				return ImportOFXOutput{}, err
+			}
+			checkedMonths[monthKey] = struct{}{}
+		}
 		insertParams = append(insertParams, ofxTx.ToInsertParams(params.AccountID))
 	}
 
@@ -666,17 +699,23 @@ type UpdateTransactionInput struct {
 }
 
 func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactionInput) (Transaction, error) {
+	existingTx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
+		TransactionID:  params.TransactionID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return Transaction{}, errors.Wrap(err, "failed to fetch transaction for validation")
+	}
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          int(existingTx.TransactionDate.Month()),
+		Year:           existingTx.TransactionDate.Year(),
+	}); err != nil {
+		return Transaction{}, err
+	}
+
 	// Validate category type matches transaction type if category is being updated
 	if params.CategoryID != nil {
-		// Fetch the existing transaction to get its transaction_type
-		existingTx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
-			TransactionID:  params.TransactionID,
-			OrganizationID: params.OrganizationID,
-		})
-		if err != nil {
-			return Transaction{}, errors.Wrap(err, "failed to fetch transaction for validation")
-		}
-
 		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, existingTx.TransactionType, params.OrganizationID); err != nil {
 			return Transaction{}, err
 		}
@@ -1835,6 +1874,10 @@ type MatchPlannedEntryInput struct {
 
 // MatchPlannedEntryToTransaction links a transaction to a planned entry
 func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params MatchPlannedEntryInput) (PlannedEntryStatus, error) {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{OrganizationID: params.OrganizationID, Month: params.Month, Year: params.Year}); err != nil {
+		return PlannedEntryStatus{}, err
+	}
+
 	// 1. Verify the planned entry exists and belongs to the user
 	entry, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
 		PlannedEntryID: params.PlannedEntryID,
@@ -2024,6 +2067,10 @@ type UnmatchPlannedEntryInput struct {
 
 // UnmatchPlannedEntry removes the link between a transaction and a planned entry
 func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlannedEntryInput) error {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{OrganizationID: params.OrganizationID, Month: params.Month, Year: params.Year}); err != nil {
+		return err
+	}
+
 	status, err := s.Repository.FetchPlannedEntryStatus(ctx, fetchPlannedEntryStatusParams{
 		PlannedEntryID: params.PlannedEntryID,
 		Month:          params.Month,
@@ -2074,6 +2121,10 @@ type DismissPlannedEntryInput struct {
 
 // DismissPlannedEntry dismisses a planned entry for a specific month
 func (s *service) DismissPlannedEntry(ctx context.Context, params DismissPlannedEntryInput) (PlannedEntryStatus, error) {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{OrganizationID: params.OrganizationID, Month: params.Month, Year: params.Year}); err != nil {
+		return PlannedEntryStatus{}, err
+	}
+
 	// 1. Verify the planned entry exists and belongs to the user
 	_, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
 		PlannedEntryID: params.PlannedEntryID,
@@ -2119,6 +2170,10 @@ type UndismissPlannedEntryInput struct {
 
 // UndismissPlannedEntry reverts a dismissed planned entry back to pending
 func (s *service) UndismissPlannedEntry(ctx context.Context, params UndismissPlannedEntryInput) (PlannedEntryStatus, error) {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{OrganizationID: params.OrganizationID, Month: params.Month, Year: params.Year}); err != nil {
+		return PlannedEntryStatus{}, err
+	}
+
 	// 1. Fetch the status
 	status, err := s.Repository.FetchPlannedEntryStatus(ctx, fetchPlannedEntryStatusParams{
 		PlannedEntryID: params.PlannedEntryID,
