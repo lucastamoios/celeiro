@@ -14,6 +14,8 @@ Status: Paused by user after the main product workflow pass and isolation probes
 - QA-003 fixed locally in `e0237de`: account and password settings no longer depend on active-organization state.
 - QA-004 fixed locally in `1b05938`: null planned-entry collections no longer crash pattern management.
 - QA-005 fixed locally: closed months now have a service and database-enforced immutable boundary.
+- QA-006 fixed locally: planned-entry matching preserves and restores a non-empty original transaction description.
+- QA-008 fixed locally: manual transaction creation persists notes and the original description.
 - These fixes are committed but not pushed, deployed, or reverified against production.
 
 ## Safety and test data
@@ -158,7 +160,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Transactions and planned entries
-- Status: Confirmed through UI and API readback
+- Status: Fixed locally, deployment verification pending
 - Reproduction:
   1. Create and link a transaction to planned entry 379.
   2. Unlink it.
@@ -200,7 +202,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Transactions
-- Status: Confirmed
+- Status: Fixed locally, deployment verification pending
 - Reproduction: Create a manual transaction with notes, reopen it for editing, observe empty notes.
 - Expected: Notes persist on creation.
 - Actual: Notes length is zero after creation. Adding notes through edit persists correctly.

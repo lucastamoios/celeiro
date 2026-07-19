@@ -508,12 +508,14 @@ func (s *service) CreateTransaction(ctx context.Context, params CreateTransactio
 	}
 
 	model, err := s.Repository.InsertTransaction(ctx, insertTransactionParams{
-		AccountID:       params.AccountID,
-		CategoryID:      params.CategoryID,
-		Description:     params.Description,
-		Amount:          params.Amount,
-		TransactionDate: params.TransactionDate,
-		TransactionType: params.TransactionType,
+		AccountID:           params.AccountID,
+		CategoryID:          params.CategoryID,
+		Description:         params.Description,
+		OriginalDescription: params.Description,
+		Amount:              params.Amount,
+		TransactionDate:     params.TransactionDate,
+		TransactionType:     params.TransactionType,
+		Notes:               params.Notes,
 	})
 	if err != nil {
 		return Transaction{}, errors.Wrap(err, "failed to create transaction")

@@ -691,15 +691,16 @@ type insertTransactionParams struct {
 	OFXCheckNum         *string
 	OFXMemo             *string
 	RawOFXData          *string
+	Notes               string
 }
 
 const insertTransactionQuery = `
 	-- financial.insertTransactionQuery
 	INSERT INTO transactions (
 		account_id, category_id, description, original_description, amount, transaction_date, transaction_type,
-		ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data
+		ofx_fitid, ofx_check_number, ofx_memo, raw_ofx_data, notes
 	)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''))
 	ON CONFLICT (account_id, ofx_fitid) WHERE ofx_fitid IS NOT NULL
 	DO UPDATE SET
 		-- Note: description is NOT updated on conflict (preserves user edits)
@@ -722,7 +723,7 @@ func (r *repository) InsertTransaction(ctx context.Context, params insertTransac
 	var result TransactionModel
 	err := r.db.Query(ctx, &result, insertTransactionQuery,
 		params.AccountID, params.CategoryID, params.Description, params.OriginalDescription, params.Amount, params.TransactionDate,
-		params.TransactionType, params.OFXFitID, params.OFXCheckNum, params.OFXMemo, params.RawOFXData)
+		params.TransactionType, params.OFXFitID, params.OFXCheckNum, params.OFXMemo, params.RawOFXData, params.Notes)
 	if err != nil {
 		return TransactionModel{}, err
 	}
@@ -773,7 +774,7 @@ const modifyTransactionQuery = `
 		savings_goal_id = CASE WHEN $4 = -1 THEN NULL ELSE COALESCE($4, t.savings_goal_id) END,
 		description = COALESCE($5, t.description),
 		-- Preserve original_description on first edit (if it's NULL, copy current description)
-		original_description = COALESCE(t.original_description, t.description),
+		original_description = COALESCE(NULLIF(t.original_description, ''), t.description),
 		amount = COALESCE($6, t.amount),
 		notes = COALESCE($7, t.notes),
 		is_ignored = COALESCE($8, t.is_ignored),

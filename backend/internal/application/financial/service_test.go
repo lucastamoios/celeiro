@@ -598,6 +598,42 @@ func TestGetTransactions_DefaultLimit(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+func TestFinancialService_CreateTransaction_PreservesDescriptionAndNotes(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("InsertTransaction", ctx, mock.MatchedBy(func(params insertTransactionParams) bool {
+		return params.Description == "Mercado semanal" &&
+			params.OriginalDescription == "Mercado semanal" &&
+			params.Notes == "Compra para a família"
+	})).Return(TransactionModel{
+		TransactionID:       1,
+		Description:         "Mercado semanal",
+		OriginalDescription: stringPointer("Mercado semanal"),
+		Notes:               stringPointer("Compra para a família"),
+	}, nil)
+
+	transaction, err := svc.CreateTransaction(ctx, CreateTransactionInput{
+		AccountID:       9,
+		UserID:          10,
+		OrganizationID:  9,
+		Description:     "Mercado semanal",
+		Amount:          decimal.NewFromInt(100),
+		TransactionDate: "2026-07-19",
+		TransactionType: TransactionTypeDebit,
+		Notes:           "Compra para a família",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "Compra para a família", *transaction.Notes)
+	mockRepo.AssertExpectations(t)
+}
+
+func stringPointer(value string) *string {
+	return &value
+}
+
 // pacingTestSetup wires the four repository calls GetControllableCategoryPacing
 // makes: categories, budgets, transactions, and income budget (for the filter).
 func pacingTestSetup(mockRepo *MockRepository, categories []CategoryModel, budgets []CategoryBudgetModel, plannedIncome decimal.Decimal) {
