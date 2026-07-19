@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	internalerrors "github.com/catrutech/celeiro/internal/errors"
 	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	"github.com/catrutech/celeiro/pkg/errors"
 	"github.com/catrutech/celeiro/pkg/logging"
@@ -887,6 +888,14 @@ type CreateCategoryBudgetInput struct {
 }
 
 func (s *service) CreateCategoryBudget(ctx context.Context, params CreateCategoryBudgetInput) (CategoryBudget, error) {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          params.Month,
+		Year:           params.Year,
+	}); err != nil {
+		return CategoryBudget{}, err
+	}
+
 	model, err := s.Repository.InsertCategoryBudget(ctx, insertCategoryBudgetParams{
 		UserID:           params.UserID,
 		OrganizationID:   params.OrganizationID,
@@ -913,6 +922,22 @@ type UpdateCategoryBudgetInput struct {
 }
 
 func (s *service) UpdateCategoryBudget(ctx context.Context, params UpdateCategoryBudgetInput) (CategoryBudget, error) {
+	existing, err := s.Repository.FetchCategoryBudgetByID(ctx, fetchCategoryBudgetByIDParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+	})
+	if err != nil {
+		return CategoryBudget{}, errors.Wrap(err, "failed to fetch category budget")
+	}
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          existing.Month,
+		Year:           existing.Year,
+	}); err != nil {
+		return CategoryBudget{}, err
+	}
+
 	model, err := s.Repository.ModifyCategoryBudget(ctx, modifyCategoryBudgetParams{
 		CategoryBudgetID: params.CategoryBudgetID,
 		UserID:           params.UserID,
@@ -935,7 +960,23 @@ type DeleteCategoryBudgetInput struct {
 }
 
 func (s *service) DeleteCategoryBudget(ctx context.Context, params DeleteCategoryBudgetInput) error {
-	err := s.Repository.RemoveCategoryBudget(ctx, removeCategoryBudgetParams{
+	existing, err := s.Repository.FetchCategoryBudgetByID(ctx, fetchCategoryBudgetByIDParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch category budget")
+	}
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          existing.Month,
+		Year:           existing.Year,
+	}); err != nil {
+		return err
+	}
+
+	err = s.Repository.RemoveCategoryBudget(ctx, removeCategoryBudgetParams{
 		CategoryBudgetID: params.CategoryBudgetID,
 		UserID:           params.UserID,
 		OrganizationID:   params.OrganizationID,
@@ -944,6 +985,17 @@ func (s *service) DeleteCategoryBudget(ctx context.Context, params DeleteCategor
 		return errors.Wrap(err, "failed to delete category budget")
 	}
 
+	return nil
+}
+
+func (s *service) ensureMonthOpen(ctx context.Context, params monthClosureParams) error {
+	closed, err := s.Repository.IsMonthClosed(ctx, params)
+	if err != nil {
+		return errors.Wrap(err, "failed to check month closure")
+	}
+	if closed {
+		return internalerrors.ErrMonthClosed
+	}
 	return nil
 }
 
@@ -1127,6 +1179,26 @@ var ptMonthNames = []string{"", "Janeiro", "Fevereiro", "Março", "Abril", "Maio
 // CloseMonth consolidates all category budgets for a month and creates a carry-over transaction
 // representing the real surplus/deficit (income - spending) into the next month.
 func (s *service) CloseMonth(ctx context.Context, params CloseMonthInput) (CloseMonthResult, error) {
+	closure := monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          params.Month,
+		Year:           params.Year,
+	}
+	if err := s.ensureMonthOpen(ctx, closure); err != nil {
+		return CloseMonthResult{}, err
+	}
+
+	result, err := s.closeMonth(ctx, params)
+	if err != nil {
+		return CloseMonthResult{}, err
+	}
+	if err := s.Repository.MarkMonthClosed(ctx, closure); err != nil {
+		return CloseMonthResult{}, errors.Wrap(err, "failed to mark month closed")
+	}
+	return result, nil
+}
+
+func (s *service) closeMonth(ctx context.Context, params CloseMonthInput) (CloseMonthResult, error) {
 	// 1. Fetch all category budgets for the month
 	budgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
 		UserID:         params.UserID,

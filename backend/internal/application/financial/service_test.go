@@ -183,6 +183,16 @@ func (m *MockRepository) RemoveCategoryBudget(ctx context.Context, params remove
 	return args.Error(0)
 }
 
+func (m *MockRepository) IsMonthClosed(ctx context.Context, params monthClosureParams) (bool, error) {
+	args := m.Called(ctx, params)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockRepository) MarkMonthClosed(ctx context.Context, params monthClosureParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
 // Planned Entries
 func (m *MockRepository) FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error) {
 	args := m.Called(ctx, params)
@@ -429,6 +439,59 @@ func (m *MockRepository) SetSavingsGoalTags(ctx context.Context, params setSavin
 // ============================================================================
 // Service Tests
 // ============================================================================
+
+func TestFinancialService_CreateCategoryBudget_RejectsClosedMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{
+		OrganizationID: 9,
+		Month:          6,
+		Year:           2026,
+	}).Return(true, nil)
+	mockRepo.On("InsertCategoryBudget", ctx, mock.Anything).Return(CategoryBudgetModel{}, nil).Maybe()
+
+	_, err := svc.CreateCategoryBudget(ctx, CreateCategoryBudgetInput{
+		UserID:           10,
+		OrganizationID:   9,
+		CategoryID:       67,
+		Month:            6,
+		Year:             2026,
+		ControlledAmount: decimal.NewFromInt(50),
+	})
+
+	assert.ErrorIs(t, err, internalerrors.ErrMonthClosed)
+	mockRepo.AssertNotCalled(t, "InsertCategoryBudget", mock.Anything, mock.Anything)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestFinancialService_CloseMonth_MarksMonthClosedAfterSuccess(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	closure := monthClosureParams{OrganizationID: 9, Month: 6, Year: 2026}
+
+	mockRepo.On("IsMonthClosed", ctx, closure).Return(false, nil)
+	mockRepo.On("FetchCategoryBudgets", ctx, mock.Anything).Return([]CategoryBudgetModel{}, nil)
+	mockRepo.On("FetchTransactionsByMonth", ctx, fetchTransactionsByMonthParams{
+		OrganizationID: 9,
+		Month:          6,
+		Year:           2026,
+	}).Return([]TransactionModel{}, nil)
+	mockRepo.On("MarkMonthClosed", ctx, closure).Return(nil)
+
+	result, err := svc.CloseMonth(ctx, CloseMonthInput{
+		UserID:         10,
+		OrganizationID: 9,
+		Month:          6,
+		Year:           2026,
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, result.Surplus.IsZero())
+	mockRepo.AssertExpectations(t)
+}
 
 func TestGetCategories_Success(t *testing.T) {
 	mockRepo := new(MockRepository)

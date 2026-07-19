@@ -50,6 +50,8 @@ type Repository interface {
 	InsertCategoryBudget(ctx context.Context, params insertCategoryBudgetParams) (CategoryBudgetModel, error)
 	ModifyCategoryBudget(ctx context.Context, params modifyCategoryBudgetParams) (CategoryBudgetModel, error)
 	RemoveCategoryBudget(ctx context.Context, params removeCategoryBudgetParams) error
+	IsMonthClosed(ctx context.Context, params monthClosureParams) (bool, error)
+	MarkMonthClosed(ctx context.Context, params monthClosureParams) error
 
 	// Planned Entries
 	FetchPlannedEntries(ctx context.Context, params fetchPlannedEntriesParams) ([]PlannedEntryModel, error)
@@ -1211,6 +1213,39 @@ const removeCategoryBudgetQuery = `
 func (r *repository) RemoveCategoryBudget(ctx context.Context, params removeCategoryBudgetParams) error {
 	return r.db.Run(ctx, removeCategoryBudgetQuery,
 		params.CategoryBudgetID, params.UserID, params.OrganizationID)
+}
+
+type monthClosureParams struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+const isMonthClosedQuery = `
+	-- financial.isMonthClosedQuery
+	SELECT EXISTS (
+		SELECT 1 FROM closed_months
+		WHERE organization_id = $1
+		  AND month = $2
+		  AND year = $3
+	);
+`
+
+func (r *repository) IsMonthClosed(ctx context.Context, params monthClosureParams) (bool, error) {
+	var closed bool
+	err := r.db.Query(ctx, &closed, isMonthClosedQuery, params.OrganizationID, params.Month, params.Year)
+	return closed, err
+}
+
+const markMonthClosedQuery = `
+	-- financial.markMonthClosedQuery
+	INSERT INTO closed_months (organization_id, month, year)
+	VALUES ($1, $2, $3)
+	ON CONFLICT (organization_id, month, year) DO NOTHING;
+`
+
+func (r *repository) MarkMonthClosed(ctx context.Context, params monthClosureParams) error {
+	return r.db.Run(ctx, markMonthClosedQuery, params.OrganizationID, params.Month, params.Year)
 }
 
 // ============================================================================

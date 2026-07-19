@@ -36,6 +36,7 @@ var errorMappings = map[error]ErrorMapping{
 	errors.ErrInvalidFormat:                  {Status: http.StatusBadRequest, Code: "INVALID_FORMAT"},
 	errors.ErrInvalidSession:                 {Status: http.StatusUnauthorized, Code: "INVALID_SESSION"},
 	errors.ErrEmailNotVerified:               {Status: http.StatusForbidden, Code: "EMAIL_NOT_VERIFIED"},
+	errors.ErrMonthClosed:                    {Status: http.StatusConflict, Code: "MONTH_CLOSED"},
 	errors.ErrActivationFailed:               {Status: http.StatusUnauthorized, Code: "ACTIVATION_FAILED"},
 	errors.ErrInvalidCode:                    {Status: http.StatusUnauthorized, Code: "INVALID_CODE"},
 	errors.ErrRecaptchaFailed:                {Status: http.StatusBadRequest, Code: "RECAPTCHA_FAILED"},

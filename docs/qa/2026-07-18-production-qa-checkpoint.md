@@ -13,6 +13,7 @@ Status: Paused by user after the main product workflow pass and isolation probes
 - QA-002 fixed locally in `e0237de`: organization API calls derive their tenant header from the required path organization.
 - QA-003 fixed locally in `e0237de`: account and password settings no longer depend on active-organization state.
 - QA-004 fixed locally in `1b05938`: null planned-entry collections no longer crash pattern management.
+- QA-005 fixed locally: closed months now have a service and database-enforced immutable boundary.
 - These fixes are committed but not pushed, deployed, or reverified against production.
 
 ## Safety and test data
@@ -133,7 +134,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Budget integrity
-- Status: Confirmed
+- Status: Fixed locally, deployment verification pending
 - Reproduction:
   1. Close June 2026, creating snapshot ID 52.
   2. Observe the add-budget control remains enabled.

@@ -32,6 +32,7 @@ import NewPlannedEntryForm from './NewPlannedEntryForm';
 import MonthlyBudgetCard from './MonthlyBudgetCard';
 import { generateBudgetExportText, copyToClipboard } from '../utils/budgetExport';
 import { parseTransactionDate } from '../utils/date';
+import { isMonthClosed } from '../utils/budgetState';
 import TransactionMatcherModal from './TransactionMatcherModal';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
 import TransactionEditModal from './TransactionEditModal';
@@ -181,7 +182,7 @@ export default function CategoryBudgetDashboard() {
           );
 
           const budgetArray = Array.isArray(budgets) ? budgets : [];
-          const isConsolidated = budgetArray.length > 0 && budgetArray.every(b => b.IsConsolidated);
+          const isConsolidated = isMonthClosed(budgetArray);
 
           // Add to monthly budgets
           setMonthlyBudgets(prev => [
@@ -273,7 +274,7 @@ export default function CategoryBudgetDashboard() {
       // Group budgets by month and check if consolidated
       const monthlyData: MonthlyBudgetData[] = allBudgetsResults.map(({ month, year, budgets }) => {
         const budgetArray = Array.isArray(budgets) ? budgets : [];
-        const isConsolidated = budgetArray.length > 0 && budgetArray.every(b => b.IsConsolidated);
+        const isConsolidated = isMonthClosed(budgetArray);
         return {
           month,
           year,
@@ -1289,6 +1290,7 @@ export default function CategoryBudgetDashboard() {
     m => m.month === selectedMonth && m.year === selectedYear
   );
   const selectedMonthBudgets = selectedMonthData?.budgets || [];
+  const selectedMonthClosed = selectedMonthData?.isConsolidated || false;
   const selectedMonthSpending = actualSpending[selectedMonthKey] || {};
   const selectedMonthEntries = expandedMonthEntries[selectedMonthKey] || [];
   const selectedMonthEntriesLoading = expandedMonthLoading[selectedMonthKey] || false;
@@ -1440,7 +1442,9 @@ export default function CategoryBudgetDashboard() {
               </button>
               <button
                 onClick={() => setShowCreateBudgetModal(true)}
-                className="btn-primary text-sm"
+                disabled={selectedMonthClosed}
+                title={selectedMonthClosed ? 'Este mês está fechado' : undefined}
+                className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Orçamento
               </button>
