@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"database/sql"
 	"encoding/json"
 	"github.com/catrutech/celeiro/pkg/logging"
 	"net/http"
@@ -25,6 +26,7 @@ type ErrorMapping struct {
 
 // errorMappings maps specific error values to their HTTP responses
 var errorMappings = map[error]ErrorMapping{
+	sql.ErrNoRows:                            {Status: http.StatusNotFound, Code: "NOT_FOUND"},
 	errors.ErrEmailRequired:                  {Status: http.StatusBadRequest, Code: "EMAIL_REQUIRED"},
 	errors.ErrEmailFormatInvalid:             {Status: http.StatusBadRequest, Code: "EMAIL_FORMAT_INVALID"},
 	errors.ErrCodeRequired:                   {Status: http.StatusBadRequest, Code: "CODE_REQUIRED"},

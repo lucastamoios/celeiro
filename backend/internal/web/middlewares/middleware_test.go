@@ -14,6 +14,7 @@ import (
 	transientdb "github.com/catrutech/celeiro/pkg/database/transient"
 	"github.com/catrutech/celeiro/pkg/logging"
 	"github.com/catrutech/celeiro/pkg/system"
+	"github.com/go-chi/chi/v5"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -142,6 +143,62 @@ func (test *MiddlewareTestSuite) TestSessionMiddleware() {
 
 		test.False(handlerCalled)
 		test.Equal(http.StatusUnauthorized, rr.Code)
+	})
+
+	test.Run("with an explicitly requested foreign organization", func() {
+		userSession := accounts.SessionInfo{
+			User: accounts.UserForSessionInfo{ID: 123, Email: "test@example.com"},
+			Organizations: []accounts.OrganizationWithPermissions{{
+				Organization: accounts.Organization{OrganizationID: 1, Name: "Test Organization"},
+				UserRole:     accounts.RoleAdmin,
+			}},
+		}
+		session, err := test.app.AccountsService.CreateSession(context.Background(), accounts.CreateSessionInput{Info: userSession})
+		test.Require().NoError(err)
+
+		handlerCalled := false
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handlerCalled = true
+			w.WriteHeader(http.StatusOK)
+		})
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Authorization", "Bearer "+session.Token)
+		req.Header.Set("X-Active-Organization", "999")
+
+		rr := httptest.NewRecorder()
+		test.middleware.Session(test.middleware.RequireSession(handler, nil)).ServeHTTP(rr, req)
+
+		test.False(handlerCalled)
+		test.Equal(http.StatusForbidden, rr.Code)
+	})
+
+	test.Run("with a foreign organization in the route", func() {
+		userSession := accounts.SessionInfo{
+			User: accounts.UserForSessionInfo{ID: 123, Email: "test@example.com"},
+			Organizations: []accounts.OrganizationWithPermissions{{
+				Organization: accounts.Organization{OrganizationID: 1, Name: "Test Organization"},
+				UserRole:     accounts.RoleAdmin,
+			}},
+		}
+		session, err := test.app.AccountsService.CreateSession(context.Background(), accounts.CreateSessionInput{Info: userSession})
+		test.Require().NoError(err)
+
+		handlerCalled := false
+		router := chi.NewRouter()
+		router.Use(test.middleware.Session)
+		router.Get("/organizations/{orgId}", test.middleware.RequireSession(func(w http.ResponseWriter, r *http.Request) {
+			handlerCalled = true
+			w.WriteHeader(http.StatusOK)
+		}, nil))
+
+		req := httptest.NewRequest("GET", "/organizations/999", nil)
+		req.Header.Set("Authorization", "Bearer "+session.Token)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		test.False(handlerCalled)
+		test.Equal(http.StatusForbidden, rr.Code)
 	})
 
 	test.Run("with no session when required", func() {

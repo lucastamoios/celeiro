@@ -277,15 +277,22 @@ const removeCategoryQuery = `
 	-- financial.removeCategoryQuery
 	-- First uncategorize all transactions, then delete the category
 	WITH uncategorize AS (
-		UPDATE transactions SET category_id = NULL WHERE category_id = $1
+		UPDATE transactions
+		SET category_id = NULL
+		WHERE category_id = $1
+			AND EXISTS (
+				SELECT 1 FROM categories c
+				WHERE c.category_id = $1 AND c.organization_id = $2 AND c.is_system = false
+			)
 	)
 	DELETE FROM categories
-	WHERE category_id = $1 AND organization_id = $2 AND is_system = false;
+	WHERE category_id = $1 AND organization_id = $2 AND is_system = false
+	RETURNING category_id;
 `
 
 func (r *repository) RemoveCategory(ctx context.Context, params removeCategoryParams) error {
-	err := r.db.Run(ctx, removeCategoryQuery, params.CategoryID, params.OrganizationID)
-	return err
+	var deletedID int
+	return r.db.Query(ctx, &deletedID, removeCategoryQuery, params.CategoryID, params.OrganizationID)
 }
 
 // ============================================================================
@@ -1208,11 +1215,13 @@ const removeCategoryBudgetQuery = `
 	DELETE FROM category_budgets
 	WHERE category_budget_id = $1
 		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $3
+	RETURNING category_budget_id;
 `
 
 func (r *repository) RemoveCategoryBudget(ctx context.Context, params removeCategoryBudgetParams) error {
-	return r.db.Run(ctx, removeCategoryBudgetQuery,
+	var deletedID int
+	return r.db.Query(ctx, &deletedID, removeCategoryBudgetQuery,
 		params.CategoryBudgetID, params.UserID, params.OrganizationID)
 }
 
@@ -1593,11 +1602,13 @@ const removePlannedEntryQuery = `
 	DELETE FROM planned_entries
 	WHERE planned_entry_id = $1
 		AND user_id = $2
-		AND organization_id = $3;
+		AND organization_id = $3
+	RETURNING planned_entry_id;
 `
 
 func (r *repository) RemovePlannedEntry(ctx context.Context, params removePlannedEntryParams) error {
-	return r.db.Run(ctx, removePlannedEntryQuery,
+	var deletedID int
+	return r.db.Query(ctx, &deletedID, removePlannedEntryQuery,
 		params.PlannedEntryID, params.UserID, params.OrganizationID)
 }
 
@@ -1928,12 +1939,13 @@ const removeAdvancedPatternQuery = `
 	-- financial.removeAdvancedPatternQuery
 	DELETE FROM patterns
 	WHERE pattern_id = $1
-		AND organization_id = $2;
+		AND organization_id = $2
+	RETURNING pattern_id;
 `
 
 func (r *repository) RemoveAdvancedPattern(ctx context.Context, params removeAdvancedPatternParams) error {
-	var result struct{}
-	err := r.db.Query(ctx, &result, removeAdvancedPatternQuery,
+	var deletedID int
+	err := r.db.Query(ctx, &deletedID, removeAdvancedPatternQuery,
 		params.PatternID, params.OrganizationID)
 	return err
 }
@@ -2514,11 +2526,13 @@ const removeSavingsGoalQuery = `
 	UPDATE savings_goals
 	SET is_active = false, updated_at = CURRENT_TIMESTAMP
 	WHERE savings_goal_id = $1
-		AND organization_id = $2;
+		AND organization_id = $2
+	RETURNING savings_goal_id;
 `
 
 func (r *repository) RemoveSavingsGoal(ctx context.Context, params removeSavingsGoalParams) error {
-	return r.db.Run(ctx, removeSavingsGoalQuery,
+	var deletedID int
+	return r.db.Query(ctx, &deletedID, removeSavingsGoalQuery,
 		params.SavingsGoalID, params.OrganizationID)
 }
 
@@ -2982,11 +2996,13 @@ type removeTagParams struct {
 const removeTagQuery = `
 	-- financial.removeTagQuery
 	DELETE FROM tags
-	WHERE tag_id = $1 AND organization_id = $2;
+	WHERE tag_id = $1 AND organization_id = $2
+	RETURNING tag_id;
 `
 
 func (r *repository) RemoveTag(ctx context.Context, params removeTagParams) error {
-	return r.db.Run(ctx, removeTagQuery,
+	var deletedID int
+	return r.db.Query(ctx, &deletedID, removeTagQuery,
 		params.TagID, params.OrganizationID)
 }
 

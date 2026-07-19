@@ -78,6 +78,6 @@ func (e *PgDetailedError) Error() string {
 	return base
 }
 
-// func (e *PgDetailedError) Unwrap() error {
-//     return e.OriginalError
-// }
+func (e *PgDetailedError) Unwrap() error {
+	return e.OriginalError
+}
