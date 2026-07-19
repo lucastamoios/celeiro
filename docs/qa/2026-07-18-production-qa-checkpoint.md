@@ -7,6 +7,14 @@ Run ID: `QA-20260718T171147Z`
 Targets: `https://celeiro.laguiar.dev`, `https://api.celeiro.laguiar.dev`
 Status: Paused by user after the main product workflow pass and isolation probes. OFX, final mobile accessibility, and final cleanup remain incomplete.
 
+## Remediation progress
+
+- QA-001 fixed locally in `e878f59`: registration now requires email-code verification before issuing a session.
+- QA-002 fixed locally in `e0237de`: organization API calls derive their tenant header from the required path organization.
+- QA-003 fixed locally in `e0237de`: account and password settings no longer depend on active-organization state.
+- QA-004 fixed locally in `1b05938`: null planned-entry collections no longer crash pattern management.
+- These fixes are committed but not pushed, deployed, or reverified against production.
+
 ## Safety and test data
 
 All production writes were restricted to two synthetic users and their organizations.
@@ -37,7 +45,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P0
 - Area: Authentication, account security
-- Status: Confirmed
+- Status: Fixed locally in `e878f59`, deployment verification pending
 - Reproduction:
   1. Open sign-up.
   2. Register a new `@example.com` address.
@@ -60,7 +68,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Frontend session and organization state
-- Status: Confirmed
+- Status: Fixed locally in `e0237de`, deployment verification pending
 - Evidence:
   - Organization settings displays `Organization ID is required`.
   - Members displays 0 even though the API returns the signed-in member.
@@ -86,7 +94,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Account settings
-- Status: Confirmed
+- Status: Fixed locally in `e0237de`, deployment verification pending
 - Reproduction: Register with a password, open Account Settings, observe `Definir Senha`.
 - Expected: `Alterar Senha` because `/accounts/me/` reports `has_password: true`.
 - Actual: The UI shows `Definir Senha`; submission then fails due to missing organization context.
@@ -104,7 +112,7 @@ No cross-user data exposure was confirmed. The isolation API behavior is still d
 
 - Priority: P1
 - Area: Pattern management
-- Status: Confirmed, reproducible
+- Status: Fixed locally in `1b05938`, deployment verification pending
 - Evidence:
   - UI displays `0 padrãoões cadastrados`.
   - UI error: `Cannot read properties of undefined (reading 'filter')`.
