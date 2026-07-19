@@ -27,6 +27,11 @@ export interface AuthResponse {
   is_new_user: boolean;
 }
 
+export interface RegisterResponse {
+  email: string;
+  verification_required: boolean;
+}
+
 export interface SetPasswordResponse {
   message: string;
 }
@@ -39,7 +44,7 @@ export async function register(
   email: string,
   password: string,
   recaptchaToken: string
-): Promise<AuthResponse> {
+): Promise<RegisterResponse> {
   const response = await fetch(
     `${API_CONFIG.baseURL}${API_CONFIG.endpoints.auth.register}`,
     {
@@ -51,10 +56,10 @@ export async function register(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Falha ao criar conta');
+    throw new Error(errorData.message || errorData.error || 'Falha ao criar conta');
   }
 
-  const result: ApiResponse<AuthResponse> = await response.json();
+  const result: ApiResponse<RegisterResponse> = await response.json();
   return result.data;
 }
 
@@ -101,7 +106,10 @@ export async function loginWithPassword(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Credenciais inválidas');
+    if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+      throw new Error('Confirme seu email com o código enviado antes de entrar');
+    }
+    throw new Error(errorData.message || errorData.error || 'Credenciais inválidas');
   }
 
   const result: ApiResponse<AuthResponse> = await response.json();

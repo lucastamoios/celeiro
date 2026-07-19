@@ -18,6 +18,7 @@ var (
 	ErrInvalidCode           = pkgerrors.New("invalid code")
 	ErrInvalidRequestBody    = pkgerrors.New("invalid request body")
 	ErrInvalidCredentials    = pkgerrors.New("invalid credentials")
+	ErrEmailNotVerified      = pkgerrors.New("email not verified")
 	ErrUserAlreadyExists     = pkgerrors.New("user already exists")
 	ErrInviteNotFound        = pkgerrors.New("invite not found")
 	ErrInviteExpired         = pkgerrors.New("invite has expired")

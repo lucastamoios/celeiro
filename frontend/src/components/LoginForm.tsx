@@ -143,8 +143,14 @@ export default function LoginForm() {
 
     try {
       const recaptchaToken = await getRecaptchaToken('register');
-      const authResult = await register(name, email, password, recaptchaToken);
-      login(authResult.session_token, email);
+      const registration = await register(name, email, password, recaptchaToken);
+      if (registration.verification_required) {
+        setName('');
+        setPassword('');
+        setAuthMode('magic');
+        setStep('code');
+        setCodeInfo('Enviamos um código de 4 dígitos para confirmar seu email!');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao criar conta');
     } finally {
@@ -187,7 +193,7 @@ export default function LoginForm() {
       });
 
       tokenClient.requestAccessToken();
-    } catch (err) {
+    } catch {
       setError('Falha ao carregar autenticação Google');
       setLoading(false);
     }

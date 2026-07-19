@@ -15,6 +15,7 @@ type Repository interface {
 	InsertUser(ctx context.Context, user createUserParams) (UserModel, error)
 	ModifyUser(ctx context.Context, params updateUserParams) (UserModel, error)
 	ModifyUserPassword(ctx context.Context, params modifyUserPasswordParams) error
+	ModifyUserEmailVerified(ctx context.Context, userID int) error
 	FetchOrganizationsByUser(ctx context.Context, params getOrganizationByUsersParams) ([]OrganizationWithPermissionsModel, error)
 	InsertOrganization(ctx context.Context, params insertOrganizationParams) (OrganizationModel, error)
 	InsertUserOrganization(ctx context.Context, params createUserOrganizationParams) (UserOrganizationModel, error)
@@ -237,6 +238,7 @@ const fetchUserByIDQuery = `
 		email,
 		email_id,
 		password_hash,
+		email_verified_at,
 		created_at,
 		updated_at
 	FROM users
@@ -266,6 +268,7 @@ const FetchUserByEmailQuery = `
 		email,
 		email_id,
 		password_hash,
+		email_verified_at,
 		created_at,
 		updated_at
 	FROM users
@@ -456,6 +459,18 @@ const modifyUserPasswordQuery = `
 
 func (r *repository) ModifyUserPassword(ctx context.Context, params modifyUserPasswordParams) error {
 	return r.db.Run(ctx, modifyUserPasswordQuery, params.UserID, params.PasswordHash, time.Now().UTC())
+}
+
+const modifyUserEmailVerifiedQuery = `
+	-- accounts.modifyUserEmailVerifiedQuery
+	UPDATE users
+	SET email_verified_at = CURRENT_TIMESTAMP,
+		updated_at = CURRENT_TIMESTAMP
+	WHERE user_id = $1;
+	`
+
+func (r *repository) ModifyUserEmailVerified(ctx context.Context, userID int) error {
+	return r.db.Run(ctx, modifyUserEmailVerifiedQuery, userID)
 }
 
 // FetchOrganizationMembers

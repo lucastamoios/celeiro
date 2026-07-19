@@ -12,11 +12,12 @@ type UserModel struct {
 	UpdatedAt time.Time `db:"updated_at"`
 	UserID    int       `db:"user_id"`
 
-	Name         string         `db:"name"`
-	Email        string         `db:"email"`
-	EmailID      string         `db:"email_id"`
-	Phone        int            `db:"phone"`
-	PasswordHash sql.NullString `db:"password_hash"`
+	Name            string         `db:"name"`
+	Email           string         `db:"email"`
+	EmailID         string         `db:"email_id"`
+	Phone           int            `db:"phone"`
+	PasswordHash    sql.NullString `db:"password_hash"`
+	EmailVerifiedAt sql.NullTime   `db:"email_verified_at"`
 
 	Address   string  `db:"address"`
 	City      string  `db:"city"`

@@ -35,6 +35,11 @@ type RegisterRequest struct {
 	RecaptchaToken string `json:"recaptcha_token"`
 }
 
+type RegisterResponse struct {
+	Email                string `json:"email"`
+	VerificationRequired bool   `json:"verification_required"`
+}
+
 func (r *RegisterRequest) Validate() error {
 	if strings.TrimSpace(r.Name) == "" {
 		return errors.ErrMissingRequiredFields
@@ -92,8 +97,10 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	response := AuthenticateResponse{}.FromDTO(authResult)
-	responses.NewSuccess(response, w)
+	responses.NewSuccess(RegisterResponse{
+		Email:                req.Email,
+		VerificationRequired: true,
+	}, w, http.StatusCreated)
 }
 
 // RequestMagicLink
