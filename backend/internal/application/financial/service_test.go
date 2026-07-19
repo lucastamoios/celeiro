@@ -634,6 +634,34 @@ func stringPointer(value string) *string {
 	return &value
 }
 
+func TestFinancialService_PlannedEntryAppliesToMonth_DoesNotBackfillBeforeCreation(t *testing.T) {
+	entry := PlannedEntryModel{CreatedAt: time.Date(2026, time.July, 18, 12, 0, 0, 0, time.UTC)}
+
+	assert.False(t, plannedEntryAppliesToMonth(entry, 6, 2026))
+	assert.True(t, plannedEntryAppliesToMonth(entry, 7, 2026))
+	assert.True(t, plannedEntryAppliesToMonth(entry, 1, 2027))
+}
+
+func TestFinancialService_ComputePlannedEntryStatus_FutureExpectedDayIsScheduled(t *testing.T) {
+	svc := &service{}
+	expectedDay := 21
+	entry := PlannedEntryModel{ExpectedDay: &expectedDay, ExpectedDayEnd: &expectedDay}
+
+	status := svc.computePlannedEntryStatus(entry, 18, 7, 2026, 7, 2026)
+
+	assert.Equal(t, PlannedEntryStatusScheduled, status)
+}
+
+func TestFinancialService_ComputePlannedEntryStatus_PastExpectedDayIsPending(t *testing.T) {
+	svc := &service{}
+	expectedDay := 17
+	entry := PlannedEntryModel{ExpectedDay: &expectedDay}
+
+	status := svc.computePlannedEntryStatus(entry, 18, 7, 2026, 7, 2026)
+
+	assert.Equal(t, PlannedEntryStatusPending, status)
+}
+
 // pacingTestSetup wires the four repository calls GetControllableCategoryPacing
 // makes: categories, budgets, transactions, and income budget (for the filter).
 func pacingTestSetup(mockRepo *MockRepository, categories []CategoryModel, budgets []CategoryBudgetModel, plannedIncome decimal.Decimal) {

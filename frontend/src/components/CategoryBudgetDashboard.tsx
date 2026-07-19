@@ -1195,11 +1195,8 @@ export default function CategoryBudgetDashboard() {
 
       setSuccessMessage('Entrada planejada excluída com sucesso!');
 
-      // Refresh entries for the specific month
-      const key = `${month}-${year}`;
-      if (expandedMonthEntries[key]) {
-        await fetchEntriesForMonth(month, year);
-      }
+      await fetchEntriesForMonth(month, year);
+      await fetchAndCalculateActualSpending();
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -1227,12 +1224,9 @@ export default function CategoryBudgetDashboard() {
       setEditingEntry(null);
       setSelectedEntryMonth(null);
 
-      // Refresh entries for the specific month
       if (selectedEntryMonth) {
-        const key = `${selectedEntryMonth.month}-${selectedEntryMonth.year}`;
-        if (expandedMonthEntries[key]) {
-          await fetchEntriesForMonth(selectedEntryMonth.month, selectedEntryMonth.year);
-        }
+        await fetchEntriesForMonth(selectedEntryMonth.month, selectedEntryMonth.year);
+        await fetchAndCalculateActualSpending();
       }
 
       setTimeout(() => setSuccessMessage(null), 3000);

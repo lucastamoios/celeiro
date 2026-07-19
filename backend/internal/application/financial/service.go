@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -1344,7 +1345,6 @@ func (s *service) GetPlannedEntries(ctx context.Context, params GetPlannedEntrie
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch planned entries")
 	}
-
 	entries := PlannedEntries{}.FromModel(models)
 	for i := range entries {
 		entries[i].TagIDs = s.plannedEntryTagIDs(ctx, entries[i].PlannedEntryID)
@@ -1679,6 +1679,9 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch planned entries")
 	}
+	entries = slices.DeleteFunc(entries, func(entry PlannedEntryModel) bool {
+		return !plannedEntryAppliesToMonth(entry, params.Month, params.Year)
+	})
 
 	// Auto-generate planned entries for savings goals
 	fmt.Printf("[GOAL-ENTRIES] GetPlannedEntriesForMonth called for %d/%d\n", params.Month, params.Year)
@@ -1792,19 +1795,33 @@ func (s *service) computePlannedEntryStatus(entry PlannedEntryModel, currentDay,
 		return PlannedEntryStatusScheduled
 	}
 
-	// Same month - check expected day
-	// If no expected day set, consider it scheduled (on time for the whole month)
-	if entry.ExpectedDayEnd == nil {
+	// Same month - check the end of the expected period. Older entries only have
+	// ExpectedDay, so use it as the deadline when ExpectedDayEnd is absent.
+	expectedDayEnd := entry.ExpectedDayEnd
+	if expectedDayEnd == nil {
+		expectedDayEnd = entry.ExpectedDay
+	}
+	if expectedDayEnd == nil {
 		return PlannedEntryStatusScheduled
 	}
 
 	// If current day is after the expected end day - overdue
-	if currentDay > *entry.ExpectedDayEnd {
+	if currentDay > *expectedDayEnd {
 		return PlannedEntryStatusPending
 	}
 
 	// Still within the expected period - on time
 	return PlannedEntryStatusScheduled
+}
+
+func plannedEntryAppliesToMonth(entry PlannedEntryModel, month, year int) bool {
+	if entry.CreatedAt.IsZero() {
+		return true
+	}
+
+	createdYear := entry.CreatedAt.Year()
+	createdMonth := int(entry.CreatedAt.Month())
+	return year > createdYear || (year == createdYear && month >= createdMonth)
 }
 
 type MatchPlannedEntryInput struct {
