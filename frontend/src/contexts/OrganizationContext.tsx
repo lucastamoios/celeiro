@@ -2,7 +2,10 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import type { ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { API_CONFIG } from '../config/api';
-import { isSessionAuthorizationFailure } from './sessionAuthorization';
+import {
+  buildSessionBootstrapHeaders,
+  isSessionAuthorizationFailure,
+} from './sessionAuthorization';
 
 // Types matching backend response structure
 export interface Organization {
@@ -68,10 +71,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       const response = await fetch(
         `${API_CONFIG.baseURL}${API_CONFIG.endpoints.accounts.me}`,
         {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1', // Will be ignored for fetching session
-          },
+          headers: buildSessionBootstrapHeaders(token),
         }
       );
 

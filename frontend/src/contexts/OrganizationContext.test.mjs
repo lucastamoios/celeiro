@@ -31,3 +31,13 @@ test('OrganizationContext_sessionBootstrap_logsOutAfterUnauthorizedResponse', ()
 test('OrganizationContext_sessionBootstrap_keepsOtherFailuresVisible', () => {
   assert.equal(sessionAuthorization.isSessionAuthorizationFailure(500), false);
 });
+
+// Regression test: a hard-coded organization ID made valid users receive 403 after login.
+// Direct cause: the session bootstrap sent X-Active-Organization before discovering memberships.
+// Root cause: account-scoped session discovery was incorrectly coupled to organization scope.
+test('OrganizationContext_sessionBootstrap_doesNotPreselectOrganization', () => {
+  assert.deepEqual(
+    sessionAuthorization.buildSessionBootstrapHeaders?.('test-token'),
+    { Authorization: 'Bearer test-token' },
+  );
+});
