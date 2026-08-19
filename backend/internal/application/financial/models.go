@@ -244,6 +244,13 @@ type MonthlySnapshotModel struct {
 
 type MonthlySnapshotsModel []MonthlySnapshotModel
 
+type PatternAction string
+
+const (
+	PatternActionCategorize PatternAction = "categorize"
+	PatternActionIgnore     PatternAction = "ignore"
+)
+
 // PatternModel represents a regex-based transaction matching pattern
 // Stored in the `patterns` table (formerly `advanced_patterns`)
 type PatternModel struct {
@@ -261,13 +268,14 @@ type PatternModel struct {
 	AmountMin          *decimal.Decimal `db:"amount_min"`
 	AmountMax          *decimal.Decimal `db:"amount_max"`
 
-	// Target mapping
-	TargetDescription string `db:"target_description"`
-	TargetCategoryID  int    `db:"target_category_id"`
+	// Target mapping, required only for categorization patterns
+	TargetDescription *string `db:"target_description"`
+	TargetCategoryID  *int    `db:"target_category_id"`
 
 	// Behavior
-	ApplyRetroactively bool `db:"apply_retroactively"`
-	IsActive           bool `db:"is_active"`
+	Action             PatternAction `db:"action"`
+	ApplyRetroactively bool          `db:"apply_retroactively"`
+	IsActive           bool          `db:"is_active"`
 }
 
 type PatternsModel []PatternModel

@@ -10,6 +10,7 @@ import { parseTransactionDate } from '../utils/date';
 import { getPlannedEntryForTransaction, unmatchPlannedEntry, updatePlannedEntry } from '../api/budget';
 import { getTransactionTags, setTransactionTags } from '../api/tags';
 import { useModalDismiss } from '../hooks/useModalDismiss';
+import { initialPatternAction } from '../utils/patternAction';
 import PatternCreator, { type AdvancedPattern } from './PatternCreator';
 import TagSelector from './TagSelector';
 import TransactionPlannedEntryLinkModal from './TransactionPlannedEntryLinkModal';
@@ -42,7 +43,6 @@ export default function TransactionEditModal({
   
   // Pattern creator
   const [showAdvancedPatternCreator, setShowAdvancedPatternCreator] = useState(false);
-  const [applyRetroactivelyOnCreate, setApplyRetroactivelyOnCreate] = useState(true);
 
   // Linked planned entry
   const [linkedPlannedEntry, setLinkedPlannedEntry] = useState<PlannedEntryWithStatus | null>(null);
@@ -210,59 +210,53 @@ export default function TransactionEditModal({
   const handleSavePattern = async (pattern: AdvancedPattern) => {
     if (!token) return;
 
-    try {
-      // Extract planned_entry_id if present (for linking after creation)
-      const { planned_entry_id, ...patternData } = pattern;
+    // Extract planned_entry_id if present (for linking after creation)
+    const { planned_entry_id, ...patternData } = pattern;
 
-      // Create the pattern with apply_retroactively: true to automatically apply to existing transactions
-      const response = await fetch(financialUrl('patterns'), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': activeOrganizationId,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...patternData, apply_retroactively: applyRetroactivelyOnCreate }),
-      });
+    const response = await fetch(financialUrl('patterns'), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-Active-Organization': activeOrganizationId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patternData),
+    });
 
-      if (!response.ok) {
-        throw new Error('Falha ao criar padrão');
-      }
-
-      const result = await response.json();
-      const createdPattern = result.data;
-
-      // If a planned entry was selected, link the pattern to it
-      if (planned_entry_id && createdPattern?.pattern_id) {
-        await updatePlannedEntry(
-          planned_entry_id,
-          { pattern_id: createdPattern.pattern_id },
-          { token, organizationId: activeOrganizationId }
-        );
-      }
-
-      // Optional: show retroactive application count if backend returned it
-      const updatedCount = result?.data?.updated_count;
-      const totalChecked = result?.data?.total_checked;
-      if (applyRetroactivelyOnCreate && typeof updatedCount === 'number') {
-        setPatternCreateSuccess(
-          typeof totalChecked === 'number'
-            ? `✅ Padrão aplicado a ${updatedCount}/${totalChecked} transação(ões)`
-            : `✅ Padrão aplicado a ${updatedCount} transação(ões)`
-        );
-      } else {
-        setPatternCreateSuccess('✅ Padrão criado com sucesso');
-      }
-      setTimeout(() => setPatternCreateSuccess(null), 4000);
-
-      // Close modal and notify parent to refresh data
-      setShowAdvancedPatternCreator(false);
-      setApplyRetroactivelyOnCreate(true);
-      onSave(); // This will refresh the transaction list
-      onClose(); // Close the edit modal
-    } catch (err) {
-      throw err; // Let PatternCreator handle the error
+    if (!response.ok) {
+      throw new Error('Falha ao criar padrão');
     }
+
+    const result = await response.json();
+    const createdPattern = result.data;
+
+    // If a planned entry was selected, link the pattern to it
+    if (planned_entry_id && createdPattern?.pattern_id) {
+      await updatePlannedEntry(
+        planned_entry_id,
+        { pattern_id: createdPattern.pattern_id },
+        { token, organizationId: activeOrganizationId }
+      );
+    }
+
+    // Optional: show retroactive application count if backend returned it
+    const updatedCount = result?.data?.updated_count;
+    const totalChecked = result?.data?.total_checked;
+    if (pattern.apply_retroactively && typeof updatedCount === 'number') {
+      setPatternCreateSuccess(
+        typeof totalChecked === 'number'
+          ? `✅ Padrão aplicado a ${updatedCount}/${totalChecked} transação(ões)`
+          : `✅ Padrão aplicado a ${updatedCount} transação(ões)`
+      );
+    } else {
+      setPatternCreateSuccess('✅ Padrão criado com sucesso');
+    }
+    setTimeout(() => setPatternCreateSuccess(null), 4000);
+
+    // Close modal and notify parent to refresh data
+    setShowAdvancedPatternCreator(false);
+    onSave(); // This will refresh the transaction list
+    onClose(); // Close the edit modal
   };
 
   const handleCreateCategory = async () => {
@@ -720,16 +714,6 @@ export default function TransactionEditModal({
 
           {/* Create Pattern Section */}
           <div className="border-t border-stone-200 pt-6">
-            <label className="flex items-center justify-center gap-2 text-xs text-stone-600 mb-3 select-none">
-              <input
-                type="checkbox"
-                className="rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
-                checked={applyRetroactivelyOnCreate}
-                onChange={(e) => setApplyRetroactivelyOnCreate(e.target.checked)}
-              />
-              Aplicar em transações existentes
-            </label>
-
             <button
               onClick={() => setShowAdvancedPatternCreator(true)}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-stone-300 text-stone-600 rounded-lg hover:border-stone-400 hover:text-stone-700 hover:bg-stone-50 transition-all text-sm"
@@ -771,6 +755,9 @@ export default function TransactionEditModal({
           categories={categories}
           onClose={() => setShowAdvancedPatternCreator(false)}
           onSave={handleSavePattern}
+          initialAction={initialPatternAction(isIgnored)}
+          allowRetroactive
+          initialApplyRetroactively
           initialSourceText={transaction.original_description || description}
           initialTargetDescription={description}
           initialTargetCategoryId={categoryId ?? undefined}
@@ -788,4 +775,3 @@ export default function TransactionEditModal({
     </>
   );
 }
-

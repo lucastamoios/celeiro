@@ -636,6 +636,7 @@ export default function PlannedEntryForm({
       {showAdvancedPatternModal && (
         <PatternCreator
           categories={new Map(categories.map(c => [c.category_id, c]))}
+          variant="from_planned_entry"
           onClose={() => setShowAdvancedPatternModal(false)}
           onSave={handleSaveAdvancedPattern}
           initialData={{

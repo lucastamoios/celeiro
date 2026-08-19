@@ -69,6 +69,72 @@ func (test *FinancialTestSuite) TestMonthlySnapshotSchema_Insert_WithFourDigitVa
 	test.Equal("1146.93", variancePercent)
 }
 
+func (test *FinancialTestSuite) TestPatternSchema_IgnoreActionHasNoTargetsAndCannotBeRetroactive() {
+	ctx := context.Background()
+	auth := test.CreateUserAndAuthenticate(
+		"ignore-pattern@example.com",
+		"Ignore Pattern User",
+		"Ignore Pattern Org",
+	)
+
+	patternService := financial.New(test.financialRepo, test.System, test.Logger, test.DB, nil)
+	pattern, err := patternService.CreatePattern(ctx, financial.CreatePatternInput{
+		UserID:             auth.GetUserID(),
+		OrganizationID:     auth.GetOrganizationID(),
+		Action:             financial.PatternActionIgnore,
+		DescriptionPattern: ".*TAXA.*",
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionIgnore, pattern.Action)
+	test.Nil(pattern.TargetDescription)
+	test.Nil(pattern.TargetCategoryID)
+
+	patterns, err := patternService.GetPatterns(ctx, financial.GetPatternsInput{
+		UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+	})
+	test.Require().NoError(err)
+	test.Require().Len(patterns, 1)
+	test.Equal(financial.PatternActionIgnore, patterns[0].Action)
+
+	var categoryID int
+	err = test.DB.Query(ctx, &categoryID, `
+		INSERT INTO categories (organization_id, name, icon, category_type)
+		VALUES ($1, 'Taxas', '🏷️', 'expense')
+		RETURNING category_id
+	`, auth.GetOrganizationID())
+	test.Require().NoError(err)
+	categorize := financial.PatternActionCategorize
+	targetDescription := "Taxa bancária"
+	updated, err := patternService.UpdatePattern(ctx, financial.UpdatePatternInput{
+		PatternID: pattern.PatternID, UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+		Action: &categorize, TargetDescription: &targetDescription, TargetCategoryID: &categoryID,
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionCategorize, updated.Action)
+	test.Equal(targetDescription, *updated.TargetDescription)
+	test.Equal(categoryID, *updated.TargetCategoryID)
+
+	ignore := financial.PatternActionIgnore
+	updated, err = patternService.UpdatePattern(ctx, financial.UpdatePatternInput{
+		PatternID: pattern.PatternID, UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+		Action: &ignore,
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionIgnore, updated.Action)
+	test.Nil(updated.TargetDescription)
+	test.Nil(updated.TargetCategoryID)
+
+	var action string
+	err = test.DB.Query(ctx, &action, `
+		INSERT INTO patterns (
+			user_id, organization_id, action, description_pattern,
+			target_description, target_category_id, apply_retroactively
+		) VALUES ($1, $2, 'ignore', '.*ANTIGA.*', NULL, NULL, TRUE)
+		RETURNING action
+	`, auth.GetUserID(), auth.GetOrganizationID())
+	test.Require().Error(err)
+}
+
 func (test *FinancialTestSuite) TestPlannedEntry_ClearPatternID_UsingSentinel() {
 	ctx := context.Background()
 

@@ -47,6 +47,9 @@ Personal finance management system with Go backend, React frontend, PostgreSQL d
 | Feature specs | [specs/budget-planned-entries/spec.md](./specs/budget-planned-entries/spec.md) |
 | Budget pacing | [budget-pacing.md](./budget-pacing.md) |
 | Planned entry drag & drop | [planned-entry-organization.md](./planned-entry-organization.md) |
+| Requirements: ignored transaction patterns | [requirements/ignored-transaction-patterns.md](./requirements/ignored-transaction-patterns.md) |
+| Design: ignored transaction patterns | [design/ignored-transaction-patterns.md](./design/ignored-transaction-patterns.md) |
+| Plan: ignored transaction patterns | [plans/ignored-transaction-patterns.md](./plans/ignored-transaction-patterns.md) |
 | Development setup | [setup.md](./setup.md) |
 | Deployment | [deployment.md](./deployment.md) |
 | Troubleshooting | [troubleshooting.md](./troubleshooting.md) |

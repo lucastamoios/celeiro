@@ -143,6 +143,7 @@ export default function NewPlannedEntryForm({
         advancedPattern ??
         (matchText.trim()
           ? {
+              action: 'categorize',
               description_pattern: `.*${escapeRegex(matchText.trim())}.*`,
               target_description: description.trim(),
               target_category_id: parseInt(categoryId),

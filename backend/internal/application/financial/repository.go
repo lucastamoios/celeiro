@@ -1757,6 +1757,7 @@ const fetchAdvancedPatternsQuery = `
 		weekday_pattern,
 		amount_min,
 		amount_max,
+		action,
 		target_description,
 		target_category_id,
 		apply_retroactively,
@@ -1797,6 +1798,7 @@ const fetchAdvancedPatternByIDQuery = `
 		weekday_pattern,
 		amount_min,
 		amount_max,
+		action,
 		target_description,
 		target_category_id,
 		apply_retroactively,
@@ -1816,13 +1818,14 @@ func (r *repository) FetchAdvancedPatternByID(ctx context.Context, params fetchA
 type insertAdvancedPatternParams struct {
 	UserID             int
 	OrganizationID     int
+	Action             PatternAction
 	DescriptionPattern *string
 	DatePattern        *string
 	WeekdayPattern     *string
 	AmountMin          *decimal.Decimal
 	AmountMax          *decimal.Decimal
-	TargetDescription  string
-	TargetCategoryID   int
+	TargetDescription  *string
+	TargetCategoryID   *int
 	ApplyRetroactively bool
 }
 
@@ -1836,10 +1839,11 @@ const insertAdvancedPatternQuery = `
 		weekday_pattern,
 		amount_min,
 		amount_max,
+		action,
 		target_description,
 		target_category_id,
 		apply_retroactively
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	RETURNING
 		pattern_id,
 		created_at,
@@ -1851,6 +1855,7 @@ const insertAdvancedPatternQuery = `
 		weekday_pattern,
 		amount_min,
 		amount_max,
+		action,
 		target_description,
 		target_category_id,
 		apply_retroactively,
@@ -1862,22 +1867,26 @@ func (r *repository) InsertAdvancedPattern(ctx context.Context, params insertAdv
 	err := r.db.Query(ctx, &pattern, insertAdvancedPatternQuery,
 		params.UserID, params.OrganizationID, params.DescriptionPattern,
 		params.DatePattern, params.WeekdayPattern, params.AmountMin, params.AmountMax,
-		params.TargetDescription, params.TargetCategoryID, params.ApplyRetroactively)
+		params.Action, params.TargetDescription, params.TargetCategoryID, params.ApplyRetroactively)
 	return pattern, err
 }
 
 type modifyAdvancedPatternParams struct {
-	PatternID          int
-	UserID             int
-	OrganizationID     int
-	IsActive           *bool
-	DescriptionPattern *string
-	DatePattern        *string
-	WeekdayPattern     *string
-	AmountMin          *string
-	AmountMax          *string
-	TargetDescription  *string
-	TargetCategoryID   *int
+	PatternID            int
+	UserID               int
+	OrganizationID       int
+	Action               *PatternAction
+	IsActive             *bool
+	DescriptionPattern   *string
+	DatePattern          *string
+	WeekdayPattern       *string
+	AmountMin            *string
+	AmountMax            *string
+	TargetDescription    *string
+	TargetDescriptionSet bool
+	TargetCategoryID     *int
+	TargetCategoryIDSet  bool
+	ApplyRetroactively   *bool
 }
 
 const modifyAdvancedPatternQuery = `
@@ -1890,8 +1899,10 @@ const modifyAdvancedPatternQuery = `
 		weekday_pattern = COALESCE($6, weekday_pattern),
 		amount_min = COALESCE($7, amount_min),
 		amount_max = COALESCE($8, amount_max),
-		target_description = COALESCE($9, target_description),
-		target_category_id = COALESCE($10, target_category_id),
+		action = COALESCE($9, action),
+		target_description = CASE WHEN $10 THEN $11 ELSE target_description END,
+		target_category_id = CASE WHEN $12 THEN $13 ELSE target_category_id END,
+		apply_retroactively = COALESCE($14, apply_retroactively),
 		updated_at = CURRENT_TIMESTAMP
 	WHERE pattern_id = $1
 		AND organization_id = $2
@@ -1906,6 +1917,7 @@ const modifyAdvancedPatternQuery = `
 		weekday_pattern,
 		amount_min,
 		amount_max,
+		action,
 		target_description,
 		target_category_id,
 		apply_retroactively,
@@ -1923,8 +1935,12 @@ func (r *repository) ModifyAdvancedPattern(ctx context.Context, params modifyAdv
 		params.WeekdayPattern,
 		params.AmountMin,
 		params.AmountMax,
+		params.Action,
+		params.TargetDescriptionSet,
 		params.TargetDescription,
+		params.TargetCategoryIDSet,
 		params.TargetCategoryID,
+		params.ApplyRetroactively,
 	)
 	return pattern, err
 }

@@ -437,8 +437,9 @@ type Pattern struct {
 	WeekdayPattern     *string          `json:"weekday_pattern,omitempty"`
 	AmountMin          *decimal.Decimal `json:"amount_min,omitempty"`
 	AmountMax          *decimal.Decimal `json:"amount_max,omitempty"`
-	TargetDescription  string           `json:"target_description"`
-	TargetCategoryID   int              `json:"target_category_id"`
+	TargetDescription  *string          `json:"target_description,omitempty"`
+	TargetCategoryID   *int             `json:"target_category_id,omitempty"`
+	Action             PatternAction    `json:"action"`
 	ApplyRetroactively bool             `json:"apply_retroactively"`
 	IsActive           bool             `json:"is_active"`
 	CreatedAt          time.Time        `json:"created_at"`
@@ -460,6 +461,7 @@ func (p Pattern) FromModel(model *AdvancedPatternModel) Pattern {
 		AmountMax:          model.AmountMax,
 		TargetDescription:  model.TargetDescription,
 		TargetCategoryID:   model.TargetCategoryID,
+		Action:             normalizePatternAction(model.Action),
 		ApplyRetroactively: model.ApplyRetroactively,
 		IsActive:           model.IsActive,
 		CreatedAt:          model.CreatedAt,

@@ -43,6 +43,7 @@ var errorMappings = map[error]ErrorMapping{
 	errors.ErrInvalidCode:                    {Status: http.StatusUnauthorized, Code: "INVALID_CODE"},
 	errors.ErrRecaptchaFailed:                {Status: http.StatusBadRequest, Code: "RECAPTCHA_FAILED"},
 	errors.ErrSavingsGoalNameExists:          {Status: http.StatusConflict, Code: "SAVINGS_GOAL_NAME_EXISTS"},
+	errors.ErrPatternRetroactiveUnsupported:  {Status: http.StatusBadRequest, Code: "PATTERN_RETROACTIVE_UNSUPPORTED"},
 	errors.ErrTransactionCategoryRequired:    {Status: http.StatusBadRequest, Code: "TRANSACTION_CATEGORY_REQUIRED"},
 	errors.ErrTransactionDescriptionRequired: {Status: http.StatusBadRequest, Code: "TRANSACTION_DESCRIPTION_REQUIRED"},
 }

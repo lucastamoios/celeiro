@@ -150,15 +150,19 @@ Monthly tracking for planned entries.
 
 ### Pattern
 
-Regex-based automatic categorization rule.
+Regex-based automatic transaction rule.
 
 | Field | Purpose |
 |-------|---------|
 | description_pattern | Regex to match original_description |
 | weekday_pattern | Regex for day of week (0-6) |
 | amount_min / amount_max | Amount range filter |
-| target_category_id | Category to assign |
-| target_description | Description to set |
+| action | `categorize` or `ignore` |
+| target_category_id | Category to assign; required only for `categorize` |
+| target_description | Description to set; required only for `categorize` |
+| apply_retroactively | Allowed only for `categorize` |
+
+Patterns are evaluated from newest to oldest and stop after the first successful match. `ignore` is prospective: it marks only `is_ignored` on a new transaction processed by the pattern engine. It does not rewrite the transaction, revisit existing transactions, or restore previously ignored transactions when the pattern is disabled or deleted.
 
 ### SavingsGoal
 
@@ -208,9 +212,11 @@ sequenceDiagram
 
     U->>TX: Import OFX
     TX->>AP: Check patterns
-    alt Pattern matches
+    alt Categorize pattern matches
         AP->>CAT: Auto-assign category
         AP->>TX: Set target_description
+    else Ignore pattern matches
+        AP->>TX: Set is_ignored only
     else No match
         TX->>TX: Stays uncategorized
     end
