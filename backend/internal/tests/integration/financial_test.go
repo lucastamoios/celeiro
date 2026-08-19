@@ -26,6 +26,49 @@ func (test *FinancialTestSuite) SetupTest() {
 	test.SetupBaseTest()
 }
 
+// Regression test: month closing failed when a category variance exceeded 999.99%.
+// Direct cause: monthly_snapshots.variance_percent rejected the four-digit percentage.
+// Root cause: the database precision was narrower than the valid service calculation range.
+func (test *FinancialTestSuite) TestMonthlySnapshotSchema_Insert_WithFourDigitVariance() {
+	ctx := context.Background()
+
+	// Arrange
+	auth := test.CreateUserAndAuthenticate(
+		"snapshot-variance@example.com",
+		"Snapshot Variance User",
+		"Snapshot Variance Org",
+	)
+
+	var categoryID int
+	err := test.DB.Query(ctx, &categoryID, `
+		INSERT INTO categories (organization_id, name, icon, category_type)
+		VALUES ($1, 'Education', '🎓', 'expense')
+		RETURNING category_id
+	`, auth.GetOrganizationID())
+	test.Require().NoError(err)
+
+	// Act
+	var variancePercent string
+	err = test.DB.Query(ctx, &variancePercent, `
+		INSERT INTO monthly_snapshots (
+			user_id,
+			organization_id,
+			category_id,
+			month,
+			year,
+			planned_amount,
+			actual_amount,
+			variance_percent,
+			budget_type
+		) VALUES ($1, $2, $3, 7, 2026, 349.90, 4363.00, 1146.93, 'controlled')
+		RETURNING variance_percent::text
+	`, auth.GetUserID(), auth.GetOrganizationID(), categoryID)
+
+	// Assert
+	test.Require().NoError(err)
+	test.Equal("1146.93", variancePercent)
+}
+
 func (test *FinancialTestSuite) TestPlannedEntry_ClearPatternID_UsingSentinel() {
 	ctx := context.Background()
 
