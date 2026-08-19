@@ -568,10 +568,23 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 
 	// Build set of savings_goal_id that already have an entry this month
 	existingGoalIDs := make(map[int]bool)
+	expectedDay := time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC).Day()
 	for _, entry := range existingEntries {
 		if entry.SavingsGoalID != nil && entry.TargetMonth != nil && entry.TargetYear != nil {
 			if *entry.TargetMonth == month && *entry.TargetYear == year {
 				existingGoalIDs[*entry.SavingsGoalID] = true
+				if entry.ExpectedDayStart == nil && entry.ExpectedDayEnd == nil {
+					_, err := s.Repository.ModifyPlannedEntry(ctx, modifyPlannedEntryParams{
+						PlannedEntryID:   entry.PlannedEntryID,
+						UserID:           userID,
+						OrganizationID:   orgID,
+						ExpectedDayStart: &expectedDay,
+						ExpectedDayEnd:   &expectedDay,
+					})
+					if err != nil {
+						fmt.Printf("[GOAL-ENTRIES] WARN failed to set expected day on entry %d: %v\n", entry.PlannedEntryID, err)
+					}
+				}
 			}
 		}
 	}
@@ -617,16 +630,18 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 		targetMonth := month
 		targetYear := year
 		entry, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
-			UserID:         userID,
-			OrganizationID: orgID,
-			CategoryID:     *goal.CategoryID,
-			SavingsGoalID:  &goalID,
-			Description:    goal.Name,
-			Amount:         amount,
-			EntryType:      PlannedEntryTypeExpense,
-			IsRecurrent:    false,
-			TargetMonth:    &targetMonth,
-			TargetYear:     &targetYear,
+			UserID:           userID,
+			OrganizationID:   orgID,
+			CategoryID:       *goal.CategoryID,
+			SavingsGoalID:    &goalID,
+			Description:      goal.Name,
+			Amount:           amount,
+			EntryType:        PlannedEntryTypeExpense,
+			IsRecurrent:      false,
+			ExpectedDayStart: &expectedDay,
+			ExpectedDayEnd:   &expectedDay,
+			TargetMonth:      &targetMonth,
+			TargetYear:       &targetYear,
 		})
 		if err != nil {
 			// Duplicate key errors are expected during parallel requests - silently skip
