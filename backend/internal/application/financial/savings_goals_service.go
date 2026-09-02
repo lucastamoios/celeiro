@@ -178,17 +178,7 @@ func (s *service) GetSavingsGoalProgress(ctx context.Context, input GetSavingsGo
 	}
 
 	// 3. Calculate current amount (initial amount + sum of transaction amounts)
-	currentAmount := goal.InitialAmount
-	for _, tx := range transactions {
-		// A linked debit is money set aside toward the goal (it leaves the
-		// checking account), so it adds to progress. A credit is money pulled
-		// back out of the goal (a withdrawal), so it subtracts.
-		if tx.TransactionType == TransactionTypeCredit {
-			currentAmount = currentAmount.Sub(tx.Amount)
-		} else {
-			currentAmount = currentAmount.Add(tx.Amount)
-		}
-	}
+	currentAmount := calculateSavingsGoalCurrentAmount(goal.InitialAmount, transactions)
 
 	// 4. Calculate progress percentage
 	progressPercent := decimal.Zero
@@ -668,14 +658,7 @@ func (s *service) calculateGoalMonthlyAmount(ctx context.Context, goal SavingsGo
 		return decimal.Zero, false
 	}
 
-	currentAmount := goal.InitialAmount
-	for _, tx := range transactions {
-		if tx.TransactionType == TransactionTypeCredit {
-			currentAmount = currentAmount.Add(tx.Amount)
-		} else {
-			currentAmount = currentAmount.Sub(tx.Amount)
-		}
-	}
+	currentAmount := calculateSavingsGoalCurrentAmount(goal.InitialAmount, transactions)
 
 	// Skip if goal already reached
 	if currentAmount.GreaterThanOrEqual(goal.TargetAmount) {
@@ -710,6 +693,21 @@ func (s *service) calculateGoalMonthlyAmount(ctx context.Context, goal SavingsGo
 	default:
 		return decimal.Zero, false
 	}
+}
+
+func calculateSavingsGoalCurrentAmount(initialAmount decimal.Decimal, transactions []TransactionModel) decimal.Decimal {
+	currentAmount := initialAmount
+	for _, tx := range transactions {
+		// A linked debit is money set aside toward the goal (it leaves the
+		// checking account), so it adds to progress. A credit is money pulled
+		// back out of the goal (a withdrawal), so it subtracts.
+		if tx.TransactionType == TransactionTypeCredit {
+			currentAmount = currentAmount.Sub(tx.Amount)
+		} else {
+			currentAmount = currentAmount.Add(tx.Amount)
+		}
+	}
+	return currentAmount
 }
 
 func calculateMonthsBetween(start, end time.Time) int {
