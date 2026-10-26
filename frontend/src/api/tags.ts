@@ -1,4 +1,4 @@
-import type { Tag, CreateTagRequest, UpdateTagRequest } from '../types/tag';
+import type { Tag, CreateTagRequest, UpdateTagRequest, TagSpending } from '../types/tag';
 import type { ApiResponse } from '../types/transaction';
 import { API_CONFIG } from '../config/api';
 
@@ -39,6 +39,31 @@ export async function getTags(options: RequestOptions): Promise<Tag[]> {
   }
 
   const result: ApiResponse<Tag[]> = await response.json();
+  return result.data;
+}
+
+/**
+ * Get expense spending grouped by tag for a given month.
+ */
+export async function getTagSpending(
+  month: number,
+  year: number,
+  options: RequestOptions
+): Promise<TagSpending[]> {
+  const response = await fetch(
+    `${API_CONFIG.baseURL}/financial/tags/spending?month=${month}&year=${year}`,
+    {
+      method: 'GET',
+      headers: createHeaders(options),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Falha ao buscar gastos por tag');
+  }
+
+  const result: ApiResponse<TagSpending[]> = await response.json();
   return result.data;
 }
 

@@ -74,8 +74,9 @@ When no budgets/entries:
 
 Fields:
 - **Categoria**: Dropdown (disabled when editing)
-- **Tipo de Orçamento**: fixed, calculated, maior
-- **Valor Planejado**: Required for fixed, optional for others
+- **Valor Controlado**: Discretionary buffer amount (controlled_amount)
+
+Total budget = sum(planned entries for the category) + controlled_amount.
 
 See [modals.md](./modals.md) for PlannedEntryForm details.
 
@@ -109,21 +110,13 @@ Opens when clicking a category budget card. Shows:
 
 ### Actual Spending Calculation
 
-For "Maior" budget type, actual = Planned Entries + Unmatched Transactions:
+Actual spending = Planned Entries + Unmatched Transactions:
 
 1. Build set of matched transaction IDs per month
 2. Add planned entry amounts (expenses only, not dismissed)
    - Use `MatchedAmount` if matched, else `Amount`
 3. Add unmatched transaction amounts (debits only)
 4. Income categories tracked separately via credit transactions
-
-### Budget Types
-
-| Type | Behavior |
-|------|----------|
-| `fixed` | User sets planned amount manually |
-| `calculated` | Sum of linked planned entries |
-| `maior` | Max of fixed amount or sum of entries |
 
 ### Planned Entry Status
 

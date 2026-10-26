@@ -26,6 +26,115 @@ func (test *FinancialTestSuite) SetupTest() {
 	test.SetupBaseTest()
 }
 
+// Regression test: month closing failed when a category variance exceeded 999.99%.
+// Direct cause: monthly_snapshots.variance_percent rejected the four-digit percentage.
+// Root cause: the database precision was narrower than the valid service calculation range.
+func (test *FinancialTestSuite) TestMonthlySnapshotSchema_Insert_WithFourDigitVariance() {
+	ctx := context.Background()
+
+	// Arrange
+	auth := test.CreateUserAndAuthenticate(
+		"snapshot-variance@example.com",
+		"Snapshot Variance User",
+		"Snapshot Variance Org",
+	)
+
+	var categoryID int
+	err := test.DB.Query(ctx, &categoryID, `
+		INSERT INTO categories (organization_id, name, icon, category_type)
+		VALUES ($1, 'Education', '🎓', 'expense')
+		RETURNING category_id
+	`, auth.GetOrganizationID())
+	test.Require().NoError(err)
+
+	// Act
+	var variancePercent string
+	err = test.DB.Query(ctx, &variancePercent, `
+		INSERT INTO monthly_snapshots (
+			user_id,
+			organization_id,
+			category_id,
+			month,
+			year,
+			planned_amount,
+			actual_amount,
+			variance_percent,
+			budget_type
+		) VALUES ($1, $2, $3, 7, 2026, 349.90, 4363.00, 1146.93, 'controlled')
+		RETURNING variance_percent::text
+	`, auth.GetUserID(), auth.GetOrganizationID(), categoryID)
+
+	// Assert
+	test.Require().NoError(err)
+	test.Equal("1146.93", variancePercent)
+}
+
+func (test *FinancialTestSuite) TestPatternSchema_IgnoreActionHasNoTargetsAndCannotBeRetroactive() {
+	ctx := context.Background()
+	auth := test.CreateUserAndAuthenticate(
+		"ignore-pattern@example.com",
+		"Ignore Pattern User",
+		"Ignore Pattern Org",
+	)
+
+	patternService := financial.New(test.financialRepo, test.System, test.Logger, test.DB, nil)
+	pattern, err := patternService.CreatePattern(ctx, financial.CreatePatternInput{
+		UserID:             auth.GetUserID(),
+		OrganizationID:     auth.GetOrganizationID(),
+		Action:             financial.PatternActionIgnore,
+		DescriptionPattern: ".*TAXA.*",
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionIgnore, pattern.Action)
+	test.Nil(pattern.TargetDescription)
+	test.Nil(pattern.TargetCategoryID)
+
+	patterns, err := patternService.GetPatterns(ctx, financial.GetPatternsInput{
+		UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+	})
+	test.Require().NoError(err)
+	test.Require().Len(patterns, 1)
+	test.Equal(financial.PatternActionIgnore, patterns[0].Action)
+
+	var categoryID int
+	err = test.DB.Query(ctx, &categoryID, `
+		INSERT INTO categories (organization_id, name, icon, category_type)
+		VALUES ($1, 'Taxas', '🏷️', 'expense')
+		RETURNING category_id
+	`, auth.GetOrganizationID())
+	test.Require().NoError(err)
+	categorize := financial.PatternActionCategorize
+	targetDescription := "Taxa bancária"
+	updated, err := patternService.UpdatePattern(ctx, financial.UpdatePatternInput{
+		PatternID: pattern.PatternID, UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+		Action: &categorize, TargetDescription: &targetDescription, TargetCategoryID: &categoryID,
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionCategorize, updated.Action)
+	test.Equal(targetDescription, *updated.TargetDescription)
+	test.Equal(categoryID, *updated.TargetCategoryID)
+
+	ignore := financial.PatternActionIgnore
+	updated, err = patternService.UpdatePattern(ctx, financial.UpdatePatternInput{
+		PatternID: pattern.PatternID, UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+		Action: &ignore,
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionIgnore, updated.Action)
+	test.Nil(updated.TargetDescription)
+	test.Nil(updated.TargetCategoryID)
+
+	var action string
+	err = test.DB.Query(ctx, &action, `
+		INSERT INTO patterns (
+			user_id, organization_id, action, description_pattern,
+			target_description, target_category_id, apply_retroactively
+		) VALUES ($1, $2, 'ignore', '.*ANTIGA.*', NULL, NULL, TRUE)
+		RETURNING action
+	`, auth.GetUserID(), auth.GetOrganizationID())
+	test.Require().Error(err)
+}
+
 func (test *FinancialTestSuite) TestPlannedEntry_ClearPatternID_UsingSentinel() {
 	ctx := context.Background()
 

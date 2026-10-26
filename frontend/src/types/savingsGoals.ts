@@ -13,12 +13,16 @@ export interface SavingsGoal {
   target_amount: string; // Decimal as string from backend
   initial_amount: string; // Pre-existing balance (decimal as string)
   due_date?: string; // ISO 8601 date format (YYYY-MM-DD)
+  start_date?: string; // ISO 8601 date format (YYYY-MM-DD)
   icon?: string;
   color?: string;
   is_active: boolean;
   is_completed: boolean;
   completed_at?: string; // ISO 8601 datetime
   notes?: string;
+  category_id?: number;
+  monthly_contribution?: string; // Decimal as string
+  tag_ids: number[]; // Tags copied onto generated entries, then to matched transactions
   created_at: string;
   updated_at: string;
 }
@@ -84,18 +88,26 @@ export interface CreateSavingsGoalRequest {
   target_amount: number;
   initial_amount?: number; // Pre-existing balance when creating
   due_date?: string; // Format: "2006-01-02"
+  start_date?: string; // Format: "2006-01-02"
   icon?: string;
   color?: string;
   notes?: string;
+  category_id?: number;
+  monthly_contribution?: number;
+  tag_ids?: number[]; // Tags to apply - copied onto generated entries, then to matched transactions
 }
 
 export interface UpdateSavingsGoalRequest {
   name?: string;
   target_amount?: number;
   due_date?: string; // Format: "2006-01-02", empty string clears
+  start_date?: string; // Format: "2006-01-02", empty string clears
   icon?: string;
   color?: string;
   notes?: string;
+  category_id?: number;
+  monthly_contribution?: number;
+  tag_ids?: number[]; // nil = no change, [] = clear tags
 }
 
 export interface AddContributionRequest {

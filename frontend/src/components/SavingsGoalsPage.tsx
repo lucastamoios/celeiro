@@ -9,6 +9,9 @@ import type {
   UpdateSavingsGoalRequest,
   SavingsGoalType,
 } from '../types/savingsGoals';
+import type { Category } from '../types/category';
+import { financialUrl } from '../config/api';
+import type { ApiResponse } from '../types/transaction';
 import {
   getGoalTypeLabel,
   getGoalTypeDescription,
@@ -27,6 +30,7 @@ import {
   addContribution,
 } from '../api/savingsGoals';
 import SavingsGoalCard from './SavingsGoalCard';
+import TagSelector from './TagSelector';
 
 export default function SavingsGoalsPage() {
   const { token } = useAuth();
@@ -34,6 +38,7 @@ export default function SavingsGoalsPage() {
   const organizationId = activeOrganization?.organization_id?.toString() || '';
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [progressMap, setProgressMap] = useState<Record<number, SavingsGoalProgress>>({});
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,18 +54,25 @@ export default function SavingsGoalsPage() {
     goal_type: SavingsGoalType;
     target_amount: string;
     due_date: string;
+    start_date: string;
     icon: string;
     color: string;
     notes: string;
+    category_id: string;
+    monthly_contribution: string;
   }>({
     name: '',
     goal_type: 'reserva',
     target_amount: '',
     due_date: '',
+    start_date: '',
     icon: '🎯',
     color: GOAL_COLORS[0],
     notes: '',
+    category_id: '',
+    monthly_contribution: '',
   });
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -110,6 +122,18 @@ export default function SavingsGoalsPage() {
       setLoading(true);
       setError(null);
 
+      // Fetch categories for the dropdown
+      const categoriesResponse = await fetch(financialUrl('categories'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Active-Organization': organizationId,
+        },
+      });
+      if (categoriesResponse.ok) {
+        const categoriesData: ApiResponse<Category[]> = await categoriesResponse.json();
+        setCategories(categoriesData.data || []);
+      }
+
       const fetchedGoals = await listSavingsGoals(
         {
           is_completed: showCompleted ? undefined : false,
@@ -156,10 +180,14 @@ export default function SavingsGoalsPage() {
       goal_type: 'reserva',
       target_amount: '',
       due_date: '',
+      start_date: '',
       icon: '🎯',
       color: GOAL_COLORS[0],
       notes: '',
+      category_id: '',
+      monthly_contribution: '',
     });
+    setSelectedTagIds([]);
     setEditingGoal(null);
     setFormError(null);
   };
@@ -175,10 +203,14 @@ export default function SavingsGoalsPage() {
       goal_type: goal.goal_type,
       target_amount: goal.target_amount,
       due_date: goal.due_date || '',
+      start_date: goal.start_date || '',
       icon: goal.icon || '🎯',
       color: goal.color || GOAL_COLORS[0],
       notes: goal.notes || '',
+      category_id: goal.category_id?.toString() || '',
+      monthly_contribution: goal.monthly_contribution || '',
     });
+    setSelectedTagIds(goal.tag_ids || []);
     setEditingGoal(goal);
     setShowForm(true);
   };
@@ -214,9 +246,13 @@ export default function SavingsGoalsPage() {
           name: formData.name,
           target_amount: parseFloat(formData.target_amount),
           due_date: formData.due_date || undefined,
+          start_date: formData.start_date || undefined,
           icon: formData.icon,
           color: formData.color,
           notes: formData.notes || undefined,
+          category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
+          monthly_contribution: formData.monthly_contribution ? parseFloat(formData.monthly_contribution) : undefined,
+          tag_ids: selectedTagIds,
         };
         await updateSavingsGoal(editingGoal.savings_goal_id, updateData, { token, organizationId });
       } else {
@@ -226,9 +262,13 @@ export default function SavingsGoalsPage() {
           goal_type: formData.goal_type,
           target_amount: parseFloat(formData.target_amount),
           due_date: formData.due_date || undefined,
+          start_date: formData.start_date || undefined,
           icon: formData.icon,
           color: formData.color,
           notes: formData.notes || undefined,
+          category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
+          monthly_contribution: formData.monthly_contribution ? parseFloat(formData.monthly_contribution) : undefined,
+          tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         };
         await createSavingsGoal(createData, { token, organizationId });
       }
@@ -237,7 +277,12 @@ export default function SavingsGoalsPage() {
       resetForm();
       fetchGoals();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save goal');
+      const message = err instanceof Error ? err.message : 'Failed to save goal';
+      setFormError(
+        message === 'savings goal name already exists'
+          ? 'Ja existe uma meta aberta com esse nome'
+          : message
+      );
     } finally {
       setSaving(false);
     }
@@ -553,6 +598,22 @@ export default function SavingsGoalsPage() {
                   </div>
                 </div>
 
+                {/* Start Date */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Data de inicio
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="input tabular-nums"
+                  />
+                  <p className="text-xs text-stone-500 mt-1">
+                    Entradas planejadas nao serao geradas antes desta data
+                  </p>
+                </div>
+
                 {/* Due Date (required for reserva) */}
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">
@@ -616,6 +677,64 @@ export default function SavingsGoalsPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Categoria
+                  </label>
+                  <select
+                    value={formData.category_id}
+                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">Sem categoria</option>
+                    {categories.map((category) => (
+                      <option key={category.category_id} value={category.category_id}>
+                        {category.icon} {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Tags
+                  </label>
+                  <TagSelector selectedTagIds={selectedTagIds} onChange={setSelectedTagIds} />
+                  <p className="text-xs text-stone-500 mt-1">
+                    Aplicadas às entradas geradas por esta meta e às transações vinculadas
+                  </p>
+                </div>
+
+                {/* Monthly Contribution (only for investimento) */}
+                {formData.goal_type === 'investimento' && (
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
+                      Contribuição Mensal
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">
+                        R$
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.monthly_contribution}
+                        onChange={(e) =>
+                          setFormData({ ...formData, monthly_contribution: e.target.value })
+                        }
+                        placeholder="0,00"
+                        className="w-full pl-10 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-wheat-500 focus:border-transparent tabular-nums"
+                      />
+                    </div>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Valor que pretende investir por mês
+                    </p>
+                  </div>
+                )}
 
                 {/* Notes */}
                 <div>

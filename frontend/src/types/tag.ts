@@ -18,3 +18,23 @@ export interface UpdateTagRequest {
   icon?: string;
   color?: string;
 }
+
+/** Aggregated planned and spent totals for a tag in a given month. */
+export interface TagSpending {
+  tag_id: number;
+  name: string;
+  icon: string;
+  color: string;
+  total: string;
+  planned: string;
+  transaction_count: number;
+  planned_entries?: TagPlannedEntry[];
+}
+
+export interface TagPlannedEntry {
+  planned_entry_id: number;
+  description: string;
+  amount: string;
+  status: string;
+  paid: boolean;
+}

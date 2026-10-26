@@ -64,6 +64,13 @@ func (s *service) AuthenticateWithMagicCode(ctx context.Context, params Authenti
 		return Authentication{}, err
 	}
 
+	if !userModel.EmailVerifiedAt.Valid {
+		if err := s.Repository.ModifyUserEmailVerified(ctx, userModel.UserID); err != nil {
+			return Authentication{}, errors.Wrap(err, "failed to verify email")
+		}
+		userModel.EmailVerifiedAt = sql.NullTime{Time: time.Now().UTC(), Valid: true}
+	}
+
 	user := User{}.FromModel(&userModel)
 	organizations, err := s.GetOrganizationsByUser(ctx, GetOrganizationsByUserInput{
 		UserID: user.UserID,
@@ -168,13 +175,8 @@ func (s *service) Register(ctx context.Context, params SelfRegisterInput) (Authe
 		}
 
 		userSession := SessionInfo{}.FromUserAndOrganizations(user, OrganizationsWithPermission{}.FromModel(orgsWithPermissions))
-		session, err := s.CreateSession(ctx, CreateSessionInput{Info: userSession})
-		if err != nil {
-			return errors.Wrap(err, "failed to create session")
-		}
-
 		auth = Authentication{
-			Session:   session,
+			Session:   Session{Info: userSession},
 			IsNewUser: true,
 		}
 		return nil
@@ -182,6 +184,14 @@ func (s *service) Register(ctx context.Context, params SelfRegisterInput) (Authe
 
 	if err != nil {
 		return Authentication{}, err
+	}
+
+	code, err := s.generateMagicLinkCode(ctx, generateMagicLinkCodeInput{Email: params.Email})
+	if err != nil {
+		return Authentication{}, errors.Wrap(err, "failed to generate verification code")
+	}
+	if err := s.sendMagicLinkEmail(ctx, sendMagicLinkEmailInput{Email: params.Email, Code: code}); err != nil {
+		return Authentication{}, errors.Wrap(err, "failed to send verification email")
 	}
 
 	return auth, nil
@@ -206,7 +216,6 @@ func (a *service) RequestMagicLinkViaEmail(ctx context.Context, input RequestMag
 	if err != nil {
 		return RequestMagicLinkViaEmailOutput{}, err
 	}
-
 
 	if err := a.sendMagicLinkEmail(ctx, sendMagicLinkEmailInput{
 		Email: input.Email,
@@ -406,7 +415,7 @@ type AuthenticateWithGoogleInput struct {
 
 type GoogleTokenInfo struct {
 	Email         string `json:"email"`
-	EmailVerified string `json:"email_verified"`
+	EmailVerified bool   `json:"email_verified"`
 	Name          string `json:"name"`
 	Picture       string `json:"picture"`
 	Error         string `json:"error"`
@@ -425,6 +434,9 @@ func (s *service) AuthenticateWithGoogle(ctx context.Context, params Authenticat
 
 	if tokenInfo.Email == "" {
 		return Authentication{}, errors.New("could not get email from Google token")
+	}
+	if !tokenInfo.EmailVerified {
+		return Authentication{}, internalerrors.ErrInvalidCredentials
 	}
 
 	userModel, err := s.Repository.FetchUserByEmail(ctx, getUserByEmailParams{
@@ -457,6 +469,10 @@ func (s *service) AuthenticateWithGoogle(ctx context.Context, params Authenticat
 			if err != nil {
 				return errors.Wrap(err, "failed to create user")
 			}
+			if err := s.Repository.ModifyUserEmailVerified(ctx, newUser.UserID); err != nil {
+				return errors.Wrap(err, "failed to verify Google email")
+			}
+			newUser.EmailVerifiedAt = sql.NullTime{Time: time.Now().UTC(), Valid: true}
 
 			org, err := s.Repository.InsertOrganization(ctx, insertOrganizationParams{
 				Name: "Finanças de " + name,
@@ -501,6 +517,13 @@ func (s *service) AuthenticateWithGoogle(ctx context.Context, params Authenticat
 			return Authentication{}, txErr
 		}
 		return auth, nil
+	}
+
+	if !userModel.EmailVerifiedAt.Valid {
+		if err := s.Repository.ModifyUserEmailVerified(ctx, userModel.UserID); err != nil {
+			return Authentication{}, errors.Wrap(err, "failed to verify Google email")
+		}
+		userModel.EmailVerifiedAt = sql.NullTime{Time: time.Now().UTC(), Valid: true}
 	}
 
 	// Existing user — normal login
@@ -592,6 +615,9 @@ func (s *service) AuthenticateWithPassword(ctx context.Context, params Authentic
 	// Verify password
 	if !checkPassword(params.Password, userModel.PasswordHash.String) {
 		return Authentication{}, internalerrors.ErrInvalidCredentials
+	}
+	if !userModel.EmailVerifiedAt.Valid {
+		return Authentication{}, internalerrors.ErrEmailNotVerified
 	}
 
 	// Get user organizations

@@ -4,13 +4,14 @@ import {
   PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react"
-import { useMMKVNumber, useMMKVObject, useMMKVString } from "react-native-mmkv"
 
 import { api } from "@/services/api"
 import { OrganizationForSessionInfoResponse, SessionInfoResponse } from "@/services/api/accounts"
+import { load, loadString, remove, save, saveString } from "@/utils/storage"
 
 export interface AuthContextType {
   isAuthenticated: boolean
@@ -21,6 +22,7 @@ export interface AuthContextType {
   logout: () => void
   requestMagicLink: (email: string) => Promise<void>
   authenticate: (email: string, code: string) => Promise<void>
+  loginWithPassword: (email: string, password: string) => Promise<void>
   validationError: string
   step: "request" | "validate"
   authCode: string
@@ -35,10 +37,46 @@ export interface AuthProviderProps {}
 
 export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ children }) => {
   const [step, setStep] = useState<"request" | "validate">("request")
-  const [authToken, setAuthToken] = useMMKVString("authToken")
-  const [authEmail, setAuthEmail] = useMMKVString("authEmail")
-  const [session, setSession] = useMMKVObject<SessionInfoResponse>("session")
-  const [activeOrganizationID, setActiveOrganization] = useMMKVNumber("activeOrganization")
+  const [authToken, setAuthTokenState] = useState<string | undefined>()
+  const [authEmail, setAuthEmailState] = useState("")
+  const [session, setSessionState] = useState<SessionInfoResponse | undefined>()
+  const [activeOrganizationID, setActiveOrganizationState] = useState<number | undefined>()
+
+  useEffect(() => {
+    void Promise.all([
+      loadString("authToken"),
+      loadString("authEmail"),
+      load<SessionInfoResponse>("session"),
+      loadString("activeOrganization"),
+    ]).then(([storedToken, storedEmail, storedSession, storedOrganization]) => {
+      setAuthTokenState(storedToken ?? undefined)
+      setAuthEmailState(storedEmail ?? "")
+      setSessionState(storedSession ?? undefined)
+      setActiveOrganizationState(storedOrganization ? Number(storedOrganization) : undefined)
+    })
+  }, [])
+
+  const setAuthToken = useCallback((token?: string) => {
+    setAuthTokenState(token)
+    if (token) saveString("authToken", token)
+    else remove("authToken")
+  }, [])
+
+  const setAuthEmail = useCallback((email: string) => {
+    setAuthEmailState(email)
+    saveString("authEmail", email)
+  }, [])
+
+  const setSession = useCallback((nextSession?: SessionInfoResponse) => {
+    setSessionState(nextSession)
+    if (nextSession) save("session", nextSession)
+    else remove("session")
+  }, [])
+
+  const setActiveOrganization = useCallback((organizationID: number) => {
+    setActiveOrganizationState(organizationID)
+    saveString("activeOrganization", String(organizationID))
+  }, [])
 
   const activeOrganization = useMemo(() => {
     return session?.organizations.find(
@@ -47,6 +85,18 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
   }, [session, activeOrganizationID])
 
   const [authCode, setAuthCode] = useState("")
+
+  const applyAuthentication = useCallback(
+    (sessionToken?: string, sessionInfo?: SessionInfoResponse) => {
+      setAuthToken(sessionToken)
+      setSession(sessionInfo)
+      const activeOrganizationID = sessionInfo?.organizations[0]?.organization_id
+      if (activeOrganizationID) {
+        setActiveOrganization(activeOrganizationID)
+      }
+    },
+    [setActiveOrganization, setAuthToken, setSession],
+  )
 
   const requestMagicLink = useCallback(
     async (email: string) => {
@@ -68,26 +118,39 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
     async (email: string, code: string) => {
       const res = await api.authenticate({ email, code })
       if (res.status === 200) {
-        setAuthToken(res.data?.session_token)
-        setSession(res.data?.session_info)
-        const activeOrganizationID = res.data?.session_info?.organizations[0].organization_id
-        setActiveOrganization(activeOrganizationID)
+        applyAuthentication(res.data?.session_token, res.data?.session_info)
       } else {
         throw new Error("Código inválido")
       }
     },
-    [setAuthToken, setSession],
+    [applyAuthentication],
+  )
+
+  const loginWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const res = await api.authenticateWithPassword({ email, password })
+      if (res.status === 200) {
+        setAuthEmail(email)
+        applyAuthentication(res.data?.session_token, res.data?.session_info)
+      } else {
+        throw new Error(res.message || "Email ou senha invalidos")
+      }
+    },
+    [applyAuthentication, setAuthEmail],
   )
 
   const logout = useCallback(() => {
     setAuthToken(undefined)
     setAuthEmail("")
-  }, [setAuthEmail, setAuthToken])
+    setSession(undefined)
+    remove("activeOrganization")
+    setActiveOrganizationState(undefined)
+  }, [setAuthEmail, setAuthToken, setSession])
 
   const validationError = useMemo(() => {
-    if (!authEmail || authEmail.length === 0) return "can't be blank"
-    if (authEmail.length < 6) return "must be at least 6 characters"
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail)) return "must be a valid email address"
+    if (!authEmail || authEmail.length === 0) return "Informe seu email"
+    if (authEmail.length < 6) return "O email parece curto demais"
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail)) return "Informe um email valido"
     return ""
   }, [authEmail])
 
@@ -100,6 +163,7 @@ export const AuthProvider: FC<PropsWithChildren<AuthProviderProps>> = ({ childre
     logout,
     requestMagicLink,
     authenticate,
+    loginWithPassword,
     validationError,
     step,
     authCode,

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import type { IncomePlanningReport } from '../types/budget';
 import { getIncomePlanning } from '../api/budget';
 
@@ -10,6 +11,8 @@ interface IncomePlanningAlertProps {
 
 export default function IncomePlanningAlert({ month, year }: IncomePlanningAlertProps) {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [report, setReport] = useState<IncomePlanningReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +29,7 @@ export default function IncomePlanningAlert({ month, year }: IncomePlanningAlert
     setError(null);
 
     try {
-      const data = await getIncomePlanning(month, year, { token, organizationId: '1' });
+      const data = await getIncomePlanning(month, year, { token, organizationId: activeOrganizationId });
       setReport(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch income planning report');

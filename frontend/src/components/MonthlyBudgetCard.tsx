@@ -12,7 +12,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import type { CategoryBudget, PlannedEntryWithStatus } from '../types/budget';
-import CategoryBudgetCard from './CategoryBudgetCard';
+import CategoryBudgetCard, { LEDGER_GRID } from './CategoryBudgetCard';
 import PlannedEntryCard from './PlannedEntryCard';
 
 function CategoryDropZone({
@@ -214,6 +214,7 @@ export default function MonthlyBudgetCard({
     const { active, over } = event;
     setActiveDraggedEntry(null);
 
+    if (isConsolidated) return;
     if (!over) return;
 
     const entryId = active.id;
@@ -246,7 +247,7 @@ export default function MonthlyBudgetCard({
     }
 
     void onMovePlannedEntry?.(entry.PlannedEntryID, toCategoryId);
-  }, [plannedEntries, categoriesById, onMovePlannedEntry, onInvalidPlannedEntryDrop]);
+  }, [isConsolidated, plannedEntries, categoriesById, onMovePlannedEntry, onInvalidPlannedEntryDrop]);
 
   // Get set of category IDs that have budgets
   const budgetCategoryIds = new Set(budgetArray.map(b => b.CategoryID));
@@ -387,10 +388,10 @@ export default function MonthlyBudgetCard({
                   <span className="flex-shrink-0">⚠️</span>
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-terra-900 mb-1">
-                      No income for this month
+                      Nenhuma renda planejada para este mês
                     </h4>
                     <p className="text-sm text-terra-700">
-                      Create an income budget to track your income allocation
+                      Crie um orçamento de renda para acompanhar a distribuição da sua receita
                     </p>
                   </div>
                 </div>
@@ -531,20 +532,29 @@ export default function MonthlyBudgetCard({
             )}
           </div>
         ) : (
-          <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
-            {budgetArray.map((budget) => {
-              // Only allow consolidation after the month has ended
-              const now = new Date();
-              const currentMonth = now.getMonth() + 1;
-              const currentYear = now.getFullYear();
-              const monthHasEnded = year < currentYear || (year === currentYear && month < currentMonth);
+          <div className="rounded-lg border border-stone-200 bg-stone-50 shadow-warm-sm overflow-hidden">
+            {/* Column header (desktop only) - labels the aligned ledger columns */}
+            <div className={`hidden sm:grid ${LEDGER_GRID} px-4 py-2 border-b border-stone-200 bg-stone-100/60 text-xs font-medium uppercase tracking-wide text-stone-500`}>
+              <div>Categoria</div>
+              <div className="text-right">Estimado</div>
+              <div className="text-right">Realizado</div>
+              <div className="text-right">Variação</div>
+              <div className="text-center">Status</div>
+              <div aria-hidden="true" />
+            </div>
+            <div className="divide-y divide-stone-200">
+              {budgetArray.map((budget) => {
+                // Only allow consolidation after the month has ended
+                const now = new Date();
+                const currentMonth = now.getMonth() + 1;
+                const currentYear = now.getFullYear();
+                const monthHasEnded = year < currentYear || (year === currentYear && month < currentMonth);
 
-              // Get entries for this budget's category
-              const categoryEntries = entriesByCategoryId[budget.CategoryID] || [];
+                // Get entries for this budget's category
+                const categoryEntries = entriesByCategoryId[budget.CategoryID] || [];
 
-              return (
-                <div key={budget.CategoryBudgetID} className="break-inside-avoid mb-6">
-                  <CategoryDropZone id={`category-${budget.CategoryID}`}>
+                return (
+                  <CategoryDropZone key={budget.CategoryBudgetID} id={`category-${budget.CategoryID}`}>
                     {({ isOver }) => (
                       <CategoryBudgetCard
                         budget={budget}
@@ -558,26 +568,26 @@ export default function MonthlyBudgetCard({
                         onEdit={onEditBudget}
                         onDelete={onDeleteBudget}
                         onConsolidate={onConsolidate}
-                        onMatchEntry={onMatchEntry}
-                        onUnmatchEntry={onUnmatchEntry}
-                        onDismissEntry={onDismissEntry}
-                        onUndismissEntry={onUndismissEntry}
-                        onEditEntry={onEditEntry}
-                        onDeleteEntry={onDeleteEntry}
+                        onMatchEntry={isConsolidated ? undefined : onMatchEntry}
+                        onUnmatchEntry={isConsolidated ? undefined : onUnmatchEntry}
+                        onDismissEntry={isConsolidated ? undefined : onDismissEntry}
+                        onUndismissEntry={isConsolidated ? undefined : onUndismissEntry}
+                        onEditEntry={isConsolidated ? undefined : onEditEntry}
+                        onDeleteEntry={isConsolidated ? undefined : onDeleteEntry}
                         onCardClick={onCategoryCardClick ? () => onCategoryCardClick(budget.CategoryID) : undefined}
                         dndDropId={`category-${budget.CategoryID}`}
                         isDropTargetDisabled={
-                          !!activeDraggedEntry &&
+                          isConsolidated || (!!activeDraggedEntry &&
                           ((activeDraggedEntry.EntryType === 'income' && !isIncomeCategory(budget.CategoryID)) ||
-                            (activeDraggedEntry.EntryType === 'expense' && isIncomeCategory(budget.CategoryID)))
+                            (activeDraggedEntry.EntryType === 'expense' && isIncomeCategory(budget.CategoryID))))
                         }
                         isDropTargetHighlighted={!!activeDraggedEntry && isOver}
                       />
                     )}
                   </CategoryDropZone>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -621,12 +631,12 @@ export default function MonthlyBudgetCard({
                       categoryName={category?.name || 'Categoria desconhecida'}
                       month={month}
                       year={year}
-                      onMatch={onMatchEntry}
-                      onUnmatch={onUnmatchEntry}
-                      onDismiss={onDismissEntry}
-                      onUndismiss={onUndismissEntry}
-                      onEdit={onEditEntry}
-                      onDelete={onDeleteEntry}
+                      onMatch={isConsolidated ? undefined : onMatchEntry}
+                      onUnmatch={isConsolidated ? undefined : onUnmatchEntry}
+                      onDismiss={isConsolidated ? undefined : onDismissEntry}
+                      onUndismiss={isConsolidated ? undefined : onUndismissEntry}
+                      onEdit={isConsolidated ? undefined : onEditEntry}
+                      onDelete={isConsolidated ? undefined : onDeleteEntry}
                     />
                   </div>
                 );

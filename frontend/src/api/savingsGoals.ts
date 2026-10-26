@@ -159,7 +159,7 @@ export async function createSavingsGoal(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to create savings goal');
+    throw new Error(errorData.message || errorData.error || 'Failed to create savings goal');
   }
 
   const result: ApiResponse<SavingsGoal> = await response.json();
@@ -185,7 +185,7 @@ export async function updateSavingsGoal(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to update savings goal');
+    throw new Error(errorData.message || errorData.error || 'Failed to update savings goal');
   }
 
   const result: ApiResponse<SavingsGoal> = await response.json();

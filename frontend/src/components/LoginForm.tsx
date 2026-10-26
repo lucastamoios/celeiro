@@ -143,8 +143,14 @@ export default function LoginForm() {
 
     try {
       const recaptchaToken = await getRecaptchaToken('register');
-      const authResult = await register(name, email, password, recaptchaToken);
-      login(authResult.session_token, email);
+      const registration = await register(name, email, password, recaptchaToken);
+      if (registration.verification_required) {
+        setName('');
+        setPassword('');
+        setAuthMode('magic');
+        setStep('code');
+        setCodeInfo('Enviamos um código de 4 dígitos para confirmar seu email!');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao criar conta');
     } finally {
@@ -187,7 +193,7 @@ export default function LoginForm() {
       });
 
       tokenClient.requestAccessToken();
-    } catch (err) {
+    } catch {
       setError('Falha ao carregar autenticação Google');
       setLoading(false);
     }
@@ -269,6 +275,16 @@ export default function LoginForm() {
 
   return (
     <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="font-display text-2xl font-bold text-stone-900 mb-1">
+          {authMode === 'register' ? 'Criar conta' : 'Entrar'}
+        </h1>
+        <p className="text-stone-500 text-sm">
+          {authMode === 'register'
+            ? 'Crie sua conta para começar a organizar suas finanças'
+            : 'Acesse sua conta para continuar'}
+        </p>
+      </div>
       {/* Auth Mode Toggle */}
       <div className="flex bg-stone-100 rounded-lg p-1">
         <button

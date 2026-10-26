@@ -3,7 +3,7 @@ import type { Transaction } from '../types/transaction';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import { useModalDismiss } from '../hooks/useModalDismiss';
-import { useDropdownClose } from '../hooks/useDropdownClose';
+import DropdownMenu from './ui/DropdownMenu';
 import { parseTransactionDate } from '../utils/date';
 
 interface CategoryTransactionsModalProps {
@@ -25,6 +25,7 @@ interface CategoryTransactionsModalProps {
   onDismissEntry?: (entryId: number, reason?: string) => void;
   onUndismissEntry?: (entryId: number) => void;
   onDeleteEntry?: (entryId: number) => void;
+  onConvertToPlannedEntry?: (transaction: Transaction) => Promise<void>;
 }
 
 export default function CategoryTransactionsModal({
@@ -46,16 +47,25 @@ export default function CategoryTransactionsModal({
   onDismissEntry,
   onUndismissEntry,
   onDeleteEntry,
+  onConvertToPlannedEntry,
 }: CategoryTransactionsModalProps) {
   const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
   // Inline editing state
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [editingAmount, setEditingAmount] = useState<string>('');
+  const [convertingTransactionId, setConvertingTransactionId] = useState<number | null>(null);
 
-  // Dropdown menu state for planned entry actions
-  const [openEntryMenuId, setOpenEntryMenuId] = useState<number | null>(null);
-  const entryMenuRef = useDropdownClose(openEntryMenuId !== null, () => setOpenEntryMenuId(null));
+  const handleConvertClick = async (e: React.MouseEvent, tx: Transaction) => {
+    e.stopPropagation();
+    if (!onConvertToPlannedEntry || convertingTransactionId !== null) return;
+    setConvertingTransactionId(tx.transaction_id);
+    try {
+      await onConvertToPlannedEntry(tx);
+    } finally {
+      setConvertingTransactionId(null);
+    }
+  };
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'number' ? amount : parseFloat(amount);
@@ -350,42 +360,23 @@ export default function CategoryTransactionsModal({
 
                           {/* 3-dot actions menu */}
                           {!isEditing && (
-                            <div className="relative">
-                              <button
-                                data-entry-menu={entry.PlannedEntryID}
-                                onClick={() => setOpenEntryMenuId(openEntryMenuId === entry.PlannedEntryID ? null : entry.PlannedEntryID)}
-                                className="p-1 hover:bg-stone-100 rounded-full transition-colors"
-                                aria-label="Ações"
-                              >
+                            <DropdownMenu
+                              width={192}
+                              buttonAriaLabel="Ações"
+                              buttonClassName="p-1 hover:bg-stone-100 rounded-full transition-colors"
+                              buttonContent={
                                 <svg className="w-5 h-5 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                                 </svg>
-                              </button>
-
-                              {openEntryMenuId === entry.PlannedEntryID && (
-                                <div
-                                  ref={entryMenuRef}
-                                  className="fixed z-[60] w-48 bg-stone-50 rounded-lg shadow-lg border border-stone-200 py-1"
-                                  style={{
-                                    top: (() => {
-                                      const btn = document.querySelector(`[data-entry-menu="${entry.PlannedEntryID}"]`);
-                                      if (!btn) return 0;
-                                      const rect = btn.getBoundingClientRect();
-                                      return rect.bottom + 4;
-                                    })(),
-                                    right: (() => {
-                                      const btn = document.querySelector(`[data-entry-menu="${entry.PlannedEntryID}"]`);
-                                      if (!btn) return 0;
-                                      const rect = btn.getBoundingClientRect();
-                                      return window.innerWidth - rect.right;
-                                    })(),
-                                  }}
-                                >
+                              }
+                            >
+                              {(close) => (
+                                <>
                                   {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
                                     <button
                                       onClick={() => {
                                         onDismissEntry(entry.PlannedEntryID);
-                                        setOpenEntryMenuId(null);
+                                        close();
                                       }}
                                       className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
                                     >
@@ -396,7 +387,7 @@ export default function CategoryTransactionsModal({
                                     <button
                                       onClick={() => {
                                         onUndismissEntry(entry.PlannedEntryID);
-                                        setOpenEntryMenuId(null);
+                                        close();
                                       }}
                                       className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
                                     >
@@ -407,7 +398,7 @@ export default function CategoryTransactionsModal({
                                     <button
                                       onClick={() => {
                                         onPlannedEntryClick(entry);
-                                        setOpenEntryMenuId(null);
+                                        close();
                                       }}
                                       className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
                                     >
@@ -419,7 +410,7 @@ export default function CategoryTransactionsModal({
                                       onClick={() => {
                                         if (confirm(`Tem certeza que deseja excluir "${entry.Description}"? Esta ação não pode ser desfeita.`)) {
                                           onDeleteEntry(entry.PlannedEntryID);
-                                          setOpenEntryMenuId(null);
+                                          close();
                                         }
                                       }}
                                       className="w-full text-left px-4 py-2 hover:bg-rust-50 text-rust-600 text-sm"
@@ -427,9 +418,9 @@ export default function CategoryTransactionsModal({
                                       Excluir
                                     </button>
                                   )}
-                                </div>
+                                </>
                               )}
-                            </div>
+                            </DropdownMenu>
                           )}
                         </div>
                       </div>
@@ -505,13 +496,35 @@ export default function CategoryTransactionsModal({
                           </div>
                         </div>
 
-                        <div className={`text-right flex-shrink-0 ${
-                          tx.transaction_type === 'credit' ? 'text-sage-600' : 'text-stone-900'
-                        }`}>
-                          <span className="font-semibold tabular-nums">
-                            {tx.transaction_type === 'credit' ? '+' : '-'}
-                            {formatCurrency(tx.amount)}
-                          </span>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className={`text-right ${
+                            tx.transaction_type === 'credit' ? 'text-sage-600' : 'text-stone-900'
+                          }`}>
+                            <span className="font-semibold tabular-nums">
+                              {tx.transaction_type === 'credit' ? '+' : '-'}
+                              {formatCurrency(tx.amount)}
+                            </span>
+                          </div>
+                          {onConvertToPlannedEntry && !linkedEntry && (
+                            <button
+                              onClick={(e) => handleConvertClick(e, tx)}
+                              disabled={convertingTransactionId !== null}
+                              className="p-1.5 rounded-lg text-terra-600 hover:bg-terra-100 transition-colors disabled:opacity-50"
+                              title="Transformar em entrada planejada"
+                              aria-label="Transformar em entrada planejada"
+                            >
+                              {convertingTransactionId === tx.transaction_id ? (
+                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

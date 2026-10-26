@@ -19,6 +19,7 @@ import {
   updatePlannedEntry,
   deletePlannedEntry,
   getPlannedEntriesForMonth,
+  createPlannedEntry,
   matchPlannedEntry,
   unmatchPlannedEntry,
   dismissPlannedEntry,
@@ -31,6 +32,7 @@ import NewPlannedEntryForm from './NewPlannedEntryForm';
 import MonthlyBudgetCard from './MonthlyBudgetCard';
 import { generateBudgetExportText, copyToClipboard } from '../utils/budgetExport';
 import { parseTransactionDate } from '../utils/date';
+import { isMonthClosed } from '../utils/budgetState';
 import TransactionMatcherModal from './TransactionMatcherModal';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
 import TransactionEditModal from './TransactionEditModal';
@@ -41,6 +43,14 @@ interface MonthlyBudgetData {
   year: number;
   budgets: CategoryBudget[];
   isConsolidated: boolean;
+}
+
+function parseBudgetGranularity(value: string): number | null | false {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!/^\d+$/.test(trimmed)) return false;
+  const parsed = parseInt(trimmed, 10);
+  return parsed >= 2 ? parsed : false;
 }
 
 export default function CategoryBudgetDashboard() {
@@ -64,7 +74,10 @@ export default function CategoryBudgetDashboard() {
   const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudgetData[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   // Per-month actual spending: { "month-year": { categoryId: "amount" } }
+  // actualSpending includes planned entry amounts + unmatched transactions (used by budget cards)
   const [actualSpending, setActualSpending] = useState<Record<string, Record<number, string>>>({});
+  // transactionOnlySpending includes only real transactions (used for header total)
+  const [transactionOnlySpending, setTransactionOnlySpending] = useState<Record<string, Record<number, string>>>({});
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
 
@@ -96,20 +109,21 @@ export default function CategoryBudgetDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [controlledAmount, setControlledAmount] = useState<string>('');
+  const [budgetGranularity, setBudgetGranularity] = useState<string>('');
 
   // Savings goals for planned entry linking
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
 
   // Fetch savings goals for the goal selector in PlannedEntryForm
   const fetchSavingsGoals = useCallback(async () => {
-    if (!token) return;
+    if (!token || !organizationId) return;
     try {
-      const goals = await listSavingsGoals({ is_completed: false }, { token });
+      const goals = await listSavingsGoals({ is_completed: false }, { token, organizationId });
       setSavingsGoals(goals || []);
     } catch (err) {
       console.error('Failed to fetch savings goals:', err);
     }
-  }, [token]);
+  }, [token, organizationId]);
 
   useEffect(() => {
     fetchSavingsGoals();
@@ -168,7 +182,7 @@ export default function CategoryBudgetDashboard() {
           );
 
           const budgetArray = Array.isArray(budgets) ? budgets : [];
-          const isConsolidated = budgetArray.length > 0 && budgetArray.every(b => b.IsConsolidated);
+          const isConsolidated = isMonthClosed(budgetArray);
 
           // Add to monthly budgets
           setMonthlyBudgets(prev => [
@@ -217,7 +231,7 @@ export default function CategoryBudgetDashboard() {
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': organizationId,
           },
         }
       );
@@ -260,7 +274,7 @@ export default function CategoryBudgetDashboard() {
       // Group budgets by month and check if consolidated
       const monthlyData: MonthlyBudgetData[] = allBudgetsResults.map(({ month, year, budgets }) => {
         const budgetArray = Array.isArray(budgets) ? budgets : [];
-        const isConsolidated = budgetArray.length > 0 && budgetArray.every(b => b.IsConsolidated);
+        const isConsolidated = isMonthClosed(budgetArray);
         return {
           month,
           year,
@@ -309,7 +323,7 @@ export default function CategoryBudgetDashboard() {
       const accountsResponse = await fetch(financialUrl('accounts'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': organizationId,
         },
       });
 
@@ -333,7 +347,7 @@ export default function CategoryBudgetDashboard() {
           fetch(financialUrl(`accounts/${account.AccountID}/transactions`), {
             headers: {
               'Authorization': `Bearer ${token}`,
-              'X-Active-Organization': '1',
+              'X-Active-Organization': organizationId,
             },
           })
             .then(res => res.ok ? res.json() : { data: [] })
@@ -369,7 +383,7 @@ export default function CategoryBudgetDashboard() {
       const categoriesResponse = await fetch(financialUrl('categories'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': organizationId,
         },
       });
       const categoriesData: ApiResponse<Category[]> = await categoriesResponse.json();
@@ -402,10 +416,11 @@ export default function CategoryBudgetDashboard() {
             return;
           }
 
-          // Use MatchedAmount if matched, otherwise use Amount (expected)
+          // Matched entries use the actual transaction amount; unmatched entries
+          // use the top of their range (or the display amount).
           const amount = entry.Status === 'matched' && entry.MatchedAmount
             ? parseFloat(entry.MatchedAmount)
-            : parseFloat(entry.Amount);
+            : parseFloat(entry.AmountMax || entry.Amount);
 
           if (!isNaN(amount) && amount > 0) {
             const currentAmount = parseFloat(spending[key][entry.CategoryID] || '0');
@@ -465,6 +480,20 @@ export default function CategoryBudgetDashboard() {
       });
 
       setActualSpending(spending);
+
+      // Build transaction-only spending (no planned entry amounts)
+      const txOnlySpending: Record<string, Record<number, string>> = {};
+      transactions.forEach(tx => {
+        if (tx.is_ignored || !tx.category_id || tx.transaction_type === 'credit') return;
+        const txDate = parseTransactionDate(tx.transaction_date);
+        const month = txDate.getMonth() + 1;
+        const year = txDate.getFullYear();
+        const key = `${month}-${year}`;
+        if (!txOnlySpending[key]) txOnlySpending[key] = {};
+        const current = parseFloat(txOnlySpending[key][tx.category_id] || '0');
+        txOnlySpending[key][tx.category_id] = (current + parseFloat(tx.amount)).toFixed(2);
+      });
+      setTransactionOnlySpending(txOnlySpending);
     } catch (err) {
       console.error('Failed to calculate actual spending:', err);
     }
@@ -480,7 +509,7 @@ export default function CategoryBudgetDashboard() {
       const accountsResponse = await fetch(financialUrl('accounts'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': organizationId,
         },
       });
 
@@ -503,7 +532,7 @@ export default function CategoryBudgetDashboard() {
         fetch(financialUrl(`accounts/${account.AccountID}/transactions`), {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': organizationId,
           },
         })
           .then(res => res.ok ? res.json() : { data: [] })
@@ -544,6 +573,11 @@ export default function CategoryBudgetDashboard() {
       setError('Controlled amount must be a valid number >= 0');
       return;
     }
+    const parsedGranularity = parseBudgetGranularity(budgetGranularity);
+    if (parsedGranularity === false) {
+      setError('Compras/mês deve ficar vazio ou ser um número inteiro maior que 1');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -554,6 +588,7 @@ export default function CategoryBudgetDashboard() {
         month: selectedMonth,
         year: selectedYear,
         controlled_amount: parsedAmount,
+        granularity: parsedGranularity,
       };
 
       await createCategoryBudget(data, { token, organizationId });
@@ -575,6 +610,7 @@ export default function CategoryBudgetDashboard() {
     setEditingBudget(budget);
     setSelectedCategoryId(budget.CategoryID.toString());
     setControlledAmount(budget.ControlledAmount);
+    setBudgetGranularity(budget.Granularity?.toString() ?? '');
     setShowCreateBudgetModal(true);
   };
 
@@ -592,6 +628,11 @@ export default function CategoryBudgetDashboard() {
       setError('Controlled amount must be a valid number (0 or greater)');
       return;
     }
+    const parsedGranularity = parseBudgetGranularity(budgetGranularity);
+    if (parsedGranularity === false) {
+      setError('Compras/mês deve ficar vazio ou ser um número inteiro maior que 1');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -601,6 +642,7 @@ export default function CategoryBudgetDashboard() {
         editingBudget.CategoryBudgetID,
         {
           controlled_amount: parsedAmount,
+          granularity: parsedGranularity,
         },
         { token, organizationId }
       );
@@ -1091,6 +1133,46 @@ export default function CategoryBudgetDashboard() {
     }
   };
 
+  // One-click conversion: create a planned entry from a transaction and match
+  // the transaction to it for the selected month. The entry is non-recurrent
+  // and targeted at this month; the user can open it afterwards to make it
+  // recurrent or adjust amounts.
+  const handleConvertTransactionToPlannedEntry = async (tx: Transaction) => {
+    if (!token || !tx.category_id) return;
+
+    try {
+      const entry = await createPlannedEntry(
+        {
+          category_id: tx.category_id,
+          description: tx.description,
+          amount: Math.abs(parseFloat(tx.amount)),
+          expected_day: parseTransactionDate(tx.transaction_date).getDate(),
+          entry_type: tx.transaction_type === 'credit' ? 'income' : 'expense',
+          is_recurrent: false,
+          target_month: selectedMonth,
+          target_year: selectedYear,
+        },
+        { token, organizationId }
+      );
+
+      await matchPlannedEntry(
+        entry.PlannedEntryID,
+        {
+          transaction_id: tx.transaction_id,
+          month: selectedMonth,
+          year: selectedYear,
+        },
+        { token, organizationId }
+      );
+
+      await fetchAllData();
+      setSuccessMessage('Transação transformada em entrada planejada!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao transformar transação em entrada planejada');
+    }
+  };
+
   // Edit handler for planned entries
   const handleEditPlannedEntry = (entry: PlannedEntryWithStatus, month: number, year: number) => {
     setEditingEntry(entry);
@@ -1113,11 +1195,8 @@ export default function CategoryBudgetDashboard() {
 
       setSuccessMessage('Entrada planejada excluída com sucesso!');
 
-      // Refresh entries for the specific month
-      const key = `${month}-${year}`;
-      if (expandedMonthEntries[key]) {
-        await fetchEntriesForMonth(month, year);
-      }
+      await fetchEntriesForMonth(month, year);
+      await fetchAndCalculateActualSpending();
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -1145,12 +1224,9 @@ export default function CategoryBudgetDashboard() {
       setEditingEntry(null);
       setSelectedEntryMonth(null);
 
-      // Refresh entries for the specific month
       if (selectedEntryMonth) {
-        const key = `${selectedEntryMonth.month}-${selectedEntryMonth.year}`;
-        if (expandedMonthEntries[key]) {
-          await fetchEntriesForMonth(selectedEntryMonth.month, selectedEntryMonth.year);
-        }
+        await fetchEntriesForMonth(selectedEntryMonth.month, selectedEntryMonth.year);
+        await fetchAndCalculateActualSpending();
       }
 
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -1176,7 +1252,7 @@ export default function CategoryBudgetDashboard() {
       await copyToClipboard(exportText);
       setSuccessMessage('Orçamento copiado para a área de transferência!');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
+    } catch {
       setError('Falha ao copiar orçamento');
     }
   };
@@ -1184,6 +1260,7 @@ export default function CategoryBudgetDashboard() {
   const resetBudgetForm = () => {
     setSelectedCategoryId('');
     setControlledAmount('');
+    setBudgetGranularity('');
   };
 
   const handleCancelBudgetForm = () => {
@@ -1207,6 +1284,7 @@ export default function CategoryBudgetDashboard() {
     m => m.month === selectedMonth && m.year === selectedYear
   );
   const selectedMonthBudgets = selectedMonthData?.budgets || [];
+  const selectedMonthClosed = selectedMonthData?.isConsolidated || false;
   const selectedMonthSpending = actualSpending[selectedMonthKey] || {};
   const selectedMonthEntries = expandedMonthEntries[selectedMonthKey] || [];
   const selectedMonthEntriesLoading = expandedMonthLoading[selectedMonthKey] || false;
@@ -1228,9 +1306,10 @@ export default function CategoryBudgetDashboard() {
     .filter(e => e.EntryType === 'expense' && e.Status !== 'dismissed')
     .reduce((sum, e) => sum + (parseFloat(e.AmountMax || e.Amount || '0') || 0), 0);
   const totalEstimated = totalControlled + totalPlannedEntries;
-  // Sum spending only for expense categories
+  // Sum actual transaction spending only (no planned entry amounts) for expense categories
+  const selectedMonthTxSpending = transactionOnlySpending[selectedMonthKey] || {};
   const totalSpent = expenseBudgets.reduce(
-    (sum, b) => sum + parseFloat(selectedMonthSpending[b.CategoryID] || '0'), 0
+    (sum, b) => sum + parseFloat(selectedMonthTxSpending[b.CategoryID] || '0'), 0
   );
   const spentPercentage = totalEstimated > 0 ? Math.round((totalSpent / totalEstimated) * 100) : 0;
 
@@ -1351,13 +1430,17 @@ export default function CategoryBudgetDashboard() {
               </button>
               <button
                 onClick={() => setShowCreateEntryModal(true)}
-                className="btn-secondary text-sm"
+                disabled={selectedMonthClosed}
+                title={selectedMonthClosed ? 'Este mês está fechado' : undefined}
+                className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Entrada
               </button>
               <button
                 onClick={() => setShowCreateBudgetModal(true)}
-                className="btn-primary text-sm"
+                disabled={selectedMonthClosed}
+                title={selectedMonthClosed ? 'Este mês está fechado' : undefined}
+                className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Orçamento
               </button>
@@ -1625,6 +1708,30 @@ export default function CategoryBudgetDashboard() {
                 />
               </div>
             </div>
+
+            {/* Controlled Purchase Granularity */}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">
+                Compras/mês (Opcional)
+              </label>
+              <p className="text-xs text-stone-500 mb-2">
+                Vazio usa a quantidade de compras controladas do mês anterior
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={budgetGranularity}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || /^\d*$/.test(value)) {
+                    setBudgetGranularity(value);
+                  }
+                }}
+                disabled={isSubmitting}
+                placeholder="Ex.: 5"
+                className="input"
+              />
+            </div>
           </div>
         </Modal>
 
@@ -1671,6 +1778,7 @@ export default function CategoryBudgetDashboard() {
                 ParentEntryID: editingEntry.ParentEntryID,
                 PatternID: editingEntry.PatternID,
                 SavingsGoalID: editingEntry.SavingsGoalID,
+                TagIDs: editingEntry.TagIDs,
                 CreatedAt: '',
                 UpdatedAt: '',
               }}
@@ -1698,6 +1806,8 @@ export default function CategoryBudgetDashboard() {
               }}
               initialCategoryId={preselectedCategoryForEntry ?? undefined}
               initialIsRecurrent={false}
+              targetMonth={selectedMonth}
+              targetYear={selectedYear}
             />
           )}
         </Modal>
@@ -1744,6 +1854,7 @@ export default function CategoryBudgetDashboard() {
               onDismissEntry={(entryId, reason) => handleDismissExpandedEntry(entryId, selectedMonth, selectedYear, reason)}
               onUndismissEntry={(entryId) => handleUndismissExpandedEntry(entryId, selectedMonth, selectedYear)}
               onDeleteEntry={(entryId) => handleDeletePlannedEntry(entryId, selectedMonth, selectedYear)}
+              onConvertToPlannedEntry={handleConvertTransactionToPlannedEntry}
             />
           );
         })()}
@@ -1790,6 +1901,7 @@ export default function CategoryBudgetDashboard() {
                 ParentEntryID: editingPlannedEntryFromBudget.ParentEntryID,
                 PatternID: editingPlannedEntryFromBudget.PatternID,
                 SavingsGoalID: editingPlannedEntryFromBudget.SavingsGoalID,
+                TagIDs: editingPlannedEntryFromBudget.TagIDs,
                 CreatedAt: '',
                 UpdatedAt: '',
               }}

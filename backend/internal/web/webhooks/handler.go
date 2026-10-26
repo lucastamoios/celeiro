@@ -31,7 +31,9 @@ type Handler struct {
 	logger              logging.Logger
 	resendAPIKey        string
 	resendWebhookSecret string
+	resendAPIBaseURL    string
 	mailDomain          string
+	httpClient          *http.Client
 }
 
 func NewHandler(app *application.Application, logger logging.Logger, cfg *config.Config) *Handler {
@@ -40,7 +42,9 @@ func NewHandler(app *application.Application, logger logging.Logger, cfg *config
 		logger:              logger,
 		resendAPIKey:        cfg.Resend.APIKey,
 		resendWebhookSecret: cfg.Resend.WebhookSecret,
+		resendAPIBaseURL:    "https://api.resend.com",
 		mailDomain:          cfg.MailDomain,
+		httpClient:          &http.Client{Timeout: 10 * time.Second},
 	}
 }
 
@@ -82,6 +86,11 @@ type ResendAttachmentResponse struct {
 	ContentType string `json:"content_type"`
 	DownloadURL string `json:"download_url"`
 	Content     string `json:"content"` // Base64 encoded
+}
+
+type ResendReceivedEmailResponse struct {
+	Text string `json:"text"`
+	HTML string `json:"html"`
 }
 
 // EmailInboundResponse represents the response for the email inbound webhook
@@ -415,7 +424,7 @@ func (h *Handler) getAttachmentContent(ctx context.Context, emailID string, att 
 	}
 
 	// Fetch attachment from Resend API (using receiving endpoint for inbound emails)
-	url := fmt.Sprintf("https://api.resend.com/emails/receiving/%s/attachments/%s", emailID, att.ID)
+	url := fmt.Sprintf("%s/emails/receiving/%s/attachments/%s", h.resendBaseURL(), emailID, att.ID)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -423,8 +432,7 @@ func (h *Handler) getAttachmentContent(ctx context.Context, emailID string, att 
 
 	req.Header.Set("Authorization", "Bearer "+h.resendAPIKey)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := h.client().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch attachment: %w", err)
 	}
@@ -460,8 +468,7 @@ func (h *Handler) downloadFile(ctx context.Context, url string) ([]byte, error) 
 		return nil, err
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := h.client().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -620,7 +627,7 @@ func extractGmailForwardingRequester(text string) string {
 func extractGmailVerificationURL(text string) string {
 	// Look for the confirmation URL pattern
 	// URL format: https://mail-settings.google.com/mail/vf-[token]-[suffix]
-	re := regexp.MustCompile(`(https://mail-settings\.google\.com/mail/vf-[^\s]+)`)
+	re := regexp.MustCompile(`(https://mail-settings\.google\.com/mail/vf-[^\s"'<>]+)`)
 	matches := re.FindStringSubmatch(text)
 	if len(matches) > 1 {
 		return matches[1]
@@ -632,8 +639,23 @@ func extractGmailVerificationURL(text string) string {
 func (h *Handler) handleGmailForwardingVerification(ctx context.Context, email ResendInboundEmail, w http.ResponseWriter) {
 	h.logger.Info(ctx, "Detected Gmail forwarding verification email")
 
+	emailContent, err := h.getReceivedEmailContent(ctx, email.EmailID)
+	if err != nil {
+		h.logger.Error(ctx, "Could not retrieve Gmail forwarding verification email", "error", err)
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: "Could not retrieve forwarding verification email",
+		}, w)
+		return
+	}
+
+	body := emailContent.Text
+	if body == "" {
+		body = emailContent.HTML
+	}
+
 	// Extract the requester's email from the email text
-	requesterEmail := extractGmailForwardingRequester(email.Text)
+	requesterEmail := extractGmailForwardingRequester(body)
 	if requesterEmail == "" {
 		h.logger.Warn(ctx, "Could not extract requester email from Gmail verification")
 		responses.NewSuccess(EmailInboundResponse{
@@ -646,7 +668,7 @@ func (h *Handler) handleGmailForwardingVerification(ctx context.Context, email R
 	h.logger.Info(ctx, "Gmail forwarding requested by", "requester_email", requesterEmail)
 
 	// Check if the requester is a registered user
-	_, err := h.app.AccountsService.GetUserByEmail(ctx, accounts.GetUserByEmailInput{
+	requester, err := h.app.AccountsService.GetUserByEmail(ctx, accounts.GetUserByEmailInput{
 		Email: requesterEmail,
 	})
 	if err != nil {
@@ -661,8 +683,35 @@ func (h *Handler) handleGmailForwardingVerification(ctx context.Context, email R
 		return
 	}
 
+	// The forwarding destination must belong to the same user as the requester.
+	destinationEmailID := extractEmailIDFromTo(email.To, h.mailDomain)
+	if destinationEmailID == "" {
+		h.logger.Warn(ctx, "Gmail forwarding destination is invalid", "to", email.To)
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: "Requester does not own destination address",
+		}, w)
+		return
+	}
+
+	destinationOwner, err := h.app.AccountsService.GetUserByEmailID(ctx, accounts.GetUserByEmailIDInput{
+		EmailID: destinationEmailID,
+	})
+	if err != nil || requester.UserID == 0 || destinationOwner.UserID == 0 || requester.UserID != destinationOwner.UserID {
+		h.logger.Warn(ctx, "Gmail forwarding requester does not own destination address",
+			"requester_email", requesterEmail,
+			"destination_email_id", destinationEmailID,
+			"error", err,
+		)
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: "Requester does not own destination address",
+		}, w)
+		return
+	}
+
 	// Extract the verification URL
-	verificationURL := extractGmailVerificationURL(email.Text)
+	verificationURL := extractGmailVerificationURL(body)
 	if verificationURL == "" {
 		h.logger.Error(ctx, "Could not extract verification URL from Gmail email")
 		responses.NewSuccess(EmailInboundResponse{
@@ -675,10 +724,17 @@ func (h *Handler) handleGmailForwardingVerification(ctx context.Context, email R
 	h.logger.Info(ctx, "Confirming Gmail forwarding", "url", verificationURL)
 
 	// Make GET request to confirm the forwarding
-	client := &http.Client{
-		Timeout: 10 * time.Second,
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, verificationURL, nil)
+	if err != nil {
+		h.logger.Error(ctx, "Failed to create Gmail forwarding confirmation request", "error", err)
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: "Invalid forwarding confirmation URL",
+		}, w)
+		return
 	}
-	resp, err := client.Get(verificationURL)
+
+	resp, err := h.client().Do(request)
 	if err != nil {
 		h.logger.Error(ctx, "Failed to confirm Gmail forwarding", "error", err)
 		responses.NewSuccess(EmailInboundResponse{
@@ -694,8 +750,67 @@ func (h *Handler) handleGmailForwardingVerification(ctx context.Context, email R
 		"requester_email", requesterEmail,
 	)
 
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		responses.NewSuccess(EmailInboundResponse{
+			Success: false,
+			Message: "Gmail rejected forwarding confirmation",
+		}, w)
+		return
+	}
+
 	responses.NewSuccess(EmailInboundResponse{
 		Success: true,
 		Message: fmt.Sprintf("Gmail forwarding confirmed for %s", requesterEmail),
 	}, w)
+}
+
+func (h *Handler) getReceivedEmailContent(ctx context.Context, emailID string) (ResendReceivedEmailResponse, error) {
+	if emailID == "" {
+		return ResendReceivedEmailResponse{}, fmt.Errorf("received email ID is required")
+	}
+	if h.resendAPIKey == "" {
+		return ResendReceivedEmailResponse{}, fmt.Errorf("resend API key not configured")
+	}
+
+	url := fmt.Sprintf("%s/emails/receiving/%s", h.resendBaseURL(), emailID)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return ResendReceivedEmailResponse{}, fmt.Errorf("failed to create received email request: %w", err)
+	}
+	request.Header.Set("Authorization", "Bearer "+h.resendAPIKey)
+
+	response, err := h.client().Do(request)
+	if err != nil {
+		return ResendReceivedEmailResponse{}, fmt.Errorf("failed to retrieve received email: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		return ResendReceivedEmailResponse{}, fmt.Errorf(
+			"resend received email API error: %s, body: %s",
+			response.Status,
+			string(body),
+		)
+	}
+
+	var receivedEmail ResendReceivedEmailResponse
+	if err := json.NewDecoder(response.Body).Decode(&receivedEmail); err != nil {
+		return ResendReceivedEmailResponse{}, fmt.Errorf("failed to decode received email: %w", err)
+	}
+	return receivedEmail, nil
+}
+
+func (h *Handler) resendBaseURL() string {
+	if h.resendAPIBaseURL != "" {
+		return strings.TrimRight(h.resendAPIBaseURL, "/")
+	}
+	return "https://api.resend.com"
+}
+
+func (h *Handler) client() *http.Client {
+	if h.httpClient != nil {
+		return h.httpClient
+	}
+	return &http.Client{Timeout: 10 * time.Second}
 }

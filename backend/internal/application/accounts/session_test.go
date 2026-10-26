@@ -17,7 +17,7 @@ import (
 func TestCreateSession_Success(t *testing.T) {
 	memoryDB := transientdb.NewMemoryTransientDB()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestCreateSession_Success(t *testing.T) {
 func TestCreateSession_Success_NullOrganization(t *testing.T) {
 	memoryDB := transientdb.NewMemoryTransientDB()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}

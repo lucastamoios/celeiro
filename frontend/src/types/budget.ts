@@ -1,85 +1,3 @@
-export interface Budget {
-  BudgetID: number;
-  UserID: number;
-  OrganizationID: number;
-  Name: string;
-  Month: number;
-  Year: number;
-  BudgetType: 'fixed' | 'calculated' | 'maior';
-  Amount: string; // Decimal as string from backend
-  IsActive: boolean;
-  CreatedAt: string;
-  UpdatedAt: string;
-}
-
-export interface BudgetItem {
-  BudgetItemID: number;
-  BudgetID: number;
-  CategoryID: number;
-  PlannedAmount: string; // Decimal as string from backend
-  CreatedAt: string;
-  UpdatedAt: string;
-}
-
-export interface BudgetWithItems {
-  Budget: Budget;
-  Items: BudgetItem[];
-}
-
-export interface CreateBudgetRequest {
-  name: string;
-  month: number;
-  year: number;
-  budget_type: 'fixed' | 'calculated' | 'maior';
-  amount: number;
-}
-
-// Budget Item CRUD Types
-export interface CreateBudgetItemRequest {
-  category_id: number;
-  planned_amount: number;
-}
-
-export interface UpdateBudgetItemRequest {
-  planned_amount?: number;
-}
-
-// Budget Spending Types
-export interface CategorySpending {
-  [categoryID: number]: string; // categoryID -> total spent (decimal as string)
-}
-
-export interface BudgetSpending {
-  category_spending: CategorySpending;
-}
-
-// Budget Progress Types
-export interface CategoryProgress {
-  category_id: number;
-  category_name: string;
-  planned_amount: string; // Decimal as string
-  expected_at_current_day?: string; // Decimal as string, only for fixed budgets
-  actual_spent: string; // Decimal as string
-  variance: string; // Decimal as string
-  status: string; // "on_track", "over_budget", "warning"
-}
-
-export interface BudgetProgress {
-  budget_id: number;
-  budget_type: string;
-  total_budget: string; // Decimal as string
-  current_day: number;
-  days_in_month: number;
-  progress_percentage: number;
-  expected_at_current_day: string; // Decimal as string
-  actual_spent: string; // Decimal as string
-  variance: string; // Decimal as string
-  status: string; // "on_track", "over_budget", "warning"
-  categories?: CategoryProgress[];
-  projection_end_of_month: string; // Decimal as string
-  projected_variance_at_end: string; // Decimal as string
-}
-
 // Category-Centric Budget Types
 // New model: Total Budget = sum(planned entries) + controlled_amount
 // - Planned entries are auto-calculated from recurrent expense entries
@@ -92,6 +10,7 @@ export interface CategoryBudget {
   Month: number;
   Year: number;
   ControlledAmount: string; // Decimal as string - user-editable discretionary buffer
+  Granularity?: number | null; // Expected controlled purchases per month. Null = infer from previous month.
   IsConsolidated: boolean;
   ConsolidatedAt?: string;
   CreatedAt: string;
@@ -103,10 +22,12 @@ export interface CreateCategoryBudgetRequest {
   month: number;
   year: number;
   controlled_amount: number;
+  granularity?: number | null;
 }
 
 export interface UpdateCategoryBudgetRequest {
   controlled_amount?: number;
+  granularity?: number | null;
 }
 
 // Planned Entry Types
@@ -172,8 +93,9 @@ export interface AdvancedPattern {
   WeekdayPattern?: string;
   AmountMin?: string;
   AmountMax?: string;
-  TargetDescription: string;
-  TargetCategoryID: number;
+  Action: 'categorize' | 'ignore';
+  TargetDescription?: string;
+  TargetCategoryID?: number;
   ApplyRetroactively: boolean;
   IsActive: boolean;
   CreatedAt: string;
@@ -191,6 +113,8 @@ export interface CreatePlannedEntryRequest {
   entry_type: 'expense' | 'income';
   is_recurrent: boolean;
   parent_entry_id?: number;
+  target_month?: number;
+  target_year?: number;
   expected_day?: number;
   pattern_id?: number;
   description_pattern?: string; // Pattern for auto-matching transaction descriptions

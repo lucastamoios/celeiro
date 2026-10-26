@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Target, Plus, RefreshCw, XCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import type { Category } from '../types/category';
 import type { ApiResponse } from '../types/transaction';
 import PatternCreator, { type AdvancedPattern as AdvancedPatternInput, type InitialPatternData } from './PatternCreator';
 import PlannedEntryLinkModal from './PlannedEntryLinkModal';
 import { updatePlannedEntry, createPlannedEntry, getPlannedEntries } from '../api/budget';
+import { getPatternCapabilities, type PatternAction } from '../utils/patternAction';
 
 interface LinkedPlannedEntry {
   planned_entry_id: number;
@@ -14,6 +16,7 @@ interface LinkedPlannedEntry {
 }
 
 interface AdvancedPattern {
+  action: PatternAction;
   pattern_id: number;
   user_id: number;
   organization_id: number;
@@ -22,8 +25,8 @@ interface AdvancedPattern {
   weekday_pattern?: string;
   amount_min?: string;
   amount_max?: string;
-  target_description: string;
-  target_category_id: number;
+  target_description?: string;
+  target_category_id?: number;
   apply_retroactively: boolean;
   is_active: boolean;
   created_at: string;
@@ -33,12 +36,13 @@ interface AdvancedPattern {
 
 export default function PatternManager() {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [patterns, setPatterns] = useState<AdvancedPattern[]>([]);
   const [categories, setCategories] = useState<Map<number, Category>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreator, setShowCreator] = useState(false);
-  const [applyRetroactivelyOnCreate, setApplyRetroactivelyOnCreate] = useState(true);
   const [editingPattern, setEditingPattern] = useState<AdvancedPattern | null>(null);
   const [deletingPattern, setDeletingPattern] = useState<number | null>(null);
   const [togglingPattern, setTogglingPattern] = useState<number | null>(null);
@@ -86,14 +90,14 @@ export default function PatternManager() {
 
     const headers = {
       'Authorization': `Bearer ${token}`,
-      'X-Active-Organization': '1'
+      'X-Active-Organization': activeOrganizationId
     };
 
     try {
       const [categoriesRes, patternsRes, plannedEntries] = await Promise.all([
         fetch(financialUrl('categories'), { headers }),
         fetch(financialUrl('patterns'), { headers }),
-        getPlannedEntries({ is_active: true }, { token, organizationId: '1' }),
+        getPlannedEntries({ is_active: true }, { token, organizationId: activeOrganizationId }),
       ]);
 
       if (!categoriesRes.ok || !patternsRes.ok) {
@@ -120,6 +124,7 @@ export default function PatternManager() {
 
       const patternsWithLinks = (patternsData.data || []).map((p) => ({
         ...p,
+        action: p.action || 'categorize',
         linked_planned_entries: entriesByPatternId.get(p.pattern_id) || p.linked_planned_entries,
       }));
 
@@ -147,13 +152,13 @@ export default function PatternManager() {
       // When creating a new pattern (not editing), automatically apply to existing transactions
       const requestBody = isEditing
         ? pattern
-        : { ...pattern, apply_retroactively: applyRetroactivelyOnCreate };
+        : pattern;
 
       const response = await fetch(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
@@ -176,18 +181,17 @@ export default function PatternManager() {
       setSuccess(
         isEditing
           ? '✅ Padrão atualizado com sucesso!'
-          : applyRetroactivelyOnCreate && typeof createdUpdatedCount === 'number'
+          : pattern.apply_retroactively && typeof createdUpdatedCount === 'number'
             ? typeof createdTotalChecked === 'number'
               ? `✅ Padrão aplicado a ${createdUpdatedCount}/${createdTotalChecked} transação(ões)`
               : `✅ Padrão aplicado a ${createdUpdatedCount} transação(ões)`
-            : applyRetroactivelyOnCreate
+            : pattern.apply_retroactively
               ? '✅ Padrão criado e aplicado às transações existentes!'
               : '✅ Padrão criado com sucesso!'
       );
       setTimeout(() => setSuccess(null), 3000);
       setShowCreator(false);
       setEditingPattern(null);
-      setApplyRetroactivelyOnCreate(true);
       fetchData();
     } catch (err) {
       console.error('Save pattern error:', err);
@@ -208,7 +212,7 @@ export default function PatternManager() {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         }
       );
@@ -240,7 +244,7 @@ export default function PatternManager() {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -282,7 +286,7 @@ export default function PatternManager() {
     try {
       await updatePlannedEntry(entryId, { pattern_id: linkingPattern.pattern_id }, {
         token,
-        organizationId: '1',
+        organizationId: activeOrganizationId,
       });
 
       setSuccess(`✅ Padrão vinculado à entrada planejada!`);
@@ -297,8 +301,9 @@ export default function PatternManager() {
 
   // Open create entry modal for a pattern
   const handleOpenCreateEntryModal = (pattern: AdvancedPattern) => {
+    if (pattern.action === 'ignore' || !pattern.target_category_id) return;
     setLinkingPattern(pattern);
-    setNewEntryDescription(pattern.target_description);
+    setNewEntryDescription(pattern.target_description || '');
     setNewEntryAmountMin(pattern.amount_min || '');
     setNewEntryAmountMax(pattern.amount_max || '');
     setNewEntryType('expense');
@@ -318,7 +323,7 @@ export default function PatternManager() {
       const amountMax = parseFloat(newEntryAmountMax) || amountMin;
 
       await createPlannedEntry({
-        category_id: linkingPattern.target_category_id,
+        category_id: linkingPattern.target_category_id!,
         description: newEntryDescription,
         amount: amountMax, // Main amount is max
         amount_min: amountMin,
@@ -329,7 +334,7 @@ export default function PatternManager() {
         description_pattern: linkingPattern.description_pattern,
       }, {
         token,
-        organizationId: '1',
+        organizationId: activeOrganizationId,
       });
 
       setSuccess(`✅ Entrada planejada criada e vinculada ao padrão!`);
@@ -362,7 +367,7 @@ export default function PatternManager() {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         }
       );
@@ -425,22 +430,12 @@ export default function PatternManager() {
           <div>
             <h1 className="font-display text-3xl font-bold text-stone-900">Padrões</h1>
             <p className="text-stone-600 mt-2">
-              {totalPatterns} padrão{totalPatterns !== 1 ? 'ões' : ''} cadastrado{totalPatterns !== 1 ? 's' : ''}
+              {totalPatterns === 1 ? '1 padrão cadastrado' : `${totalPatterns} padrões cadastrados`}
             </p>
           </div>
 
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-xs text-stone-600 select-none">
-                <input
-                  type="checkbox"
-                  className="rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
-                  checked={applyRetroactivelyOnCreate}
-                  onChange={(e) => setApplyRetroactivelyOnCreate(e.target.checked)}
-                />
-                Aplicar em transações existentes
-              </label>
-
               <button
                 onClick={() => setShowCreator(true)}
                 className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-wheat-500 to-wheat-600 rounded-lg hover:from-wheat-600 hover:to-wheat-700 transition-all"
@@ -473,7 +468,7 @@ export default function PatternManager() {
               Nenhum padrão criado ainda
             </h3>
             <p className="text-stone-600 mb-6">
-              Crie padrões com regex para categorizar transações automaticamente
+              Crie padrões para categorizar ou ignorar novas transações automaticamente
             </p>
             <button
               onClick={() => setShowCreator(true)}
@@ -486,8 +481,9 @@ export default function PatternManager() {
         ) : (
           <div className="grid gap-4">
             {patterns.map(pattern => {
-              const category = categories.get(pattern.target_category_id);
-              const hasLinkedEntries = pattern.linked_planned_entries && pattern.linked_planned_entries.length > 0;
+              const category = pattern.target_category_id ? categories.get(pattern.target_category_id) : undefined;
+              const capabilities = getPatternCapabilities(pattern.action);
+              const hasLinkedEntries = capabilities.supportsPlannedEntries && pattern.linked_planned_entries && pattern.linked_planned_entries.length > 0;
 
               return (
                 <div
@@ -506,8 +502,13 @@ export default function PatternManager() {
                         {/* Header Row */}
                         <div className="flex items-center gap-2 flex-wrap mb-2">
                           <h3 className="font-display text-base font-semibold text-stone-900 truncate">
-                            {pattern.target_description}
+                            {pattern.action === 'ignore' ? 'Ignorar transações' : pattern.target_description}
                           </h3>
+                          {pattern.action === 'ignore' && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-rust-50 text-rust-700 rounded">
+                              Ignorar
+                            </span>
+                          )}
                           {category && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-wheat-50 text-wheat-700 rounded">
                               {category.icon} {category.name}
@@ -581,7 +582,7 @@ export default function PatternManager() {
                         {openMenuId === pattern.pattern_id && (
                           <div className="absolute right-0 mt-1 w-52 bg-stone-50 rounded-lg shadow-lg border border-stone-200 py-1 z-10">
                             {/* Apply Retroactively */}
-                            <button
+                            {capabilities.supportsRetroactive && <button
                               onClick={() => {
                                 handleApplyRetroactively(pattern.pattern_id);
                                 setOpenMenuId(null);
@@ -600,7 +601,7 @@ export default function PatternManager() {
                               ) : (
                                 <><RefreshCw className="w-4 h-4" /> Aplicar a existentes</>
                               )}
-                            </button>
+                            </button>}
 
                             {/* Toggle Active */}
                             <button
@@ -628,7 +629,7 @@ export default function PatternManager() {
                             <div className="border-t border-stone-100 my-1"></div>
 
                             {/* Link to Entry */}
-                            <button
+                            {capabilities.supportsPlannedEntries && <button
                               onClick={() => {
                                 handleOpenLinkModal(pattern);
                                 setOpenMenuId(null);
@@ -636,10 +637,10 @@ export default function PatternManager() {
                               className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
                             >
                               🔗 Vincular a Entrada
-                            </button>
+                            </button>}
 
                             {/* Create Entry */}
-                            <button
+                            {capabilities.supportsPlannedEntries && <button
                               onClick={() => {
                                 handleOpenCreateEntryModal(pattern);
                                 setOpenMenuId(null);
@@ -647,7 +648,7 @@ export default function PatternManager() {
                               className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
                             >
                               📋 Criar Entrada Planejada
-                            </button>
+                            </button>}
 
                             <div className="border-t border-stone-100 my-1"></div>
 
@@ -689,8 +690,11 @@ export default function PatternManager() {
             categories={categories}
             onClose={handleCloseCreator}
             onSave={handleSavePattern}
+            allowRetroactive
+            initialApplyRetroactively={!editingPattern}
             initialData={initialPatternData}
             existingPattern={editingPattern ? {
+              action: editingPattern.action,
               description_pattern: editingPattern.description_pattern,
               date_pattern: editingPattern.date_pattern,
               weekday_pattern: editingPattern.weekday_pattern,
@@ -705,7 +709,11 @@ export default function PatternManager() {
         {/* Link to Planned Entry Modal */}
         {showLinkModal && linkingPattern && (
           <PlannedEntryLinkModal
-            pattern={linkingPattern}
+            pattern={{
+              ...linkingPattern,
+              target_description: linkingPattern.target_description!,
+              target_category_id: linkingPattern.target_category_id!,
+            }}
             categories={categories}
             onClose={() => {
               setShowLinkModal(false);
@@ -756,8 +764,8 @@ export default function PatternManager() {
                     Categoria
                   </label>
                   <div className="px-3 py-2 bg-stone-100 rounded-lg text-stone-700">
-                    {categories.get(linkingPattern.target_category_id)?.icon}{' '}
-                    {categories.get(linkingPattern.target_category_id)?.name}
+                    {categories.get(linkingPattern.target_category_id!)?.icon}{' '}
+                    {categories.get(linkingPattern.target_category_id!)?.name}
                   </div>
                 </div>
 

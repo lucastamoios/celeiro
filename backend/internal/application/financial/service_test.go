@@ -3,9 +3,12 @@ package financial
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
+	internalerrors "github.com/catrutech/celeiro/internal/errors"
 	"github.com/catrutech/celeiro/pkg/system"
 
 	"github.com/shopspring/decimal"
@@ -86,6 +89,11 @@ func (m *MockRepository) FetchTransactionsByMonth(ctx context.Context, params fe
 	return args.Get(0).([]TransactionModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchMatchedTransactionIDs(ctx context.Context, params fetchMatchedTransactionIDsParams) ([]int, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]int), args.Error(1)
+}
+
 func (m *MockRepository) InsertTransaction(ctx context.Context, params insertTransactionParams) (TransactionModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(TransactionModel), args.Error(1)
@@ -131,54 +139,8 @@ func (m *MockRepository) FetchTransactionsNeedingReview(ctx context.Context, par
 	return args.Get(0).([]TransactionModel), args.Error(1)
 }
 
-// Budgets
-func (m *MockRepository) FetchBudgets(ctx context.Context, params fetchBudgetsParams) ([]BudgetModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).([]BudgetModel), args.Error(1)
-}
-
-func (m *MockRepository) FetchBudgetByID(ctx context.Context, params fetchBudgetByIDParams) (BudgetModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetModel), args.Error(1)
-}
-
-func (m *MockRepository) InsertBudget(ctx context.Context, params insertBudgetParams) (BudgetModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetModel), args.Error(1)
-}
-
-func (m *MockRepository) ModifyBudget(ctx context.Context, params modifyBudgetParams) (BudgetModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetModel), args.Error(1)
-}
-
-func (m *MockRepository) RemoveBudget(ctx context.Context, params removeBudgetParams) error {
-	args := m.Called(ctx, params)
-	return args.Error(0)
-}
-
-// Budget Items
-func (m *MockRepository) FetchBudgetItems(ctx context.Context, params fetchBudgetItemsParams) ([]BudgetItemModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).([]BudgetItemModel), args.Error(1)
-}
-
-func (m *MockRepository) InsertBudgetItem(ctx context.Context, params insertBudgetItemParams) (BudgetItemModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetItemModel), args.Error(1)
-}
-
-func (m *MockRepository) ModifyBudgetItem(ctx context.Context, params modifyBudgetItemParams) (BudgetItemModel, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(BudgetItemModel), args.Error(1)
-}
-
-func (m *MockRepository) RemoveBudgetItem(ctx context.Context, params removeBudgetItemParams) error {
-	args := m.Called(ctx, params)
-	return args.Error(0)
-}
-
-func (m *MockRepository) FetchBudgetSpending(ctx context.Context, params fetchBudgetSpendingParams) (map[int]decimal.Decimal, error) {
+// Spending Aggregation
+func (m *MockRepository) FetchSpendingByCategory(ctx context.Context, params fetchSpendingByCategoryParams) (map[int]decimal.Decimal, error) {
 	args := m.Called(ctx, params)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -234,6 +196,16 @@ func (m *MockRepository) ModifyCategoryBudget(ctx context.Context, params modify
 }
 
 func (m *MockRepository) RemoveCategoryBudget(ctx context.Context, params removeCategoryBudgetParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+func (m *MockRepository) IsMonthClosed(ctx context.Context, params monthClosureParams) (bool, error) {
+	args := m.Called(ctx, params)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockRepository) MarkMonthClosed(ctx context.Context, params monthClosureParams) error {
 	args := m.Called(ctx, params)
 	return args.Error(0)
 }
@@ -409,6 +381,26 @@ func (m *MockRepository) FetchTags(ctx context.Context, params fetchTagsParams) 
 	return args.Get(0).([]TagModel), args.Error(1)
 }
 
+func (m *MockRepository) FetchTagSpendingByMonth(ctx context.Context, params fetchTagSpendingByMonthParams) ([]TagSpendingModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagSpendingModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchTagPlannedByMonth(ctx context.Context, params fetchTagPlannedByMonthParams) ([]TagPlannedModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagPlannedModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchTagPlannedEntriesByMonth(ctx context.Context, params fetchTagPlannedEntriesByMonthParams) ([]TagPlannedEntryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagPlannedEntryModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchIncomeBudgetForMonth(ctx context.Context, params fetchIncomeBudgetForMonthParams) (decimal.Decimal, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(decimal.Decimal), args.Error(1)
+}
+
 func (m *MockRepository) FetchTagByID(ctx context.Context, params fetchTagByIDParams) (TagModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(TagModel), args.Error(1)
@@ -451,9 +443,267 @@ func (m *MockRepository) SetPlannedEntryTags(ctx context.Context, params setPlan
 	return args.Error(0)
 }
 
+func (m *MockRepository) FetchTagsBySavingsGoalID(ctx context.Context, params fetchTagsBySavingsGoalIDParams) ([]TagModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]TagModel), args.Error(1)
+}
+
+func (m *MockRepository) SetSavingsGoalTags(ctx context.Context, params setSavingsGoalTagsParams) error {
+	args := m.Called(ctx, params)
+	return args.Error(0)
+}
+
+func TestFinancialService_GenerateSavingsGoalEntries_UsesLastDayOfTargetMonth(t *testing.T) {
+	testCases := []struct {
+		name        string
+		month       int
+		year        int
+		expectedDay int
+	}{
+		{name: "non-leap year February", month: 2, year: 2027, expectedDay: 28},
+		{name: "leap year February", month: 2, year: 2028, expectedDay: 29},
+		{name: "thirty day month", month: 4, year: 2028, expectedDay: 30},
+		{name: "thirty one day month", month: 7, year: 2028, expectedDay: 31},
+		{name: "year end", month: 12, year: 2028, expectedDay: 31},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockRepo := new(MockRepository)
+			svc := &service{Repository: mockRepo, system: system.NewSystem()}
+			ctx := context.Background()
+			categoryID := 7
+			monthlyContribution := decimal.NewFromInt(100)
+			goal := SavingsGoalModel{
+				SavingsGoalID:       11,
+				UserID:              10,
+				OrganizationID:      9,
+				CategoryID:          &categoryID,
+				Name:                "Reserva de emergencia",
+				GoalType:            SavingsGoalTypeInvestimento,
+				TargetAmount:        decimal.NewFromInt(1000),
+				InitialAmount:       decimal.Zero,
+				MonthlyContribution: &monthlyContribution,
+			}
+
+			mockRepo.On("FetchSavingsGoals", ctx, mock.Anything).Return([]SavingsGoalModel{goal}, nil)
+			mockRepo.On("FetchPlannedEntries", ctx, mock.Anything).Return([]PlannedEntryModel{}, nil)
+			mockRepo.On("FetchGoalContributions", ctx, mock.Anything).Return([]TransactionModel{}, nil)
+			mockRepo.On("InsertPlannedEntry", ctx, mock.MatchedBy(func(params insertPlannedEntryParams) bool {
+				return params.ExpectedDayStart != nil &&
+					params.ExpectedDayEnd != nil &&
+					*params.ExpectedDayStart == testCase.expectedDay &&
+					*params.ExpectedDayEnd == testCase.expectedDay
+			})).Return(PlannedEntryModel{PlannedEntryID: 21}, nil).Once()
+			mockRepo.On("FetchTagsBySavingsGoalID", ctx, mock.Anything).Return([]TagModel{}, nil)
+
+			err := svc.generateSavingsGoalEntries(ctx, 10, 9, testCase.month, testCase.year)
+
+			assert.NoError(t, err)
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestFinancialService_GenerateSavingsGoalEntries_SetsLastDayOnExistingEntryWithoutExpectedDay(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	goalID := 11
+	targetMonth := 2
+	targetYear := 2028
+	existingEntry := PlannedEntryModel{
+		PlannedEntryID: 21,
+		SavingsGoalID:  &goalID,
+		TargetMonth:    &targetMonth,
+		TargetYear:     &targetYear,
+	}
+
+	mockRepo.On("FetchSavingsGoals", ctx, mock.Anything).Return([]SavingsGoalModel{}, nil)
+	mockRepo.On("FetchPlannedEntries", ctx, mock.Anything).Return([]PlannedEntryModel{existingEntry}, nil)
+	mockRepo.On("ModifyPlannedEntry", ctx, mock.MatchedBy(func(params modifyPlannedEntryParams) bool {
+		return params.PlannedEntryID == existingEntry.PlannedEntryID &&
+			params.UserID == 10 &&
+			params.OrganizationID == 9 &&
+			params.ExpectedDayStart != nil &&
+			params.ExpectedDayEnd != nil &&
+			*params.ExpectedDayStart == 29 &&
+			*params.ExpectedDayEnd == 29
+	})).Return(existingEntry, nil).Once()
+
+	err := svc.generateSavingsGoalEntries(ctx, 10, 9, targetMonth, targetYear)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestFinancialService_GenerateSavingsGoalEntries_PreservesManualExpectedDay(t *testing.T) {
+	manualDay := 15
+	testCases := []struct {
+		name  string
+		entry PlannedEntryModel
+	}{
+		{name: "date range", entry: PlannedEntryModel{ExpectedDayStart: &manualDay, ExpectedDayEnd: &manualDay}},
+		{name: "legacy date", entry: PlannedEntryModel{ExpectedDay: &manualDay}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockRepo := new(MockRepository)
+			svc := &service{Repository: mockRepo, system: system.NewSystem()}
+			ctx := context.Background()
+			goalID, categoryID := 11, 7
+			targetMonth, targetYear := 2, 2028
+			entry := testCase.entry
+			entry.PlannedEntryID = 21
+			entry.SavingsGoalID = &goalID
+			entry.TargetMonth = &targetMonth
+			entry.TargetYear = &targetYear
+
+			mockRepo.On("FetchSavingsGoals", ctx, mock.Anything).Return([]SavingsGoalModel{{
+				SavingsGoalID: goalID,
+				CategoryID:    &categoryID,
+			}}, nil).Once()
+			mockRepo.On("FetchPlannedEntries", ctx, mock.Anything).Return([]PlannedEntryModel{entry}, nil).Once()
+
+			err := svc.generateSavingsGoalEntries(ctx, 10, 9, targetMonth, targetYear)
+
+			assert.NoError(t, err)
+			mockRepo.AssertNotCalled(t, "ModifyPlannedEntry", mock.Anything, mock.Anything)
+			mockRepo.AssertNotCalled(t, "InsertPlannedEntry", mock.Anything, mock.Anything)
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestFinancialService_GenerateSavingsGoalEntries_LeavesUnrelatedEntriesUnchanged(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	goalID := 11
+	targetMonth, targetYear := 2, 2028
+	otherMonth, otherYear := 3, 2027
+	entries := []PlannedEntryModel{
+		{PlannedEntryID: 21, SavingsGoalID: &goalID, TargetMonth: &otherMonth, TargetYear: &targetYear},
+		{PlannedEntryID: 22, SavingsGoalID: &goalID, TargetMonth: &targetMonth, TargetYear: &otherYear},
+		{PlannedEntryID: 23, TargetMonth: &targetMonth, TargetYear: &targetYear},
+		{PlannedEntryID: 24, SavingsGoalID: &goalID},
+	}
+
+	mockRepo.On("FetchSavingsGoals", ctx, mock.Anything).Return([]SavingsGoalModel{}, nil).Once()
+	mockRepo.On("FetchPlannedEntries", ctx, mock.Anything).Return(entries, nil).Once()
+
+	err := svc.generateSavingsGoalEntries(ctx, 10, 9, targetMonth, targetYear)
+
+	assert.NoError(t, err)
+	mockRepo.AssertNotCalled(t, "ModifyPlannedEntry", mock.Anything, mock.Anything)
+	mockRepo.AssertNotCalled(t, "InsertPlannedEntry", mock.Anything, mock.Anything)
+	mockRepo.AssertExpectations(t)
+}
+
 // ============================================================================
 // Service Tests
 // ============================================================================
+
+func TestFinancialService_CreateCategoryBudget_RejectsClosedMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{
+		OrganizationID: 9,
+		Month:          6,
+		Year:           2026,
+	}).Return(true, nil)
+	mockRepo.On("InsertCategoryBudget", ctx, mock.Anything).Return(CategoryBudgetModel{}, nil).Maybe()
+
+	_, err := svc.CreateCategoryBudget(ctx, CreateCategoryBudgetInput{
+		UserID:           10,
+		OrganizationID:   9,
+		CategoryID:       67,
+		Month:            6,
+		Year:             2026,
+		ControlledAmount: decimal.NewFromInt(50),
+	})
+
+	assert.ErrorIs(t, err, internalerrors.ErrMonthClosed)
+	mockRepo.AssertNotCalled(t, "InsertCategoryBudget", mock.Anything, mock.Anything)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestFinancialService_CreateTransaction_RejectsClosedMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{OrganizationID: 9, Month: 6, Year: 2026}).Return(true, nil)
+
+	_, err := svc.CreateTransaction(ctx, CreateTransactionInput{
+		AccountID: 1, UserID: 10, OrganizationID: 9, Description: "Mercado",
+		Amount: decimal.NewFromInt(20), TransactionDate: "2026-06-18", TransactionType: TransactionTypeDebit,
+	})
+
+	assert.ErrorIs(t, err, internalerrors.ErrMonthClosed)
+	mockRepo.AssertNotCalled(t, "InsertTransaction", mock.Anything, mock.Anything)
+}
+
+func TestFinancialService_UpdateTransaction_RejectsClosedMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	tx := TransactionModel{TransactionID: 4, TransactionDate: time.Date(2026, time.June, 18, 0, 0, 0, 0, time.UTC)}
+
+	mockRepo.On("FetchTransactionByID", ctx, fetchTransactionByIDParams{TransactionID: 4, OrganizationID: 9}).Return(tx, nil)
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{OrganizationID: 9, Month: 6, Year: 2026}).Return(true, nil)
+
+	description := "Novo nome"
+	_, err := svc.UpdateTransaction(ctx, UpdateTransactionInput{TransactionID: 4, OrganizationID: 9, Description: &description})
+
+	assert.ErrorIs(t, err, internalerrors.ErrMonthClosed)
+	mockRepo.AssertNotCalled(t, "ModifyTransaction", mock.Anything, mock.Anything)
+}
+
+func TestFinancialService_MatchPlannedEntry_RejectsClosedMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{OrganizationID: 9, Month: 6, Year: 2026}).Return(true, nil)
+
+	_, err := svc.MatchPlannedEntryToTransaction(ctx, MatchPlannedEntryInput{
+		PlannedEntryID: 2, TransactionID: 4, Month: 6, Year: 2026, UserID: 10, OrganizationID: 9,
+	})
+
+	assert.ErrorIs(t, err, internalerrors.ErrMonthClosed)
+	mockRepo.AssertNotCalled(t, "FetchPlannedEntryByID", mock.Anything, mock.Anything)
+}
+
+func TestFinancialService_CloseMonth_MarksMonthClosedAfterSuccess(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	closure := monthClosureParams{OrganizationID: 9, Month: 6, Year: 2026}
+
+	mockRepo.On("IsMonthClosed", ctx, closure).Return(false, nil)
+	mockRepo.On("FetchCategoryBudgets", ctx, mock.Anything).Return([]CategoryBudgetModel{}, nil)
+	mockRepo.On("FetchTransactionsByMonth", ctx, fetchTransactionsByMonthParams{
+		OrganizationID: 9,
+		Month:          6,
+		Year:           2026,
+	}).Return([]TransactionModel{}, nil)
+	mockRepo.On("MarkMonthClosed", ctx, closure).Return(nil)
+
+	result, err := svc.CloseMonth(ctx, CloseMonthInput{
+		UserID:         10,
+		OrganizationID: 9,
+		Month:          6,
+		Year:           2026,
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, result.Surplus.IsZero())
+	mockRepo.AssertExpectations(t)
+}
 
 func TestGetCategories_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
@@ -533,61 +783,6 @@ func TestCreateAccount_Success(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
-func TestGetBudgetByID_Success(t *testing.T) {
-	mockRepo := new(MockRepository)
-	svc := &service{
-		metrics:    nil,
-		Repository: mockRepo,
-		system:     system.NewSystem(),
-	}
-
-	ctx := context.Background()
-	budgetModel := BudgetModel{
-		BudgetID:       1,
-		UserID:         1,
-		OrganizationID: 1,
-		Name:           "Monthly Budget",
-		Month:          10,
-		Year:           2025,
-		BudgetType:     BudgetTypeCalculated,
-		Amount:         decimal.NewFromFloat(5000),
-		IsActive:       true,
-	}
-
-	itemModels := []BudgetItemModel{
-		{BudgetItemID: 1, BudgetID: 1, CategoryID: 1, PlannedAmount: decimal.NewFromFloat(2000)},
-		{BudgetItemID: 2, BudgetID: 1, CategoryID: 2, PlannedAmount: decimal.NewFromFloat(1500)},
-	}
-
-	mockRepo.On("FetchBudgetByID", ctx, fetchBudgetByIDParams{
-		BudgetID:       1,
-		OrganizationID: 1,
-	}).Return(budgetModel, nil)
-
-	mockRepo.On("FetchBudgetItems", ctx, fetchBudgetItemsParams{
-		BudgetID:       1,
-		OrganizationID: 1,
-	}).Return(itemModels, nil)
-
-	result, err := svc.GetBudgetByID(ctx, GetBudgetByIDInput{
-		BudgetID:       1,
-		UserID:         1,
-		OrganizationID: 1,
-	})
-
-	assert.NoError(t, err)
-	assert.Equal(t, 1, result.BudgetID)
-	assert.Len(t, result.Items, 2)
-
-	// Test calculated budget amount
-	calculatedAmount := result.CalculatedBudgetAmount()
-	expectedAmount := decimal.NewFromFloat(3500) // 2000 + 1500
-	assert.True(t, calculatedAmount.Equal(expectedAmount),
-		"Expected %s, got %s", expectedAmount.String(), calculatedAmount.String())
-
-	mockRepo.AssertExpectations(t)
-}
-
 func TestGetTransactions_DefaultLimit(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := &service{
@@ -612,6 +807,398 @@ func TestGetTransactions_DefaultLimit(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestFinancialService_CreateTransaction_PreservesDescriptionAndNotes(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("IsMonthClosed", ctx, monthClosureParams{OrganizationID: 9, Month: 7, Year: 2026}).Return(false, nil)
+	mockRepo.On("InsertTransaction", ctx, mock.MatchedBy(func(params insertTransactionParams) bool {
+		return params.Description == "Mercado semanal" &&
+			params.OriginalDescription == "Mercado semanal" &&
+			params.Notes == "Compra para a família"
+	})).Return(TransactionModel{
+		TransactionID:       1,
+		Description:         "Mercado semanal",
+		OriginalDescription: stringPointer("Mercado semanal"),
+		Notes:               stringPointer("Compra para a família"),
+	}, nil)
+
+	transaction, err := svc.CreateTransaction(ctx, CreateTransactionInput{
+		AccountID:       9,
+		UserID:          10,
+		OrganizationID:  9,
+		Description:     "Mercado semanal",
+		Amount:          decimal.NewFromInt(100),
+		TransactionDate: "2026-07-19",
+		TransactionType: TransactionTypeDebit,
+		Notes:           "Compra para a família",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "Compra para a família", *transaction.Notes)
+	mockRepo.AssertExpectations(t)
+}
+
+func stringPointer(value string) *string {
+	return &value
+}
+
+func TestFinancialService_PlannedEntryAppliesToMonth_DoesNotBackfillBeforeCreation(t *testing.T) {
+	entry := PlannedEntryModel{CreatedAt: time.Date(2026, time.July, 18, 12, 0, 0, 0, time.UTC)}
+
+	assert.False(t, plannedEntryAppliesToMonth(entry, 6, 2026))
+	assert.True(t, plannedEntryAppliesToMonth(entry, 7, 2026))
+	assert.True(t, plannedEntryAppliesToMonth(entry, 1, 2027))
+}
+
+func TestFinancialService_ComputePlannedEntryStatus_FutureExpectedDayIsScheduled(t *testing.T) {
+	svc := &service{}
+	expectedDay := 21
+	entry := PlannedEntryModel{ExpectedDay: &expectedDay, ExpectedDayEnd: &expectedDay}
+
+	status := svc.computePlannedEntryStatus(entry, 18, 7, 2026, 7, 2026)
+
+	assert.Equal(t, PlannedEntryStatusScheduled, status)
+}
+
+func TestFinancialService_ComputePlannedEntryStatus_PastExpectedDayIsPending(t *testing.T) {
+	svc := &service{}
+	expectedDay := 17
+	entry := PlannedEntryModel{ExpectedDay: &expectedDay}
+
+	status := svc.computePlannedEntryStatus(entry, 18, 7, 2026, 7, 2026)
+
+	assert.Equal(t, PlannedEntryStatusPending, status)
+}
+
+// pacingTestSetup wires the four repository calls GetControllableCategoryPacing
+// makes: categories, budgets, transactions, and income budget (for the filter).
+func pacingTestSetup(mockRepo *MockRepository, categories []CategoryModel, budgets []CategoryBudgetModel, plannedIncome decimal.Decimal) {
+	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return([]TransactionModel{}, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(plannedIncome, nil)
+}
+
+func TestGetControllableCategoryPacing_FiltersBelowOnePercentOfIncome(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	categories := []CategoryModel{
+		{CategoryID: 10, Name: "Família", Icon: "🛏️", IsControllable: true},
+		{CategoryID: 20, Name: "Compras Essenciais", Icon: "👕", IsControllable: true},
+	}
+	// Planned income 39000 -> 1% threshold is 390.00.
+	budgets := []CategoryBudgetModel{
+		{CategoryID: 10, ControlledAmount: decimal.NewFromInt(1)},   // below threshold -> hidden
+		{CategoryID: 20, ControlledAmount: decimal.NewFromInt(500)}, // above threshold -> shown
+	}
+	pacingTestSetup(mockRepo, categories, budgets, decimal.NewFromInt(39000))
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.Equal(t, "Compras Essenciais", result.Categories[0].CategoryName)
+}
+
+func TestGetControllableCategoryPacing_NoIncomeShowsAll(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	categories := []CategoryModel{
+		{CategoryID: 10, Name: "Família", Icon: "🛏️", IsControllable: true},
+		{CategoryID: 20, Name: "Compras Essenciais", Icon: "👕", IsControllable: true},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: 10, ControlledAmount: decimal.NewFromInt(1)},
+		{CategoryID: 20, ControlledAmount: decimal.NewFromInt(500)},
+	}
+	// No planned income: nothing to filter against, so everything shows.
+	pacingTestSetup(mockRepo, categories, budgets, decimal.Zero)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 2)
+}
+
+func TestGetControllableCategoryPacing_IncludesSystemCategories(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	// System categories (Transporte, Moradia, Dívida...) carry budgets too; the
+	// pacing list must request them, otherwise they silently disappear from the
+	// widget regardless of budget size.
+	categories := []CategoryModel{
+		{CategoryID: 10, Name: "Transporte", IsSystem: true, CategoryType: "expense"},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: 10, ControlledAmount: decimal.NewFromInt(1700)},
+	}
+	mockRepo.On("FetchCategories", mock.Anything, mock.MatchedBy(func(params fetchCategoriesParams) bool {
+		return params.IncludeSystem
+	})).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return([]TransactionModel{}, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.NewFromInt(45000), nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.Equal(t, "Transporte", result.Categories[0].CategoryName)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetControllableCategoryPacing_ExcludesIncomeCategories(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	// Income categories (Receita) have large controlled amounts but pacing is
+	// about expense control; they must not appear even above the 1% threshold.
+	categories := []CategoryModel{
+		{CategoryID: 53, Name: "Receita", IsSystem: true, CategoryType: "income"},
+		{CategoryID: 58, Name: "Mercado", CategoryType: "expense"},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: 53, ControlledAmount: decimal.NewFromInt(45000)},
+		{CategoryID: 58, ControlledAmount: decimal.NewFromInt(3500)},
+	}
+	pacingTestSetup(mockRepo, categories, budgets, decimal.NewFromInt(45000))
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.Equal(t, "Mercado", result.Categories[0].CategoryName)
+}
+
+func TestGetControllableCategoryPacing_ExcludesPlannedSpending(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	// The pacing budget is the controlled amount only (planned entries are
+	// budgeted separately), so spending matched to a planned entry must not
+	// count toward the pace; only unplanned (controlled) spending does.
+	categoryID := 58
+	categories := []CategoryModel{
+		{CategoryID: categoryID, Name: "Mercado", CategoryType: "expense"},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: categoryID, ControlledAmount: decimal.NewFromInt(3500)},
+	}
+	transactions := []TransactionModel{
+		{TransactionID: 7, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(250)}, // matched to a planned entry
+		{TransactionID: 8, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(100)}, // unplanned
+	}
+	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return(transactions, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{7}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.NewFromInt(45000), nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.True(t, result.Categories[0].Spent.Equal(decimal.NewFromInt(100)),
+		"spent should count only unplanned spending, got %s", result.Categories[0].Spent)
+}
+
+func TestGetControllableCategoryPacing_UsesBudgetGranularityForExpectedSpend(t *testing.T) {
+	mockRepo := new(MockRepository)
+	sys := system.NewStubSystem()
+	sys.Time.SetTimes(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC))
+	svc := &service{Repository: mockRepo, system: sys.ToSystem()}
+	ctx := context.Background()
+
+	categoryID := 58
+	categories := []CategoryModel{
+		{CategoryID: categoryID, Name: "Mercado", CategoryType: "expense"},
+	}
+	granularity := 5
+	budgets := []CategoryBudgetModel{
+		{CategoryID: categoryID, ControlledAmount: decimal.NewFromInt(1000), Granularity: &granularity},
+	}
+	transactions := []TransactionModel{
+		{TransactionID: 8, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(200)},
+	}
+	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return(transactions, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.Zero, nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.True(t, result.Categories[0].Expected.Equal(decimal.NewFromInt(250)),
+		"expected should allow the first granularity chunk, got %s", result.Categories[0].Expected)
+	assert.Equal(t, 5, result.Categories[0].Granularity)
+	assert.Equal(t, "configured", result.Categories[0].GranularitySource)
+	assert.Equal(t, PaceStatusUnderPace, result.Categories[0].Status)
+}
+
+func TestGetControllableCategoryPacing_DerivesGranularityFromPreviousMonth(t *testing.T) {
+	mockRepo := new(MockRepository)
+	sys := system.NewStubSystem()
+	sys.Time.SetTimes(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC))
+	svc := &service{Repository: mockRepo, system: sys.ToSystem()}
+	ctx := context.Background()
+
+	categoryID := 58
+	categories := []CategoryModel{
+		{CategoryID: categoryID, Name: "Mercado", CategoryType: "expense"},
+	}
+	budgets := []CategoryBudgetModel{
+		{CategoryID: categoryID, ControlledAmount: decimal.NewFromInt(1000), Granularity: nil},
+	}
+	currentTransactions := []TransactionModel{
+		{TransactionID: 8, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(200)},
+	}
+	previousTransactions := []TransactionModel{
+		{TransactionID: 1, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(50)},
+		{TransactionID: 2, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(60)},
+		{TransactionID: 3, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(70)},
+		{TransactionID: 4, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(80)},
+		{TransactionID: 5, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(90)},
+	}
+	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.MatchedBy(func(params fetchTransactionsByMonthParams) bool {
+		return params.Month == 6 && params.Year == 2026
+	})).Return(currentTransactions, nil)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.MatchedBy(func(params fetchTransactionsByMonthParams) bool {
+		return params.Month == 5 && params.Year == 2026
+	})).Return(previousTransactions, nil)
+	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
+	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.Zero, nil)
+
+	result, err := svc.GetControllableCategoryPacing(ctx, GetControllableCategoryPacingInput{
+		UserID: 1, OrganizationID: 1, Month: 6, Year: 2026,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Categories, 1)
+	assert.True(t, result.Categories[0].Expected.Equal(decimal.NewFromInt(250)),
+		"expected should use previous month count as granularity, got %s", result.Categories[0].Expected)
+	assert.Equal(t, 5, result.Categories[0].Granularity)
+	assert.Equal(t, "previous_month", result.Categories[0].GranularitySource)
+	assert.Equal(t, PaceStatusUnderPace, result.Categories[0].Status)
+}
+
+func TestGetPlannedEntryByID_ReturnsTagIDs(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("FetchPlannedEntryByID", mock.Anything, mock.Anything).
+		Return(PlannedEntryModel{PlannedEntryID: 7, Description: "Escola", EntryType: "expense"}, nil)
+	mockRepo.On("FetchTagsByPlannedEntryID", mock.Anything, mock.Anything).
+		Return([]TagModel{{TagID: 3}, {TagID: 9}}, nil)
+
+	entry, err := svc.GetPlannedEntryByID(ctx, GetPlannedEntryByIDInput{
+		PlannedEntryID: 7, UserID: 1, OrganizationID: 1,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, []int{3, 9}, entry.TagIDs)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetTagSpending_UnionsPlannedAndSpent(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	orgID := 1
+
+	// Tag 1: spent and planned.    Tag 2: spent only.    Tag 3: planned only (no spending yet).
+	spendingModels := []TagSpendingModel{
+		{TagID: 1, Name: "Mercado", Icon: "🛒", Color: "#C6943A", Total: decimal.NewFromInt(450), TransactionCount: 3},
+		{TagID: 2, Name: "Lazer", Icon: "🎮", Color: "#6B7280", Total: decimal.NewFromInt(120), TransactionCount: 1},
+	}
+	plannedModels := []TagPlannedModel{
+		{TagID: 1, Name: "Mercado", Icon: "🛒", Color: "#C6943A", Total: decimal.NewFromInt(500)},
+		{TagID: 3, Name: "Escola", Icon: "🏫", Color: "#A67A2A", Total: decimal.NewFromInt(800)},
+	}
+	plannedEntryModels := []TagPlannedEntryModel{
+		{TagID: 1, PlannedEntryID: 10, Description: "Supermercado", Amount: decimal.NewFromInt(500), Status: PlannedEntryStatusMatched, Paid: true},
+		{TagID: 3, PlannedEntryID: 11, Description: "Mensalidade", Amount: decimal.NewFromInt(800), Status: PlannedEntryStatusScheduled, Paid: false},
+	}
+	mockRepo.On("FetchTagSpendingByMonth", mock.Anything, mock.Anything).Return(spendingModels, nil)
+	mockRepo.On("FetchTagPlannedByMonth", mock.Anything, mock.Anything).Return(plannedModels, nil)
+	mockRepo.On("FetchTagPlannedEntriesByMonth", mock.Anything, mock.Anything).Return(plannedEntryModels, nil)
+
+	result, err := svc.GetTagSpending(ctx, GetTagSpendingInput{OrganizationID: orgID, Month: 6, Year: 2026})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 3)
+
+	// Sorted by spent desc, then planned desc: Mercado (450), Lazer (120), Escola (0 spent).
+	assert.Equal(t, "Mercado", result[0].Name)
+	assert.Equal(t, "450.00", result[0].Total)
+	assert.Equal(t, "500.00", result[0].Planned)
+	assert.Equal(t, 3, result[0].TransactionCount)
+	assert.Len(t, result[0].PlannedEntries, 1)
+	assert.True(t, result[0].PlannedEntries[0].Paid)
+
+	assert.Equal(t, "Lazer", result[1].Name)
+	assert.Equal(t, "120.00", result[1].Total)
+	assert.Equal(t, "0.00", result[1].Planned)
+
+	// Planned-only tag still appears so the user knows what to set aside.
+	assert.Equal(t, "Escola", result[2].Name)
+	assert.Equal(t, "0.00", result[2].Total)
+	assert.Equal(t, "800.00", result[2].Planned)
+	assert.Equal(t, 0, result[2].TransactionCount)
+	assert.Len(t, result[2].PlannedEntries, 1)
+	assert.False(t, result[2].PlannedEntries[0].Paid)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestCreateSavingsGoal_ReturnsNameExistsForOpenGoalNameConflict(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+
+	mockRepo.On("InsertSavingsGoal", mock.Anything, mock.Anything).
+		Return(SavingsGoalModel{}, errors.New(`ERROR: duplicate key value violates unique constraint "idx_savings_goals_open_org_name"`))
+
+	_, err := svc.CreateSavingsGoal(ctx, CreateSavingsGoalInput{
+		UserID:         1,
+		OrganizationID: 1,
+		Name:           "Reserva",
+		GoalType:       SavingsGoalTypeInvestimento,
+		TargetAmount:   decimal.NewFromInt(1000),
+	})
+
+	assert.ErrorIs(t, err, internalerrors.ErrSavingsGoalNameExists)
 	mockRepo.AssertExpectations(t)
 }
 
@@ -750,9 +1337,9 @@ func TestSuggestCategoryForTransaction_Ambiguous_MultipleCategories(t *testing.T
 	mockRepo.On("FetchSimilarCategoryDistribution", ctx, mock.MatchedBy(func(p fetchSimilarCategoryDistributionParams) bool {
 		return p.OriginalDescription == desc && p.OrganizationID == 1
 	})).Return([]CategoryDistributionModel{
-		{CategoryID: 10, AvgSimilarity: 0.82, Frequency: 8, Score: 1.80},  // Electronics
-		{CategoryID: 20, AvgSimilarity: 0.80, Frequency: 4, Score: 1.28},  // Groceries
-		{CategoryID: 30, AvgSimilarity: 0.78, Frequency: 2, Score: 0.86},  // Household
+		{CategoryID: 10, AvgSimilarity: 0.82, Frequency: 8, Score: 1.80}, // Electronics
+		{CategoryID: 20, AvgSimilarity: 0.80, Frequency: 4, Score: 1.28}, // Groceries
+		{CategoryID: 30, AvgSimilarity: 0.78, Frequency: 2, Score: 0.86}, // Household
 	}, nil)
 
 	result, err := svc.SuggestCategoryForTransaction(ctx, SuggestCategoryInput{

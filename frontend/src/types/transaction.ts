@@ -18,6 +18,7 @@ export interface Transaction {
   suggested_category_id: number | null;
   suggested_description: string | null;
   suggestion_confidence: number | null;
+  needs_review: boolean;
   notes: string | null;
   tags: string[] | null;
   created_at: string;
