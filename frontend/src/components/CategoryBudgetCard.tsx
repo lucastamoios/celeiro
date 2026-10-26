@@ -609,7 +609,7 @@ export default function CategoryBudgetCard({
                           Desvincular
                         </button>
                       )}
-                      {(entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
+                      {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
                         <button
                           type="button"
                           onClick={() => {
@@ -659,14 +659,14 @@ export default function CategoryBudgetCard({
                           Criar padrão do vínculo
                         </button>
                       )}
-                      {onDeleteEntry && (
+                      {onDeleteEntry && entry.Status !== 'matched' && (
                         <button
                           type="button"
                           onClick={() => {
                             if (confirm(`Excluir "${entry.Description}"?`)) {
                               onDeleteEntry(entry.PlannedEntryID);
+                              close();
                             }
-                            close();
                           }}
                           className="w-full text-left px-3 py-1.5 text-sm hover:bg-rust-50 text-rust-600"
                         >

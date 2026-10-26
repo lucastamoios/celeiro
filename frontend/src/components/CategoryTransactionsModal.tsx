@@ -3,6 +3,7 @@ import type { Transaction } from '../types/transaction';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import { useModalDismiss } from '../hooks/useModalDismiss';
+import DropdownMenu from './ui/DropdownMenu';
 import { parseTransactionDate } from '../utils/date';
 
 interface CategoryTransactionsModalProps {
@@ -21,6 +22,9 @@ interface CategoryTransactionsModalProps {
   onPlannedEntryClick?: (entry: PlannedEntryWithStatus) => void;
   onAddPlannedEntry?: () => void;
   onUpdatePlannedEntryAmount?: (entryId: number, newAmount: number) => Promise<void>;
+  onDismissEntry?: (entryId: number, reason?: string) => void;
+  onUndismissEntry?: (entryId: number) => void;
+  onDeleteEntry?: (entryId: number) => void;
   onConvertToPlannedEntry?: (transaction: Transaction) => Promise<void>;
 }
 
@@ -40,6 +44,9 @@ export default function CategoryTransactionsModal({
   onPlannedEntryClick,
   onAddPlannedEntry,
   onUpdatePlannedEntryAmount,
+  onDismissEntry,
+  onUndismissEntry,
+  onDeleteEntry,
   onConvertToPlannedEntry,
 }: CategoryTransactionsModalProps) {
   const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
@@ -351,17 +358,69 @@ export default function CategoryTransactionsModal({
                             </span>
                           )}
 
-                          {/* Edit button for full entry */}
-                          {onPlannedEntryClick && !isEditing && (
-                            <button
-                              onClick={() => onPlannedEntryClick(entry)}
-                              className="p-1 text-stone-400 hover:text-stone-600"
-                              title="Editar entrada"
+                          {/* 3-dot actions menu */}
+                          {!isEditing && (
+                            <DropdownMenu
+                              width={192}
+                              buttonAriaLabel="Ações"
+                              buttonClassName="p-1 hover:bg-stone-100 rounded-full transition-colors"
+                              buttonContent={
+                                <svg className="w-5 h-5 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                              }
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </button>
+                              {(close) => (
+                                <>
+                                  {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
+                                    <button
+                                      onClick={() => {
+                                        onDismissEntry(entry.PlannedEntryID);
+                                        close();
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Dispensar
+                                    </button>
+                                  )}
+                                  {entry.Status === 'dismissed' && onUndismissEntry && (
+                                    <button
+                                      onClick={() => {
+                                        onUndismissEntry(entry.PlannedEntryID);
+                                        close();
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Reativar
+                                    </button>
+                                  )}
+                                  {onPlannedEntryClick && (
+                                    <button
+                                      onClick={() => {
+                                        onPlannedEntryClick(entry);
+                                        close();
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Editar
+                                    </button>
+                                  )}
+                                  {onDeleteEntry && entry.Status !== 'matched' && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Tem certeza que deseja excluir "${entry.Description}"? Esta ação não pode ser desfeita.`)) {
+                                          onDeleteEntry(entry.PlannedEntryID);
+                                          close();
+                                        }
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-rust-50 text-rust-600 text-sm"
+                                    >
+                                      Excluir
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </DropdownMenu>
                           )}
                         </div>
                       </div>
