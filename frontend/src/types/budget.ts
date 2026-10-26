@@ -93,8 +93,9 @@ export interface AdvancedPattern {
   WeekdayPattern?: string;
   AmountMin?: string;
   AmountMax?: string;
-  TargetDescription: string;
-  TargetCategoryID: number;
+  Action: 'categorize' | 'ignore';
+  TargetDescription?: string;
+  TargetCategoryID?: number;
   ApplyRetroactively: boolean;
   IsActive: boolean;
   CreatedAt: string;

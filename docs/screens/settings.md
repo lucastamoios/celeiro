@@ -100,18 +100,23 @@ Fields:
 - "+ Novo Padrão" button
 - List of patterns with:
   - Description pattern (regex)
-  - Target category
+  - Action badge for ignore patterns
+  - Target category for categorization patterns
   - Active/Inactive toggle
   - Edit/Delete actions
 
 ### Pattern Features
 
+- Choose an exclusive action: categorize or ignore
 - Match by description (regex)
 - Match by date/weekday
 - Match by amount range
-- Set target description and category
-- Link to planned entry
-- Apply retroactively to past transactions
+- Categorization patterns set a target description and category
+- Categorization patterns can link to planned entries and run retroactively
+- Ignore patterns need no target and apply only to new transactions processed by the pattern engine
+- Ignore patterns preserve transaction description, category, tags, and links
+
+Disabling, editing, or deleting an ignore pattern does not restore transactions it previously ignored. Those transactions can still be restored manually from the transaction screen, while the active pattern continues to affect future matching imports.
 
 ### Related Component
 

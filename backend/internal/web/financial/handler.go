@@ -1100,8 +1100,8 @@ func (h *Handler) CreatePlannedEntry(w http.ResponseWriter, r *http.Request) {
 			DescriptionPattern: *req.DescriptionPattern,
 			AmountMin:          req.AmountMin,
 			AmountMax:          req.AmountMax,
-			TargetDescription:  req.Description,
-			TargetCategoryID:   req.CategoryID,
+			TargetDescription:  &req.Description,
+			TargetCategoryID:   &req.CategoryID,
 			ApplyRetroactively: false,
 		})
 		if err != nil {
@@ -1402,13 +1402,14 @@ func (h *Handler) CreatePattern(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		DescriptionPattern string                    `json:"description_pattern"`
-		DatePattern        *string                   `json:"date_pattern,omitempty"`
-		WeekdayPattern     *string                   `json:"weekday_pattern,omitempty"`
-		AmountRange        *financialApp.AmountRange `json:"amount_range,omitempty"`
-		TargetDescription  string                    `json:"target_description"`
-		TargetCategoryID   int                       `json:"target_category_id"`
-		ApplyRetroactively bool                      `json:"apply_retroactively"`
+		Action             financialApp.PatternAction `json:"action"`
+		DescriptionPattern string                     `json:"description_pattern"`
+		DatePattern        *string                    `json:"date_pattern,omitempty"`
+		WeekdayPattern     *string                    `json:"weekday_pattern,omitempty"`
+		AmountRange        *financialApp.AmountRange  `json:"amount_range,omitempty"`
+		TargetDescription  *string                    `json:"target_description,omitempty"`
+		TargetCategoryID   *int                       `json:"target_category_id,omitempty"`
+		ApplyRetroactively bool                       `json:"apply_retroactively"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1421,15 +1422,6 @@ func (h *Handler) CreatePattern(w http.ResponseWriter, r *http.Request) {
 		responses.NewError(w, errors.ErrInvalidRequestBody)
 		return
 	}
-	if req.TargetDescription == "" {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-	if req.TargetCategoryID == 0 {
-		responses.NewError(w, errors.ErrInvalidRequestBody)
-		return
-	}
-
 	// Parse amount range
 	var amountMin, amountMax *float64
 	if req.AmountRange != nil {
@@ -1440,6 +1432,7 @@ func (h *Handler) CreatePattern(w http.ResponseWriter, r *http.Request) {
 	pattern, err := h.app.FinancialService.CreatePattern(r.Context(), financialApp.CreatePatternInput{
 		UserID:             userID,
 		OrganizationID:     organizationID,
+		Action:             req.Action,
 		DescriptionPattern: req.DescriptionPattern,
 		DatePattern:        req.DatePattern,
 		WeekdayPattern:     req.WeekdayPattern,
@@ -1534,10 +1527,11 @@ func (h *Handler) UpdatePattern(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		IsActive           *bool   `json:"is_active,omitempty"`
-		DescriptionPattern *string `json:"description_pattern,omitempty"`
-		DatePattern        *string `json:"date_pattern,omitempty"`
-		WeekdayPattern     *string `json:"weekday_pattern,omitempty"`
+		IsActive           *bool                       `json:"is_active,omitempty"`
+		Action             *financialApp.PatternAction `json:"action,omitempty"`
+		DescriptionPattern *string                     `json:"description_pattern,omitempty"`
+		DatePattern        *string                     `json:"date_pattern,omitempty"`
+		WeekdayPattern     *string                     `json:"weekday_pattern,omitempty"`
 		AmountRange        *struct {
 			Min float64 `json:"min"`
 			Max float64 `json:"max"`
@@ -1564,6 +1558,7 @@ func (h *Handler) UpdatePattern(w http.ResponseWriter, r *http.Request) {
 		PatternID:          patternID,
 		UserID:             userID,
 		OrganizationID:     organizationID,
+		Action:             req.Action,
 		IsActive:           req.IsActive,
 		DescriptionPattern: req.DescriptionPattern,
 		DatePattern:        req.DatePattern,

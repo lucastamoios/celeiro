@@ -7,8 +7,18 @@ import (
 	"strconv"
 	"time"
 
+	internalerrors "github.com/catrutech/celeiro/internal/errors"
 	"github.com/shopspring/decimal"
 )
+
+var ErrIgnorePatternRetroactive = internalerrors.ErrPatternRetroactiveUnsupported
+
+func normalizePatternAction(action PatternAction) PatternAction {
+	if action == "" {
+		return PatternActionCategorize
+	}
+	return action
+}
 
 // ============================================================================
 // Input/Output Structures
@@ -17,13 +27,14 @@ import (
 type CreatePatternInput struct {
 	UserID             int
 	OrganizationID     int
+	Action             PatternAction
 	DescriptionPattern string
 	DatePattern        *string
 	WeekdayPattern     *string
 	AmountMin          *float64
 	AmountMax          *float64
-	TargetDescription  string
-	TargetCategoryID   int
+	TargetDescription  *string
+	TargetCategoryID   *int
 	ApplyRetroactively bool
 }
 
@@ -44,6 +55,7 @@ type UpdatePatternInput struct {
 	PatternID          int
 	UserID             int
 	OrganizationID     int
+	Action             *PatternAction
 	IsActive           *bool
 	DescriptionPattern *string
 	DatePattern        *string
@@ -71,6 +83,23 @@ type ApplyPatternOutput struct {
 // ============================================================================
 
 func (s *service) CreatePattern(ctx context.Context, input CreatePatternInput) (Pattern, error) {
+	action := normalizePatternAction(input.Action)
+	if action != PatternActionCategorize && action != PatternActionIgnore {
+		return Pattern{}, fmt.Errorf("invalid pattern action: %s", action)
+	}
+	if action == PatternActionCategorize {
+		if input.TargetDescription == nil || *input.TargetDescription == "" {
+			return Pattern{}, fmt.Errorf("target_description is required for categorize patterns")
+		}
+		if input.TargetCategoryID == nil || *input.TargetCategoryID == 0 {
+			return Pattern{}, fmt.Errorf("target_category_id is required for categorize patterns")
+		}
+	} else {
+		input.TargetDescription = nil
+		input.TargetCategoryID = nil
+		input.ApplyRetroactively = false
+	}
+
 	// Validate regex patterns
 	if input.DescriptionPattern == "" {
 		return Pattern{}, fmt.Errorf("description_pattern is required")
@@ -119,6 +148,7 @@ func (s *service) CreatePattern(ctx context.Context, input CreatePatternInput) (
 	patternModel, err := s.Repository.InsertAdvancedPattern(ctx, insertAdvancedPatternParams{
 		UserID:             input.UserID,
 		OrganizationID:     input.OrganizationID,
+		Action:             action,
 		DescriptionPattern: &input.DescriptionPattern,
 		DatePattern:        input.DatePattern,
 		WeekdayPattern:     input.WeekdayPattern,
@@ -206,18 +236,62 @@ func (s *service) GetPatternByID(ctx context.Context, input GetPatternByIDInput)
 }
 
 func (s *service) UpdatePattern(ctx context.Context, input UpdatePatternInput) (Pattern, error) {
+	existing, err := s.Repository.FetchAdvancedPatternByID(ctx, fetchAdvancedPatternByIDParams{
+		PatternID: input.PatternID, UserID: input.UserID, OrganizationID: input.OrganizationID,
+	})
+	if err != nil {
+		return Pattern{}, fmt.Errorf("failed to fetch pattern: %w", err)
+	}
+
+	action := normalizePatternAction(existing.Action)
+	if input.Action != nil {
+		action = normalizePatternAction(*input.Action)
+	}
+	if action != PatternActionCategorize && action != PatternActionIgnore {
+		return Pattern{}, fmt.Errorf("invalid pattern action: %s", action)
+	}
+
+	targetDescription := existing.TargetDescription
+	targetCategoryID := existing.TargetCategoryID
+	var applyRetroactively *bool
+	if input.TargetDescription != nil {
+		targetDescription = input.TargetDescription
+	}
+	if input.TargetCategoryID != nil {
+		targetCategoryID = input.TargetCategoryID
+	}
+	targetsChanged := input.TargetDescription != nil || input.TargetCategoryID != nil
+	if action == PatternActionIgnore {
+		targetDescription = nil
+		targetCategoryID = nil
+		targetsChanged = true
+		value := false
+		applyRetroactively = &value
+	} else {
+		if targetDescription == nil || *targetDescription == "" {
+			return Pattern{}, fmt.Errorf("target_description is required for categorize patterns")
+		}
+		if targetCategoryID == nil || *targetCategoryID == 0 {
+			return Pattern{}, fmt.Errorf("target_category_id is required for categorize patterns")
+		}
+	}
+
 	pattern, err := s.Repository.ModifyAdvancedPattern(ctx, modifyAdvancedPatternParams{
-		PatternID:          input.PatternID,
-		UserID:             input.UserID,
-		OrganizationID:     input.OrganizationID,
-		IsActive:           input.IsActive,
-		DescriptionPattern: input.DescriptionPattern,
-		DatePattern:        input.DatePattern,
-		WeekdayPattern:     input.WeekdayPattern,
-		AmountMin:          input.AmountMin,
-		AmountMax:          input.AmountMax,
-		TargetDescription:  input.TargetDescription,
-		TargetCategoryID:   input.TargetCategoryID,
+		PatternID:            input.PatternID,
+		UserID:               input.UserID,
+		OrganizationID:       input.OrganizationID,
+		Action:               input.Action,
+		IsActive:             input.IsActive,
+		DescriptionPattern:   input.DescriptionPattern,
+		DatePattern:          input.DatePattern,
+		WeekdayPattern:       input.WeekdayPattern,
+		AmountMin:            input.AmountMin,
+		AmountMax:            input.AmountMax,
+		TargetDescription:    targetDescription,
+		TargetDescriptionSet: targetsChanged,
+		TargetCategoryID:     targetCategoryID,
+		TargetCategoryIDSet:  targetsChanged,
+		ApplyRetroactively:   applyRetroactively,
 	})
 	if err != nil {
 		return Pattern{}, fmt.Errorf("failed to update pattern: %w", err)
@@ -264,6 +338,9 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 	if err != nil {
 		return ApplyPatternRetroactivelyOutput{}, fmt.Errorf("failed to fetch pattern: %w", err)
 	}
+	if normalizePatternAction(pattern.Action) == PatternActionIgnore {
+		return ApplyPatternRetroactivelyOutput{}, ErrIgnorePatternRetroactive
+	}
 
 	// 2. Fetch all transactions (including already categorized ones)
 	transactions, err := s.Repository.FetchTransactionsForPatternMatching(ctx, fetchTransactionsForPatternMatchingParams{
@@ -276,6 +353,7 @@ func (s *service) ApplyPatternRetroactivelySync(ctx context.Context, input Apply
 	// Convert pattern to model for matching
 	patternModel := &PatternModel{
 		PatternID:          pattern.PatternID,
+		Action:             pattern.Action,
 		DescriptionPattern: pattern.DescriptionPattern, // Already *string
 		DatePattern:        pattern.DatePattern,
 		WeekdayPattern:     pattern.WeekdayPattern,
@@ -329,6 +407,7 @@ func (s *service) applyPatternRetroactively(ctx context.Context, pattern Pattern
 	// Convert pattern to model for matching
 	patternModel := &PatternModel{
 		PatternID:          pattern.PatternID,
+		Action:             pattern.Action,
 		DescriptionPattern: pattern.DescriptionPattern, // Already *string
 		DatePattern:        pattern.DatePattern,
 		WeekdayPattern:     pattern.WeekdayPattern,
@@ -420,13 +499,25 @@ func (s *service) matchesPattern(ctx context.Context, tx *TransactionModel, patt
 	return true
 }
 
-// applyPatternToTransaction applies a pattern's target description and category to a transaction
-// It also checks if any planned entry is linked to this pattern and updates its status to "matched"
-// If a planned entry is linked, its description takes precedence over the pattern's description
+// applyPatternToTransaction dispatches the matched pattern action.
+// Ignore patterns only mark the transaction ignored. Categorization patterns also process linked planned entries.
 func (s *service) applyPatternToTransaction(ctx context.Context, tx *TransactionModel, pattern *PatternModel, userID, organizationID int) error {
+	if normalizePatternAction(pattern.Action) == PatternActionIgnore {
+		isIgnored := true
+		_, err := s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
+			TransactionID:  tx.TransactionID,
+			OrganizationID: organizationID,
+			IsIgnored:      &isIgnored,
+		})
+		return err
+	}
+	if pattern.TargetDescription == nil || pattern.TargetCategoryID == nil {
+		return fmt.Errorf("categorize pattern %d has no target mapping", pattern.PatternID)
+	}
+
 	// Start with pattern's target values
-	description := pattern.TargetDescription
-	categoryID := pattern.TargetCategoryID
+	description := *pattern.TargetDescription
+	categoryID := *pattern.TargetCategoryID
 
 	// Check if any planned entry is linked to this pattern FIRST
 	// If linked, use the planned entry's description instead of pattern's
@@ -594,6 +685,7 @@ func (s *service) AutoApplyPatterns(ctx context.Context, input ApplyPatternsToTr
 	for i := range patterns {
 		patternModel := &PatternModel{
 			PatternID:          patterns[i].PatternID,
+			Action:             patterns[i].Action,
 			DescriptionPattern: patterns[i].DescriptionPattern,
 			DatePattern:        patterns[i].DatePattern,
 			WeekdayPattern:     patterns[i].WeekdayPattern,

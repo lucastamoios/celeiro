@@ -178,17 +178,7 @@ func (s *service) GetSavingsGoalProgress(ctx context.Context, input GetSavingsGo
 	}
 
 	// 3. Calculate current amount (initial amount + sum of transaction amounts)
-	currentAmount := goal.InitialAmount
-	for _, tx := range transactions {
-		// A linked debit is money set aside toward the goal (it leaves the
-		// checking account), so it adds to progress. A credit is money pulled
-		// back out of the goal (a withdrawal), so it subtracts.
-		if tx.TransactionType == TransactionTypeCredit {
-			currentAmount = currentAmount.Sub(tx.Amount)
-		} else {
-			currentAmount = currentAmount.Add(tx.Amount)
-		}
-	}
+	currentAmount := calculateSavingsGoalCurrentAmount(goal.InitialAmount, transactions)
 
 	// 4. Calculate progress percentage
 	progressPercent := decimal.Zero
@@ -573,7 +563,8 @@ func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID,
 		if entry.SavingsGoalID != nil && entry.TargetMonth != nil && entry.TargetYear != nil {
 			if *entry.TargetMonth == month && *entry.TargetYear == year {
 				existingGoalIDs[*entry.SavingsGoalID] = true
-				if entry.ExpectedDayStart == nil && entry.ExpectedDayEnd == nil {
+				// Preserve manually configured dates, including the legacy single-day field.
+				if entry.ExpectedDayStart == nil && entry.ExpectedDayEnd == nil && entry.ExpectedDay == nil {
 					_, err := s.Repository.ModifyPlannedEntry(ctx, modifyPlannedEntryParams{
 						PlannedEntryID:   entry.PlannedEntryID,
 						UserID:           userID,
@@ -683,14 +674,7 @@ func (s *service) calculateGoalMonthlyAmount(ctx context.Context, goal SavingsGo
 		return decimal.Zero, false
 	}
 
-	currentAmount := goal.InitialAmount
-	for _, tx := range transactions {
-		if tx.TransactionType == TransactionTypeCredit {
-			currentAmount = currentAmount.Add(tx.Amount)
-		} else {
-			currentAmount = currentAmount.Sub(tx.Amount)
-		}
-	}
+	currentAmount := calculateSavingsGoalCurrentAmount(goal.InitialAmount, transactions)
 
 	// Skip if goal already reached
 	if currentAmount.GreaterThanOrEqual(goal.TargetAmount) {
@@ -725,6 +709,21 @@ func (s *service) calculateGoalMonthlyAmount(ctx context.Context, goal SavingsGo
 	default:
 		return decimal.Zero, false
 	}
+}
+
+func calculateSavingsGoalCurrentAmount(initialAmount decimal.Decimal, transactions []TransactionModel) decimal.Decimal {
+	currentAmount := initialAmount
+	for _, tx := range transactions {
+		// A linked debit is money set aside toward the goal (it leaves the
+		// checking account), so it adds to progress. A credit is money pulled
+		// back out of the goal (a withdrawal), so it subtracts.
+		if tx.TransactionType == TransactionTypeCredit {
+			currentAmount = currentAmount.Sub(tx.Amount)
+		} else {
+			currentAmount = currentAmount.Add(tx.Amount)
+		}
+	}
+	return currentAmount
 }
 
 func calculateMonthsBetween(start, end time.Time) int {

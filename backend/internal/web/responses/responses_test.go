@@ -40,3 +40,10 @@ func TestAPIErrorMapping_NewAPIError_WithMissingScopedResource(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, response.Status)
 	assert.Equal(t, "NOT_FOUND", response.Code)
 }
+
+func TestAPIErrorMapping_NewAPIError_WithUnsupportedRetroactivePattern(t *testing.T) {
+	response := newAPIError(errors.ErrPatternRetroactiveUnsupported)
+
+	assert.Equal(t, http.StatusBadRequest, response.Status)
+	assert.Equal(t, "PATTERN_RETROACTIVE_UNSUPPORTED", response.Code)
+}

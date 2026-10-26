@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import { useModalDismiss } from '../hooks/useModalDismiss';
+import { getPatternCapabilities, type PatternAction } from '../utils/patternAction';
 
 export interface InitialPatternData {
   description: string;
@@ -14,13 +15,14 @@ export interface InitialPatternData {
 }
 
 export interface ExistingPattern {
+  action: PatternAction;
   description_pattern: string;
   date_pattern?: string;
   weekday_pattern?: string;
   amount_min?: string;
   amount_max?: string;
-  target_description: string;
-  target_category_id: number;
+  target_description?: string;
+  target_category_id?: number;
   linked_planned_entry_id?: number;
 }
 
@@ -33,17 +35,22 @@ interface PatternCreatorProps {
   initialSourceText?: string;
   initialTargetDescription?: string;
   initialTargetCategoryId?: number;
+  initialAction?: PatternAction;
+  allowRetroactive?: boolean;
+  initialApplyRetroactively?: boolean;
   variant?: 'from_transaction' | 'from_planned_entry' | 'edit';
 }
 
 export interface AdvancedPattern {
+  action: PatternAction;
   description_pattern: string;
   date_pattern?: string;
   weekday_pattern?: string;
   amount_range?: { min: number; max: number };
-  target_description: string;
-  target_category_id: number;
+  target_description?: string;
+  target_category_id?: number;
   planned_entry_id?: number; // Optional: link to a planned entry
+  apply_retroactively?: boolean;
 }
 
 const WEEKDAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -55,7 +62,7 @@ function escapeRegex(str: string): string {
 
 // Helper to extract simple text from a regex pattern like .*text.* or (?i).*text.*
 function extractSimpleText(pattern: string): string {
-  let cleanPattern = pattern.replace(/^\(\?i\)/, '');
+  const cleanPattern = pattern.replace(/^\(\?i\)/, '');
   
   const match = cleanPattern.match(/^\^?\.\*(.+?)\.\*\$?$/);
   if (match) {
@@ -94,6 +101,9 @@ export default function PatternCreator({
   initialSourceText,
   initialTargetDescription,
   initialTargetCategoryId,
+  initialAction = 'categorize',
+  allowRetroactive = false,
+  initialApplyRetroactively = false,
   variant
 }: PatternCreatorProps) {
   const { token } = useAuth();
@@ -103,6 +113,11 @@ export default function PatternCreator({
   // Determine initial values
   const existingDescPattern = existingPattern?.description_pattern || '';
   const isEditingAdvanced = isAdvancedPattern(existingDescPattern);
+  const [action, setAction] = useState<PatternAction>(
+    variant === 'from_planned_entry' ? 'categorize' : existingPattern?.action || initialAction
+  );
+  const capabilities = getPatternCapabilities(action);
+  const [applyRetroactively, setApplyRetroactively] = useState(initialApplyRetroactively);
 
   // Simple mode: text that the description should contain
   const [simpleDescriptionText, setSimpleDescriptionText] = useState(
@@ -134,7 +149,7 @@ export default function PatternCreator({
     ''
   );
   const [targetCategoryId, setTargetCategoryId] = useState(
-    existingPattern ? String(existingPattern.target_category_id) :
+    existingPattern?.target_category_id ? String(existingPattern.target_category_id) :
     (initialTargetCategoryId ? String(initialTargetCategoryId) :
     (initialData?.categoryId ? String(initialData.categoryId) : ''))
   );
@@ -198,6 +213,13 @@ export default function PatternCreator({
     fetchPlannedEntries();
   }, [linkToPlannedEntry, token, existingPattern?.linked_planned_entry_id]);
 
+  useEffect(() => {
+    if (!capabilities.supportsPlannedEntries) {
+      setLinkToPlannedEntry(false);
+      setSelectedPlannedEntryId(null);
+    }
+  }, [capabilities.supportsPlannedEntries]);
+
   // Sync description pattern when simple text changes (only in simple mode)
   useEffect(() => {
     if (!useRegex && simpleDescriptionText) {
@@ -235,17 +257,17 @@ export default function PatternCreator({
       return;
     }
 
-    if (!targetDescription.trim()) {
+    if (capabilities.requiresTargets && !targetDescription.trim()) {
       setError('A descrição de destino é obrigatória');
       return;
     }
 
-    if (!targetCategoryId) {
+    if (capabilities.requiresTargets && !targetCategoryId) {
       setError('A categoria de destino é obrigatória');
       return;
     }
 
-    if (linkToPlannedEntry && !selectedPlannedEntryId) {
+    if (capabilities.supportsPlannedEntries && linkToPlannedEntry && !selectedPlannedEntryId) {
       setError('Selecione uma entrada planejada para vincular');
       return;
     }
@@ -254,6 +276,7 @@ export default function PatternCreator({
 
     try {
       const pattern: AdvancedPattern = {
+        action,
         description_pattern: finalDescPattern,
         date_pattern: datePattern || undefined,
         weekday_pattern: selectedWeekdays.length > 0
@@ -263,9 +286,12 @@ export default function PatternCreator({
           min: parseFloat(amountMin),
           max: parseFloat(amountMax),
         } : undefined,
-        target_description: targetDescription,
-        target_category_id: parseInt(targetCategoryId),
-        planned_entry_id: linkToPlannedEntry ? selectedPlannedEntryId || undefined : undefined,
+        target_description: capabilities.requiresTargets ? targetDescription : undefined,
+        target_category_id: capabilities.requiresTargets ? parseInt(targetCategoryId) : undefined,
+        planned_entry_id: capabilities.supportsPlannedEntries && linkToPlannedEntry
+          ? selectedPlannedEntryId || undefined
+          : undefined,
+        apply_retroactively: capabilities.supportsRetroactive && applyRetroactively,
       };
 
       await onSave(pattern);
@@ -321,10 +347,10 @@ export default function PatternCreator({
             <h2 className="font-display text-xl font-bold text-stone-900">
               {existingPattern
                 ? '✏️ Editar Padrão'
-                : '🎯 Criar Padrão de Categorização'}
+                : '🎯 Criar Padrão'}
             </h2>
             <p className="text-sm text-stone-600 mt-1">
-              Crie regras para categorizar transações automaticamente
+              Crie regras para categorizar ou ignorar transações automaticamente
             </p>
           </div>
           <button
@@ -398,13 +424,57 @@ export default function PatternCreator({
 
           {/* Section 2: What to apply */}
           <div className="space-y-4 pt-4 border-t border-stone-200">
+            {variant !== 'from_planned_entry' && (
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Ação do padrão
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAction('categorize')}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      action === 'categorize'
+                        ? 'border-wheat-500 bg-wheat-50 text-wheat-800'
+                        : 'border-stone-300 text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    Categorizar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction('ignore')}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      action === 'ignore'
+                        ? 'border-rust-500 bg-rust-50 text-rust-800'
+                        : 'border-stone-300 text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    Ignorar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {allowRetroactive && capabilities.supportsRetroactive && (
+              <label className="flex items-center gap-2 text-sm text-stone-600 select-none">
+                <input
+                  type="checkbox"
+                  className="rounded border-stone-300 text-wheat-600 focus:ring-wheat-500"
+                  checked={applyRetroactively}
+                  onChange={(event) => setApplyRetroactively(event.target.checked)}
+                />
+                Aplicar em transações existentes
+              </label>
+            )}
+
             <div className="flex items-center justify-between">
               <h3 className="font-display text-sm font-semibold text-stone-900 uppercase tracking-wide">
                 Aplicar...
               </h3>
 
               {/* Toggle between manual and planned entry — hidden when opened from planned entry form */}
-              {variant !== 'from_planned_entry' && (
+              {capabilities.supportsPlannedEntries && variant !== 'from_planned_entry' && (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -435,7 +505,14 @@ export default function PatternCreator({
               )}
             </div>
 
-            {linkToPlannedEntry ? (
+            {!capabilities.requiresTargets ? (
+              <div className="bg-rust-50 rounded-lg p-4 border border-rust-200">
+                <p className="text-sm font-medium text-rust-800">Ignorar transações correspondentes</p>
+                <p className="text-xs text-rust-600 mt-1">
+                  Novas transações que coincidirem com este padrão não serão contabilizadas nos relatórios.
+                </p>
+              </div>
+            ) : linkToPlannedEntry ? (
               /* Planned Entry Selection */
               <div className="space-y-3">
                 <div>
@@ -683,7 +760,7 @@ export default function PatternCreator({
           </div>
 
           {/* Preview Card */}
-          {targetDescription && targetCategoryId && (
+          {capabilities.requiresTargets && targetDescription && targetCategoryId && (
             <div className="bg-sage-50 rounded-lg p-4 border border-sage-200">
               <h4 className="text-xs font-semibold text-sage-700 uppercase tracking-wide mb-2">
                 Preview
@@ -714,7 +791,7 @@ export default function PatternCreator({
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || (!useRegex && !simpleDescriptionText) || (useRegex && !descriptionPattern) || !targetDescription || !targetCategoryId || (linkToPlannedEntry && !selectedPlannedEntryId)}
+            disabled={saving || (!useRegex && !simpleDescriptionText) || (useRegex && !descriptionPattern) || (capabilities.requiresTargets && (!targetDescription || !targetCategoryId)) || (capabilities.supportsPlannedEntries && linkToPlannedEntry && !selectedPlannedEntryId)}
             className="px-6 py-2 bg-gradient-to-r from-wheat-500 to-wheat-600 text-white rounded-lg hover:from-wheat-600 hover:to-wheat-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
           >
             {saving ? (

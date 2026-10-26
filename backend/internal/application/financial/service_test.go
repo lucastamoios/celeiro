@@ -443,9 +443,11 @@ func TestFinancialService_GenerateSavingsGoalEntries_UsesLastDayOfTargetMonth(t 
 		year        int
 		expectedDay int
 	}{
+		{name: "non-leap year February", month: 2, year: 2027, expectedDay: 28},
 		{name: "leap year February", month: 2, year: 2028, expectedDay: 29},
 		{name: "thirty day month", month: 4, year: 2028, expectedDay: 30},
 		{name: "thirty one day month", month: 7, year: 2028, expectedDay: 31},
+		{name: "year end", month: 12, year: 2028, expectedDay: 31},
 	}
 
 	for _, testCase := range testCases {
@@ -515,6 +517,70 @@ func TestFinancialService_GenerateSavingsGoalEntries_SetsLastDayOnExistingEntryW
 	err := svc.generateSavingsGoalEntries(ctx, 10, 9, targetMonth, targetYear)
 
 	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestFinancialService_GenerateSavingsGoalEntries_PreservesManualExpectedDay(t *testing.T) {
+	manualDay := 15
+	testCases := []struct {
+		name  string
+		entry PlannedEntryModel
+	}{
+		{name: "date range", entry: PlannedEntryModel{ExpectedDayStart: &manualDay, ExpectedDayEnd: &manualDay}},
+		{name: "legacy date", entry: PlannedEntryModel{ExpectedDay: &manualDay}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockRepo := new(MockRepository)
+			svc := &service{Repository: mockRepo, system: system.NewSystem()}
+			ctx := context.Background()
+			goalID, categoryID := 11, 7
+			targetMonth, targetYear := 2, 2028
+			entry := testCase.entry
+			entry.PlannedEntryID = 21
+			entry.SavingsGoalID = &goalID
+			entry.TargetMonth = &targetMonth
+			entry.TargetYear = &targetYear
+
+			mockRepo.On("FetchSavingsGoals", ctx, mock.Anything).Return([]SavingsGoalModel{{
+				SavingsGoalID: goalID,
+				CategoryID:    &categoryID,
+			}}, nil).Once()
+			mockRepo.On("FetchPlannedEntries", ctx, mock.Anything).Return([]PlannedEntryModel{entry}, nil).Once()
+
+			err := svc.generateSavingsGoalEntries(ctx, 10, 9, targetMonth, targetYear)
+
+			assert.NoError(t, err)
+			mockRepo.AssertNotCalled(t, "ModifyPlannedEntry", mock.Anything, mock.Anything)
+			mockRepo.AssertNotCalled(t, "InsertPlannedEntry", mock.Anything, mock.Anything)
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestFinancialService_GenerateSavingsGoalEntries_LeavesUnrelatedEntriesUnchanged(t *testing.T) {
+	mockRepo := new(MockRepository)
+	svc := &service{Repository: mockRepo, system: system.NewSystem()}
+	ctx := context.Background()
+	goalID := 11
+	targetMonth, targetYear := 2, 2028
+	otherMonth, otherYear := 3, 2027
+	entries := []PlannedEntryModel{
+		{PlannedEntryID: 21, SavingsGoalID: &goalID, TargetMonth: &otherMonth, TargetYear: &targetYear},
+		{PlannedEntryID: 22, SavingsGoalID: &goalID, TargetMonth: &targetMonth, TargetYear: &otherYear},
+		{PlannedEntryID: 23, TargetMonth: &targetMonth, TargetYear: &targetYear},
+		{PlannedEntryID: 24, SavingsGoalID: &goalID},
+	}
+
+	mockRepo.On("FetchSavingsGoals", ctx, mock.Anything).Return([]SavingsGoalModel{}, nil).Once()
+	mockRepo.On("FetchPlannedEntries", ctx, mock.Anything).Return(entries, nil).Once()
+
+	err := svc.generateSavingsGoalEntries(ctx, 10, 9, targetMonth, targetYear)
+
+	assert.NoError(t, err)
+	mockRepo.AssertNotCalled(t, "ModifyPlannedEntry", mock.Anything, mock.Anything)
+	mockRepo.AssertNotCalled(t, "InsertPlannedEntry", mock.Anything, mock.Anything)
 	mockRepo.AssertExpectations(t)
 }
 
