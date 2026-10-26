@@ -3,19 +3,14 @@ import { API_CONFIG } from '../config/api';
 
 interface RequestOptions {
   token: string;
-  organizationId?: string;
 }
 
 /**
  * Helper function to create headers for authenticated API requests
  */
 function createHeaders(options: RequestOptions): HeadersInit {
-  if (!options.organizationId) {
-    throw new Error('Organization ID is required - ensure activeOrganization is set');
-  }
   return {
     'Authorization': `Bearer ${options.token}`,
-    'X-Active-Organization': options.organizationId,
     'Content-Type': 'application/json',
   };
 }
@@ -25,6 +20,11 @@ export interface AuthResponse {
   session_created_at: string;
   session_expires_at: string;
   is_new_user: boolean;
+}
+
+export interface RegisterResponse {
+  email: string;
+  verification_required: boolean;
 }
 
 export interface SetPasswordResponse {
@@ -39,7 +39,7 @@ export async function register(
   email: string,
   password: string,
   recaptchaToken: string
-): Promise<AuthResponse> {
+): Promise<RegisterResponse> {
   const response = await fetch(
     `${API_CONFIG.baseURL}${API_CONFIG.endpoints.auth.register}`,
     {
@@ -51,10 +51,10 @@ export async function register(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Falha ao criar conta');
+    throw new Error(errorData.message || errorData.error || 'Falha ao criar conta');
   }
 
-  const result: ApiResponse<AuthResponse> = await response.json();
+  const result: ApiResponse<RegisterResponse> = await response.json();
   return result.data;
 }
 
@@ -101,7 +101,10 @@ export async function loginWithPassword(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Credenciais inválidas');
+    if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+      throw new Error('Confirme seu email com o código enviado antes de entrar');
+    }
+    throw new Error(errorData.message || errorData.error || 'Credenciais inválidas');
   }
 
   const result: ApiResponse<AuthResponse> = await response.json();

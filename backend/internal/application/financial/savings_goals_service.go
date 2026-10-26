@@ -3,8 +3,10 @@ package financial
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
+	internalerrors "github.com/catrutech/celeiro/internal/errors"
 	"github.com/shopspring/decimal"
 )
 
@@ -33,28 +35,36 @@ type GetSavingsGoalProgressInput struct {
 }
 
 type CreateSavingsGoalInput struct {
-	UserID         int
-	OrganizationID int
-	Name           string
-	GoalType       string // "reserva" or "investimento"
-	TargetAmount   decimal.Decimal
-	InitialAmount  decimal.Decimal // Pre-existing balance when goal is created
-	DueDate        *string         // Format: "2006-01-02"
-	Icon           *string
-	Color          *string
-	Notes          *string
+	UserID              int
+	OrganizationID      int
+	Name                string
+	GoalType            string // "reserva" or "investimento"
+	TargetAmount        decimal.Decimal
+	InitialAmount       decimal.Decimal // Pre-existing balance when goal is created
+	DueDate             *string         // Format: "2006-01-02"
+	StartDate           *string         // Format: "2006-01-02"
+	Icon                *string
+	Color               *string
+	Notes               *string
+	CategoryID          *int
+	MonthlyContribution *decimal.Decimal
+	TagIDs              []int
 }
 
 type UpdateSavingsGoalInput struct {
-	SavingsGoalID  int
-	UserID         int
-	OrganizationID int
-	Name           *string
-	TargetAmount   *decimal.Decimal
-	DueDate        *string // Format: "2006-01-02", use empty string to clear
-	Icon           *string
-	Color          *string
-	Notes          *string
+	SavingsGoalID       int
+	UserID              int
+	OrganizationID      int
+	Name                *string
+	TargetAmount        *decimal.Decimal
+	DueDate             *string // Format: "2006-01-02", use empty string to clear
+	StartDate           *string // Format: "2006-01-02", use empty string to clear
+	Icon                *string
+	Color               *string
+	Notes               *string
+	CategoryID          *int
+	MonthlyContribution *decimal.Decimal
+	TagIDs              *[]int // nil = no change, [] = clear tags
 }
 
 type DeleteSavingsGoalInput struct {
@@ -104,7 +114,11 @@ func (s *service) GetSavingsGoals(ctx context.Context, input GetSavingsGoalsInpu
 		return nil, fmt.Errorf("failed to fetch savings goals: %w", err)
 	}
 
-	return SavingsGoals{}.FromModel(models), nil
+	goals := SavingsGoals{}.FromModel(models)
+	for i := range goals {
+		goals[i].TagIDs = s.savingsGoalTagIDs(ctx, goals[i].SavingsGoalID)
+	}
+	return goals, nil
 }
 
 func (s *service) GetSavingsGoalByID(ctx context.Context, input GetSavingsGoalByIDInput) (SavingsGoal, error) {
@@ -117,7 +131,29 @@ func (s *service) GetSavingsGoalByID(ctx context.Context, input GetSavingsGoalBy
 		return SavingsGoal{}, fmt.Errorf("failed to fetch savings goal: %w", err)
 	}
 
-	return SavingsGoal{}.FromModel(&model), nil
+	goal := SavingsGoal{}.FromModel(&model)
+	goal.TagIDs = s.savingsGoalTagIDs(ctx, goal.SavingsGoalID)
+	return goal, nil
+}
+
+// savingsGoalTagIDs returns the tag IDs configured on a savings goal, or an
+// empty slice if none are set or the lookup fails.
+func (s *service) savingsGoalTagIDs(ctx context.Context, savingsGoalID int) []int {
+	tags, err := s.Repository.FetchTagsBySavingsGoalID(ctx, fetchTagsBySavingsGoalIDParams{
+		SavingsGoalID: savingsGoalID,
+	})
+	if err != nil {
+		s.logger.Warn(ctx, "failed to fetch tags for savings goal",
+			"savings_goal_id", savingsGoalID,
+			"error", err.Error(),
+		)
+		return []int{}
+	}
+	ids := make([]int, len(tags))
+	for i, t := range tags {
+		ids[i] = t.TagID
+	}
+	return ids
 }
 
 func (s *service) GetSavingsGoalProgress(ctx context.Context, input GetSavingsGoalProgressInput) (SavingsGoalProgress, error) {
@@ -142,15 +178,7 @@ func (s *service) GetSavingsGoalProgress(ctx context.Context, input GetSavingsGo
 	}
 
 	// 3. Calculate current amount (initial amount + sum of transaction amounts)
-	currentAmount := goal.InitialAmount
-	for _, tx := range transactions {
-		// Credits add to savings, debits subtract
-		if tx.TransactionType == TransactionTypeCredit {
-			currentAmount = currentAmount.Add(tx.Amount)
-		} else {
-			currentAmount = currentAmount.Sub(tx.Amount)
-		}
-	}
+	currentAmount := calculateSavingsGoalCurrentAmount(goal.InitialAmount, transactions)
 
 	// 4. Calculate progress percentage
 	progressPercent := decimal.Zero
@@ -223,28 +251,58 @@ func (s *service) CreateSavingsGoal(ctx context.Context, input CreateSavingsGoal
 		}
 	}
 
+	// Validate start date format if provided
+	if input.StartDate != nil && *input.StartDate != "" {
+		if _, err := time.Parse("2006-01-02", *input.StartDate); err != nil {
+			return SavingsGoal{}, fmt.Errorf("invalid start_date format: %w", err)
+		}
+	}
+
 	// Validate target amount
 	if input.TargetAmount.LessThanOrEqual(decimal.Zero) {
 		return SavingsGoal{}, fmt.Errorf("target_amount must be greater than zero")
 	}
 
 	model, err := s.Repository.InsertSavingsGoal(ctx, insertSavingsGoalParams{
-		UserID:         input.UserID,
-		OrganizationID: input.OrganizationID,
-		Name:           input.Name,
-		GoalType:       input.GoalType,
-		TargetAmount:   input.TargetAmount,
-		InitialAmount:  input.InitialAmount,
-		DueDate:        input.DueDate,
-		Icon:           input.Icon,
-		Color:          input.Color,
-		Notes:          input.Notes,
+		UserID:              input.UserID,
+		OrganizationID:      input.OrganizationID,
+		Name:                input.Name,
+		GoalType:            input.GoalType,
+		TargetAmount:        input.TargetAmount,
+		InitialAmount:       input.InitialAmount,
+		DueDate:             input.DueDate,
+		StartDate:           input.StartDate,
+		Icon:                input.Icon,
+		Color:               input.Color,
+		Notes:               input.Notes,
+		CategoryID:          input.CategoryID,
+		MonthlyContribution: input.MonthlyContribution,
 	})
 	if err != nil {
+		if isSavingsGoalNameConflict(err) {
+			return SavingsGoal{}, internalerrors.ErrSavingsGoalNameExists
+		}
 		return SavingsGoal{}, fmt.Errorf("failed to create savings goal: %w", err)
 	}
 
-	return SavingsGoal{}.FromModel(&model), nil
+	goal := SavingsGoal{}.FromModel(&model)
+
+	// Set tags if provided
+	if len(input.TagIDs) > 0 {
+		if err := s.Repository.SetSavingsGoalTags(ctx, setSavingsGoalTagsParams{
+			SavingsGoalID: goal.SavingsGoalID,
+			TagIDs:        input.TagIDs,
+		}); err != nil {
+			s.logger.Warn(ctx, "failed to set savings goal tags",
+				"savings_goal_id", goal.SavingsGoalID,
+				"error", err.Error(),
+			)
+			// Continue - goal was created successfully, tags are optional
+		}
+	}
+
+	goal.TagIDs = s.savingsGoalTagIDs(ctx, goal.SavingsGoalID)
+	return goal, nil
 }
 
 func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoalInput) (SavingsGoal, error) {
@@ -255,27 +313,57 @@ func (s *service) UpdateSavingsGoal(ctx context.Context, input UpdateSavingsGoal
 		}
 	}
 
+	// Validate start date format if provided (empty string is valid - means clear)
+	if input.StartDate != nil && *input.StartDate != "" {
+		if _, err := time.Parse("2006-01-02", *input.StartDate); err != nil {
+			return SavingsGoal{}, fmt.Errorf("invalid start_date format: %w", err)
+		}
+	}
+
 	// Validate target amount if provided
 	if input.TargetAmount != nil && input.TargetAmount.LessThanOrEqual(decimal.Zero) {
 		return SavingsGoal{}, fmt.Errorf("target_amount must be greater than zero")
 	}
 
 	model, err := s.Repository.ModifySavingsGoal(ctx, modifySavingsGoalParams{
-		SavingsGoalID:  input.SavingsGoalID,
-		UserID:         input.UserID,
-		OrganizationID: input.OrganizationID,
-		Name:           input.Name,
-		TargetAmount:   input.TargetAmount,
-		DueDate:        input.DueDate, // Empty string clears, nil leaves unchanged
-		Icon:           input.Icon,
-		Color:          input.Color,
-		Notes:          input.Notes,
+		SavingsGoalID:       input.SavingsGoalID,
+		UserID:              input.UserID,
+		OrganizationID:      input.OrganizationID,
+		Name:                input.Name,
+		TargetAmount:        input.TargetAmount,
+		DueDate:             input.DueDate,   // Empty string clears, nil leaves unchanged
+		StartDate:           input.StartDate, // Empty string clears, nil leaves unchanged
+		Icon:                input.Icon,
+		Color:               input.Color,
+		Notes:               input.Notes,
+		CategoryID:          input.CategoryID,
+		MonthlyContribution: input.MonthlyContribution,
 	})
 	if err != nil {
+		if isSavingsGoalNameConflict(err) {
+			return SavingsGoal{}, internalerrors.ErrSavingsGoalNameExists
+		}
 		return SavingsGoal{}, fmt.Errorf("failed to update savings goal: %w", err)
 	}
 
-	return SavingsGoal{}.FromModel(&model), nil
+	goal := SavingsGoal{}.FromModel(&model)
+
+	// Update tags only when explicitly provided (nil = leave unchanged, [] = clear)
+	if input.TagIDs != nil {
+		if err := s.Repository.SetSavingsGoalTags(ctx, setSavingsGoalTagsParams{
+			SavingsGoalID: goal.SavingsGoalID,
+			TagIDs:        *input.TagIDs,
+		}); err != nil {
+			s.logger.Warn(ctx, "failed to set savings goal tags",
+				"savings_goal_id", goal.SavingsGoalID,
+				"error", err.Error(),
+			)
+			// Continue - goal was updated successfully, tags are optional
+		}
+	}
+
+	goal.TagIDs = s.savingsGoalTagIDs(ctx, goal.SavingsGoalID)
+	return goal, nil
 }
 
 func (s *service) DeleteSavingsGoal(ctx context.Context, input DeleteSavingsGoalInput) error {
@@ -318,10 +406,23 @@ func (s *service) ReopenSavingsGoal(ctx context.Context, input ReopenSavingsGoal
 		IsCompleted:    &isCompleted,
 	})
 	if err != nil {
+		if isSavingsGoalNameConflict(err) {
+			return SavingsGoal{}, internalerrors.ErrSavingsGoalNameExists
+		}
 		return SavingsGoal{}, fmt.Errorf("failed to reopen savings goal: %w", err)
 	}
 
 	return SavingsGoal{}.FromModel(&model), nil
+}
+
+func isSavingsGoalNameConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := err.Error()
+	return strings.Contains(message, "idx_savings_goals_open_org_name") ||
+		strings.Contains(message, "savings_goals_organization_id_name_key")
 }
 
 func (s *service) GetGoalSummary(ctx context.Context, input GetGoalSummaryInput) (SavingsGoalDetail, error) {
@@ -424,6 +525,205 @@ func calculateOnTrackStatus(now, createdAt, dueDate time.Time, targetAmount, cur
 		Mul(decimal.NewFromInt(int64(elapsedMonths)))
 
 	return currentAmount.GreaterThanOrEqual(expectedAmount)
+}
+
+// generateSavingsGoalEntries creates planned entries for savings goals that don't
+// have one for the given month yet. Called lazily when budget page loads.
+func (s *service) generateSavingsGoalEntries(ctx context.Context, userID, orgID, month, year int) error {
+	isActive := true
+	isCompleted := false
+
+	// 1. Fetch all active, non-completed savings goals
+	goals, err := s.Repository.FetchSavingsGoals(ctx, fetchSavingsGoalsParams{
+		UserID:         userID,
+		OrganizationID: orgID,
+		IsActive:       &isActive,
+		IsCompleted:    &isCompleted,
+	})
+	if err != nil {
+		return fmt.Errorf("fetch savings goals: %w", err)
+	}
+
+	// 2. Fetch non-recurrent entries with savings_goal_id to check for duplicates
+	isNotRecurrent := false
+	existingEntries, err := s.Repository.FetchPlannedEntries(ctx, fetchPlannedEntriesParams{
+		UserID:         userID,
+		OrganizationID: orgID,
+		IsActive:       &isActive,
+		IsRecurrent:    &isNotRecurrent,
+	})
+	if err != nil {
+		return fmt.Errorf("fetch planned entries: %w", err)
+	}
+
+	// Build set of savings_goal_id that already have an entry this month
+	existingGoalIDs := make(map[int]bool)
+	expectedDay := time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC).Day()
+	for _, entry := range existingEntries {
+		if entry.SavingsGoalID != nil && entry.TargetMonth != nil && entry.TargetYear != nil {
+			if *entry.TargetMonth == month && *entry.TargetYear == year {
+				existingGoalIDs[*entry.SavingsGoalID] = true
+				// Preserve manually configured dates, including the legacy single-day field.
+				if entry.ExpectedDayStart == nil && entry.ExpectedDayEnd == nil && entry.ExpectedDay == nil {
+					_, err := s.Repository.ModifyPlannedEntry(ctx, modifyPlannedEntryParams{
+						PlannedEntryID:   entry.PlannedEntryID,
+						UserID:           userID,
+						OrganizationID:   orgID,
+						ExpectedDayStart: &expectedDay,
+						ExpectedDayEnd:   &expectedDay,
+					})
+					if err != nil {
+						fmt.Printf("[GOAL-ENTRIES] WARN failed to set expected day on entry %d: %v\n", entry.PlannedEntryID, err)
+					}
+				}
+			}
+		}
+	}
+
+	now := s.system.Time.Now()
+	requestedMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+
+	fmt.Printf("[GOAL-ENTRIES] generating entries for %d/%d - goals_found=%d existing_goal_entries=%d\n", month, year, len(goals), len(existingGoalIDs))
+
+	for _, goal := range goals {
+		// Skip goals without a category
+		if goal.CategoryID == nil {
+			fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): no category\n", goal.SavingsGoalID, goal.Name)
+			continue
+		}
+
+		// Skip if before start date
+		if goal.StartDate != nil {
+			startMonth := time.Date(goal.StartDate.Year(), goal.StartDate.Month(), 1, 0, 0, 0, 0, time.UTC)
+			if requestedMonth.Before(startMonth) {
+				fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): before start date %v\n", goal.SavingsGoalID, goal.Name, goal.StartDate)
+				continue
+			}
+		}
+
+		// Skip if already has an entry for this month
+		if existingGoalIDs[goal.SavingsGoalID] {
+			fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): entry already exists\n", goal.SavingsGoalID, goal.Name)
+			continue
+		}
+
+		// Calculate the amount for this month
+		amount, ok := s.calculateGoalMonthlyAmount(ctx, goal, now, requestedMonth)
+		if !ok {
+			fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): amount calc returned false (type=%s)\n", goal.SavingsGoalID, goal.Name, goal.GoalType)
+			continue
+		}
+
+		fmt.Printf("[GOAL-ENTRIES] creating entry for goal %d (%s): amount=%s category=%d\n", goal.SavingsGoalID, goal.Name, amount.String(), *goal.CategoryID)
+
+		// Create the planned entry
+		goalID := goal.SavingsGoalID
+		targetMonth := month
+		targetYear := year
+		entry, err := s.Repository.InsertPlannedEntry(ctx, insertPlannedEntryParams{
+			UserID:           userID,
+			OrganizationID:   orgID,
+			CategoryID:       *goal.CategoryID,
+			SavingsGoalID:    &goalID,
+			Description:      goal.Name,
+			Amount:           amount,
+			EntryType:        PlannedEntryTypeExpense,
+			IsRecurrent:      false,
+			ExpectedDayStart: &expectedDay,
+			ExpectedDayEnd:   &expectedDay,
+			TargetMonth:      &targetMonth,
+			TargetYear:       &targetYear,
+		})
+		if err != nil {
+			// Duplicate key errors are expected during parallel requests - silently skip
+			if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique constraint") {
+				fmt.Printf("[GOAL-ENTRIES] skip goal %d (%s): already exists (concurrent create)\n", goal.SavingsGoalID, goal.Name)
+			} else {
+				fmt.Printf("[GOAL-ENTRIES] ERROR creating entry for goal %d (%s): %v\n", goal.SavingsGoalID, goal.Name, err)
+			}
+			continue
+		}
+
+		// Copy the goal's tags onto the generated entry. These transfer to the
+		// transaction when it is later matched against this entry.
+		if tagIDs := s.savingsGoalTagIDs(ctx, goal.SavingsGoalID); len(tagIDs) > 0 {
+			if err := s.Repository.SetPlannedEntryTags(ctx, setPlannedEntryTagsParams{
+				PlannedEntryID: entry.PlannedEntryID,
+				TagIDs:         tagIDs,
+			}); err != nil {
+				fmt.Printf("[GOAL-ENTRIES] WARN failed to set tags for entry %d (goal %d): %v\n", entry.PlannedEntryID, goal.SavingsGoalID, err)
+			}
+		}
+
+		fmt.Printf("[GOAL-ENTRIES] created entry for goal %d (%s)\n", goal.SavingsGoalID, goal.Name)
+	}
+
+	return nil
+}
+
+// calculateGoalMonthlyAmount returns the amount for a savings goal planned entry.
+// Returns (amount, true) if an entry should be created, or (zero, false) to skip.
+func (s *service) calculateGoalMonthlyAmount(ctx context.Context, goal SavingsGoalModel, now time.Time, requestedMonth time.Time) (decimal.Decimal, bool) {
+	// Calculate current amount (initial + transactions)
+	transactions, err := s.Repository.FetchGoalContributions(ctx, fetchGoalContributionsParams{
+		SavingsGoalID:  goal.SavingsGoalID,
+		UserID:         goal.UserID,
+		OrganizationID: goal.OrganizationID,
+	})
+	if err != nil {
+		return decimal.Zero, false
+	}
+
+	currentAmount := calculateSavingsGoalCurrentAmount(goal.InitialAmount, transactions)
+
+	// Skip if goal already reached
+	if currentAmount.GreaterThanOrEqual(goal.TargetAmount) {
+		return decimal.Zero, false
+	}
+
+	remaining := goal.TargetAmount.Sub(currentAmount)
+
+	switch goal.GoalType {
+	case SavingsGoalTypeReserva:
+		if goal.DueDate == nil {
+			return decimal.Zero, false
+		}
+		if goal.DueDate.Before(requestedMonth) {
+			return decimal.Zero, false
+		}
+		monthsRemaining := calculateMonthsRemaining(requestedMonth, *goal.DueDate)
+		if monthsRemaining <= 0 {
+			return remaining, true
+		}
+		return remaining.Div(decimal.NewFromInt(int64(monthsRemaining))), true
+
+	case SavingsGoalTypeInvestimento:
+		if goal.MonthlyContribution == nil || goal.MonthlyContribution.IsZero() {
+			return decimal.Zero, false
+		}
+		if goal.MonthlyContribution.GreaterThan(remaining) {
+			return remaining, true
+		}
+		return *goal.MonthlyContribution, true
+
+	default:
+		return decimal.Zero, false
+	}
+}
+
+func calculateSavingsGoalCurrentAmount(initialAmount decimal.Decimal, transactions []TransactionModel) decimal.Decimal {
+	currentAmount := initialAmount
+	for _, tx := range transactions {
+		// A linked debit is money set aside toward the goal (it leaves the
+		// checking account), so it adds to progress. A credit is money pulled
+		// back out of the goal (a withdrawal), so it subtracts.
+		if tx.TransactionType == TransactionTypeCredit {
+			currentAmount = currentAmount.Sub(tx.Amount)
+		} else {
+			currentAmount = currentAmount.Add(tx.Amount)
+		}
+	}
+	return currentAmount
 }
 
 func calculateMonthsBetween(start, end time.Time) int {

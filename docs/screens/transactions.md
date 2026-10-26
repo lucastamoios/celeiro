@@ -94,6 +94,7 @@ Transactions filtered by `selectedMonth` and `selectedYear` from `useSelectedMon
 3. Each file uploaded to `POST /accounts/{id}/transactions/import`
 4. Response includes `ImportedCount` and `DuplicateCount`
 5. Transaction list refreshed after import
+6. The newest active matching pattern is applied; an ignore pattern marks only the imported transaction as ignored
 
 ### Bulk Operations
 
@@ -123,6 +124,8 @@ Filters stored in `localStorage` via `usePersistedFilters` hook.
 ### TransactionEditModal
 
 See [modals.md](./modals.md#transactioneditmodal)
+
+The pattern creator can start from the current transaction. An already ignored transaction selects the **Ignore** action initially. Ignore patterns do not show target-category, planned-entry, or retroactive controls and affect only future transactions processed by the pattern engine.
 
 ### TransactionCreateModal
 

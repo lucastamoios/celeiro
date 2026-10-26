@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import type { Tag } from '../types/tag';
 import { getTags } from '../api/tags';
 
@@ -11,6 +12,8 @@ interface TagSelectorProps {
 
 export default function TagSelector({ selectedTagIds, onChange, disabled }: TagSelectorProps) {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +30,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
     }
 
     try {
-      const fetchedTags = await getTags({ token, organizationId: '1' });
+      const fetchedTags = await getTags({ token, organizationId: activeOrganizationId });
       setTags(fetchedTags || []);
     } catch (err) {
       setError('Erro ao carregar tags');
@@ -94,6 +97,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
           {selectedTags.map(tag => (
             <button
               key={tag.tag_id}
+              type="button"
               onClick={() => toggleTag(tag.tag_id)}
               disabled={disabled}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 border-wheat-500 bg-wheat-50 text-wheat-800 transition-all ${
@@ -117,6 +121,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
 
       {/* Expand/Collapse button */}
       <button
+        type="button"
         onClick={() => setIsExpanded(!isExpanded)}
         disabled={disabled}
         className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
@@ -143,6 +148,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
           {unselectedTags.map(tag => (
             <button
               key={tag.tag_id}
+              type="button"
               onClick={() => toggleTag(tag.tag_id)}
               disabled={disabled}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border border-stone-300 bg-stone-50 text-stone-700 transition-all ${
@@ -166,7 +172,7 @@ export default function TagSelector({ selectedTagIds, onChange, disabled }: TagS
 
       {isExpanded && unselectedTags.length === 0 && selectedTags.length === tags.length && (
         <div className="text-sm text-stone-500 p-3 bg-stone-50 rounded-lg border border-stone-200">
-          Todas as tags ja foram adicionadas.
+          Todas as tags já foram adicionadas.
         </div>
       )}
     </div>

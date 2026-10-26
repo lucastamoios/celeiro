@@ -10,6 +10,7 @@ import (
 	"github.com/catrutech/celeiro/internal/application"
 	"github.com/catrutech/celeiro/internal/application/accounts"
 	"github.com/catrutech/celeiro/pkg/logging"
+	"github.com/go-chi/chi/v5"
 )
 
 type Middleware interface {
@@ -55,6 +56,7 @@ func (m *middleware) Session(next http.Handler) http.Handler {
 
 			if err == nil {
 				activeOrganizationID := m.extractActiveOrganization(r)
+				hasExplicitOrganization := r.Header.Get("X-Active-Organization") != ""
 
 				var activeOrganization accounts.OrganizationWithPermissions
 				if activeOrganizationID != 0 {
@@ -65,7 +67,15 @@ func (m *middleware) Session(next http.Handler) http.Handler {
 						}
 					}
 				}
+				if hasExplicitOrganization && activeOrganization.OrganizationID == 0 {
+					http.Error(w, "Organization access denied", http.StatusForbidden)
+					return
+				}
 				if activeOrganization.OrganizationID == 0 {
+					if len(session.Info.Organizations) == 0 {
+						http.Error(w, "Active organization required", http.StatusUnauthorized)
+						return
+					}
 					activeOrganization = session.Info.Organizations[0]
 				}
 
@@ -91,6 +101,14 @@ func (m *middleware) RequireSession(next http.HandlerFunc, requiredPermissions [
 		if err != nil {
 			http.Error(w, "Active organization required", http.StatusUnauthorized)
 			return
+		}
+
+		if routeOrganization := chi.URLParam(r, "orgId"); routeOrganization != "" {
+			routeOrganizationID, parseErr := strconv.Atoi(routeOrganization)
+			if parseErr == nil && routeOrganizationID != activeOrganization {
+				http.Error(w, "Organization access denied", http.StatusForbidden)
+				return
+			}
 		}
 
 		var organization accounts.OrganizationWithPermissions

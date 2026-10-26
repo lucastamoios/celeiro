@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"github.com/catrutech/celeiro/pkg/logging"
 	"net/http"
+	"strings"
 
 	"github.com/catrutech/celeiro/internal/errors"
+	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	pkgerrors "github.com/catrutech/celeiro/pkg/errors"
 )
 
@@ -35,10 +37,16 @@ var errorMappings = map[error]ErrorMapping{
 	errors.ErrMissingRequiredFields:          {Status: http.StatusBadRequest, Code: "MISSING_REQUIRED_FIELDS"},
 	errors.ErrInvalidFormat:                  {Status: http.StatusBadRequest, Code: "INVALID_FORMAT"},
 	errors.ErrInvalidSession:                 {Status: http.StatusUnauthorized, Code: "INVALID_SESSION"},
+	errors.ErrEmailNotVerified:               {Status: http.StatusForbidden, Code: "EMAIL_NOT_VERIFIED"},
+	errors.ErrMonthClosed:                    {Status: http.StatusConflict, Code: "MONTH_CLOSED"},
 	errors.ErrActivationFailed:               {Status: http.StatusUnauthorized, Code: "ACTIVATION_FAILED"},
 	errors.ErrInvalidCode:                    {Status: http.StatusUnauthorized, Code: "INVALID_CODE"},
+	errors.ErrRecaptchaFailed:                {Status: http.StatusBadRequest, Code: "RECAPTCHA_FAILED"},
+	errors.ErrSavingsGoalNameExists:          {Status: http.StatusConflict, Code: "SAVINGS_GOAL_NAME_EXISTS"},
+	errors.ErrPatternRetroactiveUnsupported:  {Status: http.StatusBadRequest, Code: "PATTERN_RETROACTIVE_UNSUPPORTED"},
 	errors.ErrTransactionCategoryRequired:    {Status: http.StatusBadRequest, Code: "TRANSACTION_CATEGORY_REQUIRED"},
 	errors.ErrTransactionDescriptionRequired: {Status: http.StatusBadRequest, Code: "TRANSACTION_DESCRIPTION_REQUIRED"},
+	errors.ErrPlannedEntryNotFound:           {Status: http.StatusNotFound, Code: "PLANNED_ENTRY_NOT_FOUND"},
 }
 
 func NewSuccess[T any](data T, w http.ResponseWriter, status ...int) {
@@ -120,6 +128,25 @@ func newAPIError(err error) APIResponse[any] {
 			Message: errors.ErrInvalidJSONType.Error(),
 			Status:  http.StatusBadRequest,
 			Code:    "INVALID_JSON_TYPE",
+			Error:   err,
+		}
+	}
+
+	var databaseErr *database.PgDetailedError
+	if pkgerrors.As(err, &databaseErr) && databaseErr.Code == "NO_ROWS" && strings.Contains(databaseErr.Query, "financial.") {
+		return APIResponse[any]{
+			Message: "Resource not found",
+			Status:  http.StatusNotFound,
+			Code:    "NOT_FOUND",
+			Error:   err,
+		}
+	}
+	if pkgerrors.As(err, &databaseErr) && databaseErr.Code == "P0001" && databaseErr.Message == errors.ErrMonthClosed.Error() {
+		mapping := errorMappings[errors.ErrMonthClosed]
+		return APIResponse[any]{
+			Message: errors.ErrMonthClosed.Error(),
+			Status:  mapping.Status,
+			Code:    mapping.Code,
 			Error:   err,
 		}
 	}

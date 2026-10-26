@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import type { Category } from '../types/category';
 import type { ApiResponse } from '../types/transaction';
@@ -49,6 +50,8 @@ function getCategoryColor(category: Category) {
 
 export default function CategoryManager() {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +111,7 @@ export default function CategoryManager() {
       const response = await fetch(financialUrl('categories'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
       });
 
@@ -139,7 +142,7 @@ export default function CategoryManager() {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -184,7 +187,7 @@ export default function CategoryManager() {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
         body: JSON.stringify({ color: colorValue }),
       });
@@ -226,7 +229,7 @@ export default function CategoryManager() {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
         body: JSON.stringify({
           name: editName.trim(),
@@ -267,7 +270,7 @@ export default function CategoryManager() {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
       });
 

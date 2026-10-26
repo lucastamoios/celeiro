@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { setPassword } from '../api/auth';
 import { API_CONFIG } from '../config/api';
 import { Mail, LogOut, AlertCircle, Lock, Check, Eye, EyeOff, Inbox, Copy, ExternalLink } from 'lucide-react';
-import PluggyConnectionCard from './PluggyConnectionCard';
+import ExtensionInstallCard from './ExtensionInstallCard';
 
 interface UserInfo {
   id: number;
@@ -46,7 +46,6 @@ export default function AccountSettings() {
           {
             headers: {
               'Authorization': `Bearer ${token}`,
-              'X-Active-Organization': '1',
             },
           }
         );
@@ -104,7 +103,9 @@ export default function AccountSettings() {
     setPasswordSuccess(false);
 
     try {
-      await setPassword(oldPassword, newPassword, { token });
+      await setPassword(oldPassword, newPassword, {
+        token,
+      });
       setPasswordSuccess(true);
       setOldPassword('');
       setNewPassword('');
@@ -124,8 +125,6 @@ export default function AccountSettings() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <PluggyConnectionCard />
-
       {/* Account Info Section */}
       <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
         <div className="p-6 border-b border-stone-100">
@@ -328,6 +327,8 @@ export default function AccountSettings() {
         </div>
       </div>
 
+      <ExtensionInstallCard />
+
       {/* Email Import Section */}
       {importEmail && (
         <div className="bg-stone-50 rounded-xl shadow-warm-sm border border-stone-200 overflow-hidden">
@@ -406,7 +407,7 @@ export default function AccountSettings() {
                   <div>
                     <p className="font-medium text-stone-800">Configure o encaminhamento</p>
                     <p className="mt-1">
-                      Selecione "Encaminhar para" e use o endereço acima. O Gmail pedirá confirmação - isso será feito automaticamente.
+                      Selecione "Encaminhar para" e use o endereço acima. Se o Gmail pedir confirmação, siga as instruções exibidas; a extensão tentará concluir as etapas compatíveis e avisará se for necessária uma ação manual.
                     </p>
                   </div>
                 </div>

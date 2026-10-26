@@ -3,6 +3,7 @@ import type { Transaction } from '../types/transaction';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import type { Category } from '../types/category';
 import { useModalDismiss } from '../hooks/useModalDismiss';
+import DropdownMenu from './ui/DropdownMenu';
 import { parseTransactionDate } from '../utils/date';
 
 interface CategoryTransactionsModalProps {
@@ -21,6 +22,10 @@ interface CategoryTransactionsModalProps {
   onPlannedEntryClick?: (entry: PlannedEntryWithStatus) => void;
   onAddPlannedEntry?: () => void;
   onUpdatePlannedEntryAmount?: (entryId: number, newAmount: number) => Promise<void>;
+  onDismissEntry?: (entryId: number, reason?: string) => void;
+  onUndismissEntry?: (entryId: number) => void;
+  onDeleteEntry?: (entryId: number) => void;
+  onConvertToPlannedEntry?: (transaction: Transaction) => Promise<void>;
 }
 
 export default function CategoryTransactionsModal({
@@ -39,12 +44,28 @@ export default function CategoryTransactionsModal({
   onPlannedEntryClick,
   onAddPlannedEntry,
   onUpdatePlannedEntryAmount,
+  onDismissEntry,
+  onUndismissEntry,
+  onDeleteEntry,
+  onConvertToPlannedEntry,
 }: CategoryTransactionsModalProps) {
   const { handleBackdropClick, handleBackdropMouseDown } = useModalDismiss(onClose);
 
   // Inline editing state
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [editingAmount, setEditingAmount] = useState<string>('');
+  const [convertingTransactionId, setConvertingTransactionId] = useState<number | null>(null);
+
+  const handleConvertClick = async (e: React.MouseEvent, tx: Transaction) => {
+    e.stopPropagation();
+    if (!onConvertToPlannedEntry || convertingTransactionId !== null) return;
+    setConvertingTransactionId(tx.transaction_id);
+    try {
+      await onConvertToPlannedEntry(tx);
+    } finally {
+      setConvertingTransactionId(null);
+    }
+  };
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'number' ? amount : parseFloat(amount);
@@ -337,17 +358,69 @@ export default function CategoryTransactionsModal({
                             </span>
                           )}
 
-                          {/* Edit button for full entry */}
-                          {onPlannedEntryClick && !isEditing && (
-                            <button
-                              onClick={() => onPlannedEntryClick(entry)}
-                              className="p-1 text-stone-400 hover:text-stone-600"
-                              title="Editar entrada"
+                          {/* 3-dot actions menu */}
+                          {!isEditing && (
+                            <DropdownMenu
+                              width={192}
+                              buttonAriaLabel="Ações"
+                              buttonClassName="p-1 hover:bg-stone-100 rounded-full transition-colors"
+                              buttonContent={
+                                <svg className="w-5 h-5 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                              }
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </button>
+                              {(close) => (
+                                <>
+                                  {(entry.Status === 'scheduled' || entry.Status === 'pending' || entry.Status === 'missed') && onDismissEntry && (
+                                    <button
+                                      onClick={() => {
+                                        onDismissEntry(entry.PlannedEntryID);
+                                        close();
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Dispensar
+                                    </button>
+                                  )}
+                                  {entry.Status === 'dismissed' && onUndismissEntry && (
+                                    <button
+                                      onClick={() => {
+                                        onUndismissEntry(entry.PlannedEntryID);
+                                        close();
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Reativar
+                                    </button>
+                                  )}
+                                  {onPlannedEntryClick && (
+                                    <button
+                                      onClick={() => {
+                                        onPlannedEntryClick(entry);
+                                        close();
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-stone-100 text-stone-700 text-sm"
+                                    >
+                                      Editar
+                                    </button>
+                                  )}
+                                  {onDeleteEntry && entry.Status !== 'matched' && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Tem certeza que deseja excluir "${entry.Description}"? Esta ação não pode ser desfeita.`)) {
+                                          onDeleteEntry(entry.PlannedEntryID);
+                                          close();
+                                        }
+                                      }}
+                                      className="w-full text-left px-4 py-2 hover:bg-rust-50 text-rust-600 text-sm"
+                                    >
+                                      Excluir
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </DropdownMenu>
                           )}
                         </div>
                       </div>
@@ -423,13 +496,35 @@ export default function CategoryTransactionsModal({
                           </div>
                         </div>
 
-                        <div className={`text-right flex-shrink-0 ${
-                          tx.transaction_type === 'credit' ? 'text-sage-600' : 'text-stone-900'
-                        }`}>
-                          <span className="font-semibold tabular-nums">
-                            {tx.transaction_type === 'credit' ? '+' : '-'}
-                            {formatCurrency(tx.amount)}
-                          </span>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className={`text-right ${
+                            tx.transaction_type === 'credit' ? 'text-sage-600' : 'text-stone-900'
+                          }`}>
+                            <span className="font-semibold tabular-nums">
+                              {tx.transaction_type === 'credit' ? '+' : '-'}
+                              {formatCurrency(tx.amount)}
+                            </span>
+                          </div>
+                          {onConvertToPlannedEntry && !linkedEntry && (
+                            <button
+                              onClick={(e) => handleConvertClick(e, tx)}
+                              disabled={convertingTransactionId !== null}
+                              className="p-1.5 rounded-lg text-terra-600 hover:bg-terra-100 transition-colors disabled:opacity-50"
+                              title="Transformar em entrada planejada"
+                              aria-label="Transformar em entrada planejada"
+                            >
+                              {convertingTransactionId === tx.transaction_id ? (
+                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -21,7 +21,7 @@ import "./utils/gestureHandler"
 import { useEffect, useState } from "react"
 import { useFonts } from "expo-font"
 import * as Linking from "expo-linking"
-import { KeyboardProvider } from "react-native-keyboard-controller"
+import { Text, View } from "react-native"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
 
 import { AuthProvider } from "./context/AuthContext"
@@ -93,7 +93,23 @@ export function App() {
   // In Android: https://stackoverflow.com/a/45838109/204044
   // You can replace with your own loading component if you wish.
   if (!isNavigationStateRestored || !isI18nInitialized || (!areFontsLoaded && !fontLoadError)) {
-    return null
+    return (
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <View
+          style={{
+            alignItems: "center",
+            backgroundColor: "#F7F8F4",
+            flex: 1,
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <Text style={{ color: "#17211B", fontSize: 18, fontWeight: "700" }}>
+            Abrindo Celeiro...
+          </Text>
+        </View>
+      </SafeAreaProvider>
+    )
   }
 
   const linking = {
@@ -104,22 +120,20 @@ export function App() {
   // otherwise, we're ready to render the app
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <KeyboardProvider>
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={{ persister: asyncStoragePersister }}
-        >
-          <AuthProvider>
-            <ThemeProvider>
-              <AppNavigator
-                linking={linking}
-                initialState={initialNavigationState}
-                onStateChange={onNavigationStateChange}
-              />
-            </ThemeProvider>
-          </AuthProvider>
-        </PersistQueryClientProvider>
-      </KeyboardProvider>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister: asyncStoragePersister }}
+      >
+        <AuthProvider>
+          <ThemeProvider>
+            <AppNavigator
+              linking={linking}
+              initialState={initialNavigationState}
+              onStateChange={onNavigationStateChange}
+            />
+          </ThemeProvider>
+        </AuthProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   )
 }

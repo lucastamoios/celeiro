@@ -26,6 +26,115 @@ func (test *FinancialTestSuite) SetupTest() {
 	test.SetupBaseTest()
 }
 
+// Regression test: month closing failed when a category variance exceeded 999.99%.
+// Direct cause: monthly_snapshots.variance_percent rejected the four-digit percentage.
+// Root cause: the database precision was narrower than the valid service calculation range.
+func (test *FinancialTestSuite) TestMonthlySnapshotSchema_Insert_WithFourDigitVariance() {
+	ctx := context.Background()
+
+	// Arrange
+	auth := test.CreateUserAndAuthenticate(
+		"snapshot-variance@example.com",
+		"Snapshot Variance User",
+		"Snapshot Variance Org",
+	)
+
+	var categoryID int
+	err := test.DB.Query(ctx, &categoryID, `
+		INSERT INTO categories (organization_id, name, icon, category_type)
+		VALUES ($1, 'Education', '🎓', 'expense')
+		RETURNING category_id
+	`, auth.GetOrganizationID())
+	test.Require().NoError(err)
+
+	// Act
+	var variancePercent string
+	err = test.DB.Query(ctx, &variancePercent, `
+		INSERT INTO monthly_snapshots (
+			user_id,
+			organization_id,
+			category_id,
+			month,
+			year,
+			planned_amount,
+			actual_amount,
+			variance_percent,
+			budget_type
+		) VALUES ($1, $2, $3, 7, 2026, 349.90, 4363.00, 1146.93, 'controlled')
+		RETURNING variance_percent::text
+	`, auth.GetUserID(), auth.GetOrganizationID(), categoryID)
+
+	// Assert
+	test.Require().NoError(err)
+	test.Equal("1146.93", variancePercent)
+}
+
+func (test *FinancialTestSuite) TestPatternSchema_IgnoreActionHasNoTargetsAndCannotBeRetroactive() {
+	ctx := context.Background()
+	auth := test.CreateUserAndAuthenticate(
+		"ignore-pattern@example.com",
+		"Ignore Pattern User",
+		"Ignore Pattern Org",
+	)
+
+	patternService := financial.New(test.financialRepo, test.System, test.Logger, test.DB, nil)
+	pattern, err := patternService.CreatePattern(ctx, financial.CreatePatternInput{
+		UserID:             auth.GetUserID(),
+		OrganizationID:     auth.GetOrganizationID(),
+		Action:             financial.PatternActionIgnore,
+		DescriptionPattern: ".*TAXA.*",
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionIgnore, pattern.Action)
+	test.Nil(pattern.TargetDescription)
+	test.Nil(pattern.TargetCategoryID)
+
+	patterns, err := patternService.GetPatterns(ctx, financial.GetPatternsInput{
+		UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+	})
+	test.Require().NoError(err)
+	test.Require().Len(patterns, 1)
+	test.Equal(financial.PatternActionIgnore, patterns[0].Action)
+
+	var categoryID int
+	err = test.DB.Query(ctx, &categoryID, `
+		INSERT INTO categories (organization_id, name, icon, category_type)
+		VALUES ($1, 'Taxas', '🏷️', 'expense')
+		RETURNING category_id
+	`, auth.GetOrganizationID())
+	test.Require().NoError(err)
+	categorize := financial.PatternActionCategorize
+	targetDescription := "Taxa bancária"
+	updated, err := patternService.UpdatePattern(ctx, financial.UpdatePatternInput{
+		PatternID: pattern.PatternID, UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+		Action: &categorize, TargetDescription: &targetDescription, TargetCategoryID: &categoryID,
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionCategorize, updated.Action)
+	test.Equal(targetDescription, *updated.TargetDescription)
+	test.Equal(categoryID, *updated.TargetCategoryID)
+
+	ignore := financial.PatternActionIgnore
+	updated, err = patternService.UpdatePattern(ctx, financial.UpdatePatternInput{
+		PatternID: pattern.PatternID, UserID: auth.GetUserID(), OrganizationID: auth.GetOrganizationID(),
+		Action: &ignore,
+	})
+	test.Require().NoError(err)
+	test.Equal(financial.PatternActionIgnore, updated.Action)
+	test.Nil(updated.TargetDescription)
+	test.Nil(updated.TargetCategoryID)
+
+	var action string
+	err = test.DB.Query(ctx, &action, `
+		INSERT INTO patterns (
+			user_id, organization_id, action, description_pattern,
+			target_description, target_category_id, apply_retroactively
+		) VALUES ($1, $2, 'ignore', '.*ANTIGA.*', NULL, NULL, TRUE)
+		RETURNING action
+	`, auth.GetUserID(), auth.GetOrganizationID())
+	test.Require().Error(err)
+}
+
 func (test *FinancialTestSuite) TestPlannedEntry_ClearPatternID_UsingSentinel() {
 	ctx := context.Background()
 
@@ -216,4 +325,78 @@ func (test *FinancialTestSuite) TestPlannedEntry_SetPatternID_FromNull() {
 
 	test.Require().NotNil(updatedEntry.PatternID, "pattern_id should be set after update")
 	test.Equal(patternID, *updatedEntry.PatternID)
+}
+
+// The pacing lookup batches requested IDs without exposing another organization's
+// categories or transactions, and keeps system expenses and granularity history.
+func (test *FinancialTestSuite) TestCategoryPacing_BatchedLookupsPreserveScope() {
+	ctx := context.Background()
+	auth := test.CreateUserAndAuthenticate("pacing-batch@example.com", "Pacing Batch", "Pacing Batch")
+	other := test.CreateUserAndAuthenticate("pacing-other@example.com", "Pacing Other", "Pacing Other")
+
+	createCategory := func(orgID *int, isSystem bool, kind, name string) int {
+		var id int
+		test.Require().NoError(test.DB.Query(ctx, &id, `
+			INSERT INTO categories (organization_id, is_system, category_type, name)
+			VALUES ($1, $2, $3, $4) RETURNING category_id
+		`, orgID, isSystem, kind, name))
+		return id
+	}
+	orgID, otherOrgID := auth.GetOrganizationID(), other.GetOrganizationID()
+	expenseID := createCategory(&orgID, false, "expense", "Pacing expense")
+	systemID := createCategory(nil, true, "expense", "Pacing system")
+	incomeID := createCategory(&orgID, false, "income", "Pacing income")
+	zeroID := createCategory(&orgID, false, "expense", "Pacing zero")
+	foreignID := createCategory(&otherOrgID, false, "expense", "Pacing foreign")
+	for _, categoryID := range []int{expenseID, systemID, incomeID, foreignID, zeroID} {
+		amount := 1000
+		if categoryID == zeroID {
+			amount = 0
+		}
+		test.Require().NoError(test.DB.Run(ctx, `
+			INSERT INTO category_budgets (user_id, organization_id, category_id, month, year, controlled_amount)
+			VALUES ($1, $2, $3, 6, 2026, $4)
+		`, auth.GetUserID(), orgID, categoryID, amount))
+	}
+
+	createAccount := func(userID, organizationID int) int {
+		var id int
+		test.Require().NoError(test.DB.Query(ctx, &id, `
+			INSERT INTO accounts (user_id, organization_id, name, account_type)
+			VALUES ($1, $2, 'Pacing account', 'checking') RETURNING account_id
+		`, userID, organizationID))
+		return id
+	}
+	accountID := createAccount(auth.GetUserID(), orgID)
+	otherAccountID := createAccount(other.GetUserID(), otherOrgID)
+	insertTransaction := func(account, category, amount int, date string) {
+		test.Require().NoError(test.DB.Run(ctx, `
+			INSERT INTO transactions (account_id, category_id, description, original_description, amount, transaction_date, transaction_type)
+			VALUES ($1, $2, 'Pacing transaction', 'Pacing transaction', $3, $4, 'debit')
+		`, account, category, amount, date))
+	}
+	insertTransaction(accountID, expenseID, 100, "2026-06-01")
+	insertTransaction(accountID, systemID, 50, "2026-06-01")
+	insertTransaction(accountID, zeroID, 800, "2026-06-01")
+	insertTransaction(otherAccountID, expenseID, 900, "2026-06-01")
+	for i := 0; i < 3; i++ {
+		insertTransaction(accountID, expenseID, 10, "2026-05-01")
+	}
+	insertTransaction(otherAccountID, expenseID, 10, "2026-05-01")
+
+	svc := financial.New(test.financialRepo, test.System, test.Logger, test.DB, nil)
+	result, err := svc.GetControllableCategoryPacing(ctx, financial.GetControllableCategoryPacingInput{
+		UserID: auth.GetUserID(), OrganizationID: orgID, Month: 6, Year: 2026,
+	})
+
+	test.Require().NoError(err)
+	test.Require().Len(result.Categories, 2)
+	byID := make(map[int]financial.CategoryPacing)
+	for _, category := range result.Categories {
+		byID[category.CategoryID] = category
+	}
+	test.Equal("100", byID[expenseID].Spent.String())
+	test.Equal("50", byID[systemID].Spent.String())
+	test.Equal(3, byID[expenseID].Granularity)
+	test.Equal("previous_month", byID[expenseID].GranularitySource)
 }

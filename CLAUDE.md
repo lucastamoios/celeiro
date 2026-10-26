@@ -156,7 +156,7 @@ func (s *ReportService) GenerateAnnualReport(ctx context.Context, userID uuid.UU
 | AccountRepository | `accounts` | users, transactions |
 | TransactionRepository | `transactions` | users, accounts, categories |
 | CategoryRepository | `categories` | users, transactions |
-| BudgetRepository | `budgets`, `budget_items` | users, transactions, categories |
+| CategoryBudgetRepository | `category_budgets`, `monthly_snapshots` | users, transactions, categories |
 | RuleRepository | `classification_rules` | users, transactions, categories |
 
 ### When You Need Cross-Domain Data
@@ -240,7 +240,7 @@ func (h *TransactionHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 ### Key Principles
 
-1. **Repository = Single Table** - Each repo only touches one table (except its owned children like budgets → budget_items)
+1. **Repository = Single Table** - Each repo only touches one table (except its owned children in the same domain)
 
 2. **Service = Single Domain** - Each service only calls its own repository + other services if needed
 
@@ -254,19 +254,7 @@ func (h *TransactionHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 **Only these exceptions are allowed:**
 
-1. **Parent-Child relationships in same domain:**
-   ```go
-   // ✅ OK - budgets owns budget_items
-   func (r *BudgetRepository) GetWithItems(ctx context.Context, id uuid.UUID) error {
-       query := `
-           SELECT b.*, bi.*
-           FROM budgets b
-           LEFT JOIN budget_items bi ON bi.budget_id = b.budget_id
-           WHERE b.budget_id = $1
-       `
-       // OK because budget_items belongs to budgets domain
-   }
-   ```
+1. **Parent-Child relationships in same domain** (e.g., a repository joining its own closely related tables).
 
 2. **Read-only reference data via FK (rare):**
    ```go

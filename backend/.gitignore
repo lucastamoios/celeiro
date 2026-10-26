@@ -4,3 +4,5 @@ redis_data
 node_modules
 __debug*
 localmailer
+infra/grafana/data
+infra/loki/loki

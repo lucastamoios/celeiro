@@ -3,7 +3,7 @@
 // All sync work runs in background.js — popup can close/reopen freely.
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const settings = await chrome.storage.local.get(['apiUrl', 'token', 'userEmail']);
+  const settings = await chrome.storage.local.get(['apiUrl', 'token', 'userEmail', 'emailID']);
 
   // DOM Elements - Auth
   const loginSection = document.getElementById('loginSection');
@@ -17,6 +17,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const logoutBtn = document.getElementById('logoutBtn');
   const userEmailSpan = document.getElementById('userEmail');
   const userAvatar = document.getElementById('userAvatar');
+
+  // DOM Elements - Gmail forwarding
+  const gmailForwardingSection = document.getElementById('gmailForwardingSection');
+  const gmailForwardingBtn = document.getElementById('gmailForwardingBtn');
+  const forwardingEmail = document.getElementById('forwardingEmail');
 
   // DOM Elements - Config & Sync
   const apiUrlInput = document.getElementById('apiUrl');
@@ -106,9 +111,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       configSection.classList.add('hidden');
       syncSection.classList.remove('hidden');
       currentMonthDisplay.classList.remove('hidden');
+      gmailForwardingSection.classList.toggle('hidden', !settings.emailID);
 
       userEmailSpan.textContent = settings.userEmail;
       userAvatar.textContent = settings.userEmail.charAt(0).toUpperCase();
+      forwardingEmail.textContent = settings.emailID ? `${settings.emailID}@laguiar.dev` : '-';
       updateMonthDisplay();
     } else {
       loginSection.classList.remove('hidden');
@@ -116,8 +123,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       configSection.classList.add('hidden');
       syncSection.classList.add('hidden');
       currentMonthDisplay.classList.add('hidden');
+      gmailForwardingSection.classList.add('hidden');
     }
   };
+
+  if (settings.token && !settings.emailID) {
+    try {
+      const response = await fetch(`${settings.apiUrl}/accounts/me/`, {
+        headers: { 'Authorization': `Bearer ${settings.token}` },
+      });
+      if (response.ok) {
+        const me = await response.json();
+        settings.emailID = me.data?.user?.email_id;
+        if (settings.emailID) {
+          await chrome.storage.local.set({ emailID: settings.emailID });
+        }
+      }
+    } catch (error) {
+      console.warn('[Celeiro] Could not refresh email ID:', error);
+    }
+  }
 
   updateAuthUI();
 
@@ -176,11 +201,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const sessionToken = authData.data.session_token;
       const userEmail = authData.data.session_info.user.email;
+      const emailID = authData.data.session_info.user.email_id;
 
       settings.token = sessionToken;
       settings.userEmail = userEmail;
+      settings.emailID = emailID;
 
-      await chrome.storage.local.set({ token: sessionToken, userEmail: userEmail });
+      await chrome.storage.local.set({ token: sessionToken, userEmail, emailID });
 
       passwordInput.value = '';
       showStatus('Login realizado com sucesso!', 'success');
@@ -232,7 +259,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   logoutBtn.addEventListener('click', async () => {
     settings.token = null;
     settings.userEmail = null;
-    await chrome.storage.local.remove(['token', 'userEmail']);
+    settings.emailID = null;
+    await chrome.storage.local.remove(['token', 'userEmail', 'emailID', 'forwardingState']);
     showStatus('Logout realizado', 'info');
     updateAuthUI();
     setTimeout(hideStatus, 2000);
@@ -263,6 +291,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       hideProgress();
       setSyncing(false);
     }
+
+    if (message.type === 'forwardingProgress') {
+      gmailForwardingBtn.disabled = true;
+      showStatus(message.message, 'info');
+    }
+
+    if (message.type === 'forwardingComplete') {
+      gmailForwardingBtn.disabled = false;
+      gmailForwardingBtn.textContent = '✓ Encaminhamento configurado';
+      showStatus(message.message || 'Encaminhamento do Gmail configurado!', 'success');
+    }
+
+    if (message.type === 'forwardingError') {
+      gmailForwardingBtn.disabled = false;
+      showStatus(`Erro no Gmail: ${message.error}`, 'error');
+    }
   }
 
   chrome.runtime.onMessage.addListener(handleSyncMessage);
@@ -289,6 +333,43 @@ document.addEventListener('DOMContentLoaded', async () => {
       chrome.storage.local.remove(['syncState']);
     }
   }
+
+  const forwardingStored = await chrome.storage.local.get(['forwardingState']);
+  if (forwardingStored.forwardingState?.status === 'running') {
+    gmailForwardingBtn.disabled = true;
+    showStatus(forwardingStored.forwardingState.message || 'Configurando Gmail...', 'info');
+  } else if (forwardingStored.forwardingState?.status === 'done') {
+    gmailForwardingBtn.textContent = '✓ Encaminhamento configurado';
+  } else if (forwardingStored.forwardingState?.status === 'error') {
+    showStatus(`Erro no Gmail: ${forwardingStored.forwardingState.error}`, 'error');
+  }
+
+  // -------------------------------------------------------------------------
+  // Gmail forwarding trigger — delegates the full flow to background.js
+  // -------------------------------------------------------------------------
+
+  gmailForwardingBtn.addEventListener('click', async () => {
+    if (!settings.token || !settings.emailID) {
+      showStatus('Faça login novamente para carregar seu email de importação.', 'error');
+      return;
+    }
+
+    gmailForwardingBtn.disabled = true;
+    showStatus('Abrindo as configurações do Gmail...', 'info');
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'startGmailForwarding',
+        emailID: settings.emailID,
+      });
+      if (response?.error) {
+        throw new Error(response.error);
+      }
+    } catch (error) {
+      gmailForwardingBtn.disabled = false;
+      showStatus(`Erro no Gmail: ${error.message}`, 'error');
+    }
+  });
 
   // -------------------------------------------------------------------------
   // Sync trigger — delegates everything to background.js

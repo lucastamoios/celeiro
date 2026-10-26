@@ -5,7 +5,7 @@
  * and a "main" flow which the user will use once logged in.
  */
 import { ComponentProps } from "react"
-import { NavigationContainer, NavigatorScreenParams } from "@react-navigation/native"
+import { NavigationContainer } from "@react-navigation/native"
 import { createNativeStackNavigator, NativeStackScreenProps } from "@react-navigation/native-stack"
 
 import Config from "@/config"
@@ -16,12 +16,8 @@ import { useAppTheme } from "@/theme/context"
 
 import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
 import HomeScreen from "@/screens/HomeScreen"
-import ScoreHistoryScreen from "@/screens/ScoreHistoryScreen"
-import LeaderboardScreen from "@/screens/LeaderboardScreen"
 import ProfileScreen from "@/screens/ProfileScreen"
-import { HomeHeader } from "@/components/HomeHeader"
 import { Header } from "@/components/Header"
-import { MobilityNavigator, MobilityNavigatorParamList } from "./MobilityNavigator"
 
 /**
  * This type allows TypeScript to know what routes are defined in this navigator
@@ -38,7 +34,6 @@ export type AppStackParamList = {
   Leaderboard: undefined
   ScoreHistory: undefined
   Login: undefined
-  Mobility: NavigatorScreenParams<MobilityNavigatorParamList>
   // 🔥 Your screens go here
   // IGNITE_GENERATOR_ANCHOR_APP_STACK_PARAM_LIST
 }
@@ -77,19 +72,7 @@ const AppStack = () => {
     >
       {isAuthenticated ? (
         <>
-          <Stack.Screen
-            name="Home"
-            options={{ header: HomeHeader, headerShown: true }}
-            component={HomeScreen}
-          />
-          <Stack.Screen
-            name="Leaderboard"
-            options={{
-              header: (props) => <Header {...props} title="Ranking" />,
-              headerShown: true,
-            }}
-            component={LeaderboardScreen}
-          />
+          <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen
             name="Profile"
             options={{
@@ -97,21 +80,6 @@ const AppStack = () => {
               headerShown: true,
             }}
             component={ProfileScreen}
-          />
-          <Stack.Screen
-            name="ScoreHistory"
-            options={{
-              header: (props) => <Header {...props} title="Histórico de Pontuação" />,
-              headerShown: true,
-            }}
-            component={ScoreHistoryScreen}
-          />
-          <Stack.Screen
-            name="Mobility"
-            options={{
-              headerShown: false,
-            }}
-            component={MobilityNavigator}
           />
         </>
       ) : (

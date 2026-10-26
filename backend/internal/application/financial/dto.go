@@ -104,6 +104,11 @@ type Transaction struct {
 	IsClassified         bool            `json:"is_classified"`
 	ClassificationRuleID *int            `json:"classification_rule_id,omitempty"`
 	IsIgnored            bool            `json:"is_ignored"`
+	ClassifiedBy         *string         `json:"classified_by,omitempty"`         // manual, pattern, planned_entry, similarity
+	SuggestedCategoryID  *int            `json:"suggested_category_id,omitempty"` // Suggestion for ambiguous/low-confidence
+	SuggestedDescription *string         `json:"suggested_description,omitempty"` // Best description from similar past transactions
+	SuggestionConfidence *float64        `json:"suggestion_confidence,omitempty"` // 0.0 to 1.0
+	NeedsReview          bool            `json:"needs_review"`
 	Notes                *string         `json:"notes,omitempty"`
 	Tags                 []string        `json:"tags"`
 	CreatedAt            time.Time       `json:"created_at"`
@@ -128,6 +133,11 @@ func (t Transaction) FromModel(model *TransactionModel) Transaction {
 		IsClassified:         model.IsClassified,
 		ClassificationRuleID: model.ClassificationRuleID,
 		IsIgnored:            model.IsIgnored,
+		ClassifiedBy:         model.ClassifiedBy,
+		SuggestedCategoryID:  model.SuggestedCategoryID,
+		SuggestedDescription: model.SuggestedDescription,
+		SuggestionConfidence: model.SuggestionConfidence,
+		NeedsReview:          model.NeedsReview,
 		Notes:                model.Notes,
 		Tags:                 model.Tags,
 		CreatedAt:            model.CreatedAt,
@@ -143,78 +153,6 @@ func (t Transactions) FromModel(models []TransactionModel) Transactions {
 		transactions[i] = Transaction{}.FromModel(&model)
 	}
 	return transactions
-}
-
-// Budget DTO
-type Budget struct {
-	BudgetID       int
-	UserID         int
-	OrganizationID int
-	Name           string
-	Month          int
-	Year           int
-	BudgetType     string
-	Amount         decimal.Decimal
-	IsActive       bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-}
-
-func (b Budget) FromModel(model *BudgetModel) Budget {
-	return Budget{
-		BudgetID:       model.BudgetID,
-		UserID:         model.UserID,
-		OrganizationID: model.OrganizationID,
-		Name:           model.Name,
-		Month:          model.Month,
-		Year:           model.Year,
-		BudgetType:     model.BudgetType,
-		Amount:         model.Amount,
-		IsActive:       model.IsActive,
-		CreatedAt:      model.CreatedAt,
-		UpdatedAt:      model.UpdatedAt,
-	}
-}
-
-type Budgets []Budget
-
-func (b Budgets) FromModel(models []BudgetModel) Budgets {
-	budgets := make(Budgets, len(models))
-	for i, model := range models {
-		budgets[i] = Budget{}.FromModel(&model)
-	}
-	return budgets
-}
-
-// BudgetItem DTO
-type BudgetItem struct {
-	BudgetItemID  int
-	BudgetID      int
-	CategoryID    int
-	PlannedAmount decimal.Decimal
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-}
-
-func (b BudgetItem) FromModel(model *BudgetItemModel) BudgetItem {
-	return BudgetItem{
-		BudgetItemID:  model.BudgetItemID,
-		BudgetID:      model.BudgetID,
-		CategoryID:    model.CategoryID,
-		PlannedAmount: model.PlannedAmount,
-		CreatedAt:     model.CreatedAt,
-		UpdatedAt:     model.UpdatedAt,
-	}
-}
-
-type BudgetItems []BudgetItem
-
-func (b BudgetItems) FromModel(models []BudgetItemModel) BudgetItems {
-	items := make(BudgetItems, len(models))
-	for i, model := range models {
-		items[i] = BudgetItem{}.FromModel(&model)
-	}
-	return items
 }
 
 // ClassificationRule DTO
@@ -260,38 +198,6 @@ func (c ClassificationRules) FromModel(models []ClassificationRuleModel) Classif
 	return rules
 }
 
-// Budget with Items (composite)
-type BudgetWithItems struct {
-	Budget
-	Items []BudgetItem
-}
-
-// CalculatedBudgetAmount calculates the effective budget amount based on type
-func (b BudgetWithItems) CalculatedBudgetAmount() decimal.Decimal {
-	switch b.BudgetType {
-	case BudgetTypeFixed:
-		return b.Amount
-	case BudgetTypeCalculated:
-		return b.sumBudgetItems()
-	case BudgetTypeMaior:
-		itemsSum := b.sumBudgetItems()
-		if itemsSum.GreaterThan(b.Amount) {
-			return itemsSum
-		}
-		return b.Amount
-	default:
-		return b.Amount
-	}
-}
-
-func (b BudgetWithItems) sumBudgetItems() decimal.Decimal {
-	sum := decimal.Zero
-	for _, item := range b.Items {
-		sum = sum.Add(item.PlannedAmount)
-	}
-	return sum
-}
-
 // CategoryBudget DTO
 type CategoryBudget struct {
 	CategoryBudgetID int
@@ -301,6 +207,7 @@ type CategoryBudget struct {
 	Month            int
 	Year             int
 	ControlledAmount decimal.Decimal
+	Granularity      *int
 	IsConsolidated   bool
 	ConsolidatedAt   *time.Time
 	CreatedAt        time.Time
@@ -316,6 +223,7 @@ func (c CategoryBudget) FromModel(model *CategoryBudgetModel) CategoryBudget {
 		Month:            model.Month,
 		Year:             model.Year,
 		ControlledAmount: model.ControlledAmount,
+		Granularity:      model.Granularity,
 		IsConsolidated:   model.IsConsolidated,
 		ConsolidatedAt:   model.ConsolidatedAt,
 		CreatedAt:        model.CreatedAt,
@@ -359,6 +267,9 @@ type PlannedEntry struct {
 	IsRecurrent   bool
 	ParentEntryID *int `json:",omitempty"`
 	IsActive      bool
+
+	// Tags assigned to the entry; transferred to a transaction when matched.
+	TagIDs []int
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -534,8 +445,9 @@ type Pattern struct {
 	WeekdayPattern     *string          `json:"weekday_pattern,omitempty"`
 	AmountMin          *decimal.Decimal `json:"amount_min,omitempty"`
 	AmountMax          *decimal.Decimal `json:"amount_max,omitempty"`
-	TargetDescription  string           `json:"target_description"`
-	TargetCategoryID   int              `json:"target_category_id"`
+	TargetDescription  *string          `json:"target_description,omitempty"`
+	TargetCategoryID   *int             `json:"target_category_id,omitempty"`
+	Action             PatternAction    `json:"action"`
 	ApplyRetroactively bool             `json:"apply_retroactively"`
 	IsActive           bool             `json:"is_active"`
 	CreatedAt          time.Time        `json:"created_at"`
@@ -557,6 +469,7 @@ func (p Pattern) FromModel(model *AdvancedPatternModel) Pattern {
 		AmountMax:          model.AmountMax,
 		TargetDescription:  model.TargetDescription,
 		TargetCategoryID:   model.TargetCategoryID,
+		Action:             normalizePatternAction(model.Action),
 		ApplyRetroactively: model.ApplyRetroactively,
 		IsActive:           model.IsActive,
 		CreatedAt:          model.CreatedAt,
@@ -582,44 +495,54 @@ type AmountRange struct {
 
 // SavingsGoal DTO
 type SavingsGoal struct {
-	SavingsGoalID  int             `json:"savings_goal_id"`
-	UserID         int             `json:"user_id"`
-	OrganizationID int             `json:"organization_id"`
-	Name           string          `json:"name"`
-	GoalType       string          `json:"goal_type"` // reserva, investimento
-	TargetAmount   decimal.Decimal `json:"target_amount"`
-	InitialAmount  decimal.Decimal `json:"initial_amount"`     // Pre-existing balance when goal was created
-	DueDate        *string         `json:"due_date,omitempty"` // ISO 8601 date format
-	Icon           *string         `json:"icon,omitempty"`
-	Color          *string         `json:"color,omitempty"`
-	IsActive       bool            `json:"is_active"`
-	IsCompleted    bool            `json:"is_completed"`
-	CompletedAt    *string         `json:"completed_at,omitempty"` // ISO 8601 datetime
-	Notes          *string         `json:"notes,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	SavingsGoalID       int              `json:"savings_goal_id"`
+	UserID              int              `json:"user_id"`
+	OrganizationID      int              `json:"organization_id"`
+	Name                string           `json:"name"`
+	GoalType            string           `json:"goal_type"` // reserva, investimento
+	TargetAmount        decimal.Decimal  `json:"target_amount"`
+	InitialAmount       decimal.Decimal  `json:"initial_amount"`       // Pre-existing balance when goal was created
+	DueDate             *string          `json:"due_date,omitempty"`   // ISO 8601 date format
+	StartDate           *string          `json:"start_date,omitempty"` // ISO 8601 date format
+	Icon                *string          `json:"icon,omitempty"`
+	Color               *string          `json:"color,omitempty"`
+	IsActive            bool             `json:"is_active"`
+	IsCompleted         bool             `json:"is_completed"`
+	CompletedAt         *string          `json:"completed_at,omitempty"` // ISO 8601 datetime
+	Notes               *string          `json:"notes,omitempty"`
+	CategoryID          *int             `json:"category_id,omitempty"`
+	MonthlyContribution *decimal.Decimal `json:"monthly_contribution,omitempty"`
+	TagIDs              []int            `json:"tag_ids"` // Tags copied onto generated entries, then to matched transactions
+	CreatedAt           time.Time        `json:"created_at"`
+	UpdatedAt           time.Time        `json:"updated_at"`
 }
 
 func (s SavingsGoal) FromModel(model *SavingsGoalModel) SavingsGoal {
 	dto := SavingsGoal{
-		SavingsGoalID:  model.SavingsGoalID,
-		UserID:         model.UserID,
-		OrganizationID: model.OrganizationID,
-		Name:           model.Name,
-		GoalType:       model.GoalType,
-		TargetAmount:   model.TargetAmount,
-		InitialAmount:  model.InitialAmount,
-		Icon:           model.Icon,
-		Color:          model.Color,
-		IsActive:       model.IsActive,
-		IsCompleted:    model.IsCompleted,
-		Notes:          model.Notes,
-		CreatedAt:      model.CreatedAt,
-		UpdatedAt:      model.UpdatedAt,
+		SavingsGoalID:       model.SavingsGoalID,
+		UserID:              model.UserID,
+		OrganizationID:      model.OrganizationID,
+		Name:                model.Name,
+		GoalType:            model.GoalType,
+		TargetAmount:        model.TargetAmount,
+		InitialAmount:       model.InitialAmount,
+		Icon:                model.Icon,
+		Color:               model.Color,
+		IsActive:            model.IsActive,
+		IsCompleted:         model.IsCompleted,
+		Notes:               model.Notes,
+		CategoryID:          model.CategoryID,
+		MonthlyContribution: model.MonthlyContribution,
+		CreatedAt:           model.CreatedAt,
+		UpdatedAt:           model.UpdatedAt,
 	}
 	if model.DueDate != nil {
 		formatted := model.DueDate.Format("2006-01-02")
 		dto.DueDate = &formatted
+	}
+	if model.StartDate != nil {
+		formatted := model.StartDate.Format("2006-01-02")
+		dto.StartDate = &formatted
 	}
 	if model.CompletedAt != nil {
 		formatted := model.CompletedAt.Format(time.RFC3339)
@@ -709,4 +632,27 @@ func (t Tags) FromModel(models []TagModel) Tags {
 		tags[i] = Tag{}.FromModel(&model)
 	}
 	return tags
+}
+
+type TagPlannedEntry struct {
+	PlannedEntryID int    `json:"planned_entry_id"`
+	Description    string `json:"description"`
+	Amount         string `json:"amount"`
+	Status         string `json:"status"`
+	Paid           bool   `json:"paid"`
+}
+
+// TagSpending DTO - per-tag spending plus planned setup data for a given month.
+// Total is what was spent; Planned is the planned budget (dismissed entries
+// excluded). The service composes multiple sources, so there is no single-model
+// conversion helper.
+type TagSpending struct {
+	TagID            int               `json:"tag_id"`
+	Name             string            `json:"name"`
+	Icon             string            `json:"icon"`
+	Color            string            `json:"color"`
+	Total            string            `json:"total"`   // spent: sum of expense transactions carrying the tag
+	Planned          string            `json:"planned"` // planned budget: sum of planned expense entries for the month
+	TransactionCount int               `json:"transaction_count"`
+	PlannedEntries   []TagPlannedEntry `json:"planned_entries"`
 }

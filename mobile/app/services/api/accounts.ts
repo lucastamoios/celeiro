@@ -14,6 +14,10 @@ export interface AuthenticateRequest {
   email: string;
   code: string;
 }
+export interface PasswordAuthRequest {
+  email: string;
+  password: string;
+}
 export interface AuthenticateResponse {
   session_token: string;
   session_created_at: string;

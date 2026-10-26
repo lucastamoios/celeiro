@@ -12,7 +12,7 @@ Personal finance management system with Go backend, React frontend, PostgreSQL d
 | Timezone | Always `time.Now().UTC()` for database timestamps |
 | Required headers | `/financial/*` routes need `Authorization` + `X-Active-Organization` |
 | Pattern matching | Use `original_description` (immutable), not `description` (user-editable) |
-| Budgets | Use `category_budgets` table (NOT legacy `budgets` table) |
+| Budgets | Use `category_budgets` table with controlled_amount + planned entries model |
 
 **Common patterns:**
 
@@ -47,6 +47,9 @@ Personal finance management system with Go backend, React frontend, PostgreSQL d
 | Feature specs | [specs/budget-planned-entries/spec.md](./specs/budget-planned-entries/spec.md) |
 | Budget pacing | [budget-pacing.md](./budget-pacing.md) |
 | Planned entry drag & drop | [planned-entry-organization.md](./planned-entry-organization.md) |
+| Requirements: ignored transaction patterns | [requirements/ignored-transaction-patterns.md](./requirements/ignored-transaction-patterns.md) |
+| Design: ignored transaction patterns | [design/ignored-transaction-patterns.md](./design/ignored-transaction-patterns.md) |
+| Plan: ignored transaction patterns | [plans/ignored-transaction-patterns.md](./plans/ignored-transaction-patterns.md) |
 | Development setup | [setup.md](./setup.md) |
 | Deployment | [deployment.md](./deployment.md) |
 | Troubleshooting | [troubleshooting.md](./troubleshooting.md) |
@@ -88,7 +91,7 @@ celeiro/
 | Accounts | Bank accounts (checking, savings, credit, investment) |
 | Transactions | Financial transactions, OFX import |
 | Categories | Transaction classification with icons/colors |
-| Category Budgets | Monthly budgets per category (fixed/calculated/maior) |
+| Category Budgets | Monthly budgets per category (controlled_amount + sum of planned entries) |
 | Planned Entries | Expected expenses/income with monthly tracking |
 | Patterns | Regex-based automatic categorization |
 | Savings Goals | Long-term savings targets (reserva/investimento) |

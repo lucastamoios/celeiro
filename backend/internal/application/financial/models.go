@@ -72,10 +72,17 @@ type TransactionModel struct {
 	ClassificationRuleID *int `db:"classification_rule_id"`
 
 	// Status
-	IsIgnored bool `db:"is_ignored"`
+	IsIgnored   bool `db:"is_ignored"`
+	NeedsReview bool `db:"needs_review"`
 
 	// Savings Goal (orthogonal to category)
 	SavingsGoalID *int `db:"savings_goal_id"`
+
+	// Similarity classification
+	ClassifiedBy         *string  `db:"classified_by"`           // manual, pattern, planned_entry, similarity
+	SuggestedCategoryID  *int     `db:"suggested_category_id"`   // Best category suggestion (when ambiguous or low confidence)
+	SuggestedDescription *string  `db:"suggested_description"`   // Best description from similar past transactions
+	SuggestionConfidence *float64 `db:"suggestion_confidence"`   // 0.0 to 1.0
 
 	// Metadata
 	Notes *string        `db:"notes"`
@@ -83,41 +90,6 @@ type TransactionModel struct {
 }
 
 type TransactionsModel []TransactionModel
-
-// Budget represents a monthly budget
-type BudgetModel struct {
-	BudgetID  int       `db:"budget_id"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
-
-	UserID         int `db:"user_id"`
-	OrganizationID int `db:"organization_id"`
-
-	Name  string `db:"name"`
-	Month int    `db:"month"`
-	Year  int    `db:"year"`
-
-	BudgetType string          `db:"budget_type"` // fixed, calculated, hybrid
-	Amount     decimal.Decimal `db:"amount"`
-
-	IsActive bool `db:"is_active"`
-}
-
-type BudgetsModel []BudgetModel
-
-// BudgetItem represents a category allocation within a budget
-type BudgetItemModel struct {
-	BudgetItemID int       `db:"budget_item_id"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
-
-	BudgetID   int `db:"budget_id"`
-	CategoryID int `db:"category_id"`
-
-	PlannedAmount decimal.Decimal `db:"planned_amount"`
-}
-
-type BudgetItemsModel []BudgetItemModel
 
 // ClassificationRule represents an automatic transaction classification rule
 type ClassificationRuleModel struct {
@@ -141,13 +113,6 @@ type ClassificationRuleModel struct {
 }
 
 type ClassificationRulesModel []ClassificationRuleModel
-
-// BudgetType constants
-const (
-	BudgetTypeFixed      = "fixed"
-	BudgetTypeCalculated = "calculated"
-	BudgetTypeMaior      = "maior"
-)
 
 // AccountType constants
 const (
@@ -177,6 +142,7 @@ type CategoryBudgetModel struct {
 	Year  int `db:"year"`
 
 	ControlledAmount decimal.Decimal `db:"controlled_amount"`
+	Granularity      *int            `db:"granularity"`
 
 	IsConsolidated bool       `db:"is_consolidated"`
 	ConsolidatedAt *time.Time `db:"consolidated_at"`
@@ -214,6 +180,10 @@ type PlannedEntryModel struct {
 
 	IsRecurrent   bool `db:"is_recurrent"`
 	ParentEntryID *int `db:"parent_entry_id"`
+
+	// Target budget month/year (used by savings goal auto-generated entries)
+	TargetMonth *int `db:"target_month"`
+	TargetYear  *int `db:"target_year"`
 
 	IsActive bool `db:"is_active"`
 }
@@ -280,6 +250,13 @@ type MonthlySnapshotModel struct {
 
 type MonthlySnapshotsModel []MonthlySnapshotModel
 
+type PatternAction string
+
+const (
+	PatternActionCategorize PatternAction = "categorize"
+	PatternActionIgnore     PatternAction = "ignore"
+)
+
 // PatternModel represents a regex-based transaction matching pattern
 // Stored in the `patterns` table (formerly `advanced_patterns`)
 type PatternModel struct {
@@ -297,13 +274,14 @@ type PatternModel struct {
 	AmountMin          *decimal.Decimal `db:"amount_min"`
 	AmountMax          *decimal.Decimal `db:"amount_max"`
 
-	// Target mapping
-	TargetDescription string `db:"target_description"`
-	TargetCategoryID  int    `db:"target_category_id"`
+	// Target mapping, required only for categorization patterns
+	TargetDescription *string `db:"target_description"`
+	TargetCategoryID  *int    `db:"target_category_id"`
 
 	// Behavior
-	ApplyRetroactively bool `db:"apply_retroactively"`
-	IsActive           bool `db:"is_active"`
+	Action             PatternAction `db:"action"`
+	ApplyRetroactively bool          `db:"apply_retroactively"`
+	IsActive           bool          `db:"is_active"`
 }
 
 type PatternsModel []PatternModel
@@ -340,6 +318,7 @@ type SavingsGoalModel struct {
 	TargetAmount  decimal.Decimal `db:"target_amount"`
 	InitialAmount decimal.Decimal `db:"initial_amount"` // Pre-existing balance when goal was created
 	DueDate       *time.Time      `db:"due_date"`       // Required for reserva, optional for investimento
+	StartDate     *time.Time      `db:"start_date"`
 
 	Icon  *string `db:"icon"`  // Emoji icon
 	Color *string `db:"color"` // Hex color
@@ -349,6 +328,9 @@ type SavingsGoalModel struct {
 	CompletedAt *time.Time `db:"completed_at"`
 
 	Notes *string `db:"notes"`
+
+	CategoryID          *int             `db:"category_id"`
+	MonthlyContribution *decimal.Decimal `db:"monthly_contribution"`
 }
 
 type SavingsGoalsModel []SavingsGoalModel
@@ -368,6 +350,36 @@ type TagModel struct {
 }
 
 type TagsModel []TagModel
+
+// TagSpendingModel is the aggregated expense total for a tag in a given month
+type TagSpendingModel struct {
+	TagID            int             `db:"tag_id"`
+	Name             string          `db:"name"`
+	Icon             string          `db:"icon"`
+	Color            string          `db:"color"`
+	Total            decimal.Decimal `db:"total"`
+	TransactionCount int             `db:"transaction_count"`
+}
+
+// TagPlannedModel is the planned expense budget for a tag in a given month
+// (dismissed entries excluded).
+type TagPlannedModel struct {
+	TagID int             `db:"tag_id"`
+	Name  string          `db:"name"`
+	Icon  string          `db:"icon"`
+	Color string          `db:"color"`
+	Total decimal.Decimal `db:"total"`
+}
+
+// TagPlannedEntryModel is a planned expense entry grouped under a tag.
+type TagPlannedEntryModel struct {
+	TagID          int             `db:"tag_id"`
+	PlannedEntryID int             `db:"planned_entry_id"`
+	Description    string          `db:"description"`
+	Amount         decimal.Decimal `db:"amount"`
+	Status         string          `db:"status"`
+	Paid           bool            `db:"paid"`
+}
 
 // TransactionTagModel represents the many-to-many relationship between transactions and tags
 type TransactionTagModel struct {

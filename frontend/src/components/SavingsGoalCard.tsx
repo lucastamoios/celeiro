@@ -67,7 +67,7 @@ export default function SavingsGoalCard({
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           {goal.icon && (
-            <span className="text-2xl" role="img" aria-label="goal icon">
+            <span className="text-2xl" role="img" aria-label={`Ícone da meta ${goal.name}`}>
               {goal.icon}
             </span>
           )}
@@ -102,7 +102,7 @@ export default function SavingsGoalCard({
                 setShowActions(!showActions);
               }}
               className="p-2 hover:bg-stone-100 rounded-full transition-colors"
-              aria-label="Actions"
+              aria-label={`Ações da meta ${goal.name}`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
+	internalerrors "github.com/catrutech/celeiro/internal/errors"
 	database "github.com/catrutech/celeiro/pkg/database/persistent"
 	"github.com/catrutech/celeiro/pkg/errors"
 	"github.com/catrutech/celeiro/pkg/logging"
@@ -50,21 +53,7 @@ type Service interface {
 	UpdateTransaction(ctx context.Context, params UpdateTransactionInput) (Transaction, error)
 	DeleteTransaction(ctx context.Context, params DeleteTransactionInput) error
 
-	// Budgets
-	GetBudgets(ctx context.Context, params GetBudgetsInput) ([]Budget, error)
-	GetBudgetByID(ctx context.Context, params GetBudgetByIDInput) (BudgetWithItems, error)
-	CreateBudget(ctx context.Context, params CreateBudgetInput) (Budget, error)
-	UpdateBudget(ctx context.Context, params UpdateBudgetInput) (Budget, error)
-	DeleteBudget(ctx context.Context, params DeleteBudgetInput) error
-
-	// Budget Items
-	CreateBudgetItem(ctx context.Context, params CreateBudgetItemInput) (BudgetItem, error)
-	UpdateBudgetItem(ctx context.Context, params UpdateBudgetItemInput) (BudgetItem, error)
-	DeleteBudgetItem(ctx context.Context, params DeleteBudgetItemInput) error
-	GetBudgetSpending(ctx context.Context, params GetBudgetSpendingInput) (BudgetSpending, error)
-
-	// Budget Progress
-	CalculateBudgetProgress(ctx context.Context, input CalculateBudgetProgressInput) (*BudgetProgress, error)
+	// Budget Pacing
 	GetControllableCategoryPacing(ctx context.Context, input GetControllableCategoryPacingInput) (*ControllableCategoryPacing, error)
 
 	// Classification Rules
@@ -133,6 +122,7 @@ type Service interface {
 
 	// Tags
 	GetTags(ctx context.Context, input GetTagsInput) ([]Tag, error)
+	GetTagSpending(ctx context.Context, input GetTagSpendingInput) ([]TagSpending, error)
 	GetTagByID(ctx context.Context, input GetTagByIDInput) (Tag, error)
 	CreateTag(ctx context.Context, input CreateTagInput) (Tag, error)
 	UpdateTag(ctx context.Context, input UpdateTagInput) (Tag, error)
@@ -145,6 +135,10 @@ type Service interface {
 	// Planned Entry Tags
 	GetPlannedEntryTags(ctx context.Context, input GetPlannedEntryTagsInput) ([]Tag, error)
 	SetPlannedEntryTags(ctx context.Context, input SetPlannedEntryTagsInput) error
+
+	// Similarity Classification
+	SuggestCategoryForTransaction(ctx context.Context, input SuggestCategoryInput) (SuggestCategoryOutput, error)
+	GetTransactionsNeedingReview(ctx context.Context, input GetTransactionsNeedingReviewInput) ([]Transaction, error)
 }
 
 type service struct {
@@ -485,6 +479,15 @@ type CreateTransactionInput struct {
 	Notes           string
 }
 
+func parseTransactionDate(value string) (time.Time, error) {
+	for _, layout := range []string{"2006-01-02", time.RFC3339} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, errors.New("invalid transaction date")
+}
+
 // validateCategoryTransactionType validates that the category type matches the transaction type.
 // Income categories can only be assigned to credit transactions (money in).
 // Expense categories can only be assigned to debit transactions (money out).
@@ -511,6 +514,18 @@ func (s *service) validateCategoryTransactionType(ctx context.Context, categoryI
 }
 
 func (s *service) CreateTransaction(ctx context.Context, params CreateTransactionInput) (Transaction, error) {
+	transactionDate, err := parseTransactionDate(params.TransactionDate)
+	if err != nil {
+		return Transaction{}, internalerrors.NewInvalidTimeFormatError("transaction_date")
+	}
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          int(transactionDate.Month()),
+		Year:           transactionDate.Year(),
+	}); err != nil {
+		return Transaction{}, err
+	}
+
 	// Validate category type matches transaction type if category is provided
 	if params.CategoryID != nil {
 		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, params.TransactionType, params.OrganizationID); err != nil {
@@ -519,12 +534,14 @@ func (s *service) CreateTransaction(ctx context.Context, params CreateTransactio
 	}
 
 	model, err := s.Repository.InsertTransaction(ctx, insertTransactionParams{
-		AccountID:       params.AccountID,
-		CategoryID:      params.CategoryID,
-		Description:     params.Description,
-		Amount:          params.Amount,
-		TransactionDate: params.TransactionDate,
-		TransactionType: params.TransactionType,
+		AccountID:           params.AccountID,
+		CategoryID:          params.CategoryID,
+		Description:         params.Description,
+		OriginalDescription: params.Description,
+		Amount:              params.Amount,
+		TransactionDate:     params.TransactionDate,
+		TransactionType:     params.TransactionType,
+		Notes:               params.Notes,
 	})
 	if err != nil {
 		return Transaction{}, errors.Wrap(err, "failed to create transaction")
@@ -541,10 +558,13 @@ type ImportOFXInput struct {
 }
 
 type ImportOFXOutput struct {
-	ImportedCount  int
-	DuplicateCount int
-	ErrorCount     int
-	Transactions   []Transaction
+	ImportedCount          int
+	DuplicateCount         int
+	ErrorCount             int
+	PatternMatchedCount    int
+	SimilarityMatchedCount int
+	SuggestedCount         int
+	Transactions           []Transaction
 }
 
 // ImportTransactionsFromOFX parses OFX data and imports transactions
@@ -598,7 +618,19 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 
 	// Convert OFX transactions to repository insert params
 	insertParams := make([]insertTransactionParams, 0, len(ofxTransactions))
+	checkedMonths := make(map[[2]int]struct{})
 	for _, ofxTx := range ofxTransactions {
+		monthKey := [2]int{ofxTx.DatePosted.Year(), int(ofxTx.DatePosted.Month())}
+		if _, checked := checkedMonths[monthKey]; !checked {
+			if err := s.ensureMonthOpen(ctx, monthClosureParams{
+				OrganizationID: params.OrganizationID,
+				Month:          monthKey[1],
+				Year:           monthKey[0],
+			}); err != nil {
+				return ImportOFXOutput{}, err
+			}
+			checkedMonths[monthKey] = struct{}{}
+		}
 		insertParams = append(insertParams, ofxTx.ToInsertParams(params.AccountID))
 	}
 
@@ -614,8 +646,9 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 	importedCount := len(inserted)
 	duplicateCount := len(ofxTransactions) - importedCount
 
-	// Auto-match imported transactions using advanced patterns (regex-based)
-	matchedCount := 0
+	// Phase 1: Auto-match imported transactions using patterns (regex-based)
+	patternMatchedCount := 0
+	patternMatchedIDs := make(map[int]bool)
 	for _, tx := range inserted {
 		matched, err := s.ApplyPatternsToTransaction(ctx, ApplyPatternsToTransactionInput{
 			TransactionID:  tx.TransactionID,
@@ -630,7 +663,76 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 			continue
 		}
 		if matched {
-			matchedCount++
+			patternMatchedCount++
+			patternMatchedIDs[tx.TransactionID] = true
+		}
+	}
+
+	// Phase 2: Similarity-based classification for transactions not matched by patterns
+	similarityMatchedCount := 0
+	suggestedCount := 0
+	for _, tx := range inserted {
+		if patternMatchedIDs[tx.TransactionID] || tx.CategoryID != nil || tx.IsIgnored {
+			continue // preserve existing classifications and ignored transactions on re-import
+		}
+		if tx.OriginalDescription == nil || *tx.OriginalDescription == "" {
+			continue // manual transactions have no original_description
+		}
+
+		suggestion, err := s.SuggestCategoryForTransaction(ctx, SuggestCategoryInput{
+			OriginalDescription: *tx.OriginalDescription,
+			OrganizationID:      params.OrganizationID,
+			TransactionType:     tx.TransactionType,
+		})
+		if err != nil {
+			s.logger.Warn(ctx, "Similarity suggestion failed",
+				"transaction_id", tx.TransactionID,
+				"error", err.Error(),
+			)
+			continue
+		}
+
+		if suggestion.CategoryID == nil {
+			continue // no similar history found
+		}
+
+		if !suggestion.IsAmbiguous && suggestion.Confidence >= SimilarityAutoClassifyMinScore {
+			// Unambiguous + high confidence → auto-classify (category + description)
+			classifiedBy := ClassifiedBySimilarity
+			err = s.Repository.SetTransactionSimilarityResult(ctx, setTransactionSimilarityResultParams{
+				TransactionID:        tx.TransactionID,
+				CategoryID:           suggestion.CategoryID,
+				Description:          suggestion.SuggestedDescription,
+				IsClassified:         true,
+				ClassifiedBy:         &classifiedBy,
+				SuggestedCategoryID:  suggestion.CategoryID,
+				SuggestedDescription: suggestion.SuggestedDescription,
+				SuggestionConfidence: &suggestion.Confidence,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "Failed to auto-classify transaction",
+					"transaction_id", tx.TransactionID,
+					"error", err.Error(),
+				)
+				continue
+			}
+			similarityMatchedCount++
+		} else {
+			// Ambiguous or low confidence → store suggestion only
+			err = s.Repository.SetTransactionSimilarityResult(ctx, setTransactionSimilarityResultParams{
+				TransactionID:        tx.TransactionID,
+				SuggestedCategoryID:  suggestion.CategoryID,
+				SuggestedDescription: suggestion.SuggestedDescription,
+				SuggestionConfidence: &suggestion.Confidence,
+			})
+			if err != nil {
+				s.logger.Warn(ctx, "Failed to store category suggestion",
+					"transaction_id", tx.TransactionID,
+					"error", err.Error(),
+				)
+				continue
+			}
+			suggestedCount++
 		}
 	}
 
@@ -650,41 +752,52 @@ func (s *service) ImportTransactionsFromOFX(ctx context.Context, params ImportOF
 		"total_parsed", len(ofxTransactions),
 		"imported", importedCount,
 		"duplicates", duplicateCount,
-		"pattern_matched", matchedCount,
+		"pattern_matched", patternMatchedCount,
+		"similarity_matched", similarityMatchedCount,
+		"suggested", suggestedCount,
 		"duration_seconds", importDuration,
 	)
 
 	return ImportOFXOutput{
-		ImportedCount:  importedCount,
-		DuplicateCount: duplicateCount,
-		ErrorCount:     0,
-		Transactions:   Transactions{}.FromModel(inserted),
+		ImportedCount:          importedCount,
+		DuplicateCount:         duplicateCount,
+		ErrorCount:             0,
+		PatternMatchedCount:    patternMatchedCount,
+		SimilarityMatchedCount: similarityMatchedCount,
+		SuggestedCount:         suggestedCount,
+		Transactions:           Transactions{}.FromModel(inserted),
 	}, nil
 }
 
 type UpdateTransactionInput struct {
 	TransactionID  int
-	UserID         int
 	OrganizationID int
 	CategoryID     *int
 	Description    *string
 	Amount         *decimal.Decimal
 	Notes          *string
 	IsIgnored      *bool
+	NeedsReview    *bool
 }
 
 func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactionInput) (Transaction, error) {
+	existingTx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
+		TransactionID:  params.TransactionID,
+		OrganizationID: params.OrganizationID,
+	})
+	if err != nil {
+		return Transaction{}, errors.Wrap(err, "failed to fetch transaction for validation")
+	}
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          int(existingTx.TransactionDate.Month()),
+		Year:           existingTx.TransactionDate.Year(),
+	}); err != nil {
+		return Transaction{}, err
+	}
+
 	// Validate category type matches transaction type if category is being updated
 	if params.CategoryID != nil {
-		// Fetch the existing transaction to get its transaction_type
-		existingTx, err := s.Repository.FetchTransactionByID(ctx, fetchTransactionByIDParams{
-			TransactionID:  params.TransactionID,
-			OrganizationID: params.OrganizationID,
-		})
-		if err != nil {
-			return Transaction{}, errors.Wrap(err, "failed to fetch transaction for validation")
-		}
-
 		if err := s.validateCategoryTransactionType(ctx, *params.CategoryID, existingTx.TransactionType, params.OrganizationID); err != nil {
 			return Transaction{}, err
 		}
@@ -692,13 +805,13 @@ func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactio
 
 	model, err := s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
 		TransactionID:  params.TransactionID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 		CategoryID:     params.CategoryID,
 		Description:    params.Description,
 		Amount:         params.Amount,
 		Notes:          params.Notes,
 		IsIgnored:      params.IsIgnored,
+		NeedsReview:    params.NeedsReview,
 	})
 	if err != nil {
 		return Transaction{}, errors.Wrap(err, "failed to update transaction")
@@ -709,14 +822,12 @@ func (s *service) UpdateTransaction(ctx context.Context, params UpdateTransactio
 
 type DeleteTransactionInput struct {
 	TransactionID  int
-	UserID         int
 	OrganizationID int
 }
 
 func (s *service) DeleteTransaction(ctx context.Context, params DeleteTransactionInput) error {
 	err := s.Repository.RemoveTransaction(ctx, removeTransactionParams{
 		TransactionID:  params.TransactionID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
@@ -727,226 +838,6 @@ func (s *service) DeleteTransaction(ctx context.Context, params DeleteTransactio
 }
 
 // ============================================================================
-// Budgets
-// ============================================================================
-
-type GetBudgetsInput struct {
-	UserID         int
-	OrganizationID int
-	Year           *int
-	Month          *int
-}
-
-func (s *service) GetBudgets(ctx context.Context, params GetBudgetsInput) ([]Budget, error) {
-	models, err := s.Repository.FetchBudgets(ctx, fetchBudgetsParams{
-		UserID:         params.UserID,
-		OrganizationID: params.OrganizationID,
-		Year:           params.Year,
-		Month:          params.Month,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to fetch budgets")
-	}
-
-	return Budgets{}.FromModel(models), nil
-}
-
-type GetBudgetByIDInput struct {
-	BudgetID       int
-	UserID         int
-	OrganizationID int
-}
-
-func (s *service) GetBudgetByID(ctx context.Context, params GetBudgetByIDInput) (BudgetWithItems, error) {
-	budgetModel, err := s.Repository.FetchBudgetByID(ctx, fetchBudgetByIDParams{
-		BudgetID:       params.BudgetID,
-		OrganizationID: params.OrganizationID,
-	})
-	if err != nil {
-		return BudgetWithItems{}, errors.Wrap(err, "failed to fetch budget")
-	}
-
-	itemsModels, err := s.Repository.FetchBudgetItems(ctx, fetchBudgetItemsParams{
-		BudgetID:       params.BudgetID,
-		OrganizationID: params.OrganizationID,
-	})
-	if err != nil {
-		return BudgetWithItems{}, errors.Wrap(err, "failed to fetch budget items")
-	}
-
-	return BudgetWithItems{
-		Budget: Budget{}.FromModel(&budgetModel),
-		Items:  BudgetItems{}.FromModel(itemsModels),
-	}, nil
-}
-
-type CreateBudgetInput struct {
-	UserID         int
-	OrganizationID int
-	Name           string
-	Month          int
-	Year           int
-	BudgetType     string
-	Amount         decimal.Decimal
-}
-
-func (s *service) CreateBudget(ctx context.Context, params CreateBudgetInput) (Budget, error) {
-	model, err := s.Repository.InsertBudget(ctx, insertBudgetParams{
-		UserID:         params.UserID,
-		OrganizationID: params.OrganizationID,
-		Name:           params.Name,
-		Month:          params.Month,
-		Year:           params.Year,
-		BudgetType:     params.BudgetType,
-		Amount:         params.Amount,
-	})
-	if err != nil {
-		return Budget{}, errors.Wrap(err, "failed to create budget")
-	}
-
-	return Budget{}.FromModel(&model), nil
-}
-
-type UpdateBudgetInput struct {
-	BudgetID       int
-	UserID         int
-	OrganizationID int
-	Name           *string
-	BudgetType     *string
-	Amount         *decimal.Decimal
-	IsActive       *bool
-}
-
-func (s *service) UpdateBudget(ctx context.Context, params UpdateBudgetInput) (Budget, error) {
-	model, err := s.Repository.ModifyBudget(ctx, modifyBudgetParams{
-		BudgetID:       params.BudgetID,
-		UserID:         params.UserID,
-		OrganizationID: params.OrganizationID,
-		Name:           params.Name,
-		BudgetType:     params.BudgetType,
-		Amount:         params.Amount,
-		IsActive:       params.IsActive,
-	})
-	if err != nil {
-		return Budget{}, errors.Wrap(err, "failed to update budget")
-	}
-
-	return Budget{}.FromModel(&model), nil
-}
-
-type DeleteBudgetInput struct {
-	BudgetID       int
-	UserID         int
-	OrganizationID int
-}
-
-func (s *service) DeleteBudget(ctx context.Context, params DeleteBudgetInput) error {
-	err := s.Repository.RemoveBudget(ctx, removeBudgetParams{
-		BudgetID:       params.BudgetID,
-		UserID:         params.UserID,
-		OrganizationID: params.OrganizationID,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to delete budget")
-	}
-
-	return nil
-}
-
-// ============================================================================
-// Budget Items
-// ============================================================================
-
-type CreateBudgetItemInput struct {
-	BudgetID      int
-	CategoryID    int
-	PlannedAmount decimal.Decimal
-}
-
-func (s *service) CreateBudgetItem(ctx context.Context, params CreateBudgetItemInput) (BudgetItem, error) {
-	model, err := s.Repository.InsertBudgetItem(ctx, insertBudgetItemParams{
-		BudgetID:      params.BudgetID,
-		CategoryID:    params.CategoryID,
-		PlannedAmount: params.PlannedAmount,
-	})
-	if err != nil {
-		return BudgetItem{}, errors.Wrap(err, "failed to create budget item")
-	}
-
-	return BudgetItem{}.FromModel(&model), nil
-}
-
-type UpdateBudgetItemInput struct {
-	BudgetItemID  int
-	UserID        int
-	PlannedAmount *decimal.Decimal
-}
-
-func (s *service) UpdateBudgetItem(ctx context.Context, params UpdateBudgetItemInput) (BudgetItem, error) {
-	model, err := s.Repository.ModifyBudgetItem(ctx, modifyBudgetItemParams{
-		BudgetItemID:  params.BudgetItemID,
-		UserID:        params.UserID,
-		PlannedAmount: params.PlannedAmount,
-	})
-	if err != nil {
-		return BudgetItem{}, errors.Wrap(err, "failed to update budget item")
-	}
-
-	return BudgetItem{}.FromModel(&model), nil
-}
-
-type DeleteBudgetItemInput struct {
-	BudgetItemID int
-	UserID       int
-}
-
-func (s *service) DeleteBudgetItem(ctx context.Context, params DeleteBudgetItemInput) error {
-	err := s.Repository.RemoveBudgetItem(ctx, removeBudgetItemParams{
-		BudgetItemID: params.BudgetItemID,
-		UserID:       params.UserID,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to delete budget item")
-	}
-
-	return nil
-}
-
-type GetBudgetSpendingInput struct {
-	BudgetID       int
-	OrganizationID int
-}
-
-type BudgetSpending struct {
-	CategorySpending map[int]decimal.Decimal `json:"category_spending"`
-}
-
-func (s *service) GetBudgetSpending(ctx context.Context, params GetBudgetSpendingInput) (BudgetSpending, error) {
-	// First, get the budget to extract month/year
-	budget, err := s.Repository.FetchBudgetByID(ctx, fetchBudgetByIDParams{
-		BudgetID:       params.BudgetID,
-		OrganizationID: params.OrganizationID,
-	})
-	if err != nil {
-		return BudgetSpending{}, errors.Wrap(err, "failed to fetch budget")
-	}
-
-	// Fetch spending aggregated by category
-	spendingMap, err := s.Repository.FetchBudgetSpending(ctx, fetchBudgetSpendingParams{
-		BudgetID:       params.BudgetID,
-		OrganizationID: params.OrganizationID,
-		Month:          budget.Month,
-		Year:           budget.Year,
-	})
-	if err != nil {
-		return BudgetSpending{}, errors.Wrap(err, "failed to fetch budget spending")
-	}
-
-	return BudgetSpending{
-		CategorySpending: spendingMap,
-	}, nil
-}
-
 // ============================================================================
 // Classification Rules
 // ============================================================================
@@ -1117,9 +1008,18 @@ type CreateCategoryBudgetInput struct {
 	Month            int
 	Year             int
 	ControlledAmount decimal.Decimal
+	Granularity      *int
 }
 
 func (s *service) CreateCategoryBudget(ctx context.Context, params CreateCategoryBudgetInput) (CategoryBudget, error) {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          params.Month,
+		Year:           params.Year,
+	}); err != nil {
+		return CategoryBudget{}, err
+	}
+
 	model, err := s.Repository.InsertCategoryBudget(ctx, insertCategoryBudgetParams{
 		UserID:           params.UserID,
 		OrganizationID:   params.OrganizationID,
@@ -1127,6 +1027,7 @@ func (s *service) CreateCategoryBudget(ctx context.Context, params CreateCategor
 		Month:            params.Month,
 		Year:             params.Year,
 		ControlledAmount: params.ControlledAmount,
+		Granularity:      params.Granularity,
 	})
 	if err != nil {
 		return CategoryBudget{}, errors.Wrap(err, "failed to create category budget")
@@ -1140,14 +1041,34 @@ type UpdateCategoryBudgetInput struct {
 	UserID           int
 	OrganizationID   int
 	ControlledAmount *decimal.Decimal
+	Granularity      *int
+	GranularitySet   bool
 }
 
 func (s *service) UpdateCategoryBudget(ctx context.Context, params UpdateCategoryBudgetInput) (CategoryBudget, error) {
+	existing, err := s.Repository.FetchCategoryBudgetByID(ctx, fetchCategoryBudgetByIDParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+	})
+	if err != nil {
+		return CategoryBudget{}, errors.Wrap(err, "failed to fetch category budget")
+	}
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          existing.Month,
+		Year:           existing.Year,
+	}); err != nil {
+		return CategoryBudget{}, err
+	}
+
 	model, err := s.Repository.ModifyCategoryBudget(ctx, modifyCategoryBudgetParams{
 		CategoryBudgetID: params.CategoryBudgetID,
 		UserID:           params.UserID,
 		OrganizationID:   params.OrganizationID,
 		ControlledAmount: params.ControlledAmount,
+		Granularity:      params.Granularity,
+		GranularitySet:   params.GranularitySet,
 	})
 	if err != nil {
 		return CategoryBudget{}, errors.Wrap(err, "failed to update category budget")
@@ -1163,7 +1084,23 @@ type DeleteCategoryBudgetInput struct {
 }
 
 func (s *service) DeleteCategoryBudget(ctx context.Context, params DeleteCategoryBudgetInput) error {
-	err := s.Repository.RemoveCategoryBudget(ctx, removeCategoryBudgetParams{
+	existing, err := s.Repository.FetchCategoryBudgetByID(ctx, fetchCategoryBudgetByIDParams{
+		CategoryBudgetID: params.CategoryBudgetID,
+		UserID:           params.UserID,
+		OrganizationID:   params.OrganizationID,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch category budget")
+	}
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          existing.Month,
+		Year:           existing.Year,
+	}); err != nil {
+		return err
+	}
+
+	err = s.Repository.RemoveCategoryBudget(ctx, removeCategoryBudgetParams{
 		CategoryBudgetID: params.CategoryBudgetID,
 		UserID:           params.UserID,
 		OrganizationID:   params.OrganizationID,
@@ -1172,6 +1109,17 @@ func (s *service) DeleteCategoryBudget(ctx context.Context, params DeleteCategor
 		return errors.Wrap(err, "failed to delete category budget")
 	}
 
+	return nil
+}
+
+func (s *service) ensureMonthOpen(ctx context.Context, params monthClosureParams) error {
+	closed, err := s.Repository.IsMonthClosed(ctx, params)
+	if err != nil {
+		return errors.Wrap(err, "failed to check month closure")
+	}
+	if closed {
+		return internalerrors.ErrMonthClosed
+	}
 	return nil
 }
 
@@ -1199,7 +1147,7 @@ func (s *service) ConsolidateCategoryBudget(ctx context.Context, params Consolid
 	}
 
 	// Fetch actual spending for the category/month/year
-	spending, err := s.Repository.FetchBudgetSpending(ctx, fetchBudgetSpendingParams{
+	spending, err := s.Repository.FetchSpendingByCategory(ctx, fetchSpendingByCategoryParams{
 		OrganizationID: params.OrganizationID,
 		Month:          budget.Month,
 		Year:           budget.Year,
@@ -1320,6 +1268,7 @@ func (s *service) CopyCategoryBudgetsFromMonth(ctx context.Context, params CopyC
 			Month:            params.TargetMonth,
 			Year:             params.TargetYear,
 			ControlledAmount: src.ControlledAmount,
+			Granularity:      src.Granularity,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create budget for category %d: %w", src.CategoryID, err)
@@ -1354,6 +1303,26 @@ var ptMonthNames = []string{"", "Janeiro", "Fevereiro", "Março", "Abril", "Maio
 // CloseMonth consolidates all category budgets for a month and creates a carry-over transaction
 // representing the real surplus/deficit (income - spending) into the next month.
 func (s *service) CloseMonth(ctx context.Context, params CloseMonthInput) (CloseMonthResult, error) {
+	closure := monthClosureParams{
+		OrganizationID: params.OrganizationID,
+		Month:          params.Month,
+		Year:           params.Year,
+	}
+	if err := s.ensureMonthOpen(ctx, closure); err != nil {
+		return CloseMonthResult{}, err
+	}
+
+	result, err := s.closeMonth(ctx, params)
+	if err != nil {
+		return CloseMonthResult{}, err
+	}
+	if err := s.Repository.MarkMonthClosed(ctx, closure); err != nil {
+		return CloseMonthResult{}, errors.Wrap(err, "failed to mark month closed")
+	}
+	return result, nil
+}
+
+func (s *service) closeMonth(ctx context.Context, params CloseMonthInput) (CloseMonthResult, error) {
 	// 1. Fetch all category budgets for the month
 	budgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
 		UserID:         params.UserID,
@@ -1497,8 +1466,32 @@ func (s *service) GetPlannedEntries(ctx context.Context, params GetPlannedEntrie
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch planned entries")
 	}
+	entries := PlannedEntries{}.FromModel(models)
+	for i := range entries {
+		entries[i].TagIDs = s.plannedEntryTagIDs(ctx, entries[i].PlannedEntryID)
+	}
+	return entries, nil
+}
 
-	return PlannedEntries{}.FromModel(models), nil
+// plannedEntryTagIDs returns the tag IDs assigned to a planned entry. On a fetch
+// error it logs and returns an empty slice rather than failing the caller, so a
+// tag lookup problem never breaks listing planned entries.
+func (s *service) plannedEntryTagIDs(ctx context.Context, plannedEntryID int) []int {
+	tags, err := s.Repository.FetchTagsByPlannedEntryID(ctx, fetchTagsByPlannedEntryIDParams{
+		PlannedEntryID: plannedEntryID,
+	})
+	if err != nil {
+		s.logger.Warn(ctx, "failed to fetch tags for planned entry",
+			"planned_entry_id", plannedEntryID,
+			"error", err.Error(),
+		)
+		return []int{}
+	}
+	ids := make([]int, len(tags))
+	for i, t := range tags {
+		ids[i] = t.TagID
+	}
+	return ids
 }
 
 type GetPlannedEntryByIDInput struct {
@@ -1517,7 +1510,9 @@ func (s *service) GetPlannedEntryByID(ctx context.Context, params GetPlannedEntr
 		return PlannedEntry{}, errors.Wrap(err, "failed to fetch planned entry")
 	}
 
-	return PlannedEntry{}.FromModel(&model), nil
+	entry := PlannedEntry{}.FromModel(&model)
+	entry.TagIDs = s.plannedEntryTagIDs(ctx, entry.PlannedEntryID)
+	return entry, nil
 }
 
 type CreatePlannedEntryInput struct {
@@ -1535,6 +1530,8 @@ type CreatePlannedEntryInput struct {
 	EntryType        string
 	IsRecurrent      bool
 	ParentEntryID    *int
+	TargetMonth      *int
+	TargetYear       *int
 	SavingsGoalID    *int
 	TagIDs           []int // Tags to assign - will transfer to matched transactions
 }
@@ -1560,6 +1557,8 @@ func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEn
 		EntryType:        params.EntryType,
 		IsRecurrent:      params.IsRecurrent,
 		ParentEntryID:    params.ParentEntryID,
+		TargetMonth:      params.TargetMonth,
+		TargetYear:       params.TargetYear,
 		SavingsGoalID:    params.SavingsGoalID,
 	})
 	if err != nil {
@@ -1580,7 +1579,9 @@ func (s *service) CreatePlannedEntry(ctx context.Context, params CreatePlannedEn
 		}
 	}
 
-	return PlannedEntry{}.FromModel(&model), nil
+	entry := PlannedEntry{}.FromModel(&model)
+	entry.TagIDs = s.plannedEntryTagIDs(ctx, entry.PlannedEntryID)
+	return entry, nil
 }
 
 type UpdatePlannedEntryInput struct {
@@ -1638,7 +1639,9 @@ func (s *service) UpdatePlannedEntry(ctx context.Context, params UpdatePlannedEn
 		}
 	}
 
-	return PlannedEntry{}.FromModel(&model), nil
+	entry := PlannedEntry{}.FromModel(&model)
+	entry.TagIDs = s.plannedEntryTagIDs(ctx, entry.PlannedEntryID)
+	return entry, nil
 }
 
 type DeletePlannedEntryInput struct {
@@ -1647,6 +1650,8 @@ type DeletePlannedEntryInput struct {
 	OrganizationID int
 }
 
+var ErrPlannedEntryNotFound = fmt.Errorf("planned entry not found")
+
 func (s *service) DeletePlannedEntry(ctx context.Context, params DeletePlannedEntryInput) error {
 	err := s.Repository.RemovePlannedEntry(ctx, removePlannedEntryParams{
 		PlannedEntryID: params.PlannedEntryID,
@@ -1654,6 +1659,9 @@ func (s *service) DeletePlannedEntry(ctx context.Context, params DeletePlannedEn
 		OrganizationID: params.OrganizationID,
 	})
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrPlannedEntryNotFound
+		}
 		return errors.Wrap(err, "failed to delete planned entry")
 	}
 
@@ -1797,6 +1805,33 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch planned entries")
 	}
+	entries = slices.DeleteFunc(entries, func(entry PlannedEntryModel) bool {
+		return !plannedEntryAppliesToMonth(entry, params.Month, params.Year)
+	})
+
+	// Auto-generate planned entries for savings goals
+	fmt.Printf("[GOAL-ENTRIES] GetPlannedEntriesForMonth called for %d/%d\n", params.Month, params.Year)
+	if err := s.generateSavingsGoalEntries(ctx, params.UserID, params.OrganizationID, params.Month, params.Year); err != nil {
+		fmt.Printf("[GOAL-ENTRIES] ERROR in generateSavingsGoalEntries: %v\n", err)
+	}
+
+	// Fetch non-recurrent savings goal entries for this specific month
+	isNotRecurrent := false
+	allNonRecurrent, err := s.Repository.FetchPlannedEntries(ctx, fetchPlannedEntriesParams{
+		UserID:         params.UserID,
+		OrganizationID: params.OrganizationID,
+		IsRecurrent:    &isNotRecurrent,
+		IsActive:       &isActive,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch non-recurrent planned entries")
+	}
+	for _, entry := range allNonRecurrent {
+		if entry.TargetMonth != nil && entry.TargetYear != nil &&
+			*entry.TargetMonth == params.Month && *entry.TargetYear == params.Year {
+			entries = append(entries, entry)
+		}
+	}
 
 	// 2. Fetch statuses for the given month
 	statuses, err := s.Repository.FetchPlannedEntryStatusesByMonth(ctx, fetchPlannedEntryStatusesByMonthParams{
@@ -1838,6 +1873,7 @@ func (s *service) GetPlannedEntriesForMonth(ctx context.Context, params GetPlann
 	result := make([]PlannedEntryWithStatus, 0, len(entries))
 	for _, entry := range entries {
 		entryDTO := PlannedEntry{}.FromModel(&entry)
+		entryDTO.TagIDs = s.plannedEntryTagIDs(ctx, entry.PlannedEntryID)
 		statusDTO := PlannedEntryWithStatus{
 			PlannedEntry: entryDTO,
 		}
@@ -1885,19 +1921,33 @@ func (s *service) computePlannedEntryStatus(entry PlannedEntryModel, currentDay,
 		return PlannedEntryStatusScheduled
 	}
 
-	// Same month - check expected day
-	// If no expected day set, consider it scheduled (on time for the whole month)
-	if entry.ExpectedDayEnd == nil {
+	// Same month - check the end of the expected period. Older entries only have
+	// ExpectedDay, so use it as the deadline when ExpectedDayEnd is absent.
+	expectedDayEnd := entry.ExpectedDayEnd
+	if expectedDayEnd == nil {
+		expectedDayEnd = entry.ExpectedDay
+	}
+	if expectedDayEnd == nil {
 		return PlannedEntryStatusScheduled
 	}
 
 	// If current day is after the expected end day - overdue
-	if currentDay > *entry.ExpectedDayEnd {
+	if currentDay > *expectedDayEnd {
 		return PlannedEntryStatusPending
 	}
 
 	// Still within the expected period - on time
 	return PlannedEntryStatusScheduled
+}
+
+func plannedEntryAppliesToMonth(entry PlannedEntryModel, month, year int) bool {
+	if entry.CreatedAt.IsZero() {
+		return true
+	}
+
+	createdYear := entry.CreatedAt.Year()
+	createdMonth := int(entry.CreatedAt.Month())
+	return year > createdYear || (year == createdYear && month >= createdMonth)
 }
 
 type MatchPlannedEntryInput struct {
@@ -1911,6 +1961,10 @@ type MatchPlannedEntryInput struct {
 
 // MatchPlannedEntryToTransaction links a transaction to a planned entry
 func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params MatchPlannedEntryInput) (PlannedEntryStatus, error) {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{OrganizationID: params.OrganizationID, Month: params.Month, Year: params.Year}); err != nil {
+		return PlannedEntryStatus{}, err
+	}
+
 	// 1. Verify the planned entry exists and belongs to the user
 	entry, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
 		PlannedEntryID: params.PlannedEntryID,
@@ -1962,7 +2016,6 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 	// Always copy the description; copy category and savings_goal if they exist
 	modifyParams := modifyTransactionParams{
 		TransactionID:  params.TransactionID,
-		UserID:         params.UserID,
 		OrganizationID: params.OrganizationID,
 		Description:    &entry.Description,
 	}
@@ -1984,63 +2037,73 @@ func (s *service) MatchPlannedEntryToTransaction(ctx context.Context, params Mat
 	}
 
 	// 6. Transfer tags from planned entry to transaction (merge with existing)
+	s.transferPlannedEntryTagsToTransaction(ctx, params.PlannedEntryID, params.TransactionID)
+
+	return PlannedEntryStatus{}.FromModel(&statusModel), nil
+}
+
+// transferPlannedEntryTagsToTransaction copies the planned entry's tags onto the
+// transaction, merging with any tags the transaction already carries. This is how
+// a tag reaches transaction_tags (and therefore the per-tag spending view), so it
+// must run on every match path, manual and automatic alike. Failures are logged
+// and swallowed: a match should never fail because tag bookkeeping did.
+func (s *service) transferPlannedEntryTagsToTransaction(ctx context.Context, plannedEntryID, transactionID int) {
 	entryTags, err := s.Repository.FetchTagsByPlannedEntryID(ctx, fetchTagsByPlannedEntryIDParams{
-		PlannedEntryID: params.PlannedEntryID,
+		PlannedEntryID: plannedEntryID,
 	})
 	if err != nil {
 		s.logger.Warn(ctx, "failed to fetch planned entry tags for transfer",
-			"planned_entry_id", params.PlannedEntryID,
+			"planned_entry_id", plannedEntryID,
 			"error", err.Error(),
 		)
-	} else if len(entryTags) > 0 {
-		// Get existing transaction tags
-		existingTags, err := s.Repository.FetchTagsByTransactionID(ctx, fetchTagsByTransactionIDParams{
-			TransactionID: params.TransactionID,
-		})
-		if err != nil {
-			s.logger.Warn(ctx, "failed to fetch existing transaction tags",
-				"transaction_id", params.TransactionID,
-				"error", err.Error(),
-			)
-		} else {
-			// Merge tags (entry tags + existing tags, no duplicates)
-			tagIDSet := make(map[int]bool)
-			for _, tag := range existingTags {
-				tagIDSet[tag.TagID] = true
-			}
-			for _, tag := range entryTags {
-				tagIDSet[tag.TagID] = true
-			}
-
-			// Convert to slice
-			mergedTagIDs := make([]int, 0, len(tagIDSet))
-			for tagID := range tagIDSet {
-				mergedTagIDs = append(mergedTagIDs, tagID)
-			}
-
-			// Set merged tags on transaction
-			err = s.Repository.SetTransactionTags(ctx, setTransactionTagsParams{
-				TransactionID: params.TransactionID,
-				TagIDs:        mergedTagIDs,
-			})
-			if err != nil {
-				s.logger.Warn(ctx, "failed to transfer tags to transaction",
-					"transaction_id", params.TransactionID,
-					"tag_count", len(mergedTagIDs),
-					"error", err.Error(),
-				)
-			} else {
-				s.logger.Info(ctx, "transferred tags from planned entry to transaction",
-					"planned_entry_id", params.PlannedEntryID,
-					"transaction_id", params.TransactionID,
-					"tags_transferred", len(entryTags),
-					"total_tags", len(mergedTagIDs),
-				)
-			}
-		}
+		return
+	}
+	if len(entryTags) == 0 {
+		return
 	}
 
-	return PlannedEntryStatus{}.FromModel(&statusModel), nil
+	existingTags, err := s.Repository.FetchTagsByTransactionID(ctx, fetchTagsByTransactionIDParams{
+		TransactionID: transactionID,
+	})
+	if err != nil {
+		s.logger.Warn(ctx, "failed to fetch existing transaction tags",
+			"transaction_id", transactionID,
+			"error", err.Error(),
+		)
+		return
+	}
+
+	// Merge entry tags with existing transaction tags, no duplicates.
+	tagIDSet := make(map[int]bool)
+	for _, tag := range existingTags {
+		tagIDSet[tag.TagID] = true
+	}
+	for _, tag := range entryTags {
+		tagIDSet[tag.TagID] = true
+	}
+	mergedTagIDs := make([]int, 0, len(tagIDSet))
+	for tagID := range tagIDSet {
+		mergedTagIDs = append(mergedTagIDs, tagID)
+	}
+
+	if err := s.Repository.SetTransactionTags(ctx, setTransactionTagsParams{
+		TransactionID: transactionID,
+		TagIDs:        mergedTagIDs,
+	}); err != nil {
+		s.logger.Warn(ctx, "failed to transfer tags to transaction",
+			"transaction_id", transactionID,
+			"tag_count", len(mergedTagIDs),
+			"error", err.Error(),
+		)
+		return
+	}
+
+	s.logger.Info(ctx, "transferred tags from planned entry to transaction",
+		"planned_entry_id", plannedEntryID,
+		"transaction_id", transactionID,
+		"tags_transferred", len(entryTags),
+		"total_tags", len(mergedTagIDs),
+	)
 }
 
 func (s *service) updatePlannedEntryAmountFromTransaction(
@@ -2091,6 +2154,10 @@ type UnmatchPlannedEntryInput struct {
 
 // UnmatchPlannedEntry removes the link between a transaction and a planned entry
 func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlannedEntryInput) error {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{OrganizationID: params.OrganizationID, Month: params.Month, Year: params.Year}); err != nil {
+		return err
+	}
+
 	status, err := s.Repository.FetchPlannedEntryStatus(ctx, fetchPlannedEntryStatusParams{
 		PlannedEntryID: params.PlannedEntryID,
 		Month:          params.Month,
@@ -2108,7 +2175,6 @@ func (s *service) UnmatchPlannedEntry(ctx context.Context, params UnmatchPlanned
 		if err == nil && tx.OriginalDescription != nil {
 			_, err = s.Repository.ModifyTransaction(ctx, modifyTransactionParams{
 				TransactionID:  tx.TransactionID,
-				UserID:         params.UserID,
 				OrganizationID: params.OrganizationID,
 				Description:    tx.OriginalDescription,
 			})
@@ -2142,6 +2208,10 @@ type DismissPlannedEntryInput struct {
 
 // DismissPlannedEntry dismisses a planned entry for a specific month
 func (s *service) DismissPlannedEntry(ctx context.Context, params DismissPlannedEntryInput) (PlannedEntryStatus, error) {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{OrganizationID: params.OrganizationID, Month: params.Month, Year: params.Year}); err != nil {
+		return PlannedEntryStatus{}, err
+	}
+
 	// 1. Verify the planned entry exists and belongs to the user
 	_, err := s.Repository.FetchPlannedEntryByID(ctx, fetchPlannedEntryByIDParams{
 		PlannedEntryID: params.PlannedEntryID,
@@ -2187,6 +2257,10 @@ type UndismissPlannedEntryInput struct {
 
 // UndismissPlannedEntry reverts a dismissed planned entry back to pending
 func (s *service) UndismissPlannedEntry(ctx context.Context, params UndismissPlannedEntryInput) (PlannedEntryStatus, error) {
+	if err := s.ensureMonthOpen(ctx, monthClosureParams{OrganizationID: params.OrganizationID, Month: params.Month, Year: params.Year}); err != nil {
+		return PlannedEntryStatus{}, err
+	}
+
 	// 1. Fetch the status
 	status, err := s.Repository.FetchPlannedEntryStatus(ctx, fetchPlannedEntryStatusParams{
 		PlannedEntryID: params.PlannedEntryID,
@@ -2400,7 +2474,6 @@ func (s *service) SyncAmazonOrders(ctx context.Context, params SyncAmazonOrdersI
 			// Update transaction description
 			_, err := s.UpdateTransaction(ctx, UpdateTransactionInput{
 				TransactionID:  bestMatch.TransactionID,
-				UserID:         params.UserID,
 				OrganizationID: params.OrganizationID,
 				Description:    &newDesc,
 			})
@@ -2537,6 +2610,120 @@ func (s *service) GetTags(ctx context.Context, input GetTagsInput) ([]Tag, error
 	}
 
 	return Tags{}.FromModel(models), nil
+}
+
+type GetTagSpendingInput struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// GetTagSpending returns, per tag, the amount spent this month, the planned
+// budget, and the planned entries that make up that budget (dismissed planned
+// entries excluded). A tag is listed when it has spending or a planned budget.
+// Sorted by spent then planned, both descending.
+func (s *service) GetTagSpending(ctx context.Context, input GetTagSpendingInput) ([]TagSpending, error) {
+	spentModels, err := s.Repository.FetchTagSpendingByMonth(ctx, fetchTagSpendingByMonthParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch tag spending")
+	}
+
+	plannedModels, err := s.Repository.FetchTagPlannedByMonth(ctx, fetchTagPlannedByMonthParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch tag planned amounts")
+	}
+
+	plannedEntryModels, err := s.Repository.FetchTagPlannedEntriesByMonth(ctx, fetchTagPlannedEntriesByMonthParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch tag planned entries")
+	}
+
+	type tagAggregate struct {
+		tag            TagModel
+		spent          decimal.Decimal
+		planned        decimal.Decimal
+		txCount        int
+		plannedEntries []TagPlannedEntry
+	}
+
+	byTag := make(map[int]*tagAggregate)
+	get := func(id int, name, icon, color string) *tagAggregate {
+		agg, ok := byTag[id]
+		if !ok {
+			agg = &tagAggregate{
+				tag:     TagModel{TagID: id, Name: name, Icon: icon, Color: color},
+				spent:   decimal.Zero,
+				planned: decimal.Zero,
+			}
+			byTag[id] = agg
+		}
+		return agg
+	}
+
+	for _, m := range spentModels {
+		agg := get(m.TagID, m.Name, m.Icon, m.Color)
+		agg.spent = m.Total
+		agg.txCount = m.TransactionCount
+	}
+	for _, p := range plannedModels {
+		agg := get(p.TagID, p.Name, p.Icon, p.Color)
+		agg.planned = p.Total
+	}
+	for _, entry := range plannedEntryModels {
+		agg, ok := byTag[entry.TagID]
+		if !ok {
+			continue
+		}
+		agg.plannedEntries = append(agg.plannedEntries, TagPlannedEntry{
+			PlannedEntryID: entry.PlannedEntryID,
+			Description:    entry.Description,
+			Amount:         entry.Amount.StringFixed(2),
+			Status:         entry.Status,
+			Paid:           entry.Paid,
+		})
+	}
+
+	aggregates := make([]*tagAggregate, 0, len(byTag))
+	for _, agg := range byTag {
+		aggregates = append(aggregates, agg)
+	}
+	sort.Slice(aggregates, func(i, j int) bool {
+		if c := aggregates[i].spent.Cmp(aggregates[j].spent); c != 0 {
+			return c > 0
+		}
+		if c := aggregates[i].planned.Cmp(aggregates[j].planned); c != 0 {
+			return c > 0
+		}
+		return aggregates[i].tag.TagID < aggregates[j].tag.TagID
+	})
+
+	result := make([]TagSpending, len(aggregates))
+	for i, agg := range aggregates {
+		result[i] = TagSpending{
+			TagID:            agg.tag.TagID,
+			Name:             agg.tag.Name,
+			Icon:             agg.tag.Icon,
+			Color:            agg.tag.Color,
+			Total:            agg.spent.StringFixed(2),
+			Planned:          agg.planned.StringFixed(2),
+			TransactionCount: agg.txCount,
+			PlannedEntries:   agg.plannedEntries,
+		}
+	}
+
+	return result, nil
 }
 
 type GetTagByIDInput struct {
@@ -2694,4 +2881,101 @@ func (s *service) SetPlannedEntryTags(ctx context.Context, input SetPlannedEntry
 		PlannedEntryID: input.PlannedEntryID,
 		TagIDs:         input.TagIDs,
 	})
+}
+
+// ============================================================================
+// Similarity Classification
+// ============================================================================
+
+const (
+	// SimilarityThreshold is the minimum trigram similarity to consider descriptions as related
+	SimilarityThreshold = 0.6
+	// SimilarityLookbackMonths is how far back to look for categorized transactions
+	SimilarityLookbackMonths = 3
+	// SimilarityAutoClassifyMinScore is the minimum score to auto-classify without review
+	SimilarityAutoClassifyMinScore = 0.7
+	// ClassifiedBySimilarity is the value for classified_by when auto-classified
+	ClassifiedBySimilarity = "similarity"
+)
+
+type SuggestCategoryInput struct {
+	OriginalDescription string
+	OrganizationID      int
+	TransactionType     string
+}
+
+type SuggestCategoryOutput struct {
+	CategoryID           *int    // Best category (nil if no history found)
+	SuggestedDescription *string // Most common user-edited description for similar transactions
+	Confidence           float64 // Normalized score (0.0 - 1.0)
+	IsAmbiguous          bool    // true if 2+ categories found for similar descriptions
+}
+
+// SuggestCategoryForTransaction analyzes past categorized transactions to find
+// the best category match for a description. Returns ambiguity information
+// so the caller can decide whether to auto-classify or suggest.
+func (s *service) SuggestCategoryForTransaction(ctx context.Context, input SuggestCategoryInput) (SuggestCategoryOutput, error) {
+	distribution, err := s.Repository.FetchSimilarCategoryDistribution(ctx, fetchSimilarCategoryDistributionParams{
+		OriginalDescription: input.OriginalDescription,
+		OrganizationID:      input.OrganizationID,
+		TransactionType:     input.TransactionType,
+		SimilarityThreshold: SimilarityThreshold,
+		LookbackMonths:      SimilarityLookbackMonths,
+	})
+	if err != nil {
+		return SuggestCategoryOutput{}, fmt.Errorf("fetch similar categories: %w", err)
+	}
+
+	// No history — unknown
+	if len(distribution) == 0 {
+		return SuggestCategoryOutput{}, nil
+	}
+
+	best := distribution[0] // Sorted by score DESC
+
+	// Normalize score to 0-1 range.
+	// The raw score is AVG(similarity) * LN(frequency + 1).
+	// Max theoretical: similarity=1.0 * LN(inf) → unbounded, but practically
+	// capped around 3-4 for realistic frequencies.
+	// We use the avg_similarity as the primary confidence signal since it's
+	// already in [0,1], weighted slightly by whether we have frequency backing.
+	confidence := best.AvgSimilarity
+	if best.Frequency > 1 {
+		// Small bonus for repeated matches, capped at 1.0
+		bonus := 0.05 * float64(best.Frequency-1)
+		if bonus > 0.15 {
+			bonus = 0.15
+		}
+		confidence += bonus
+		if confidence > 1.0 {
+			confidence = 1.0
+		}
+	}
+
+	return SuggestCategoryOutput{
+		CategoryID:           &best.CategoryID,
+		SuggestedDescription: best.SuggestedDescription,
+		Confidence:           confidence,
+		IsAmbiguous:          len(distribution) >= 2,
+	}, nil
+}
+
+type GetTransactionsNeedingReviewInput struct {
+	OrganizationID int
+	Month          int
+	Year           int
+}
+
+// GetTransactionsNeedingReview returns transactions that were auto-classified by
+// similarity (need confirmation) or have suggestions but no category (need action).
+func (s *service) GetTransactionsNeedingReview(ctx context.Context, input GetTransactionsNeedingReviewInput) ([]Transaction, error) {
+	models, err := s.Repository.FetchTransactionsNeedingReview(ctx, fetchTransactionsNeedingReviewParams{
+		OrganizationID: input.OrganizationID,
+		Month:          input.Month,
+		Year:           input.Year,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("fetch transactions needing review: %w", err)
+	}
+	return Transactions{}.FromModel(models), nil
 }

@@ -1,19 +1,49 @@
-import { MMKV } from "react-native-mmkv"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
-export const storage = new MMKV()
+const memory = new Map<string, string>()
+
+export const storage = {
+  getString: (key: string): string | undefined => memory.get(key),
+  getNumber: (key: string): number | undefined => {
+    const value = memory.get(key)
+    if (value == null) return undefined
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? undefined : parsed
+  },
+  set: (key: string, value: string | number | boolean): void => {
+    const stringValue = String(value)
+    memory.set(key, stringValue)
+    void AsyncStorage.setItem(key, stringValue)
+  },
+  delete: (key: string): void => {
+    memory.delete(key)
+    void AsyncStorage.removeItem(key)
+  },
+  clearAll: (): void => {
+    memory.clear()
+    void AsyncStorage.clear()
+  },
+  getAllKeys: (): string[] => Array.from(memory.keys()),
+}
+
+export async function hydrateStorage(keys: string[]): Promise<void> {
+  const values = await AsyncStorage.multiGet(keys)
+  values.forEach(([key, value]) => {
+    if (value != null) memory.set(key, value)
+  })
+}
 
 /**
  * Loads a string from storage.
  *
  * @param key The key to fetch.
  */
-export function loadString(key: string): string | null {
-  try {
-    return storage.getString(key) ?? null
-  } catch {
-    // not sure why this would fail... even reading the RN docs I'm unclear
-    return null
-  }
+export async function loadString(key: string): Promise<string | null> {
+  const memoryValue = storage.getString(key)
+  if (memoryValue != null) return memoryValue
+  const value = await AsyncStorage.getItem(key)
+  if (value != null) memory.set(key, value)
+  return value
 }
 
 /**
@@ -36,13 +66,13 @@ export function saveString(key: string, value: string): boolean {
  *
  * @param key The key to fetch.
  */
-export function load<T>(key: string): T | null {
-  let almostThere: string | null = null
+export async function load<T>(key: string): Promise<T | null> {
+  const almostThere = await loadString(key)
+  if (almostThere == null) return null
   try {
-    almostThere = loadString(key)
-    return JSON.parse(almostThere ?? "") as T
+    return JSON.parse(almostThere) as T
   } catch {
-    return (almostThere as T) ?? null
+    return almostThere as T
   }
 }
 
@@ -67,16 +97,12 @@ export function save(key: string, value: unknown): boolean {
  * @param key The key to kill.
  */
 export function remove(key: string): void {
-  try {
-    storage.delete(key)
-  } catch {}
+  storage.delete(key)
 }
 
 /**
  * Burn it all to the ground.
  */
 export function clear(): void {
-  try {
-    storage.clearAll()
-  } catch {}
+  storage.clearAll()
 }

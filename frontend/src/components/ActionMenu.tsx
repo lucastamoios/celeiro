@@ -47,6 +47,7 @@ export default function ActionMenu({ transaction, onEditFull }: ActionMenuProps)
         onClick={handleToggle}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Mais ações da transação"
         className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
         title="Mais ações"
       >

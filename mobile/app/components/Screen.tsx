@@ -6,19 +6,21 @@ import {
   Platform,
   ScrollView,
   ScrollViewProps,
+  StatusBar,
+  StatusBarProps,
   StyleProp,
   View,
   ViewStyle,
 } from "react-native"
 import { useScrollToTop } from "@react-navigation/native"
-import { SystemBars, SystemBarsProps, SystemBarStyle } from "react-native-edge-to-edge"
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller"
 
 import { useAppTheme } from "@/theme/context"
 import { $styles } from "@/theme/styles"
 import { ExtendedEdge, useSafeAreaInsetsStyle } from "@/utils/useSafeAreaInsetsStyle"
 
 export const DEFAULT_BOTTOM_OFFSET = 50
+
+type SystemBarStyle = "light" | "dark"
 
 interface BaseScreenProps {
   /**
@@ -56,7 +58,7 @@ interface BaseScreenProps {
   /**
    * Pass any additional props directly to the SystemBars component.
    */
-  SystemBarsProps?: SystemBarsProps
+  SystemBarsProps?: StatusBarProps
   /**
    * Pass any additional props directly to the KeyboardAvoidingView component.
    */
@@ -191,7 +193,6 @@ function ScreenWithScrolling(props: ScreenProps) {
   const {
     children,
     keyboardShouldPersistTaps = "handled",
-    keyboardBottomOffset = DEFAULT_BOTTOM_OFFSET,
     contentContainerStyle,
     ScrollViewProps,
     style,
@@ -206,8 +207,7 @@ function ScreenWithScrolling(props: ScreenProps) {
   useScrollToTop(ref)
 
   return (
-    <KeyboardAwareScrollView
-      bottomOffset={keyboardBottomOffset}
+    <ScrollView
       {...{ keyboardShouldPersistTaps, scrollEnabled, ref }}
       {...ScrollViewProps}
       onLayout={(e) => {
@@ -226,7 +226,7 @@ function ScreenWithScrolling(props: ScreenProps) {
       ]}
     >
       {children}
-    </KeyboardAwareScrollView>
+    </ScrollView>
   )
 }
 
@@ -253,6 +253,7 @@ export function Screen(props: ScreenProps) {
   } = props
 
   const $containerInsets = useSafeAreaInsetsStyle(safeAreaEdges)
+  const statusBarStyle = systemBarStyle || (themeContext === "dark" ? "light" : "dark")
 
   return (
     <View
@@ -262,8 +263,8 @@ export function Screen(props: ScreenProps) {
         $containerInsets,
       ]}
     >
-      <SystemBars
-        style={systemBarStyle || (themeContext === "dark" ? "light" : "dark")}
+      <StatusBar
+        barStyle={statusBarStyle === "light" ? "light-content" : "dark-content"}
         {...SystemBarsProps}
       />
 

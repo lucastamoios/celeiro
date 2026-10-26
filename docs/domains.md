@@ -112,13 +112,10 @@ Monthly budget for a specific category.
 |-------|---------|
 | category_id | Target category |
 | month / year | Budget period |
-| budget_type | fixed, calculated, or maior |
-| planned_amount | Budget amount (for fixed type) |
+| controlled_amount | Discretionary buffer amount set by user |
 
-**Budget Type Calculation**:
-- fixed: Uses planned_amount directly
-- calculated: Sum of planned entries
-- maior: MAX(planned_amount, sum of entries)
+**Budget Calculation**:
+Total budget = sum(planned entries for the category in that month) + controlled_amount. The controlled amount represents a discretionary buffer the user sets for spending that is not tied to any specific planned entry.
 
 ### PlannedEntry
 
@@ -153,15 +150,19 @@ Monthly tracking for planned entries.
 
 ### Pattern
 
-Regex-based automatic categorization rule.
+Regex-based automatic transaction rule.
 
 | Field | Purpose |
 |-------|---------|
 | description_pattern | Regex to match original_description |
 | weekday_pattern | Regex for day of week (0-6) |
 | amount_min / amount_max | Amount range filter |
-| target_category_id | Category to assign |
-| target_description | Description to set |
+| action | `categorize` or `ignore` |
+| target_category_id | Category to assign; required only for `categorize` |
+| target_description | Description to set; required only for `categorize` |
+| apply_retroactively | Allowed only for `categorize` |
+
+Patterns are evaluated from newest to oldest and stop after the first successful match. `ignore` is prospective: it marks only `is_ignored` on a new transaction processed by the pattern engine. It does not rewrite the transaction, revisit existing transactions, or restore previously ignored transactions when the pattern is disabled or deleted.
 
 ### SavingsGoal
 
@@ -174,6 +175,12 @@ Long-term savings target ("Reserva" or "Investimento").
 | current_amount | Current progress |
 | goal_type | reserva (short-term) or investimento (long-term) |
 | status | active, completed, cancelled |
+| category_id | Optional category for auto-generated planned entries |
+| monthly_contribution | Monthly amount for investimento goals |
+
+**Auto-generated Planned Entries**: When a savings goal has a category_id, planned entries are auto-generated monthly when the budget page is loaded.
+- Reserva goals calculate amount from (target - current) / months_remaining
+- Investimento goals use the fixed monthly_contribution amount
 
 ### PlannedEntryTag
 
@@ -205,9 +212,11 @@ sequenceDiagram
 
     U->>TX: Import OFX
     TX->>AP: Check patterns
-    alt Pattern matches
+    alt Categorize pattern matches
         AP->>CAT: Auto-assign category
         AP->>TX: Set target_description
+    else Ignore pattern matches
+        AP->>TX: Set is_ignored only
     else No match
         TX->>TX: Stays uncategorized
     end
@@ -270,7 +279,6 @@ sequenceDiagram
 ### Financial Domain
 - accounts, transactions, transaction_tags
 - categories, tags
-- budgets, budget_items (legacy)
 - category_budgets, monthly_snapshots
 - planned_entries, planned_entry_statuses, planned_entry_tags
 - patterns

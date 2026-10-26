@@ -12,6 +12,7 @@ import Config from "@/config"
 import {
   AuthenticateRequest,
   AuthenticateResponse,
+  PasswordAuthRequest,
   RequestMagicLinkRequest,
   RequestMagicLinkResponse,
 } from "./accounts"
@@ -19,7 +20,18 @@ import { APIResponse } from "./responses"
 import type { ApiConfig } from "./types"
 import { CreateRideRequest, CreateRideResponse } from "./rides"
 import { GetLeaderboardResponse, GetMyScoreHistoryResponse, GetMyTotalScoreResponse } from "./scores"
-import { storage } from "@/utils/storage"
+import { loadString } from "@/utils/storage"
+import {
+  Account,
+  Category,
+  ControllableCategoryPacing,
+  PlannedEntryWithStatus,
+  SavingsGoal,
+  SavingsGoalProgress,
+  TagSpending,
+  Transaction,
+  UpdateTransactionRequest,
+} from "./celeiro"
 
 /**
  * Configuring the apisauce instance.
@@ -50,9 +62,13 @@ export class Api {
       },
     })
     this.apisauce.addAsyncRequestTransform(async (request) => {
-      const authToken = storage.getString("authToken")
+      const authToken = await loadString("authToken")
       if (authToken && request.headers) {
         request.headers["X-Session-ID"] = authToken
+      }
+      const activeOrganization = await loadString("activeOrganization")
+      if (activeOrganization && request.headers) {
+        request.headers["X-Active-Organization"] = activeOrganization
       }
       console.debug(`Request: ${request.url}`)
     })
@@ -74,6 +90,14 @@ export class Api {
   async authenticate(input: AuthenticateRequest): Promise<APIResponse<AuthenticateResponse>> {
     const response: ApisauceApiResponse<APIResponse<AuthenticateResponse>> =
       await this.apisauce.post(`/auth/validate/`, input)
+    return response.data!
+  }
+
+  async authenticateWithPassword(
+    input: PasswordAuthRequest,
+  ): Promise<APIResponse<AuthenticateResponse>> {
+    const response: ApisauceApiResponse<APIResponse<AuthenticateResponse>> =
+      await this.apisauce.post(`/auth/password/`, input)
     return response.data!
   }
 
@@ -104,6 +128,88 @@ export class Api {
       `/rides/`,
       input,
     )
+    return response.data!
+  }
+
+  // Celeiro finance
+
+  async getFinancialAccounts(): Promise<APIResponse<Account[]>> {
+    const response: ApisauceApiResponse<APIResponse<Account[]>> =
+      await this.apisauce.get(`/financial/accounts`)
+    return response.data!
+  }
+
+  async getTransactions(accountId: number, limit = 1000): Promise<APIResponse<Transaction[]>> {
+    const response: ApisauceApiResponse<APIResponse<Transaction[]>> = await this.apisauce.get(
+      `/financial/accounts/${accountId}/transactions`,
+      { limit },
+    )
+    return response.data!
+  }
+
+  async getUncategorizedTransactions(limit = 1000): Promise<APIResponse<Transaction[]>> {
+    const response: ApisauceApiResponse<APIResponse<Transaction[]>> = await this.apisauce.get(
+      `/financial/transactions/uncategorized`,
+      { limit },
+    )
+    return response.data!
+  }
+
+  async updateTransaction(
+    accountId: number,
+    transactionId: number,
+    input: UpdateTransactionRequest,
+  ): Promise<APIResponse<Transaction>> {
+    const response: ApisauceApiResponse<APIResponse<Transaction>> = await this.apisauce.patch(
+      `/financial/accounts/${accountId}/transactions/${transactionId}`,
+      input,
+    )
+    return response.data!
+  }
+
+  async getCategories(): Promise<APIResponse<Category[]>> {
+    const response: ApisauceApiResponse<APIResponse<Category[]>> =
+      await this.apisauce.get(`/financial/categories`)
+    return response.data!
+  }
+
+  async getCategoryPacing(
+    month: number,
+    year: number,
+  ): Promise<APIResponse<ControllableCategoryPacing>> {
+    const response: ApisauceApiResponse<APIResponse<ControllableCategoryPacing>> =
+      await this.apisauce.get(`/financial/budgets/categories/pacing`, { month, year })
+    return response.data!
+  }
+
+  async getPlannedEntriesForMonth(
+    month: number,
+    year: number,
+  ): Promise<APIResponse<PlannedEntryWithStatus[]>> {
+    const response: ApisauceApiResponse<APIResponse<PlannedEntryWithStatus[]>> =
+      await this.apisauce.get(`/financial/planned-entries/month`, { month, year })
+    return response.data!
+  }
+
+  async getTagSpending(month: number, year: number): Promise<APIResponse<TagSpending[]>> {
+    const response: ApisauceApiResponse<APIResponse<TagSpending[]>> = await this.apisauce.get(
+      `/financial/tags/spending`,
+      { month, year },
+    )
+    return response.data!
+  }
+
+  async getSavingsGoals(): Promise<APIResponse<SavingsGoal[]>> {
+    const response: ApisauceApiResponse<APIResponse<SavingsGoal[]>> = await this.apisauce.get(
+      `/financial/savings-goals`,
+      { is_active: true },
+    )
+    return response.data!
+  }
+
+  async getSavingsGoalProgress(goalId: number): Promise<APIResponse<SavingsGoalProgress>> {
+    const response: ApisauceApiResponse<APIResponse<SavingsGoalProgress>> =
+      await this.apisauce.get(`/financial/savings-goals/${goalId}/progress`)
     return response.data!
   }
 }

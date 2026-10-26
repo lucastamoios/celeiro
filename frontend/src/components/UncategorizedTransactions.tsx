@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
@@ -8,6 +9,8 @@ import { parseTransactionDate } from '../utils/date';
 
 export default function UncategorizedTransactions() {
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Map<number, Category>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -29,7 +32,7 @@ export default function UncategorizedTransactions() {
       const txResponse = await fetch(financialUrl('transactions/uncategorized'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
       });
 
@@ -44,7 +47,7 @@ export default function UncategorizedTransactions() {
       const catResponse = await fetch(financialUrl('categories'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
       });
 

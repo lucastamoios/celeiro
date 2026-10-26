@@ -1,7 +1,7 @@
 {
-  "name": "appvodsafe",
-  "slug": "appvodsafe",
-  "scheme": "appvodsafe",
+  "name": "Celeiro",
+  "slug": "celeiro",
+  "scheme": "celeiro",
   "version": "1.0.0",
   "orientation": "portrait",
   "userInterfaceStyle": "automatic",
@@ -14,7 +14,7 @@
   "assetBundlePatterns": ["**/*"],
   "android": {
     "icon": "./assets/images/app-icon-android-legacy.png",
-    "package": "com.vodsafe",
+    "package": "dev.laguiar.celeiro",
     "adaptiveIcon": {
       "foregroundImage": "./assets/images/app-icon-android-adaptive-foreground.png",
       "backgroundImage": "./assets/images/app-icon-android-adaptive-background.png"
@@ -30,7 +30,7 @@
   "ios": {
     "icon": "./assets/images/app-icon-ios.png",
     "supportsTablet": true,
-    "bundleIdentifier": "com.vodsafe",
+    "bundleIdentifier": "dev.laguiar.celeiro",
     "config": {
       "googleMapsApiKey": "AIzaSyBdQWRFEtrNDwMnjzPSkpvslsHJlFEK0tE"
     },

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, TrendingDown, X, ChevronLeft, ChevronRight, CalendarDays, Tags, Upload, PieChart, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { financialUrl } from '../config/api';
 import { getCategoryBudgets, getPlannedEntriesForMonth } from '../api/budget';
 import { parseTransactionDate } from '../utils/date';
@@ -10,6 +11,7 @@ import type { Transaction } from '../types/transaction';
 import type { Category } from '../types/category';
 import type { PlannedEntryWithStatus } from '../types/budget';
 import BudgetPacingWidget from './BudgetPacingWidget';
+import TagSpendingSummary from './TagSpendingSummary';
 import { getCategoryColor } from '../utils/colors';
 
 interface Account {
@@ -71,6 +73,8 @@ interface DashboardStats {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const activeOrganizationId = activeOrganization?.organization_id?.toString() || '1';
   const {
     selectedMonth, selectedYear,
     goToPreviousMonth, goToNextMonth, goToCurrentMonth, isCurrentMonth: isCurrentSelectedMonth,
@@ -117,13 +121,13 @@ export default function Dashboard() {
         fetch(financialUrl('accounts'), {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         }),
         fetch(financialUrl('categories'), {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'X-Active-Organization': '1',
+            'X-Active-Organization': activeOrganizationId,
           },
         }),
       ]);
@@ -144,7 +148,7 @@ export default function Dashboard() {
           {
             headers: {
               'Authorization': `Bearer ${token}`,
-              'X-Active-Organization': '1',
+              'X-Active-Organization': activeOrganizationId,
             },
           }
         );
@@ -198,14 +202,13 @@ export default function Dashboard() {
         });
 
       // Convert to array and calculate percentages
-      const categoryExpenses: CategoryExpense[] = Array.from(categoryMap.values())
+      let categoryExpenses: CategoryExpense[] = Array.from(categoryMap.values())
         .map(({ category, amount }) => ({
           category,
           amount,
           percentage: expenses > 0 ? (amount / expenses) * 100 : 0,
         }))
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 8);
+        .sort((a, b) => b.amount - a.amount);
 
       // Calculate expenses by tag
       const tagMap = new Map<string, number>();
@@ -237,7 +240,7 @@ export default function Dashboard() {
       const uncatResponse = await fetch(financialUrl('transactions/uncategorized'), {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Active-Organization': '1',
+          'X-Active-Organization': activeOrganizationId,
         },
       });
 
@@ -322,12 +325,24 @@ export default function Dashboard() {
           totalPlannedIncome,
           variance,
           variancePercent,
-          budgetsByCategory: budgetsByCategory.slice(0, 5),
+          budgetsByCategory,
           plannedEntries: plannedEntriesStats,
         };
+
+        // Hide categories whose actual spending this month is below 1% of
+        // planned income. The breakdown shows actual spending, so the threshold
+        // is applied to the spent amount (not the controlled budget): any
+        // category that spends more than 1% of income is kept, regardless of how
+        // it was budgeted.
+        if (totalPlannedIncome > 0) {
+          const minimumSpend = totalPlannedIncome * 0.01;
+          categoryExpenses = categoryExpenses.filter(({ amount }) => amount >= minimumSpend);
+        }
       } catch (budgetErr) {
         console.warn('Failed to fetch budget data:', budgetErr);
       }
+
+      categoryExpenses = categoryExpenses.slice(0, 8);
 
       setStats({
         totalIncome: income,
@@ -786,7 +801,7 @@ export default function Dashboard() {
             className="w-full flex items-center justify-between"
           >
             <h2 className="font-display text-lg font-semibold text-stone-900">
-              Detalhamento de Gastos
+              Gastos Reais do Mês
             </h2>
             <div className="flex items-center gap-2 text-stone-500">
               <span className="text-sm">
@@ -943,6 +958,9 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Planned vs spent per tag for the selected month */}
+      <TagSpendingSummary month={selectedMonth} year={selectedYear} />
     </div>
   );
 }

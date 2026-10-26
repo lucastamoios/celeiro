@@ -198,7 +198,7 @@ func (test *AuthTestSuite) TestValidateMagicLinkCode() {
 func TestSendMagicLinkEmail_Success(t *testing.T) {
 	memoryDB := transientdb.NewMemoryTransientDB()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -242,7 +242,7 @@ func TestSendMagicLinkEmail_Success(t *testing.T) {
 func TestSendMagicLinkEmail_NoMailer(t *testing.T) {
 	memoryDB := transientdb.NewMemoryTransientDB()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -265,7 +265,7 @@ func TestSendMagicLinkEmail_NoMailer(t *testing.T) {
 func TestSendMagicLinkEmail_MailerError(t *testing.T) {
 	memoryDB := transientdb.NewMemoryTransientDB()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -302,7 +302,7 @@ func TestGetMagicCodeKey(t *testing.T) {
 func TestAuthenticateWithMagicCode_InvalidCode(t *testing.T) {
 	memoryDB := transientdb.NewMemoryTransientDB()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -337,7 +337,7 @@ func TestAuthenticateWithMagicCode_ExistingUser(t *testing.T) {
 	transientDB := transientdb.NewMemoryTransientDB()
 	persistentDB := database.NewMemoryDatabase()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -426,7 +426,7 @@ func TestAuthenticateWithMagicCode_NewUser(t *testing.T) {
 	transientDB := transientdb.NewMemoryTransientDB()
 	persistentDB := database.NewMemoryDatabase()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -478,7 +478,7 @@ func TestAuthenticateWithMagicCode_UserFetchError(t *testing.T) {
 	transientDB := transientdb.NewMemoryTransientDB()
 	persistentDB := database.NewMemoryDatabase()
 	config := config.Config{EmailFrom: "test@example.com"}
-	logger, err := logging.NewOTelLogger(&config)
+	logger, err := logging.NewStdoutLogger()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
