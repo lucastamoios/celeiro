@@ -12,6 +12,7 @@ type Repository interface {
 	// Categories
 	FetchCategories(ctx context.Context, params fetchCategoriesParams) ([]CategoryModel, error)
 	FetchCategoryByID(ctx context.Context, params fetchCategoryByIDParams) (CategoryModel, error)
+	FetchCategoriesByIDs(ctx context.Context, params fetchCategoriesByIDsParams) ([]CategoryModel, error)
 	InsertCategory(ctx context.Context, params insertCategoryParams) (CategoryModel, error)
 	ModifyCategory(ctx context.Context, params modifyCategoryParams) (CategoryModel, error)
 	RemoveCategory(ctx context.Context, params removeCategoryParams) error
@@ -206,6 +207,45 @@ func (r *repository) FetchCategoryByID(ctx context.Context, params fetchCategory
 	err := r.db.Query(ctx, &result, fetchCategoryByIDQuery, params.CategoryID, params.OrganizationID)
 	if err != nil {
 		return CategoryModel{}, err
+	}
+	return result, nil
+}
+
+// fetchCategoriesByIDsParams limits the lookup to the requested categories.
+// An empty ID list returns no categories, never the entire organization.
+type fetchCategoriesByIDsParams struct {
+	CategoryIDs    []int
+	OrganizationID int
+}
+
+const fetchCategoriesByIDsQuery = `
+	-- financial.fetchCategoriesByIDsQuery
+	SELECT
+		category_id,
+		created_at,
+		updated_at,
+		name,
+		icon,
+		color,
+		is_system,
+		is_controllable,
+		user_id,
+		organization_id,
+		category_type
+	FROM categories
+	WHERE category_id = ANY($1::int[])
+		AND (organization_id = $2 OR is_system = true)
+	ORDER BY category_id;
+`
+
+func (r *repository) FetchCategoriesByIDs(ctx context.Context, params fetchCategoriesByIDsParams) ([]CategoryModel, error) {
+	if len(params.CategoryIDs) == 0 {
+		return []CategoryModel{}, nil
+	}
+	var result []CategoryModel
+	err := r.db.Query(ctx, &result, fetchCategoriesByIDsQuery, params.CategoryIDs, params.OrganizationID)
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }
@@ -661,6 +701,7 @@ type fetchTransactionsByMonthParams struct {
 	OrganizationID int
 	Month          int
 	Year           int
+	CategoryIDs    []int // nil means all categories; an empty list matches none
 }
 
 const fetchTransactionsByMonthQuery = `
@@ -696,13 +737,14 @@ const fetchTransactionsByMonthQuery = `
 	WHERE a.organization_id = $1
 		AND EXTRACT(MONTH FROM t.transaction_date) = $2
 		AND EXTRACT(YEAR FROM t.transaction_date) = $3
+		AND ($4::int[] IS NULL OR t.category_id = ANY($4::int[]))
 	ORDER BY t.transaction_date ASC;
 `
 
 func (r *repository) FetchTransactionsByMonth(ctx context.Context, params fetchTransactionsByMonthParams) ([]TransactionModel, error) {
 	var result []TransactionModel
 	err := r.db.Query(ctx, &result, fetchTransactionsByMonthQuery,
-		params.OrganizationID, params.Month, params.Year)
+		params.OrganizationID, params.Month, params.Year, params.CategoryIDs)
 	if err != nil {
 		return nil, err
 	}

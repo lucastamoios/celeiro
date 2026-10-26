@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -23,6 +24,11 @@ type MockRepository struct {
 
 // Categories
 func (m *MockRepository) FetchCategories(ctx context.Context, params fetchCategoriesParams) ([]CategoryModel, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).([]CategoryModel), args.Error(1)
+}
+
+func (m *MockRepository) FetchCategoriesByIDs(ctx context.Context, params fetchCategoriesByIDsParams) ([]CategoryModel, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).([]CategoryModel), args.Error(1)
 }
@@ -875,12 +881,32 @@ func TestFinancialService_ComputePlannedEntryStatus_PastExpectedDayIsPending(t *
 	assert.Equal(t, PlannedEntryStatusPending, status)
 }
 
-// pacingTestSetup wires the four repository calls GetControllableCategoryPacing
-// makes: categories, budgets, transactions, and income budget (for the filter).
+// pacingCategoryTestSetup expects one scoped category batch, never an N+1 lookup.
+func pacingCategoryTestSetup(mockRepo *MockRepository, categories []CategoryModel) {
+	ids := make([]int, 0, len(categories))
+	for _, category := range categories {
+		ids = append(ids, category.CategoryID)
+	}
+	slices.Sort(ids)
+	mockRepo.On("FetchCategoriesByIDs", mock.Anything, fetchCategoriesByIDsParams{
+		CategoryIDs: ids, OrganizationID: 1,
+	}).Return(categories, nil).Once()
+}
+
+// pacingTestSetup wires budget-driven category lookups and the pacing totals.
 func pacingTestSetup(mockRepo *MockRepository, categories []CategoryModel, budgets []CategoryBudgetModel, plannedIncome decimal.Decimal) {
-	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	pacingCategoryTestSetup(mockRepo, categories)
 	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
-	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return([]TransactionModel{}, nil)
+	controlledIDs := []int{}
+	for _, category := range categories {
+		if category.CategoryType != "income" {
+			controlledIDs = append(controlledIDs, category.CategoryID)
+		}
+	}
+	slices.Sort(controlledIDs)
+	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.MatchedBy(func(params fetchTransactionsByMonthParams) bool {
+		return params.OrganizationID == 1 && slices.Equal(params.CategoryIDs, controlledIDs)
+	})).Return([]TransactionModel{}, nil)
 	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
 	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(plannedIncome, nil)
 }
@@ -948,9 +974,7 @@ func TestGetControllableCategoryPacing_IncludesSystemCategories(t *testing.T) {
 	budgets := []CategoryBudgetModel{
 		{CategoryID: 10, ControlledAmount: decimal.NewFromInt(1700)},
 	}
-	mockRepo.On("FetchCategories", mock.Anything, mock.MatchedBy(func(params fetchCategoriesParams) bool {
-		return params.IncludeSystem
-	})).Return(categories, nil)
+	pacingCategoryTestSetup(mockRepo, categories)
 	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
 	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return([]TransactionModel{}, nil)
 	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
@@ -1011,7 +1035,7 @@ func TestGetControllableCategoryPacing_ExcludesPlannedSpending(t *testing.T) {
 		{TransactionID: 7, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(250)}, // matched to a planned entry
 		{TransactionID: 8, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(100)}, // unplanned
 	}
-	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	pacingCategoryTestSetup(mockRepo, categories)
 	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
 	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return(transactions, nil)
 	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{7}, nil)
@@ -1045,7 +1069,7 @@ func TestGetControllableCategoryPacing_UsesBudgetGranularityForExpectedSpend(t *
 	transactions := []TransactionModel{
 		{TransactionID: 8, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(200)},
 	}
-	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	pacingCategoryTestSetup(mockRepo, categories)
 	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
 	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.Anything).Return(transactions, nil)
 	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
@@ -1088,13 +1112,13 @@ func TestGetControllableCategoryPacing_DerivesGranularityFromPreviousMonth(t *te
 		{TransactionID: 4, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(80)},
 		{TransactionID: 5, CategoryID: &categoryID, TransactionType: TransactionTypeDebit, Amount: decimal.NewFromInt(90)},
 	}
-	mockRepo.On("FetchCategories", mock.Anything, mock.Anything).Return(categories, nil)
+	pacingCategoryTestSetup(mockRepo, categories)
 	mockRepo.On("FetchCategoryBudgets", mock.Anything, mock.Anything).Return(budgets, nil)
 	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.MatchedBy(func(params fetchTransactionsByMonthParams) bool {
-		return params.Month == 6 && params.Year == 2026
+		return params.Month == 6 && params.Year == 2026 && slices.Equal(params.CategoryIDs, []int{categoryID})
 	})).Return(currentTransactions, nil)
 	mockRepo.On("FetchTransactionsByMonth", mock.Anything, mock.MatchedBy(func(params fetchTransactionsByMonthParams) bool {
-		return params.Month == 5 && params.Year == 2026
+		return params.Month == 5 && params.Year == 2026 && slices.Equal(params.CategoryIDs, []int{categoryID})
 	})).Return(previousTransactions, nil)
 	mockRepo.On("FetchMatchedTransactionIDs", mock.Anything, mock.Anything).Return([]int{}, nil)
 	mockRepo.On("FetchIncomeBudgetForMonth", mock.Anything, mock.Anything).Return(decimal.Zero, nil)

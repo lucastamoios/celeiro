@@ -326,3 +326,77 @@ func (test *FinancialTestSuite) TestPlannedEntry_SetPatternID_FromNull() {
 	test.Require().NotNil(updatedEntry.PatternID, "pattern_id should be set after update")
 	test.Equal(patternID, *updatedEntry.PatternID)
 }
+
+// The pacing lookup batches requested IDs without exposing another organization's
+// categories or transactions, and keeps system expenses and granularity history.
+func (test *FinancialTestSuite) TestCategoryPacing_BatchedLookupsPreserveScope() {
+	ctx := context.Background()
+	auth := test.CreateUserAndAuthenticate("pacing-batch@example.com", "Pacing Batch", "Pacing Batch")
+	other := test.CreateUserAndAuthenticate("pacing-other@example.com", "Pacing Other", "Pacing Other")
+
+	createCategory := func(orgID *int, isSystem bool, kind, name string) int {
+		var id int
+		test.Require().NoError(test.DB.Query(ctx, &id, `
+			INSERT INTO categories (organization_id, is_system, category_type, name)
+			VALUES ($1, $2, $3, $4) RETURNING category_id
+		`, orgID, isSystem, kind, name))
+		return id
+	}
+	orgID, otherOrgID := auth.GetOrganizationID(), other.GetOrganizationID()
+	expenseID := createCategory(&orgID, false, "expense", "Pacing expense")
+	systemID := createCategory(nil, true, "expense", "Pacing system")
+	incomeID := createCategory(&orgID, false, "income", "Pacing income")
+	zeroID := createCategory(&orgID, false, "expense", "Pacing zero")
+	foreignID := createCategory(&otherOrgID, false, "expense", "Pacing foreign")
+	for _, categoryID := range []int{expenseID, systemID, incomeID, foreignID, zeroID} {
+		amount := 1000
+		if categoryID == zeroID {
+			amount = 0
+		}
+		test.Require().NoError(test.DB.Run(ctx, `
+			INSERT INTO category_budgets (user_id, organization_id, category_id, month, year, controlled_amount)
+			VALUES ($1, $2, $3, 6, 2026, $4)
+		`, auth.GetUserID(), orgID, categoryID, amount))
+	}
+
+	createAccount := func(userID, organizationID int) int {
+		var id int
+		test.Require().NoError(test.DB.Query(ctx, &id, `
+			INSERT INTO accounts (user_id, organization_id, name, account_type)
+			VALUES ($1, $2, 'Pacing account', 'checking') RETURNING account_id
+		`, userID, organizationID))
+		return id
+	}
+	accountID := createAccount(auth.GetUserID(), orgID)
+	otherAccountID := createAccount(other.GetUserID(), otherOrgID)
+	insertTransaction := func(account, category, amount int, date string) {
+		test.Require().NoError(test.DB.Run(ctx, `
+			INSERT INTO transactions (account_id, category_id, description, original_description, amount, transaction_date, transaction_type)
+			VALUES ($1, $2, 'Pacing transaction', 'Pacing transaction', $3, $4, 'debit')
+		`, account, category, amount, date))
+	}
+	insertTransaction(accountID, expenseID, 100, "2026-06-01")
+	insertTransaction(accountID, systemID, 50, "2026-06-01")
+	insertTransaction(accountID, zeroID, 800, "2026-06-01")
+	insertTransaction(otherAccountID, expenseID, 900, "2026-06-01")
+	for i := 0; i < 3; i++ {
+		insertTransaction(accountID, expenseID, 10, "2026-05-01")
+	}
+	insertTransaction(otherAccountID, expenseID, 10, "2026-05-01")
+
+	svc := financial.New(test.financialRepo, test.System, test.Logger, test.DB, nil)
+	result, err := svc.GetControllableCategoryPacing(ctx, financial.GetControllableCategoryPacingInput{
+		UserID: auth.GetUserID(), OrganizationID: orgID, Month: 6, Year: 2026,
+	})
+
+	test.Require().NoError(err)
+	test.Require().Len(result.Categories, 2)
+	byID := make(map[int]financial.CategoryPacing)
+	for _, category := range result.Categories {
+		byID[category.CategoryID] = category
+	}
+	test.Equal("100", byID[expenseID].Spent.String())
+	test.Equal("50", byID[systemID].Spent.String())
+	test.Equal(3, byID[expenseID].Granularity)
+	test.Equal("previous_month", byID[expenseID].GranularitySource)
+}

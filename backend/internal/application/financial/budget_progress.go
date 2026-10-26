@@ -3,6 +3,7 @@ package financial
 import (
 	"context"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -54,7 +55,7 @@ type GetControllableCategoryPacingInput struct {
 	Year           int
 }
 
-// GetControllableCategoryPacing calculates pacing data for all controllable categories
+// GetControllableCategoryPacing calculates pacing for expense categories with non-zero controlled budgets
 func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetControllableCategoryPacingInput) (*ControllableCategoryPacing, error) {
 	// Calculate time-based values
 	now := s.system.Time.Now()
@@ -62,19 +63,8 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 	daysInMonth := time.Date(input.Year, time.Month(input.Month+1), 0, 0, 0, 0, 0, time.UTC).Day()
 	progressPercentage := float64(currentDay) / float64(daysInMonth) * 100
 
-	// Fetch all categories for the organization, including system ones: budgets
-	// are routinely set on system categories (Transporte, Moradia, Dívida), and
-	// excluding them silently dropped those from the pacing widget no matter how
-	// large their budget was. Only the 1% threshold below decides visibility.
-	categories, err := s.Repository.FetchCategories(ctx, fetchCategoriesParams{
-		OrganizationID: &input.OrganizationID,
-		IncludeSystem:  true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch category budgets for the month
+	// Category budgets determine which categories need details; avoid loading
+	// all organization and system categories for this pacing request.
 	categoryBudgets, err := s.Repository.FetchCategoryBudgets(ctx, fetchCategoryBudgetsParams{
 		UserID:         input.UserID,
 		OrganizationID: input.OrganizationID,
@@ -85,34 +75,43 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		return nil, err
 	}
 
-	// Create map of category ID -> category budget
-	// Include all categories that have a non-zero controlled amount
+	// Keep full budgets so granularity and income filtering continue to use the
+	// same data, while fetching details in one batch rather than N queries.
 	budgetMap := make(map[int]CategoryBudgetModel)
+	for _, budget := range categoryBudgets {
+		if !budget.ControlledAmount.IsZero() {
+			budgetMap[budget.CategoryID] = budget
+		}
+	}
+	categoryIDs := make([]int, 0, len(budgetMap))
+	for categoryID := range budgetMap {
+		categoryIDs = append(categoryIDs, categoryID)
+	}
+	sort.Ints(categoryIDs)
+
+	controllableCategories := []CategoryModel{}
+	controllableCategoryIDs := []int{}
 	needsPreviousGranularity := false
-	for _, b := range categoryBudgets {
-		if !b.ControlledAmount.IsZero() {
-			budgetMap[b.CategoryID] = b
-			if b.Granularity == nil {
+	if len(categoryIDs) > 0 {
+		categories, err := s.Repository.FetchCategoriesByIDs(ctx, fetchCategoriesByIDsParams{
+			CategoryIDs: categoryIDs, OrganizationID: input.OrganizationID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, category := range categories {
+			// Shared system expenses are valid; income budgets are not paced.
+			if category.CategoryType == "income" {
+				continue
+			}
+			controllableCategories = append(controllableCategories, category)
+			controllableCategoryIDs = append(controllableCategoryIDs, category.CategoryID)
+			if budgetMap[category.CategoryID].Granularity == nil {
 				needsPreviousGranularity = true
 			}
 		}
 	}
-
-	// Build controllable categories from those with non-zero controlled amounts
-	categoryMap := make(map[int]CategoryModel)
-	for _, cat := range categories {
-		categoryMap[cat.CategoryID] = cat
-	}
-
-	// Income categories (Receita) also carry controlled amounts but pacing is
-	// about expense control; previously they were only excluded by the accident
-	// of being system categories.
-	controllableCategories := []CategoryModel{}
-	for catID := range budgetMap {
-		if cat, ok := categoryMap[catID]; ok && cat.CategoryType != "income" {
-			controllableCategories = append(controllableCategories, cat)
-		}
-	}
+	sort.Ints(controllableCategoryIDs)
 
 	if len(controllableCategories) == 0 {
 		return &ControllableCategoryPacing{
@@ -130,6 +129,7 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 		OrganizationID: input.OrganizationID,
 		Month:          input.Month,
 		Year:           input.Year,
+		CategoryIDs:    controllableCategoryIDs,
 	})
 	if err != nil {
 		return nil, err
@@ -157,6 +157,7 @@ func (s *service) GetControllableCategoryPacing(ctx context.Context, input GetCo
 			OrganizationID: input.OrganizationID,
 			Month:          previousMonth,
 			Year:           previousYear,
+			CategoryIDs:    controllableCategoryIDs,
 		})
 		if err != nil {
 			return nil, err
